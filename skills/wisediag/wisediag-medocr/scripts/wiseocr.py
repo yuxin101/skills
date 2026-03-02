@@ -6,7 +6,7 @@ Usage:
     1. Set API key: export WISEDIAG_API_KEY=your_api_key
     2. Run: python3 wiseocr.py -i input.pdf [-n original_name]
 
-Get API key: https://console.wisediag.com/apiKeyManage
+Get API key: https://console.wisediag.com/apiKeyManage (or https://s.wisediag.com/xsu9x0jq)
 """
 
 import argparse
@@ -17,12 +17,16 @@ import threading
 from pathlib import Path
 
 import requests
+from pypdf import PdfReader
 
 
 DEFAULT_SERVICE_URL = "https://openapi.wisediag.com"
 DEFAULT_DPI = 200
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
+MAX_FILE_SIZE_MB = 50       # Server limit: single file ≤ 50 MB
+MAX_PAGES = 200             # Server limit: ≤ 200 pages
+REQUEST_TIMEOUT = 600       # Server limit: 10 minutes (504 on timeout)
 
 
 def get_api_key():
@@ -34,7 +38,7 @@ def get_api_key():
 
 To use this tool, you need a WiseOCR API key (from WiseDiag):
 
-1. Visit: https://console.wisediag.com/apiKeyManage
+1. Visit: https://s.wisediag.com/xsu9x0jq
 2. Sign up/Login and create an API key
 3. Set the environment variable:
    
@@ -86,13 +90,20 @@ def _upload_with_retry(endpoint, input_path, headers, params, max_retries=MAX_RE
                 files = {"file": (input_path.name, f, "application/pdf")}
                 resp = requests.post(
                     endpoint, files=files, params=params,
-                    headers=headers, timeout=600,
+                    headers=headers, timeout=REQUEST_TIMEOUT,
                 )
 
             # Auth error — no point retrying
             if resp.status_code == 401:
                 print(f"\n[!] Authentication failed. Please check your API key.")
-                print(f"    Get a valid key at: https://console.wisediag.com/apiKeyManage")
+                print(f"    Get a valid key at: https://s.wisediag.com/xsu9x0jq")
+                return None
+
+            # Server-side timeout (504) — file too large or complex
+            if resp.status_code == 504:
+                print(f"\n[!] Server processing timed out (504).")
+                print(f"    The PDF may be too large or complex for a single request.")
+                print(f"    Try splitting the PDF into smaller parts or lowering --dpi.")
                 return None
 
             # Success
@@ -110,7 +121,7 @@ def _upload_with_retry(endpoint, input_path, headers, params, max_retries=MAX_RE
                 return None
 
         except requests.Timeout:
-            last_error = "Request timed out (600s)"
+            last_error = f"Request timed out ({REQUEST_TIMEOUT}s)"
             if attempt < max_retries:
                 print(f"\n[!] Attempt {attempt}/{max_retries} timed out.")
                 print(f"    Retrying in {RETRY_DELAY}s ...")
@@ -157,7 +168,29 @@ def process_pdf(input_path, output_dir=None, dpi=DEFAULT_DPI, name=None):
     file_size = input_path.stat().st_size
     file_size_mb = file_size / (1024 * 1024)
 
-    print(f"[*] Processing: {input_path.name} ({file_size_mb:.1f} MB)")
+    # --- Client-side validation (matching server limits) ---
+
+    # 1. File size check: ≤ 50 MB
+    if file_size_mb > MAX_FILE_SIZE_MB:
+        print(f"[!] File too large: {file_size_mb:.1f} MB (limit: {MAX_FILE_SIZE_MB} MB)")
+        print(f"    Please split the PDF into smaller parts and try again.")
+        return None
+
+    # 2. Page count check: ≤ 200 pages
+    try:
+        reader = PdfReader(str(input_path))
+        page_count = len(reader.pages)
+    except Exception as e:
+        print(f"[!] Failed to read PDF: {e}")
+        print(f"    The file may be corrupted or not a valid PDF.")
+        return None
+
+    if page_count > MAX_PAGES:
+        print(f"[!] Too many pages: {page_count} (limit: {MAX_PAGES} pages)")
+        print(f"    Please split the PDF into smaller parts and try again.")
+        return None
+
+    print(f"[*] Processing: {input_path.name} ({file_size_mb:.1f} MB, {page_count} pages)")
     print(f"[*] DPI: {dpi}")
 
     endpoint = f"{DEFAULT_SERVICE_URL}/v1/ocr/pdf"
