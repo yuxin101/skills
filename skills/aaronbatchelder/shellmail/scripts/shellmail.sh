@@ -15,6 +15,9 @@ Commands:
   read <id>                 Read a specific email
   otp                       Get latest OTP code (--wait 30 to wait, --from domain)
   search                    Search emails (--query text, --from domain, --otp)
+  send <to>                 Send email (--subject, --body, --html)
+  reply <id>                Reply to email (--body, --html)
+  sent                      List sent emails
   mark-read <id>            Mark email as read
   mark-unread <id>          Mark email as unread
   archive <id>              Archive an email
@@ -40,16 +43,9 @@ auth_header() {
   echo "Authorization: Bearer $TOKEN"
 }
 
-# URL-encode a string for safe use in query parameters (no shell interpolation)
+# URL-encode a string for safe use in query parameters (python only, no fallback)
 urlencode() {
-  printf '%s' "$1" | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read(), safe=''))" 2>/dev/null || \
-  printf '%s' "$1" | od -An -tx1 | tr ' ' '\n' | grep . | while read hex; do printf "%%%s" "$hex"; done | sed 's/%0a$//; s/%2d/-/g; s/%2e/./g; s/%5f/_/g; s/%7e/~/g; s/%30/0/g; s/%31/1/g; s/%32/2/g; s/%33/3/g; s/%34/4/g; s/%35/5/g; s/%36/6/g; s/%37/7/g; s/%38/8/g; s/%39/9/g; s/%41/A/g; s/%42/B/g; s/%43/C/g; s/%44/D/g; s/%45/E/g; s/%46/F/g; s/%47/G/g; s/%48/H/g; s/%49/I/g; s/%4a/J/g; s/%4b/K/g; s/%4c/L/g; s/%4d/M/g; s/%4e/N/g; s/%4f/O/g; s/%50/P/g; s/%51/Q/g; s/%52/R/g; s/%53/S/g; s/%54/T/g; s/%55/U/g; s/%56/V/g; s/%57/W/g; s/%58/X/g; s/%59/Y/g; s/%5a/Z/g; s/%61/a/g; s/%62/b/g; s/%63/c/g; s/%64/d/g; s/%65/e/g; s/%66/f/g; s/%67/g/g; s/%68/h/g; s/%69/i/g; s/%6a/j/g; s/%6b/k/g; s/%6c/l/g; s/%6d/m/g; s/%6e/n/g; s/%6f/o/g; s/%70/p/g; s/%71/q/g; s/%72/r/g; s/%73/s/g; s/%74/t/g; s/%75/u/g; s/%76/v/g; s/%77/w/g; s/%78/x/g; s/%79/y/g; s/%7a/z/g'
-}
-
-# Escape a string for safe JSON embedding (via stdin to avoid interpolation)
-json_escape() {
-  printf '%s' "$1" | python3 -c "import sys, json; print(json.dumps(sys.stdin.read())[1:-1], end='')" 2>/dev/null || \
-  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g; s/\r/\\r/g' | tr -d '\n'
+  printf '%s' "$1" | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read(), safe=''))"
 }
 
 cmd="${1:-}"
@@ -167,6 +163,74 @@ case "$cmd" in
 
   delete-address)
     curl -sf -X DELETE "$API_URL/api/addresses/me" -H "$(auth_header)"
+    ;;
+
+  send)
+    [ -z "${1:-}" ] && { echo "Usage: shellmail send <to> --subject 'Subject' --body 'Body'" >&2; exit 1; }
+    TO="$1"; shift
+    SUBJECT=""
+    BODY=""
+    HTML=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --subject|-s) SUBJECT="$2"; shift 2 ;;
+        --body|-b) BODY="$2"; shift 2 ;;
+        --html) HTML="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    [ -z "$SUBJECT" ] && { echo "Error: --subject required" >&2; exit 1; }
+    [ -z "$BODY" ] && { echo "Error: --body required" >&2; exit 1; }
+    if command -v jq >/dev/null 2>&1; then
+      json=$(jq -n --arg to "$TO" --arg subject "$SUBJECT" --arg body "$BODY" --arg html "$HTML" \
+        '{to: $to, subject: $subject, body_text: $body} + (if $html != "" then {body_html: $html} else {} end)')
+    else
+      json=$(python3 -c "import sys, json; d={'to': sys.argv[1], 'subject': sys.argv[2], 'body_text': sys.argv[3]}; sys.argv[4] and d.update({'body_html': sys.argv[4]}); print(json.dumps(d))" "$TO" "$SUBJECT" "$BODY" "$HTML")
+    fi
+    printf '%s' "$json" | curl -sf -X POST "$API_URL/api/mail/send" \
+      -H "$(auth_header)" \
+      -H "Content-Type: application/json" \
+      -d @-
+    ;;
+
+  reply)
+    [ -z "${1:-}" ] && { echo "Usage: shellmail reply <email-id> --body 'Reply text'" >&2; exit 1; }
+    REPLY_ID="$1"; shift
+    BODY=""
+    HTML=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --body|-b) BODY="$2"; shift 2 ;;
+        --html) HTML="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    [ -z "$BODY" ] && { echo "Error: --body required" >&2; exit 1; }
+    # Fetch original email to get recipient and subject
+    ORIGINAL=$(curl -sf "$API_URL/api/mail/$(urlencode "$REPLY_ID")" -H "$(auth_header)")
+    TO=$(echo "$ORIGINAL" | python3 -c "import sys, json; print(json.loads(sys.stdin.read())['from_addr'])")
+    SUBJECT=$(echo "$ORIGINAL" | python3 -c "import sys, json; s=json.loads(sys.stdin.read())['subject']; print(s if s.startswith('Re:') else 'Re: '+s)")
+    if command -v jq >/dev/null 2>&1; then
+      json=$(jq -n --arg to "$TO" --arg subject "$SUBJECT" --arg body "$BODY" --arg html "$HTML" --arg reply "$REPLY_ID" \
+        '{to: $to, subject: $subject, body_text: $body, reply_to_id: $reply} + (if $html != "" then {body_html: $html} else {} end)')
+    else
+      json=$(python3 -c "import sys, json; d={'to': sys.argv[1], 'subject': sys.argv[2], 'body_text': sys.argv[3], 'reply_to_id': sys.argv[5]}; sys.argv[4] and d.update({'body_html': sys.argv[4]}); print(json.dumps(d))" "$TO" "$SUBJECT" "$BODY" "$HTML" "$REPLY_ID")
+    fi
+    printf '%s' "$json" | curl -sf -X POST "$API_URL/api/mail/send" \
+      -H "$(auth_header)" \
+      -H "Content-Type: application/json" \
+      -d @-
+    ;;
+
+  sent)
+    LIMIT="50"
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --limit) LIMIT="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    curl -sf "$API_URL/api/mail/sent?limit=${LIMIT}" -H "$(auth_header)"
     ;;
 
   health)
