@@ -154,7 +154,7 @@ Ships with 15 original compositions and 4 audio deconstructions:
 
 Render any of them:
 ```bash
-bash scripts/render-pattern.sh assets/compositions/fog-and-starlight.js output.wav 16 72
+node src/runtime/offline-render-v2.mjs assets/compositions/fog-and-starlight.js output.wav 16 72
 ```
 
 ## Sample Packs
@@ -240,7 +240,7 @@ The full audio deconstruction pipeline runs through six stages: Demucs stem sepa
 
 ## Testing
 
-The publish path is: private fork RC → cross-platform validation (x86_64 + ARM64) → public repo merge → ClaHub publish. Each stage gates the next. See **[docs/TESTING.md](docs/TESTING.md)** for the full test matrix, quality gates, and naive install procedure.
+The publish path is: private fork RC → cross-platform validation (x86_64 + ARM64) → public repo merge → ClawHub publish. Each stage gates the next. See **[docs/TESTING.md](docs/TESTING.md)** for the full test matrix, quality gates, and naive install procedure.
 
 ## Development
 
