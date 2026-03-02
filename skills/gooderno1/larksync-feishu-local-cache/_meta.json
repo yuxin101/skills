@@ -3,11 +3,16 @@
   "slug": "larksync-feishu-local-cache",
   "displayName": "LarkSync Feishu Local Cache",
   "latest": {
-    "version": "0.1.5",
-    "publishedAt": 1771906291531,
-    "commit": "https://github.com/openclaw/skills/commit/136feae944c8b31eeb50d567eb7503e06390aa7b"
+    "version": "0.1.6",
+    "publishedAt": 1772360501761,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.5",
+      "publishedAt": 1771906291531,
+      "commit": "https://github.com/openclaw/skills/commit/136feae944c8b31eeb50d567eb7503e06390aa7b"
+    },
     {
       "version": "0.1.4",
       "publishedAt": 1771872697704,
