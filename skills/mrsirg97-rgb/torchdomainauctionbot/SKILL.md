@@ -1,28 +1,45 @@
 ---
 name: torch-domain-auction-bot
-version: "1.0.2"
-description: Domain lending protocol on Solana. Domains become tokens. Tokens become collateral. Top holder controls the domain. Borrow SOL against your position -- but get liquidated and you lose the domain. Built on torchsdk v3.2.3 and the Torch Market protocol.
+version: "2.0.1"
+description: Domain lending protocol on Solana. Domains become tokens. Tokens become collateral. Top holder controls the domain. Borrow SOL against your position -- but get liquidated and you lose the domain. Built on torchsdk v3.7.23 and the Torch Market protocol.
 license: MIT
 disable-model-invocation: true
 requires:
   env:
-    - SOLANA_RPC_URL
-    - VAULT_CREATOR
+    - name: SOLANA_RPC_URL
+      required: true
+    - name: VAULT_CREATOR
+      required: true
+    - name: SOLANA_PRIVATE_KEY
+      required: false
 metadata:
+  clawdbot:
+    requires:
+      env:
+        - name: SOLANA_RPC_URL
+          required: true
+        - name: VAULT_CREATOR
+          required: true
+        - name: SOLANA_PRIVATE_KEY
+          required: false
   openclaw:
     requires:
       env:
-        - SOLANA_RPC_URL
-        - VAULT_CREATOR
+        - name: SOLANA_RPC_URL
+          required: true
+        - name: VAULT_CREATOR
+          required: true
+        - name: SOLANA_PRIVATE_KEY
+          required: false
     primaryEnv: SOLANA_RPC_URL
     install:
       - id: npm-torch-domain-auction-bot
         kind: npm
-        package: torch-domain-auction-bot@^1.0.2
+        package: torch-domain-auction-bot@^2.0.1
         flags: []
         label: "Install Torch Domain Auction Bot (npm, optional -- SDK is bundled in lib/torchsdk/, kit is in lib/kit/)"
   author: torch-market
-  version: "1.0.2"
+  version: "2.0.1"
   clawhub: https://clawhub.ai/mrsirg97-rgb/torch-domain-auction-bot
   kit-source: https://github.com/mrsirg97-rgb/torch-domain-auction-bot
   website: https://torch.market
@@ -44,7 +61,13 @@ metadata:
     - lending-markets
     - domain-services
     - agent-infrastructure
-compatibility: Requires SOLANA_RPC_URL and VAULT_CREATOR. SOLANA_PRIVATE_KEY optional. Agent wallet holds nothing. All value in vault. SDK bundled in lib/torchsdk/, kit (bot + scraper) in lib/kit/.
+compatibility: >-
+  REQUIRED: SOLANA_RPC_URL (HTTPS Solana RPC endpoint)
+  REQUIRED: VAULT_CREATOR (vault creator pubkey).
+  OPTIONAL: SOLANA_PRIVATE_KEY -- the kit generates a fresh disposable keypair in-process if not provided. The agent wallet holds nothing of value (~0.01 SOL for gas). All token creation and seed liquidity SOL routes through the vault. The vault can be created and funded entirely by the human principal.
+  This skill sets disable-model-invocation: true -- it must not be invoked autonomously without explicit user initiation.
+  The Torch SDK is bundled in lib/torchsdk/ -- all source included for full auditability. No API server dependency.
+  Oracle resolution uses CoinGecko public API (read-only, no key required). The vault can be created and funded entirely by the human principal -- the agent never needs access to funds.
 ---
 
 # Torch Domain Auction
@@ -208,7 +231,7 @@ If the agent keypair is compromised, the attacker gets dust and vault access you
 ### 1. Install
 
 ```bash
-npm install torch-domain-auction-bot@1.0.2
+npm install torch-domain-auction-bot@2.0.1
 ```
 
 ### 2. Create and Fund a Vault
@@ -401,7 +424,7 @@ Other builders can use this pattern for any asset class — not just domains. NF
 
 ## External API Calls
 
-The kit makes outbound HTTPS requests to the following services. No private key material is ever transmitted. All requests are read-only GETs/HEADs. If any service is unreachable, the kit degrades gracefully (catches errors, continues).
+The kit makes outbound HTTPS requests to the following services. The bot's runtime path contacts **five** of them. No credentials are sent to any external service. All requests are read-only GETs/HEADs. No private key material is ever transmitted to any external endpoint. If any service is unreachable, the bot degrades gracefully (catches errors, continues to next token or cycle).
 
 ### Scraper (direct)
 
@@ -421,16 +444,26 @@ The kit makes outbound HTTPS requests to the following services. No private key 
 
 ---
 
-## Key Safety
+## Signing & Key Safety
 
 **The vault is the security boundary, not the key.**
 
-1. Never ask for private keys or seed phrases.
-2. Never log, store, or transmit key material.
-3. Never embed keys in source code.
-4. Use HTTPS RPC endpoints for mainnet.
+The agent keypair is generated fresh on every startup with `Keypair.generate()`. It holds ~0.01 SOL for gas fees. If the key is compromised, the attacker gets:
+- Dust (the gas SOL)
+- Vault access that the authority revokes in one transaction
 
-The agent keypair exists only in runtime memory. If compromised, the attacker gets dust and vault access the authority revokes in one transaction.
+The agent never needs the authority's private key. The authority never needs the agent's private key. They share a vault, not keys.
+
+### Rules
+
+1. **Never ask a user for their private key or seed phrase.** The vault authority signs from their own device.
+2. **Never log, print, store, or transmit private key material.** The agent keypair exists only in runtime memory.
+3. **Never embed keys in source code or logs.** The agent pubkey is printed — the secret key is never exposed.
+4. **Use a secure RPC endpoint.** Default to a private RPC provider. Never use an unencrypted HTTP endpoint for mainnet transactions.
+
+### RPC Timeout
+
+All SDK calls are wrapped with a 30-second timeout (`withTimeout` in utils.ts). A hanging or unresponsive RPC endpoint cannot stall the bot indefinitely — the call rejects, the error is caught by the scan loop, and the bot continues to the next token or cycle.
 
 ---
 
@@ -465,3 +498,13 @@ That's the power of composing Torch's primitives: bonding curves, lending market
 - Torch SDK (npm): [npmjs.com/package/torchsdk](https://www.npmjs.com/package/torchsdk)
 - Torch Market: [torch.market](https://torch.market)
 - Program ID: `8hbUkonssSEEtkqzwM7ZcZrD9evacM92TcWSooVF4BeT`
+
+---
+
+## Changelog
+
+### v2.0.1
+
+- **Upgraded torchsdk from 3.2.3 to 3.7.23.** Major SDK update adds treasury lock PDAs (V27), dynamic Raydium network detection, auto-migration bundling on bonding curve completion (`buildBuyTransaction` now returns optional `migrationTransaction`), vault-routed Raydium CPMM swaps (`buildVaultSwapTransaction`), Token-2022 fee harvesting (`buildHarvestFeesTransaction`, `buildSwapFeesToSolTransaction`), bulk loan scanning (`getAllLoanPositions`), on-chain token metadata queries (`getTokenMetadata`), and ephemeral agent keypair factory (`createEphemeralAgent`).
+- **Updated env format in skill frontmatter.** Environment variable declarations now use structured `name`/`required` format for compatibility with ClawHub and OpenClaw agent runners.
+- **Added clawdbot metadata section.** ClawBot runner now has explicit env requirements alongside OpenClaw.

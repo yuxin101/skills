@@ -1,6 +1,6 @@
 # Torch Domain Auction Bot -- Design Document
 
-> Domains become tokens. Tokens become collateral. Top holder controls the domain. Version 1.0.2.
+> Domains become tokens. Tokens become collateral. Top holder controls the domain. Version 2.0.1.
 
 ## Overview
 
@@ -8,7 +8,7 @@ The Torch Domain Auction Bot is a single-package kit that implements a domain le
 
 The kit runs the keeper infrastructure: domain discovery (scraper), token launching, lending market scanning, risk scoring, vault-routed liquidation, and automatic lease rotation. Everything ships as one npm package (`torch-domain-auction-bot`).
 
-Built on `torchsdk@3.2.3`. Targets the Torch Market program (`8hbUkonssSEEtkqzwM7ZcZrD9evacM92TcWSooVF4BeT`).
+Built on `torchsdk@3.7.23`. Targets the Torch Market program (`8hbUkonssSEEtkqzwM7ZcZrD9evacM92TcWSooVF4BeT`).
 
 ---
 
@@ -81,7 +81,7 @@ The consequence of liquidation is not just financial -- you lose the domain. Thi
                                      │
                                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      torchsdk v3.2.3                               │
+│                      torchsdk v3.7.23                              │
 │                                                                    │
 │  Read queries: getTokens, getToken, getLendingInfo, getHolders,    │
 │                getLoanPosition, getVault, getVaultForWallet         │
@@ -306,7 +306,7 @@ All pinned to exact versions. No `^` or `~` ranges.
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `@solana/web3.js` | 1.98.4 | Solana RPC, keypair, transaction |
-| `torchsdk` | 3.2.3 | Torch Market SDK |
+| `torchsdk` | 3.7.23 | Torch Market SDK |
 | `@coral-xyz/anchor` | 0.32.1 | Anchor program interaction |
 | `@solana/spl-token` | 0.4.14 | Token-2022 operations |
 | `bs58` | 6.0.0 | Base58 encoding |
