@@ -1,7 +1,7 @@
 {
   "id": "memento",
   "name": "Memento",
-  "description": "Memento \u2014 Local persistent memory with temporal intelligence for OpenClaw agents.",
+  "description": "Memento — Local persistent memory with temporal intelligence for OpenClaw agents.",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -53,7 +53,7 @@
           "includeExistingFactsCount": {
             "type": "number",
             "minimum": 0,
-            "description": "Existing facts included for dedup"
+            "description": "(Deprecated) No longer used — dedup is now handled by Phase 2 embedding similarity"
           }
         }
       },
@@ -108,13 +108,13 @@
     },
     "dataDir": {
       "label": "Data Directory",
-      "help": "Directory for storing conversation data, relative to workspace (default: .engram \u2014 legacy path from when the project was called Engram)",
+      "help": "Directory for storing conversation data, relative to workspace (default: .engram)",
       "advanced": true,
       "placeholder": ".engram"
     },
     "extractionModel": {
       "label": "Extraction Model (Phase 2)",
-      "help": "LLM model for fact extraction \u2014 not used in Phase 1",
+      "help": "LLM model for fact extraction — not used in Phase 1",
       "advanced": true,
       "placeholder": "anthropic/claude-sonnet-4-6"
     },

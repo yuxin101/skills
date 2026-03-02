@@ -10,7 +10,7 @@
  *
  * Options:
  *   --db <path>     Path to the conversations.sqlite file
- *                    Default: ~/.engram/conversations.sqlite (legacy path from when the project was called Engram)
+ *                    Default: ~/.engram/conversations.sqlite
  *   --batch <size>  Number of facts to embed per batch (default: 50)
  *   --dry-run       Show what would be done without actually embedding
  *
@@ -39,8 +39,8 @@ const batchSize = parseInt(getArg("batch") ?? "50", 10);
 
 // Find the database
 const defaultDbPaths = [
-  join(homedir(), ".engram", "conversations.sqlite"),          // Legacy path from when the project was called Engram
-  join(homedir(), "greg", ".engram", "conversations.sqlite"),  // Legacy path from when the project was called Engram
+  join(homedir(), ".engram", "conversations.sqlite"),
+  
 ];
 const dbPath =
   getArg("db") ?? defaultDbPaths.find((p) => existsSync(p));

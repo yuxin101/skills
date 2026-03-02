@@ -9,12 +9,12 @@
 ## Features
 
 - **📥 Capture** — buffers every conversation turn per session, auto-flushes on pause or session end
-- **🧠 Extraction** — asynchronously extracts structured facts (preferences, decisions, people, etc.) using the configured LLM
+- **🧠 Extraction** — asynchronously extracts structured facts (preferences, decisions, people, etc.) using the configured LLM; **history-agnostic** — existing facts are NOT passed to the LLM (Phase 1)
 - **🔍 Recall** — injects relevant facts before each AI turn via FTS5 keyword search + optional semantic embedding search
 - **🔒 Privacy-first** — facts are classified by visibility (`shared` / `private` / `secret`); secret facts never leave your machine or cross agent boundaries
 - **🌐 Cross-agent KB** — shared facts from multiple agents are surfaced with provenance tags in recall
 - **📊 Temporal intelligence** — recency, frequency, and category weights govern recall ranking; `previous_value` shown when a fact has changed
-- **🔗 Knowledge graph** — typed weighted relations between facts (`related_to`, `elaborates`, `contradicts`, `supports`, `caused_by`, `part_of`, `precondition_of`) with 1-hop graph traversal during recall; causal edges (`caused_by`, `precondition_of`) get a **1.5× score boost** vs. 0.4× for associative edges
+- **🔗 Knowledge graph** — typed weighted relations between facts (`related_to`, `elaborates`, `contradicts`, `supports`, `caused_by`, `part_of`, `precondition_of`) with 1-hop graph traversal during recall; causal edges get a **1.5× score boost**; Phase 3 background sweep auto-builds relations from embedding similarity
 - **🔮 Query planning** — optional LLM pre-pass before retrieval expands queries with synonyms and identifies relevant categories/entities for higher precision recall
 - **📦 Multi-layer memory** — facts cluster into higher-level summaries; incremental consolidation after each extraction + periodic deep "sleep" passes with confidence decay
 
@@ -42,6 +42,7 @@
                 │                              (cluster assignment)            │
                 │                                                              │
   Deep Sleep    │   cron (3 AM) ──► deepConsolidate ──► decay + merge + refresh│
+  Phase 3       │   cron (3 AM) ──► relationSweep ──► embedding sim → typed edges   │
                 │                                                              │
   Recall        │   before_prompt_build ──► [planQuery?] ──► searchRelevantFacts│
                 │                           + 1-hop graph traversal ──► inject │
@@ -55,9 +56,9 @@
 | `src/index.ts` | Plugin entry point — registers hooks and services |
 | `src/capture/buffer.ts` | In-memory session buffer with auto-flush |
 | `src/capture/writer.ts` | Persists segments to SQLite + JSONL |
-| `src/extraction/extractor.ts` | LLM-based fact extraction (provider-agnostic: Anthropic, OpenAI, Mistral, Ollama) |
+| `src/extraction/extractor.ts` | **Phase 1**: LLM-based fact extraction — history-agnostic (no existing facts passed); prompt loaded from `prompts/extraction.md` at runtime |
 | `src/extraction/embedded-runner.ts` | OpenClaw model routing — delegates LLM calls to `runEmbeddedPiAgent` |
-| `src/extraction/deduplicator.ts` | Dedup / supersede / insert logic; stores `causal_weight` on relation edges |
+| `src/extraction/deduplicator.ts` | **Phase 2**: embedding-based dedup — cosine similarity classifies each extracted fact as duplicate (≥0.97), update (≥0.82), or new (<0.82); embeds new facts immediately |
 | `src/extraction/trigger.ts` | Async extraction scheduling with rate limiting |
 | `src/extraction/classifier.ts` | Visibility classification with hard overrides |
 | `src/recall/search.ts` | FTS5 + semantic search with multi-factor scoring; optional `planQuery` pre-pass; causal edge 1.5× boost |
@@ -67,7 +68,10 @@
 | `src/storage/schema.ts` | SQLite schema v7, migrations, row types |
 | `src/consolidation/consolidator.ts` | Incremental consolidation — assigns facts to clusters after extraction |
 | `src/consolidation/deep-consolidator.ts` | Deep "sleep" consolidation — decay, cluster merging, summary refresh |
+| `src/consolidation/relation-sweep.ts` | **Phase 3**: background relation linking — pairwise embedding similarity → typed graph edges; same-category ≥0.85 auto-linked; cross-category 0.72–0.88 → Haiku batch classification |
 | `src/cli/deep-consolidate.ts` | CLI entry point for deep consolidation (cron-compatible) |
+| `prompts/extraction.md` | LLM prompt for fact extraction — edit to tune quality without recompiling |
+| `prompts/relation-classify.md` | Haiku prompt for relation type classification (Phase 3) |
 | `src/config.ts` | Plugin configuration with defaults |
 | `src/types.ts` | Shared TypeScript types |
 
@@ -162,7 +166,7 @@ Add to your `openclaw.json` under `plugins.entries.memento.config`:
 | `extraction.autoExtract` | `false` | **Opt-in**: automatically extract facts after each segment — sends conversation text to the configured LLM provider |
 | `extraction.minTurnsForExtraction` | `3` | Skip very short segments |
 | `extraction.maxExtractionsPerMinute` | `10` | Rate limit for LLM calls |
-| `extraction.includeExistingFactsCount` | `50` | How many existing facts to include in the extraction prompt for dedup context |
+| `extraction.includeExistingFactsCount` | `50` | _(Deprecated — no longer used)_ Dedup is now handled by Phase 2 embedding similarity, not by the extraction LLM |
 | `recall.autoRecall` | `true` | Inject relevant facts before each AI turn |
 | `recall.maxFacts` | `20` | Maximum facts to inject per turn |
 | `recall.maxContextChars` | `4000` | Maximum characters for the injected context block |
@@ -241,6 +245,7 @@ npx tsx src/extraction/migrate.ts --agent main
 | Feature | Data location | Leaves your machine? |
 |---------|--------------|----------------------|
 | `autoCapture: true` | SQLite + JSONL on disk | ❌ Never |
+| Relation sweep (Phase 3) | Sends fact _summaries_ to Haiku for relation classification; **secret facts are never included** | ✅ Yes (unless using Ollama) |
 | `autoExtract: true` | Sends conversation segments to `extractionModel` | ✅ Yes (unless using Ollama) |
 | `autoRecall: true` | Reads from local SQLite | ❌ Never |
 | `autoQueryPlanning: true` | Sends the user's message to `extractionModel` for query expansion | ✅ Yes (unless using Ollama) |

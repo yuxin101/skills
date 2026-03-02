@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.6.0 — 2026-03-01
+
+### Added
+- **Phase 1 — History-agnostic extraction**: LLM no longer receives existing facts during extraction. Prompt loaded from `prompts/extraction.md` at runtime (editable without recompile). New durability filter: "would this still matter in 6 months?"
+- **Phase 2 — Embedding-based deduplication**: `deduplicator.ts` fully rewritten. Each extracted fact is compared against existing DB facts using cosine similarity (BGE-M3): ≥0.97 = duplicate (increment occurrence), ≥0.82 = update/supersede, <0.82 = new fact. LLM `duplicate_of`/`supersedes` hints no longer used.
+- **Immediate embedding**: New facts are embedded immediately after insertion (no async backfill needed going forward). `EmbeddingEngine` now passed through `ExtractionTrigger` → `deduplicator`.
+- **Phase 3 — Relation sweep** (`src/consolidation/relation-sweep.ts`): Background job that builds the knowledge graph from embedding similarity. Three tiers: same-category ≥0.85 auto-linked, cross-category ≥0.88 auto-linked, cross-category 0.72–0.88 → Haiku batch classification. Runs on-demand or can be scheduled nightly. Secret facts are never included.
+- **Relation classify prompt** (`prompts/relation-classify.md`): Haiku prompt for batch relation type classification (6 types: caused_by, precondition_of, part_of, related_to, contradicts, superseded_by) with rationale field for auditability.
+- **New DB helpers**: `ConversationDB.getAllRelations()` and `getDistinctAgentIds()`.
+- **Dedup sweep script** (`src/storage/dedup-sweep.ts`): One-shot pairwise similarity sweep for existing facts — flags pairs 0.88–0.97 for review, auto-merges ≥0.97.
+- **Backfill script** (`src/storage/backfill-embeddings.ts`): Populates embeddings for facts added before embedding support was introduced.
+
+### Changed
+- `extractFacts()` no longer passes existing facts to the LLM. `_existingFacts` parameter kept for API compatibility (prefixed `_`, unused).
+- `processExtractedFacts()` is now `async` — all call sites updated.
+- Batch/CLI tools (`migrate.ts`, `ingest.ts`, `process-raw-sessions.ts`) pass `null` for `embeddingEngine` (graceful fallback to new-fact insertion without embedding dedup).
+- `includeExistingFactsCount` config option is now deprecated (dedup moved to Phase 2 embeddings).
+
+### Fixed
+- Removed hardcoded personal path (`~/greg/.engram/`) from `backfill-embeddings.ts`.
+
+### Security
+- All Phase 3 relation sweep operations exclude `secret`-visibility facts — they are never sent to any LLM for classification.
+- No new env vars required for core plugin operation; `CLAUDE_CODE_OAUTH_TOKEN` is an OpenClaw internal token (auto-used when running inside OpenClaw, never required by users).
+
 ## v0.5.1 — 2026-02-28
 
 ### Added

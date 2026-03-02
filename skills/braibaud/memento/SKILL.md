@@ -2,7 +2,7 @@
 name: memento
 description: Local persistent memory for OpenClaw agents. Captures conversations, extracts structured facts via LLM, and auto-recalls relevant knowledge before each turn. Privacy-first, all stored data stays local in SQLite.
 metadata:
-  version: "0.5.2"
+  version: "0.6.0"
   author: braibaud
   license: MIT
   repository: https://github.com/braibaud/Memento
@@ -20,6 +20,8 @@ metadata:
           when: "Using mistral/* models for extraction"
         - name: MEMENTO_API_KEY
           when: "Generic fallback for any provider"
+        - name: CLAUDE_CODE_OAUTH_TOKEN
+          when: "OpenClaw OAuth token for model routing (auto-used when running inside OpenClaw)"
         - name: MEMENTO_WORKSPACE_MAIN
           when: "Migration only: path to agent workspace for bootstrapping"
         - name: MEMENTO_AGENT_PATHS
@@ -131,8 +133,6 @@ Memento stores all data locally:
 | `~/.engram/conversations.sqlite` | Main database: conversations, facts, embeddings |
 | `~/.engram/segments/*.jsonl` | Human-readable conversation backups |
 | `~/.engram/migration-config.json` | Optional: migration workspace paths (only for bootstrapping) |
-
-The `~/.engram` directory name is a legacy from when the project was called Engram. It will not change to avoid breaking existing installations.
 
 ## Privacy & Data Flow
 

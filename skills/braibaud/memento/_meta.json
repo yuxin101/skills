@@ -3,11 +3,16 @@
   "slug": "memento",
   "displayName": "Memento",
   "latest": {
-    "version": "0.5.2",
-    "publishedAt": 1772301327118,
-    "commit": "https://github.com/openclaw/skills/commit/ec1b38133a3f5eb96a47c06ca35fdcc848ad73e7"
+    "version": "0.6.0",
+    "publishedAt": 1772385497294,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.5.2",
+      "publishedAt": 1772301327118,
+      "commit": "https://github.com/openclaw/skills/commit/ec1b38133a3f5eb96a47c06ca35fdcc848ad73e7"
+    },
     {
       "version": "0.5.0",
       "publishedAt": 1772291048045,

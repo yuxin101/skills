@@ -26,6 +26,9 @@
  * All API calls are best-effort: errors are returned, never thrown.
  */
 
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { classifyVisibility } from "./classifier.js";
 import { runViaOpenClaw } from "./embedded-runner.js";
 import type { OpenClawConfig } from "./embedded-runner.js";
@@ -69,47 +72,28 @@ export type ExtractionResult = {
 };
 
 // ---------------------------------------------------------------------------
-// Extraction prompt (unchanged — it works well)
+// Extraction prompt — loaded from prompts/extraction.md at runtime
+// Edit that file to tune extraction quality without recompiling.
 // ---------------------------------------------------------------------------
 
-const EXTRACTION_PROMPT = `You are a memory extraction system. Analyze this conversation segment and extract structured facts that are worth remembering long-term.
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
-For each fact, provide:
-- category: one of [preference, decision, person, action_item, correction, technical, routine, emotional]
-- content: the full fact description (be specific and detailed)
-- summary: one-line summary (max 100 chars)
-- visibility: one of [private, shared, secret]
-  - shared: user preferences, family info, general knowledge about the user (default)
-  - private: agent-specific operational details, instructions for this agent only
-  - secret: credentials, medical info, financial details
-- confidence: 0.0-1.0 how certain this is a real, meaningful fact
-- sentiment: one of [neutral, frustration, confirmation, correction, update]
+function loadExtractionPrompt(): string {
+  const promptPath = join(__dirname, '..', '..', 'prompts', 'extraction.md')
+  try {
+    const raw = readFileSync(promptPath, 'utf-8')
+    // Extract the content between "## Prompt" and the trailing "## Conversation" section
+    const match = raw.match(/## Prompt\n\n([\s\S]+?)\n---\n\n## Conversation/m)
+    if (match) return match[1].trim() + '\n\nCONVERSATION:\n{{conversation}}'
+    return raw
+  } catch {
+    throw new Error(`Extraction prompt not found at ${promptPath}`)
+  }
+}
 
-EXISTING FACTS (check for duplicates and updates):
-{{existing_facts}}
+const EXTRACTION_PROMPT = loadExtractionPrompt()
 
-CONVERSATION:
-{{conversation}}
-
-Rules:
-1. If a fact UPDATES an existing fact, set supersedes=<existing_fact_id> in your output and describe what changed in content
-2. If a fact is a DUPLICATE of an existing fact, set duplicate_of=<existing_fact_id> and increment_occurrence=true
-3. Extract DECISIONS and AGREEMENTS explicitly — these are high priority
-4. Note recurring topics — if something was discussed before, flag it with duplicate_of
-5. Do NOT extract trivial exchanges ("hi", "thanks", "ok", greetings, filler)
-6. Minimum confidence 0.6 — skip uncertain inferences
-7. For preferences, be specific: "report format: emoji headers, detailed breakdown with costs"
-8. For people, capture relationships: "Alice is the user's best friend; partner is Carol"
-9. For action_items, include who is responsible and the deadline if mentioned
-10. For each extracted fact, identify RELATIONS to existing facts listed above. For each relation, add a "relations" array to the fact with objects containing:
-    - target_id: the ID of the related existing fact
-    - relation_type: one of [related_to, elaborates, contradicts, supports, caused_by, part_of, precondition_of]
-    - strength: 0.0-1.0 how strong the connection is (default 0.8)
-    CAUSAL RELATIONS: When the relationship is causal, PREFER caused_by (this fact was caused by target) or precondition_of (this fact is a precondition for target) over generic relation types. Use causal types whenever there is a clear cause-and-effect or prerequisite relationship.
-    Only include relations where there is a genuine semantic connection. Do NOT force relations where none exist.
-
-Return a JSON array of fact objects. If there are no meaningful facts to extract, return an empty array [].
-Respond with ONLY the JSON array, no markdown, no explanation.`;
 
 // ---------------------------------------------------------------------------
 // Token budget helpers
@@ -325,13 +309,13 @@ async function callOllama(
  * Call the configured LLM provider to extract facts from a conversation segment.
  *
  * @param conversation   - The captured conversation row
- * @param existingFacts  - Active facts for the agent (dedup context)
+ * @param existingFacts  - Active facts for the agent (kept for API compatibility; Phase 2 dedup uses embeddings)
  * @param model          - Full model string, e.g. "anthropic/claude-sonnet-4-6"
  * @param logger
  */
 export async function extractFacts(
   conversation: ConversationRow,
-  existingFacts: FactRow[],
+  _existingFacts: FactRow[], // Phase 2: dedup now handled by embedding similarity, not LLM
   model: string,
   logger: PluginLogger,
   openClawConfig?: OpenClawConfig,
@@ -343,63 +327,12 @@ export async function extractFacts(
   const PROMPT_TEMPLATE_TOKENS = estimateTokens(EXTRACTION_PROMPT);
   const availableTokens = MODEL_CONTEXT_TOKENS - RESPONSE_HEADROOM_TOKENS - PROMPT_TEMPLATE_TOKENS;
 
-  // SECURITY: Filter out secret-visibility facts from the dedup context.
-  // Secret facts (credentials, medical info, financial details) must NEVER be sent
-  // to external LLM providers. They are excluded from:
-  //   1. Extraction context (here) — never included in prompts to the LLM
-  //   2. Cross-agent recall — never shared between agents (search.ts)
-  //   3. Graph traversal — edges touching secret nodes are filtered (search.ts)
-  // Only "shared" and "private" facts are included in the dedup context below.
-  const nonSecretFacts = existingFacts.filter((f) => f.visibility !== "secret");
-
-  // Build the existing facts context for dedup (budget: up to 20% of available tokens)
-  const factsTokenBudget = Math.floor(availableTokens * 0.2);
-  let factsForContext = nonSecretFacts;
-  let existingFactsJson =
-    factsForContext.length > 0
-      ? JSON.stringify(
-          factsForContext.map((f) => ({
-            id: f.id,
-            category: f.category,
-            content: f.content,
-            summary: f.summary,
-          })),
-          null,
-          2,
-        )
-      : "(none yet — this is the first extraction for this agent)";
-
-  // Reduce facts count if their JSON exceeds the token budget
-  if (estimateTokens(existingFactsJson) > factsTokenBudget) {
-    // Binary search: find how many facts fit
-    let lo = 0;
-    let hi = factsForContext.length;
-    while (lo < hi - 1) {
-      const mid = Math.floor((lo + hi) / 2);
-      const sample = JSON.stringify(
-        factsForContext.slice(0, mid).map((f) => ({ id: f.id, category: f.category, content: f.content, summary: f.summary })),
-        null, 2,
-      );
-      if (estimateTokens(sample) <= factsTokenBudget) lo = mid;
-      else hi = mid;
-    }
-    factsForContext = factsForContext.slice(0, lo);
-    existingFactsJson = lo > 0
-      ? JSON.stringify(
-          factsForContext.map((f) => ({ id: f.id, category: f.category, content: f.content, summary: f.summary })),
-          null, 2,
-        ) + `\n[... ${nonSecretFacts.length - lo} more facts omitted for token budget ...]`
-      : "(none yet — this is the first extraction for this agent)";
-  }
-
-  // Budget the conversation text (remaining tokens after facts)
-  const convTokenBudget = availableTokens - Math.floor(availableTokens * 0.2);
-  const conversationText = truncateToTokenBudget(conversation.raw_text, convTokenBudget);
-
-  const prompt = EXTRACTION_PROMPT.replace(
-    "{{existing_facts}}",
-    existingFactsJson,
-  ).replace("{{conversation}}", conversationText);
+  // Phase 1: history-agnostic extraction.
+  // Existing facts are NO LONGER passed to the LLM.
+  // Dedup/superseding is handled by Phase 2 (embedding similarity) in deduplicator.ts.
+  // This reduces token cost, removes history-quality dependency, and improves extraction focus.
+  const conversationText = truncateToTokenBudget(conversation.raw_text, availableTokens);
+  const prompt = EXTRACTION_PROMPT.replace("{{conversation}}", conversationText);
 
   // ── Dispatch: try OpenClaw model routing first, fall back to direct API ──
   let responseText: string;

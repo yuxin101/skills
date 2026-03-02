@@ -249,11 +249,12 @@ async function ingestStagingFiles(options: {
       const syntheticConvId = `side-learning:${projectLabel}:${source.exportedAt ?? Date.now()}`;
 
       // Run through the dedup pipeline
-      const deduped: DeduplicationResult = processExtractedFacts(
+      const deduped: DeduplicationResult = await processExtractedFacts(
         extractedFacts,
         syntheticConvId,
         staging.agentId,
         db,
+        null, // embeddingEngine — not available in side-learning ingest
         logger,
       );
 

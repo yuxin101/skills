@@ -320,11 +320,12 @@ async function main(): Promise<void> {
     }
 
     // Save extracted facts via deduplicator
-    const dedup = processExtractedFacts(
+    const dedup = await processExtractedFacts(
       extractionResult.facts,
       conversationId,
       agentId,
       db,
+      null, // embeddingEngine — not available in CLI mode
       logger,
     );
 

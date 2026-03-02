@@ -55,6 +55,12 @@ const mementoPlugin = {
 
     const writer = new SegmentWriter(dataDir, api.logger);
 
+    // ── Embedding engine (lazy-loaded on first recall) ─────────────────────
+    const embeddingEngine = new EmbeddingEngine(
+      cfg.embeddingModel,
+      api.logger,
+    );
+
     // ── Phase 2: extraction trigger ─────────────────────────────────────────
     // Created unconditionally (the trigger checks cfg.extraction.autoExtract).
     // Shares the same DB connection as the writer to avoid opening a second handle.
@@ -67,6 +73,7 @@ const mementoPlugin = {
         cfg.extractionModel,
         api.logger,
         api.config,  // Pass OpenClaw config for model routing
+        embeddingEngine, // Phase 2: embedding-based dedup
       );
 
       api.logger.info(
@@ -170,12 +177,6 @@ const mementoPlugin = {
         );
       }
     });
-
-    // ── Embedding engine (lazy-loaded on first recall) ─────────────────────
-    const embeddingEngine = new EmbeddingEngine(
-      cfg.embeddingModel,
-      api.logger,
-    );
 
     // -----------------------------------------------------------------------
     // Hook: before_prompt_build — Phase 3: Auto-Recall + Semantic Search

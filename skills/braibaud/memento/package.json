@@ -1,7 +1,7 @@
 {
   "name": "@openclaw/memento",
-  "version": "0.5.2",
-  "description": "Memento \u2014 Local persistent memory for OpenClaw agents. Privacy-first, no cloud, no subscriptions.",
+  "version": "0.6.0",
+  "description": "Memento — Local persistent memory for OpenClaw agents. Privacy-first, no cloud, no subscriptions.",
   "type": "module",
   "openclaw": {
     "extensions": [

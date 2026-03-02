@@ -59,7 +59,7 @@ export class SegmentWriter {
   private _db: ConversationDB | null = null;
 
   constructor(
-    /** Resolved absolute path to the data directory (e.g. /workspace/.engram — legacy path from when the project was called Engram) */
+    /** Resolved absolute path to the data directory (e.g. /home/user/.engram/) */
     private readonly dataDir: string,
     private readonly logger: PluginLogger,
   ) {}

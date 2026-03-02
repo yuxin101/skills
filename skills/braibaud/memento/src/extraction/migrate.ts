@@ -43,7 +43,7 @@ const FILE_CHUNK_THRESHOLD_BYTES = 50 * 1024; // 50 KB: split files larger than 
 const CHUNK_SIZE_BYTES = 30 * 1024;            // 30 KB per chunk
 const EXTRACTION_DELAY_MS = 2_000;             // 2 s between API calls
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
-const DEFAULT_DB_PATH = join(homedir(), ".engram", "conversations.sqlite"); // Legacy path from when the project was called Engram
+const DEFAULT_DB_PATH = join(homedir(), ".engram", "conversations.sqlite");
 const EXISTING_FACTS_LIMIT = 50;
 
 // ---------------------------------------------------------------------------
@@ -59,7 +59,6 @@ interface AgentConfig {
 
 /**
  * Load agent configs from ~/.engram/migration-config.json if it exists,
- * (Legacy path from when the project was called Engram.)
  * otherwise fall back to env vars, otherwise return an empty list and ask
  * the user to configure.
  *
@@ -75,7 +74,7 @@ function loadAgentConfigs(): AgentConfig[] {
   const home = homedir();
 
   // 1. External config file (preferred — nothing leaks into source)
-  const configPath = join(home, ".engram", "migration-config.json"); // Legacy path from when the project was called Engram
+  const configPath = join(home, ".engram", "migration-config.json");
   if (existsSync(configPath)) {
     try {
       const raw = JSON.parse(readFileSync(configPath, "utf8"));
@@ -155,7 +154,7 @@ function parseArgs(): CliOptions {
 
   if (defaultAgents.length === 0) {
     console.error(
-      "\nNo agent configuration found. Please create ~/.engram/migration-config.json (legacy path from when the project was called Engram):\n" +
+      "\nNo agent configuration found. Please create ~/.engram/migration-config.json:\n" +
       JSON.stringify({
         agents: [
           { agentId: "main", workspace: join(homedir(), "your-workspace"), paths: ["MEMORY.md", "memory/*.md"] },
@@ -423,11 +422,12 @@ async function processFile(
         error: null,
       });
     } else {
-      const dedup = processExtractedFacts(
+      const dedup = await processExtractedFacts(
         extractionResult.facts,
         conversationId,
         agentId,
         db,
+        null, // embeddingEngine — not available in batch migration
         logger,
       );
       totalExtracted += dedup.factsExtracted;

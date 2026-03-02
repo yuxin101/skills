@@ -22,6 +22,7 @@ import type { PluginLogger } from "../types.js";
 import { extractFacts } from "./extractor.js";
 import type { OpenClawConfig } from "./embedded-runner.js";
 import { processExtractedFacts } from "./deduplicator.js";
+import { EmbeddingEngine } from "../storage/embeddings.js";
 import { incrementalConsolidate } from "../consolidation/consolidator.js";
 
 export class ExtractionTrigger {
@@ -38,6 +39,8 @@ export class ExtractionTrigger {
     private readonly logger: PluginLogger,
     /** OpenClaw config passed from plugin api — enables model routing */
     private readonly openClawConfig?: OpenClawConfig,
+    /** Embedding engine for Phase 2 dedup — passed if available */
+    private readonly embeddingEngine: EmbeddingEngine | null = null,
   ) {}
 
   /**
@@ -89,15 +92,10 @@ export class ExtractionTrigger {
 
     try {
       // Fetch existing active facts for dedup context
-      const existingFacts = this.db.getRelevantFacts(
-        conversation.agent_id,
-        this.cfg.includeExistingFactsCount,
-      );
-
       // Call the LLM
       const extractionResult = await extractFacts(
         conversation,
-        existingFacts,
+        [],  // Phase 1: history-agnostic — no existing facts passed to LLM
         this.extractionModel,
         this.logger,
         this.openClawConfig,
@@ -132,11 +130,12 @@ export class ExtractionTrigger {
       }
 
       // Deduplicate and persist
-      const dedup = processExtractedFacts(
+      const dedup = await processExtractedFacts(
         extractionResult.facts,
         conversation.id,
         conversation.agent_id,
         this.db,
+        this.embeddingEngine,
         this.logger,
       );
 

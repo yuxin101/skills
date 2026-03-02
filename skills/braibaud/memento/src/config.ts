@@ -63,7 +63,7 @@ export type PluginConfig = {
   maxBufferTurns: number;
   /** Whether to automatically capture all conversation messages. Default: true */
   autoCapture: boolean;
-  /** Directory for storing data, relative to workspace. Default: .engram (legacy path from when the project was called Engram) */
+  /** Directory for storing data, relative to workspace. Default: .engram */
   dataDir: string;
   /**
    * LLM model for fact extraction. Default: "anthropic/claude-sonnet-4-6"
@@ -97,7 +97,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
   pauseTimeoutMs: 300_000,
   maxBufferTurns: 50,
   autoCapture: true,
-  dataDir: ".engram", // Legacy path from when the project was called Engram — existing user data lives here
+  dataDir: ".engram", // Default data directory; existing deployments use this path.
   extractionModel: "anthropic/claude-sonnet-4-6",
   embeddingModel: "hf:BAAI/bge-m3-gguf",
   agentDisplay: {}, // populated via plugin config: { "main": "Main Agent", "medbot": "Medical Bot" }

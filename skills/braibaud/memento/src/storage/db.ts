@@ -1161,6 +1161,28 @@ export class ConversationDB {
       .all(limit) as FactRow[];
   }
 
+
+  /**
+   * Get all active fact relations (for dedup in relation-sweep).
+   */
+  getAllRelations(): { source_id: string; target_id: string }[] {
+    const db = this.ensureInit();
+    return db
+      .prepare("SELECT source_id, target_id FROM fact_relations")
+      .all() as { source_id: string; target_id: string }[];
+  }
+
+  /**
+   * Get all distinct agent IDs that have active facts.
+   */
+  getDistinctAgentIds(): string[] {
+    const db = this.ensureInit();
+    const rows = db
+      .prepare("SELECT DISTINCT agent_id FROM facts WHERE is_active = 1")
+      .all() as { agent_id: string }[];
+    return rows.map(r => r.agent_id);
+  }
+
   // =========================================================================
   // Lifecycle
   // =========================================================================
