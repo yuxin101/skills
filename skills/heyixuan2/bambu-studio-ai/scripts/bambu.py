@@ -33,7 +33,7 @@ if os.path.exists(_secrets_path):
 
 # Config.json values as fallbacks for env vars
 if not MODE:
-    MODE = _config.get("mode", "cloud").lower()
+    MODE = _config.get("mode", "local").lower()
 for _k, _e in [("printer_ip", "BAMBU_IP"), ("serial", "BAMBU_SERIAL"),
                ("access_code", "BAMBU_ACCESS_CODE"), ("email", "BAMBU_EMAIL"),
                ("password", "BAMBU_PASSWORD"), ("device_id", "BAMBU_DEVICE_ID")]:
@@ -181,8 +181,8 @@ class CloudBackend:
         self.client._request("POST", f"/v1/devices/{self.device_id}/commands",
                            json={"print": {"command": "print_speed", "param": str(level)}})
 
-    def start_print(self, filename):
-        self.client.start_cloud_print(self.device_id, filename)
+    def start_print(self, filename, plate_number=1):
+        self.client.start_cloud_print(self.device_id, filename, plate_number=plate_number)
 
     def disconnect(self):
         pass
@@ -241,7 +241,12 @@ class LocalBackend:
 
     def get_ams(self):
         try:
-            return self.printer.get_ams()
+            if hasattr(self.printer, 'get_ams'):
+                return self.printer.get_ams()
+            elif hasattr(self.printer, 'ams_hub'):
+                return self.printer.ams_hub
+            else:
+                return None
         except:
             return None
 
@@ -261,19 +266,62 @@ class LocalBackend:
             self.printer.turn_light_off()
 
     def set_speed(self, level):
-        self.printer.set_speed_level(level)
+        if hasattr(self.printer, 'set_print_speed'):
+            self.printer.set_print_speed(level)
+        elif hasattr(self.printer, 'set_speed_level'):
+            self.printer.set_speed_level(level)
+        else:
+            print("⚠️ Speed control not supported by this bambulabs-api version")
 
-    def start_print(self, filename):
-        self.printer.start_print(filename)
+    def start_print(self, filename, plate_number=1):
+        self.printer.start_print(filename, plate_number=plate_number)
 
     def disconnect(self):
         self.printer.disconnect()
+
+
+# ─── Notifications ───
+
+def notify(title, message, channel="auto"):
+    """Send notification via the user's current channel.
+    
+    channel: auto (detect), discord, imessage, telegram, console
+    In agent context, the agent handles notifications via its messaging tools.
+    This is a fallback for standalone script usage.
+    """
+    print(f"🔔 {title}: {message}")
+    
+    # Try macOS notification
+    try:
+        import subprocess
+        subprocess.run([
+            "osascript", "-e",
+            f'display notification "{message}" with title "Bambu Studio AI" subtitle "{title}"'
+        ], timeout=5, capture_output=True)
+    except:
+        pass
+    
+    # Log to file for agent pickup
+    _skill_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_path = os.path.join(_skill_dir, "output", "notifications.jsonl")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    import json as _nj, time as _nt
+    entry = {"timestamp": _nt.time(), "title": title, "message": message, "channel": channel}
+    with open(log_path, "a") as f:
+        f.write(_nj.dumps(entry) + "\n")
 
 
 # ─── Unified Commands ────────────────────────────────────────────────
 
 def get_backend():
     if MODE == "cloud":
+        email = os.environ.get("BAMBU_EMAIL") or _config.get("email")
+        password = os.environ.get("BAMBU_PASSWORD") or _config.get("password")
+        if not email or not password:
+            print("❌ Cloud mode requires BAMBU_EMAIL and BAMBU_PASSWORD.")
+            print("   Set in config.json or environment variables.")
+            print("   Or switch to LAN mode: set mode=local in config.json")
+            raise SystemExit(1)
         return CloudBackend()
     else:
         return LocalBackend()
@@ -387,7 +435,7 @@ def cmd_speed(mode):
 
 def cmd_print(filename):
     b = get_backend()
-    try: b.start_print(filename); print(f"✅ Started printing: {filename}")
+    try: b.start_print(filename, plate_number=1); print(f"✅ Started printing: {filename}")
     except Exception as e: print(f"❌ Error: {e}")
     finally: b.disconnect()
 

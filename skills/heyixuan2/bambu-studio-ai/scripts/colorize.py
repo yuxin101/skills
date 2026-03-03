@@ -222,7 +222,29 @@ else:
     print(f"   Delight applied to {len(delit)} pixels (vectorized)")
 
     # ─── Step 2: CIELAB K-means clustering — vectorized ───
-    print(f"\n🎯 Step 2: K-means clustering ({args.clusters} clusters in CIELAB)")
+    # For large palettes (>20 filament colors), direct nearest-neighbor is more accurate
+    if n_colors > 20:
+        print(f"\n🎯 Step 2: Direct nearest-neighbor mapping ({n_colors} filament colors)")
+        filament_lab_np = np.array(filament_lab)
+        # Vectorized: compute distance from each pixel to each filament
+        # Process in chunks to avoid memory explosion
+        chunk_size = 100000
+        quantized = np.zeros(len(pixel_lab), dtype=np.int32)
+        for start in range(0, len(pixel_lab), chunk_size):
+            end = min(start + chunk_size, len(pixel_lab))
+            chunk = pixel_lab[start:end]
+            # Broadcast: (chunk, 1, 3) - (1, n_colors, 3)
+            dists = np.sqrt(np.sum((chunk[:, None, :] - filament_lab_np[None, :, :]) ** 2, axis=2))
+            quantized[start:end] = np.argmin(dists, axis=1)
+        # Print distribution
+        for i in range(n_colors):
+            count = np.sum(quantized == i)
+            pct = count / len(quantized) * 100
+            if count > 0:
+                r, g, b = filament_colors[i]
+                print(f"Filament {i+1}: {count} pixels ({pct:.1f}%) — #{int(r*255):02X}{int(g*255):02X}{int(b*255):02X}")
+    else:
+        print(f"\n🎯 Step 2: K-means clustering ({args.clusters} clusters in CIELAB)")
 
     # Batch RGB→Lab conversion (vectorized)
     def batch_rgb_to_lab(rgb):
@@ -248,7 +270,11 @@ else:
     pixel_lab = batch_rgb_to_lab(delit)
 
     # Vectorized K-means
-    n_clusters = min(args.clusters, len(np.unique(delit.round(2), axis=0)))
+    # Auto-adjust: clusters should be at least 2x filament colors for accurate mapping
+    auto_clusters = max(args.clusters, n_colors * 3)
+    n_clusters = min(auto_clusters, len(np.unique(delit.round(2), axis=0)))
+    if n_clusters != args.clusters:
+        print(f"   Auto-adjusted clusters: {args.clusters} → {n_clusters} (need ≥{n_colors*3} for {n_colors} filaments)")
     rng = np.random.RandomState(42)
     idx = rng.choice(len(pixel_lab), size=n_clusters, replace=False)
     centroids = pixel_lab[idx].copy()
@@ -443,6 +469,14 @@ else:
                         merged += 1
             print(f"   {merged} faces merged from small islands")
 
+# ─── Convert to mm (glTF/GLB uses meters) ───
+bbox_pre = [obj.matrix_world @ v.co for v in obj.data.vertices]
+max_dim_pre = max(max(abs(v.x) for v in bbox_pre), max(abs(v.y) for v in bbox_pre), max(abs(v.z) for v in bbox_pre))
+if max_dim_pre < 10:  # Still in meters
+    obj.scale *= 1000
+    bpy.ops.object.transform_apply(scale=True)
+    print(f"📐 Converted to mm for Bambu Studio")
+
 # ─── Export ───
 bpy.ops.wm.obj_export(
     filepath=args.output,
@@ -451,6 +485,41 @@ bpy.ops.wm.obj_export(
     export_normals=True,
     export_uv=True
 )
+
+# Fix MTL: Blender doesn't write correct Kd colors from diffuse_color
+mtl_path = args.output.rsplit(".", 1)[0] + ".mtl"
+if os.path.exists(mtl_path):
+    mtl_lines = []
+    mtl_lines.append("# Multi-color MTL for Bambu Lab AMS\n")
+    for i in range(n_colors):
+        mat_name = f"Color_{i+1:02d}"
+        r, g, b = filament_colors[i]
+        mtl_lines.append(f"newmtl {mat_name}\n")
+        mtl_lines.append(f"Kd {r:.6f} {g:.6f} {b:.6f}\n")
+        mtl_lines.append(f"Ka 0.000000 0.000000 0.000000\n")
+        mtl_lines.append(f"Ks 0.000000 0.000000 0.000000\n")
+        mtl_lines.append(f"Ns 0.000000\n")
+        mtl_lines.append(f"d 1.000000\n")
+        mtl_lines.append(f"illum 1\n")
+        mtl_lines.append(f"\n")
+    with open(mtl_path, "w") as f:
+        f.writelines(mtl_lines)
+    print(f"\n📝 MTL rewritten with correct filament colors")
+
+# Ensure OBJ mtllib references the correct MTL filename (basename only)
+mtl_basename = os.path.basename(mtl_path)
+with open(args.output, "r") as f:
+    obj_head = f.read(4096)
+if "mtllib " in obj_head:
+    import re
+    old_ref = re.search(r"mtllib (.+)", obj_head).group(1).strip()
+    if old_ref != mtl_basename:
+        with open(args.output, "r") as f:
+            obj_content = f.read()
+        obj_content = obj_content.replace(f"mtllib {old_ref}", f"mtllib {mtl_basename}", 1)
+        with open(args.output, "w") as f:
+            f.write(obj_content)
+        print(f"📝 Fixed mtllib reference: {old_ref} → {mtl_basename}")
 
 mat_counts = defaultdict(int)
 for poly in obj.data.polygons:
@@ -473,6 +542,25 @@ def find_blender():
         if result.returncode == 0:
             return result.stdout.strip()
     return None
+
+
+# ─── Bambu Lab Official Filament Colors ───
+import json as _json
+
+def _load_bambu_palette():
+    """Load Bambu Lab official filament colors as fallback palette."""
+    ref_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "references", "bambu_filament_colors.json")
+    if not os.path.exists(ref_path):
+        return None
+    with open(ref_path) as f:
+        data = _json.load(f)
+    # Flatten all colors into a unique set
+    colors = {}
+    for series, palette in data.get("filaments", {}).items():
+        for name, hex_code in palette.items():
+            if hex_code not in colors.values():
+                colors[f"{name} ({series})"] = hex_code
+    return colors
 
 
 def _validate_colors(colors_str):
@@ -574,7 +662,8 @@ def main():
     )
     parser.add_argument("input", help="Input model (GLB/GLTF/OBJ/FBX/STL)")
     parser.add_argument("--output", "-o", help="Output OBJ path")
-    parser.add_argument("--colors", "-c", required=True, help="AMS filament hex colors, comma-separated")
+    parser.add_argument("--colors", "-c", required=False, help="AMS filament hex colors, comma-separated. Omit to use --palette bambu.")
+    parser.add_argument("--palette", choices=["bambu", "custom"], default="bambu", help="Use Bambu Lab official palette")
     parser.add_argument("--height", type=float, default=0, help="Target height mm (0=keep)")
     parser.add_argument("--subdivide", type=int, default=2, choices=[0, 1, 2, 3], help="Subdivision (0=raw, 2=recommended, 3=max)")
     parser.add_argument("--min_island", type=int, default=50, help="Min faces per color island")
@@ -590,7 +679,18 @@ def main():
     if not args.output:
         args.output = os.path.splitext(args.input)[0] + "_multicolor.obj"
 
-    colorize(args.input, args.output, args.colors, args.height, args.subdivide,
+    # Auto-use Bambu Lab palette if no colors specified
+    colors = args.colors
+    if not colors or args.palette == "bambu":
+        bambu = _load_bambu_palette()
+        if bambu:
+            colors = ",".join(bambu.values())
+            print(f"🎨 Using Bambu Lab official palette ({len(bambu)} colors)")
+        elif not colors:
+            print("❌ No --colors provided and Bambu Lab palette not found.")
+            print("   Provide colors: --colors '#FF0000,#00FF00,#0000FF'")
+            sys.exit(1)
+    colorize(args.input, args.output, colors, args.height, args.subdivide,
              args.min_island, args.cleanup, args.clusters, args.tex_smooth,
              args.tex_smooth_passes, args.delight_floor, args.delight_bright,
              args.delight_sat)

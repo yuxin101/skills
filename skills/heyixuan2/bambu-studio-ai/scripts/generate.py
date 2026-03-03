@@ -72,6 +72,7 @@ for _p in [os.path.join(_skill_dir, "config.json"), os.path.join(_skill_dir, ".s
 PROVIDER = os.environ.get("BAMBU_3D_PROVIDER", _cfg.get("3d_provider", "meshy")).lower()
 API_KEY = os.environ.get("BAMBU_3D_API_KEY", _cfg.get("3d_api_key", ""))
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "models")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 PRINTER_MODEL = os.environ.get("BAMBU_MODEL", _cfg.get("model", ""))
 
 # ─── Build Volume Limits (with 10% safety margin) ────────────────────
@@ -132,7 +133,7 @@ class MeshyBackend:
     
     def text_to_3d(self, prompt, **kwargs):
         # Step 1: Preview
-        r = requests.post(f"{self.BASE}/openapi/v2/text-to-3d", 
+        r = requests.post(f"{self.BASE}/openapi/v2/text-to-3d",
             headers=self.headers(),
             json={"mode": "preview", "prompt": prompt, "art_style": kwargs.get("style", "realistic")}
         )
@@ -194,7 +195,7 @@ class MeshyBackend:
     def _download_file(self, url, task_id, fmt):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         out = os.path.join(OUTPUT_DIR, f"{task_id}.glb")
-        r = requests.get(url, stream=True)
+        r = requests.get(url, stream=True, timeout=(10, 120))
         r.raise_for_status()
         with open(out, "wb") as f:
             for chunk in r.iter_content(8192):
@@ -242,7 +243,7 @@ class TripoBackend:
         return task_id
     
     def get_status(self, task_id):
-        r = requests.get(f"{self.BASE}/task/{task_id}", headers=self.headers())
+        r = requests.get(f"{self.BASE}/task/{task_id}", headers=self.headers(), timeout=(10, 120))
         r.raise_for_status()
         data = r.json()["data"]
         return {
@@ -259,7 +260,7 @@ class TripoBackend:
             return None
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         out = os.path.join(OUTPUT_DIR, f"{task_id}.glb")
-        r = requests.get(url, stream=True)
+        r = requests.get(url, stream=True, timeout=(10, 120))
         with open(out, "wb") as f:
             for chunk in r.iter_content(8192):
                 f.write(chunk)
@@ -372,7 +373,7 @@ class Studio3DBackend:
             return None
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         out = os.path.join(OUTPUT_DIR, f"{task_id}.glb")
-        r = requests.get(url, stream=True)
+        r = requests.get(url, stream=True, timeout=(10, 120))
         with open(out, "wb") as f:
             for chunk in r.iter_content(8192):
                 f.write(chunk)
