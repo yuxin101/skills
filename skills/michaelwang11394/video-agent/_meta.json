@@ -3,11 +3,16 @@
   "slug": "video-agent",
   "displayName": "Video Agent",
   "latest": {
-    "version": "2.10.0",
-    "publishedAt": 1772378673831,
-    "commit": "https://github.com/openclaw/skills/commit/c27341a04264479c785da74d965e81aa3f263202"
+    "version": "2.11.0",
+    "publishedAt": 1772499967940,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.10.0",
+      "publishedAt": 1772378673831,
+      "commit": "https://github.com/openclaw/skills/commit/c27341a04264479c785da74d965e81aa3f263202"
+    },
     {
       "version": "2.8.0",
       "publishedAt": 1771867395703,
