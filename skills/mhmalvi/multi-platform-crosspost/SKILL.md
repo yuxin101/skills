@@ -3,13 +3,13 @@ name: multi-platform-crosspost
 description: Automatically cross-post blog content to 7+ platforms (LinkedIn, Dev.to, Hashnode, Twitter/X, Reddit, Substack, Pinterest) with tracking, deduplication, and platform-specific formatting. Production-tested pipeline.
 tags: [cross-posting, content-distribution, seo, blog, linkedin, devto, hashnode, automation, marketing]
 author: mhmalvi
-version: 1.0.0
+version: 1.2.0
 license: CC BY-NC-SA 4.0
 metadata:
   clawdbot:
     emoji: "📡"
     requires:
-      anyBins: [curl, node]
+      n8nCredentials: [google-sheets-oauth2, smtp, linkedin-oauth2]
     os: [linux, darwin, win32]
 ---
 
@@ -69,12 +69,42 @@ Webhook Trigger (n8n)
 Google Sheets Tracker (appendOrUpdate, no duplicates)
 ```
 
+## Required n8n Credentials
+
+You must create these credentials in your n8n instance before importing:
+
+| Credential Type | Used For | Placeholder in JSON |
+|----------------|----------|---------------------|
+| Google Sheets OAuth2 | Cross-post tracking and deduplication | `YOUR_GOOGLE_SHEETS_CREDENTIAL_ID` |
+| SMTP (Gmail or custom) | Email digests for manual platforms | `YOUR_SMTP_CREDENTIAL_ID` |
+| LinkedIn OAuth2 | Auto-posting to LinkedIn | `YOUR_LINKEDIN_CREDENTIAL_ID` |
+| OpenAI (optional) | AI-powered content formatting | `YOUR_OPENAI_CREDENTIAL_ID` |
+
+## Configuration Placeholders
+
+Replace these placeholders in the workflow JSON before deploying:
+
+| Placeholder | Description |
+|-------------|-------------|
+| `YOUR_BLOG_ADMIN_API_KEY` | API key for your blog admin panel |
+| `YOUR_CROSSPOST_SECRET` | Webhook authentication secret |
+| `YOUR_TRACKER_SHEET_ID` | Google Sheet ID for cross-post tracking |
+| `YOUR_GOOGLE_SHEETS_CREDENTIAL_ID` | n8n Google Sheets credential ID |
+| `YOUR_SMTP_CREDENTIAL_ID` | n8n SMTP credential ID |
+| `YOUR_LINKEDIN_CREDENTIAL_ID` | n8n LinkedIn OAuth credential ID |
+| `YOUR_LINKEDIN_PERSON_ID` | Your LinkedIn profile URN |
+| `YOUR_OPENAI_CREDENTIAL_ID` | n8n OpenAI credential ID |
+| `YOUR_BLOG_DOMAIN` | Your blog's public URL |
+| `YOUR_FROM_EMAIL` | Sender email for digests |
+| `YOUR_NOTIFICATION_EMAIL` | Where to send cross-post summaries |
+| `YOUR_BLOG_ADMIN_HOST:3000` | Blog admin hostname (Docker or URL) |
+
 ## Quick Start
 
 ### 1. Prerequisites
 - n8n instance (v2.4+)
 - Blog with an API endpoint that returns post content
-- Google Sheets API credentials
+- Google Sheets OAuth2 credentials
 - Platform API keys (at least one)
 
 ### 2. Configure Platforms
