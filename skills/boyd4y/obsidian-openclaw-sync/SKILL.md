@@ -3,7 +3,7 @@ name: obsidian-openclaw-sync
 description: Sync Obsidian OpenClaw config across multiple iCloud devices. Manages symlinks for seamless multi-device sync.
 compatibility: darwin
 metadata:
-  version: 1.0.0
+  version: 1.0.1
 ---
 
 # Obsidian OpenClaw Sync
@@ -103,7 +103,7 @@ Local Config: .openclaw
 
 | Source (iCloud) | Target (Local) |
 |-----------------|----------------|
-| `assets/` | `./assets/` |
+| `media/` | `./media/` |
 | `projects/` | `./projects/` |
 | `team/` | `./team/` |
 | `skills/` | `./skills/` |

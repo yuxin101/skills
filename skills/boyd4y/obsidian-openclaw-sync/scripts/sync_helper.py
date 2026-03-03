@@ -3,7 +3,7 @@
 OpenClaw iCloud Sync Helper
 
 This script helps identify and sync OpenClaw configuration between local and iCloud.
-Supports multi-agent workspace templates (assets, workspace_xxx, etc.)
+Supports multi-agent workspace templates (media, workspace_xxx, etc.)
 """
 
 import os
@@ -409,7 +409,7 @@ def cmd_setup(helper: OpenClawSyncHelper, vault_index: int = -1, overwrite: bool
     print(f"Symlinks to create in {helper.local_vault}:\n")
 
     # Core directories
-    core_dirs = ["assets", "projects", "team", "skills"]
+    core_dirs = ["media", "projects", "team", "skills"]
     for dir_name in core_dirs:
         src = helper.icloud_vault / dir_name
         if src.exists():

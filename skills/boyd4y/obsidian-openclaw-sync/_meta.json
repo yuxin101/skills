@@ -3,9 +3,15 @@
   "slug": "obsidian-openclaw-sync",
   "displayName": "Obsidian Openclaw Sync",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1772361350612,
-    "commit": "https://github.com/openclaw/skills/commit/031317fbbaea6a6a08a21fe3cd5f3c9ac296ed72"
+    "version": "1.0.1",
+    "publishedAt": 1772417031787,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1772361350612,
+      "commit": "https://github.com/openclaw/skills/commit/031317fbbaea6a6a08a21fe3cd5f3c9ac296ed72"
+    }
+  ]
 }

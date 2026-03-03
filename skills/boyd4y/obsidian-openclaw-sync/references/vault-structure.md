@@ -4,7 +4,7 @@
 
 ```
 .openclaw/
-├── assets/               # Shared assets (images, files, etc.)
+├── media/               # Shared media (images, files, etc.)
 ├── projects/             # Project management folder - all active projects
 ├── team/                 # Team folder - shared team configurations
 ├── skills/               # Global skills - reusable skill definitions
@@ -19,7 +19,7 @@
 | Directory | Description |
 |-----------|-------------|
 | `.openclaw/` | Core configuration directory |
-| `assets/` | Shared assets: images, files, templates |
+| `media/` | Shared media: images, files, templates |
 | `projects/` | Project management: all active projects organized here |
 | `team/` | Team resources: shared configs, team docs, collaborations |
 | `skills/` | Global skills: reusable Claude Code skill definitions |
