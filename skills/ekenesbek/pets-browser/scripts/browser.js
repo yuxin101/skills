@@ -1,5 +1,5 @@
 /**
- * browser.js — Pets Browser for AI Agents v1.0.0
+ * browser.js — Clawnet for AI Agents v1.0.0
  *
  * Stealth browser with residential proxies from 10+ countries.
  * Appears as iPhone 15 Pro or Desktop Chrome to every website.
@@ -12,22 +12,22 @@
  *   const { browser, page } = await launchBrowser({ country: 'us' });
  *
  * Zero-config: launchBrowser() auto-registers a new agent on first call.
- * No env vars required. Credentials are saved to ~/.pets-browser/agent-credentials.json.
+ * No env vars required. Credentials are saved to ~/.clawnet/agent-credentials.json.
  *
  * Proxy config via env vars (optional — BYO mode):
- *   PB_PROXY_PROVIDER  — decodo | brightdata | iproyal | nodemaven (default: decodo)
- *   PB_PROXY_USER      — proxy username
- *   PB_PROXY_PASS      — proxy password
- *   PB_PROXY_SERVER    — full override: http://host:port
- *   PB_PROXY_COUNTRY   — country code: ro, us, de, gb, fr, nl, sg... (default: us)
- *   PB_PROXY_SESSION   — Decodo sticky port 10001-49999 (unique IP per user)
- *   PB_NO_PROXY        — set to "1" to disable proxy entirely
+ *   CN_PROXY_PROVIDER  — decodo | brightdata | iproyal | nodemaven (default: decodo)
+ *   CN_PROXY_USER      — proxy username
+ *   CN_PROXY_PASS      — proxy password
+ *   CN_PROXY_SERVER    — full override: http://host:port
+ *   CN_PROXY_COUNTRY   — country code: ro, us, de, gb, fr, nl, sg... (default: us)
+ *   CN_PROXY_SESSION   — Decodo sticky port 10001-49999 (unique IP per user)
+ *   CN_NO_PROXY        — set to "1" to disable proxy entirely
  *
  * Service credentials (optional — auto-generated if not set):
- *   PB_API_URL         — Pets Browser API base URL (default: https://api.clawpets.io/pets-browser/v1)
- *   PB_AGENT_TOKEN     — Full auth token: PB1.<agentId>.<agentSecret>
- *   PB_AGENT_ID        — Agent UUID (alternative to token)
- *   PB_AGENT_SECRET    — Agent secret (alternative to token)
+ *   CN_API_URL         — Clawnet API base URL (default: https://api.clawpets.io/clawnet/v1)
+ *   CN_AGENT_TOKEN     — Full auth token: CN1.<agentId>.<agentSecret>
+ *   CN_AGENT_ID        — Agent UUID (alternative to token)
+ *   CN_AGENT_SECRET    — Agent secret (alternative to token)
  *
  * CAPTCHA:
  *   TWOCAPTCHA_KEY     — 2captcha.com API key (BYO)
@@ -47,7 +47,7 @@ function _requirePlaywright() {
     try { return fn(); } catch (_) {}
   }
   throw new Error(
-    '[pets-browser] playwright not found.\n' +
+    '[clawnet] playwright not found.\n' +
     'Run: npm install playwright && npx playwright install chromium'
   );
 }
@@ -147,25 +147,25 @@ const PROXY_PRESETS = {
 };
 
 function makeProxy(sessionId = null, country = null) {
-  if (process.env.PB_NO_PROXY === '1') return null;
+  if (process.env.CN_NO_PROXY === '1') return null;
 
-  const cty = (country || process.env.PB_PROXY_COUNTRY || 'us').toLowerCase();
+  const cty = (country || process.env.CN_PROXY_COUNTRY || 'us').toLowerCase();
 
   // 1. Full manual BYO override — explicit env vars take priority
-  if (process.env.PB_PROXY_SERVER && process.env.PB_PROXY_USER) {
+  if (process.env.CN_PROXY_SERVER && process.env.CN_PROXY_USER) {
     return {
-      server:   process.env.PB_PROXY_SERVER,
-      username: process.env.PB_PROXY_USER,
-      password: process.env.PB_PROXY_PASS || '',
+      server:   process.env.CN_PROXY_SERVER,
+      username: process.env.CN_PROXY_USER,
+      password: process.env.CN_PROXY_PASS || '',
     };
   }
 
-  // 2. BYO provider (decodo / brightdata / iproyal / nodemaven via PB_PROXY_PROVIDER)
+  // 2. BYO provider (decodo / brightdata / iproyal / nodemaven via CN_PROXY_PROVIDER)
   //    Only activates when BOTH provider AND credentials are set.
-  //    Without PB_PROXY_USER/PB_PROXY_PASS, falls through to managed mode.
-  const providerName = process.env.PB_PROXY_PROVIDER;
-  const providerUser = process.env.PB_PROXY_USER?.trim();
-  const providerPass = process.env.PB_PROXY_PASS?.trim();
+  //    Without CN_PROXY_USER/CN_PROXY_PASS, falls through to managed mode.
+  const providerName = process.env.CN_PROXY_PROVIDER;
+  const providerUser = process.env.CN_PROXY_USER?.trim();
+  const providerPass = process.env.CN_PROXY_PASS?.trim();
   if (providerName && PROXY_PRESETS[providerName] && providerUser && providerPass) {
     const preset = PROXY_PRESETS[providerName];
     const user = providerUser;
@@ -176,14 +176,14 @@ function makeProxy(sessionId = null, country = null) {
       const portMax = preset.stickyPortMax || 49999;
       const randomPort = () => Math.floor(Math.random() * (portMax - portMin + 1)) + portMin;
       const parsePort = (v) => { const n = parseInt(v, 10); return (Number.isFinite(n) && n >= portMin && n <= portMax) ? n : null; };
-      const port = parsePort(sessionId) ?? parsePort(process.env.PB_PROXY_SESSION) ?? randomPort();
+      const port = parsePort(sessionId) ?? parsePort(process.env.CN_PROXY_SESSION) ?? randomPort();
       const server = preset.serverTemplate(cty, port);
       const username = preset.usernameTemplate(user, cty, port);
       const password = preset.passwordTemplate ? preset.passwordTemplate(pass, cty, port) : pass;
       return { server, username, password };
     }
     // Other providers: session-string based
-    const sid = sessionId || process.env.PB_PROXY_SESSION || Math.random().toString(36).slice(2, 10);
+    const sid = sessionId || process.env.CN_PROXY_SESSION || Math.random().toString(36).slice(2, 10);
     const server = preset.server;
     const username = preset.usernameTemplate(user, cty, sid);
     const password = preset.passwordTemplate ? preset.passwordTemplate(pass, cty, sid) : pass;
@@ -196,7 +196,7 @@ function makeProxy(sessionId = null, country = null) {
   //    Access is gated on _proxyAllowed, which is set by getCredentials() from the server's
   //    sessionGranted flag. If trial is exceeded, we return null so the browser runs without
   //    the managed proxy (will get CAPTCHAs) rather than receiving 407 from the forward proxy.
-  const apiUrl = process.env.PB_API_URL || DEFAULT_API_URL;
+  const apiUrl = process.env.CN_API_URL || DEFAULT_API_URL;
 
   if (!_proxyAllowed) {
     // Trial expired or getCredentials() hasn't been called yet / returned sessionGranted=false
@@ -205,20 +205,20 @@ function makeProxy(sessionId = null, country = null) {
 
   const creds = resolveAgentCredentials();
   if (!creds) {
-    console.warn('[pets-browser] No agent credentials found. Set PB_AGENT_TOKEN or run: npm install pets-browser');
+    console.warn('[clawnet] No agent credentials found. Set CN_AGENT_TOKEN or run: npm install clawnet');
     return null;
   }
 
   try {
     const proxyHost = new URL(apiUrl).hostname;
-    const proxyPort = process.env.PB_PROXY_PORT || '8080';
+    const proxyPort = process.env.CN_PROXY_PORT || '8080';
     return {
       server:   `http://${proxyHost}:${proxyPort}`,
       username: `${creds.agentId}|${cty}`,  // forward proxy splits on '|' to get country
       password: creds.agentSecret,
     };
   } catch (_) {
-    console.warn('[pets-browser] Could not parse PB_API_URL for managed proxy host.');
+    console.warn('[clawnet] Could not parse CN_API_URL for managed proxy host.');
     return null;
   }
 }
@@ -230,12 +230,12 @@ const _fs     = require('fs');
 const _os     = require('os');
 const _crypto = require('crypto');
 
-const DEFAULT_API_URL = 'https://api.clawpets.io/pets-browser/v1';
+const DEFAULT_API_URL = 'https://api.clawpets.io/clawnet/v1';
 
-const CREDENTIALS_FILE = _path.join(_os.homedir(), '.pets-browser', 'agent-credentials.json');
-const PROFILES_DIR = _path.join(_os.homedir(), '.pets-browser', 'profiles');
-const LOGS_DIR    = _path.join(_os.homedir(), '.pets-browser', 'logs');
-const DEFAULT_PROFILE_NAME = (process.env.PB_PROFILE || 'default').trim() || 'default';
+const CREDENTIALS_FILE = _path.join(_os.homedir(), '.clawnet', 'agent-credentials.json');
+const PROFILES_DIR = _path.join(_os.homedir(), '.clawnet', 'profiles');
+const LOGS_DIR    = _path.join(_os.homedir(), '.clawnet', 'logs');
+const DEFAULT_PROFILE_NAME = (process.env.CN_PROFILE || 'default').trim() || 'default';
 const LOG_LEVELS  = ['off', 'actions', 'verbose'];
 const MAX_LOG_SESSIONS = 50;
 
@@ -347,7 +347,7 @@ function isDockerRuntime() {
     return _cachedDockerRuntime;
   }
 
-  const forced = process.env.PB_RUNTIME_DOCKER?.trim().toLowerCase();
+  const forced = process.env.CN_RUNTIME_DOCKER?.trim().toLowerCase();
   if (forced === '1' || forced === 'true' || forced === 'yes') {
     _cachedDockerRuntime = true;
     return true;
@@ -391,7 +391,7 @@ function isDockerRuntime() {
 }
 
 function shouldDisableSandbox() {
-  const forced = process.env.PB_CHROMIUM_NO_SANDBOX?.trim().toLowerCase();
+  const forced = process.env.CN_CHROMIUM_NO_SANDBOX?.trim().toLowerCase();
   if (forced === '1' || forced === 'true' || forced === 'yes') return true;
   if (forced === '0' || forced === 'false' || forced === 'no') return false;
   return isDockerRuntime();
@@ -401,9 +401,9 @@ function logSandboxMode(disableSandbox) {
   if (_sandboxModeLogged) return;
   _sandboxModeLogged = true;
   if (disableSandbox) {
-    console.log('[pets-browser] Chromium sandbox disabled (container runtime detected).');
+    console.log('[clawnet] Chromium sandbox disabled (container runtime detected).');
   } else {
-    console.log('[pets-browser] Chromium sandbox enabled (host runtime detected).');
+    console.log('[clawnet] Chromium sandbox enabled (host runtime detected).');
   }
 }
 
@@ -430,12 +430,12 @@ function loadAgentCredentials() {
 }
 
 function buildAgentToken(agentId, agentSecret) {
-  return `PB1.${agentId}.${agentSecret}`;
+  return `CN1.${agentId}.${agentSecret}`;
 }
 
 /**
  * Resolve agent credentials from any supported source.
- * Priority: rotated file > PB_AGENT_TOKEN > PB_AGENT_ID+PB_AGENT_SECRET > non-rotated file.
+ * Priority: rotated file > CN_AGENT_TOKEN > CN_AGENT_ID+CN_AGENT_SECRET > non-rotated file.
  *
  * Rotated credentials (saved after server-side secret rotation) take top priority
  * because env vars may contain a stale original secret. After rotation, the file
@@ -450,23 +450,23 @@ function resolveAgentCredentials() {
     return { agentId: fileCreds.agentId, agentSecret: fileCreds.agentSecret };
   }
 
-  // 1. PB_AGENT_TOKEN=PB1.<agentId>.<agentSecret>
-  const directToken = process.env.PB_AGENT_TOKEN?.trim();
-  if (directToken && directToken.startsWith('PB1.')) {
+  // 1. CN_AGENT_TOKEN=CN1.<agentId>.<agentSecret>
+  const directToken = process.env.CN_AGENT_TOKEN?.trim();
+  if (directToken && directToken.startsWith('CN1.')) {
     const parts = directToken.split('.');
     if (parts.length === 3 && AGENT_ID_RE.test(parts[1]) && AGENT_SECRET_RE.test(parts[2])) {
       return { agentId: parts[1], agentSecret: parts[2] };
     }
   }
 
-  // 2. PB_AGENT_ID + PB_AGENT_SECRET
-  const envAgentId = process.env.PB_AGENT_ID?.trim();
-  const envAgentSecret = process.env.PB_AGENT_SECRET?.trim();
+  // 2. CN_AGENT_ID + CN_AGENT_SECRET
+  const envAgentId = process.env.CN_AGENT_ID?.trim();
+  const envAgentSecret = process.env.CN_AGENT_SECRET?.trim();
   if (AGENT_ID_RE.test(envAgentId || '') && AGENT_SECRET_RE.test(envAgentSecret || '')) {
     return { agentId: envAgentId, agentSecret: envAgentSecret };
   }
 
-  // 3. Non-rotated file (~/.pets-browser/agent-credentials.json)
+  // 3. Non-rotated file (~/.clawnet/agent-credentials.json)
   return fileCreds;
 }
 
@@ -476,7 +476,7 @@ function resolveAgentToken() {
 }
 
 /**
- * Auto-register a new agent with the Pets Browser API.
+ * Auto-register a new agent with the Clawnet API.
  * Generates credentials, registers with the server, and saves to disk.
  * Called automatically by launchBrowser() when no credentials are found.
  *
@@ -490,7 +490,7 @@ async function autoRegisterAgent(apiUrl) {
   // re-run postinstall interactively.
   const credentialsDir = _path.dirname(CREDENTIALS_FILE);
   if (_fs.existsSync(CREDENTIALS_FILE) || _fs.existsSync(credentialsDir)) {
-    console.error('[pets-browser] Agent account already exists.');
+    console.error('[clawnet] Agent account already exists.');
     console.error('  Cannot generate new credentials — use importCredentials() to');
     console.error('  provide your existing agentId and agentSecret instead.');
     return null;
@@ -500,7 +500,7 @@ async function autoRegisterAgent(apiUrl) {
   const agentSecret = _crypto.randomBytes(32).toString('base64url');
   const recoveryCode = _crypto.randomBytes(24).toString('base64url');
 
-  console.log('[pets-browser] First run — registering new agent...');
+  console.log('[clawnet] First run — registering new agent...');
 
   try {
     const resp = await fetch(`${apiUrl.replace(/\/$/, '')}/agents/register`, {
@@ -512,14 +512,14 @@ async function autoRegisterAgent(apiUrl) {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      console.warn(`[pets-browser] Auto-registration failed (HTTP ${resp.status}): ${text}`);
+      console.warn(`[clawnet] Auto-registration failed (HTTP ${resp.status}): ${text}`);
       return null;
     }
 
     const data = await resp.json();
-    console.log(`[pets-browser] Agent registered. Trial: ${data.trialLimit ?? 1} free session(s).`);
+    console.log(`[clawnet] Agent registered. Trial: ${data.trialLimit ?? 1} free session(s).`);
   } catch (err) {
-    console.warn(`[pets-browser] Auto-registration failed: ${err.message}`);
+    console.warn(`[clawnet] Auto-registration failed: ${err.message}`);
     return null;
   }
 
@@ -534,14 +534,14 @@ async function autoRegisterAgent(apiUrl) {
   try {
     _fs.mkdirSync(_path.dirname(CREDENTIALS_FILE), { recursive: true, mode: 0o700 });
     _fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(creds, null, 2), { mode: 0o600 });
-    console.log(`[pets-browser] Credentials saved to ${CREDENTIALS_FILE}`);
+    console.log(`[clawnet] Credentials saved to ${CREDENTIALS_FILE}`);
   } catch (err) {
-    console.warn(`[pets-browser] Could not save credentials to disk: ${err.message}`);
+    console.warn(`[clawnet] Could not save credentials to disk: ${err.message}`);
   }
 
   // Set env vars for current process so resolveAgentCredentials() picks them up
-  process.env.PB_AGENT_ID = agentId;
-  process.env.PB_AGENT_SECRET = agentSecret;
+  process.env.CN_AGENT_ID = agentId;
+  process.env.CN_AGENT_SECRET = agentSecret;
 
   return creds;
 }
@@ -581,22 +581,22 @@ function importCredentials(agentId, agentSecret) {
   }
 
   // Update env vars for current process
-  process.env.PB_AGENT_ID = agentId;
-  process.env.PB_AGENT_SECRET = agentSecret;
+  process.env.CN_AGENT_ID = agentId;
+  process.env.CN_AGENT_SECRET = agentSecret;
 
-  console.log(`[pets-browser] Credentials imported and saved for agentId: ${agentId}`);
+  console.log(`[clawnet] Credentials imported and saved for agentId: ${agentId}`);
   return { ok: true, agentId };
 }
 
 // ─── SERVICE CREDENTIALS ──────────────────────────────────────────────────────
 
 /**
- * Fetch managed credentials from Pets Browser API (proxy + captcha keys).
+ * Fetch managed credentials from Clawnet API (proxy + captcha keys).
  *
- * Authentication: uses PB1.<agentId>.<agentSecret> token from:
- * 1) PB_AGENT_TOKEN
- * 2) PB_AGENT_ID + PB_AGENT_SECRET
- * 3) ~/.pets-browser/agent-credentials.json
+ * Authentication: uses CN1.<agentId>.<agentSecret> token from:
+ * 1) CN_AGENT_TOKEN
+ * 2) CN_AGENT_ID + CN_AGENT_SECRET
+ * 3) ~/.clawnet/agent-credentials.json
  *
  * If agent has a subscription or trial remaining, returns managed
  * Decodo proxy + 2captcha credentials.
@@ -605,13 +605,13 @@ function importCredentials(agentId, agentSecret) {
  * @returns {{ ok: boolean, proxy?, captcha?, trialRemaining? }}
  */
 async function getCredentials() {
-  const apiUrl = process.env.PB_API_URL || DEFAULT_API_URL;
+  const apiUrl = process.env.CN_API_URL || DEFAULT_API_URL;
 
   // Resolve agent auth token
   const agentToken = resolveAgentToken();
 
   if (!apiUrl || !agentToken) {
-    console.warn('[pets-browser] No API config. Using BYO credentials from env vars.');
+    console.warn('[clawnet] No API config. Using BYO credentials from env vars.');
     return { ok: false, reason: 'no_api_config' };
   }
 
@@ -627,7 +627,7 @@ async function getCredentials() {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      console.warn(`[pets-browser] Credentials API returned ${resp.status}: ${text}`);
+      console.warn(`[clawnet] Credentials API returned ${resp.status}: ${text}`);
       return { ok: false, reason: 'api_error', status: resp.status };
     }
 
@@ -655,11 +655,11 @@ async function getCredentials() {
       }
 
       // Update process env so makeProxy() picks up the new secret
-      process.env.PB_AGENT_TOKEN = data.newAgentToken;
+      process.env.CN_AGENT_TOKEN = data.newAgentToken;
       if (rotatedCreds.agentId) {
-        process.env.PB_AGENT_ID = rotatedCreds.agentId;
+        process.env.CN_AGENT_ID = rotatedCreds.agentId;
       }
-      process.env.PB_AGENT_SECRET = data.newAgentSecret;
+      process.env.CN_AGENT_SECRET = data.newAgentSecret;
     }
 
     // Update managed proxy access permission.
@@ -674,16 +674,16 @@ async function getCredentials() {
     // Managed proxy now uses stable agentId:agentSecret via makeProxy() directly,
     // so no env vars needed and no TTL to track.
     if (data.proxy && data.proxy.source === 'byo') {
-      if (data.proxy.server)   process.env.PB_PROXY_SERVER   = data.proxy.server;
-      if (data.proxy.username) process.env.PB_PROXY_USER     = data.proxy.username;
-      if (data.proxy.password) process.env.PB_PROXY_PASS     = data.proxy.password;
-      if (data.proxy.provider) process.env.PB_PROXY_PROVIDER = data.proxy.provider;
-      if (data.proxy.country)  process.env.PB_PROXY_COUNTRY  = data.proxy.country;
+      if (data.proxy.server)   process.env.CN_PROXY_SERVER   = data.proxy.server;
+      if (data.proxy.username) process.env.CN_PROXY_USER     = data.proxy.username;
+      if (data.proxy.password) process.env.CN_PROXY_PASS     = data.proxy.password;
+      if (data.proxy.provider) process.env.CN_PROXY_PROVIDER = data.proxy.provider;
+      if (data.proxy.country)  process.env.CN_PROXY_COUNTRY  = data.proxy.country;
     } else if (!data.proxy) {
       // Server revoked BYO keys — clear any cached BYO credentials
-      delete process.env.PB_PROXY_SERVER;
-      delete process.env.PB_PROXY_USER;
-      delete process.env.PB_PROXY_PASS;
+      delete process.env.CN_PROXY_SERVER;
+      delete process.env.CN_PROXY_USER;
+      delete process.env.CN_PROXY_PASS;
     }
 
     // Apply or revoke captcha key
@@ -697,22 +697,22 @@ async function getCredentials() {
     if (typeof data.trialRemainingMs === 'number' && !data.subscriptionActive) {
       if (data.trialRemainingMs <= 0) {
         if (data.upgradeUrl) {
-          console.log(`[pets-browser] Trial expired. Subscribe to continue: ${data.upgradeUrl}`);
+          console.log(`[clawnet] Trial expired. Subscribe to continue: ${data.upgradeUrl}`);
         } else {
-          console.log('[pets-browser] Trial expired. Subscribe at https://petsbrowser.dev or use BYO keys.');
+          console.log('[clawnet] Trial expired. Subscribe at https://petsbrowser.dev or use BYO keys.');
         }
       } else {
         const mins = Math.ceil(data.trialRemainingMs / 60_000);
         const display = mins >= 60
           ? `${Math.floor(mins / 60)}h ${mins % 60}m`
           : `${mins}m`;
-        console.log(`[pets-browser] Trial: ${display} remaining.`);
+        console.log(`[clawnet] Trial: ${display} remaining.`);
       }
     }
 
     return { ok: true, ...data };
   } catch (err) {
-    console.warn('[pets-browser] Failed to fetch credentials:', err.message);
+    console.warn('[clawnet] Failed to fetch credentials:', err.message);
     return { ok: false, reason: 'network_error', error: err.message };
   }
 }
@@ -778,6 +778,135 @@ async function humanRead(page, minMs = 1500, maxMs = 4000) {
   if (Math.random() < 0.3) await humanScroll(page, 'down', rand(50, 150));
 }
 
+// ─── BATCH ACTIONS ──────────────────────────────────────────────────────────
+// Inspired by PinchTab's /actions endpoint (internal/handlers/actions.go).
+// Execute multiple actions sequentially with shared error handling, reducing
+// LLM round-trips for multi-step flows (form filling, login, checkout).
+
+/**
+ * Execute multiple actions sequentially in a single call.
+ *
+ * Each action descriptor: { action, selector, text, value, key, ms, options }
+ *   action: 'click' | 'fill' | 'type' | 'press' | 'hover' | 'scroll' | 'select' |
+ *           'focus' | 'humanClick' | 'humanType' | 'wait' | 'waitForSelector' | 'snapshot'
+ *
+ * @param {import('playwright').Page} page
+ * @param {Array<Object>} actions - Array of action descriptors
+ * @param {Object} [opts]
+ * @param {boolean} [opts.stopOnError=false] - Halt on first failure or continue
+ * @param {number} [opts.delayBetween=50] - ms delay between actions for realism
+ * @returns {Promise<{results: Array<{index: number, success: boolean, result?: any, error?: string}>, total: number, successful: number, failed: number}>}
+ */
+async function batchActions(page, actions, opts = {}) {
+  const { stopOnError = false, delayBetween = 50 } = opts;
+  const results = [];
+  let successful = 0;
+  let failed = 0;
+
+  for (let i = 0; i < actions.length; i++) {
+    const act = actions[i];
+    try {
+      let result;
+      switch (act.action) {
+        case 'click':
+          await page.click(act.selector, act.options);
+          result = { clicked: act.selector };
+          break;
+        case 'fill':
+          await page.fill(act.selector, act.text || act.value || '');
+          result = { filled: act.selector };
+          break;
+        case 'type':
+          await page.type(act.selector, act.text || '', act.options);
+          result = { typed: act.selector };
+          break;
+        case 'press':
+          await page.press(act.selector || 'body', act.key);
+          result = { pressed: act.key };
+          break;
+        case 'hover':
+          await page.hover(act.selector, act.options);
+          result = { hovered: act.selector };
+          break;
+        case 'select':
+          await page.selectOption(act.selector, act.value);
+          result = { selected: act.value };
+          break;
+        case 'scroll':
+          await page.evaluate(({ x, y }) => window.scrollBy(x || 0, y || 300), act.options || {});
+          result = { scrolled: true };
+          break;
+        case 'focus':
+          await page.focus(act.selector);
+          result = { focused: act.selector };
+          break;
+        case 'wait':
+          await page.waitForTimeout(act.ms || 1000);
+          result = { waited: act.ms || 1000 };
+          break;
+        case 'waitForSelector':
+          await page.waitForSelector(act.selector, act.options);
+          result = { found: act.selector };
+          break;
+        case 'humanClick': {
+          const el = await page.$(act.selector);
+          if (!el) throw new Error('Element not found: ' + act.selector);
+          const box = await el.boundingBox();
+          if (!box) throw new Error('Element not visible: ' + act.selector);
+          await humanClick(page, box.x + box.width / 2, box.y + box.height / 2);
+          result = { humanClicked: act.selector };
+          break;
+        }
+        case 'humanType':
+          await humanType(page, act.selector, act.text || '');
+          result = { humanTyped: act.selector };
+          break;
+        case 'snapshot':
+          result = { snapshot: await snapshot(page, act.options || {}) };
+          break;
+        case 'snapshotAI':
+          result = await snapshotAI(page, act.options || act);
+          break;
+        case 'clickRef':
+          await clickRef(page, act.ref, act);
+          result = { clicked: act.ref };
+          break;
+        case 'fillRef':
+          await fillRef(page, act.ref, act.value, act);
+          result = { filled: act.ref };
+          break;
+        case 'typeRef':
+          await typeRef(page, act.ref, act.text, act);
+          result = { typed: act.ref };
+          break;
+        case 'selectRef':
+          await selectRef(page, act.ref, act.value, act);
+          result = { selected: act.ref };
+          break;
+        case 'hoverRef':
+          await hoverRef(page, act.ref, act);
+          result = { hovered: act.ref };
+          break;
+        default:
+          throw new Error('Unknown action: ' + act.action);
+      }
+      results.push({ index: i, success: true, result });
+      successful++;
+    } catch (err) {
+      results.push({ index: i, success: false, error: err.message });
+      failed++;
+      if (stopOnError) break;
+    }
+
+    // Delay between actions for realism (skip after last action)
+    if (i < actions.length - 1 && delayBetween > 0) {
+      await sleep(delayBetween);
+    }
+  }
+
+  return { results, total: actions.length, successful, failed };
+}
+
 // ─── 2CAPTCHA SOLVER ──────────────────────────────────────────────────────────
 
 async function solveCaptcha(page, opts = {}) {
@@ -824,7 +953,7 @@ async function solveCaptcha(page, opts = {}) {
   let token = null;
 
   // Try server-side solving first (managed mode — no API key needed)
-  const apiUrl = process.env.PB_API_URL || DEFAULT_API_URL;
+  const apiUrl = process.env.CN_API_URL || DEFAULT_API_URL;
   const agentToken = resolveAgentToken();
 
   if (apiUrl && agentToken) {
@@ -995,52 +1124,208 @@ async function screenshotAndReport(pg, message, opts = {}) {
   return { message, screenshot, mimeType: 'image/png' };
 }
 
-function buildResult(browser, ctx, page, logger) {
-  // ── Wrap page methods based on log level ──
-  if (logger.level !== 'off') {
-    const origGoto = page.goto.bind(page);
-    page.goto = async (url, opts) => {
-      logger.log('goto', { url });
-      try {
-        const resp = await origGoto(url, opts);
-        logger.log('goto_done', { url, status: resp?.status() });
-        return resp;
-      } catch (err) {
-        logger.log('goto_error', { url, error: err.message });
-        throw err;
-      }
-    };
+// ── PAGE PROXY ──────────────────────────────────────────────────────────────
+// Intercepts ALL page & locator method calls for comprehensive logging.
+// The agent uses Playwright chains like page.getByRole('button').click() —
+// without a Proxy these calls are invisible to our logger.
+
+/**
+ * Methods whose calls we log at "actions" level (user-visible actions).
+ * Everything else is logged only at "verbose" level.
+ */
+const ACTION_METHODS = new Set([
+  // navigation
+  'goto', 'goBack', 'goForward', 'reload',
+  // interaction
+  'click', 'dblclick', 'fill', 'type', 'press', 'check', 'uncheck', 'selectOption',
+  'setInputFiles', 'tap', 'hover', 'focus', 'dragTo', 'scrollIntoViewIfNeeded',
+  // waiting
+  'waitForSelector', 'waitForNavigation', 'waitForURL', 'waitForLoadState', 'waitForTimeout',
+  // locator creation (we log the chain, e.g. getByRole → click)
+  'getByRole', 'getByText', 'getByLabel', 'getByPlaceholder', 'getByAltText',
+  'getByTitle', 'getByTestId', 'locator', 'first', 'last', 'nth',
+]);
+
+/**
+ * Methods that return a new Locator and need to be wrapped recursively
+ * so the whole chain is captured: page.getByRole('button', { name: 'Submit' }).click()
+ */
+const LOCATOR_RETURNING = new Set([
+  'getByRole', 'getByText', 'getByLabel', 'getByPlaceholder', 'getByAltText',
+  'getByTitle', 'getByTestId', 'locator', 'first', 'last', 'nth',
+  'filter', 'and', 'or',
+]);
+
+/**
+ * Properties / methods that should NOT be proxied (internal Playwright, symbols, etc.)
+ */
+const PROXY_SKIP = new Set([
+  'then', 'catch', 'finally', // thenable checks
+  'toJSON', 'toString', 'valueOf', 'inspect',
+  'constructor', 'prototype',
+]);
+
+/**
+ * Serialize a locator call argument for logging.
+ * Handles role names, { name: ... } options, regex, etc.
+ */
+function _serializeLocatorArg(arg) {
+  if (arg == null) return arg;
+  if (arg instanceof RegExp) return arg.toString();
+  if (typeof arg === 'string') return arg.length > 200 ? arg.slice(0, 200) + '…' : arg;
+  if (typeof arg === 'number' || typeof arg === 'boolean') return arg;
+  if (typeof arg === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(arg)) {
+      if (typeof v === 'function') continue; // skip callbacks
+      out[k] = _serializeLocatorArg(v);
+    }
+    return out;
   }
+  return String(arg).slice(0, 100);
+}
 
+/**
+ * Create a logging Proxy around a Playwright Page or Locator.
+ *
+ * @param {object} target   — Playwright Page or Locator instance
+ * @param {ActionLogger} logger
+ * @param {Page} rawPage    — the unwrapped page (for _safeUrl)
+ * @param {string[]} chain  — accumulated method chain, e.g. ['getByRole("button")', 'first()']
+ */
+function _createLoggingProxy(target, logger, rawPage, chain = []) {
+  if (!target || typeof target !== 'object') return target;
+
+  return new Proxy(target, {
+    get(obj, prop, receiver) {
+      // Symbols, internal props — pass through
+      if (typeof prop === 'symbol') return Reflect.get(obj, prop, receiver);
+      if (PROXY_SKIP.has(prop)) return Reflect.get(obj, prop, receiver);
+
+      const value = Reflect.get(obj, prop, receiver);
+      if (typeof value !== 'function') return value;
+
+      // Determine if this method is worth logging
+      const isAction = ACTION_METHODS.has(prop);
+      const isLocatorReturning = LOCATOR_RETURNING.has(prop);
+      const shouldLog = logger.level === 'verbose' || isAction;
+
+      if (!shouldLog && !isLocatorReturning) {
+        // Not interesting — return bound original
+        return value.bind(obj);
+      }
+
+      // Return a wrapper function
+      return function proxyWrapper(...args) {
+        const prettyArgs = args.map(_serializeLocatorArg);
+        const callLabel = `${prop}(${prettyArgs.map(a => JSON.stringify(a)).join(', ')})`;
+        const fullChain = [...chain, callLabel];
+
+        // If this method returns a Locator, wrap the result recursively
+        if (isLocatorReturning) {
+          const result = value.apply(obj, args);
+          if (shouldLog) {
+            logger.log('locator', { chain: fullChain.join(' → '), url: _safeUrl(rawPage) });
+          }
+          // Wrap the returned locator so subsequent .click() / .fill() are also logged
+          return _createLoggingProxy(result, logger, rawPage, fullChain);
+        }
+
+        // Action method — log before and after
+        const url = _safeUrl(rawPage);
+        const entry = { method: prop, args: prettyArgs, chain: fullChain.join(' → '), url };
+
+        // If the result is a promise (async method), handle it
+        let result;
+        try {
+          result = value.apply(obj, args);
+        } catch (err) {
+          logger.log(prop + '_error', { ...entry, error: err.message });
+          throw err;
+        }
+
+        // Handle both sync and async returns
+        if (result && typeof result.then === 'function') {
+          return result.then(
+            (res) => {
+              const detail = { ...entry, ok: true };
+              // For some methods, capture return value
+              if (prop === 'textContent' || prop === 'innerText' || prop === 'innerHTML' ||
+                  prop === 'inputValue' || prop === 'getAttribute' || prop === 'count' ||
+                  prop === 'isVisible' || prop === 'isEnabled' || prop === 'isChecked') {
+                detail.result = _truncate(res);
+              }
+              if (prop === 'goto' && res) {
+                detail.status = typeof res.status === 'function' ? res.status() : undefined;
+              }
+              logger.log(prop, detail);
+              return res;
+            },
+            (err) => {
+              logger.log(prop + '_error', { ...entry, error: err.message });
+              throw err;
+            }
+          );
+        }
+
+        // Sync result
+        if (shouldLog) {
+          logger.log(prop, { ...entry, ok: true });
+        }
+        return result;
+      };
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildResult(browser, ctx, page, logger) {
+  // ── Create logging proxy for the page object ──
+  const rawPage = page;  // keep unwrapped reference for internal use
+  const proxiedPage = logger.level !== 'off'
+    ? _createLoggingProxy(page, logger, rawPage)
+    : page;
+
+  // ── Subscribe to page events for passive logging ──
+  if (logger.level !== 'off') {
+    rawPage.on('framenavigated', (frame) => {
+      if (frame === rawPage.mainFrame()) {
+        logger.log('navigated', { url: frame.url() });
+      }
+    });
+    rawPage.on('popup', (popup) => {
+      logger.log('popup', { url: _safeUrl(popup) });
+    });
+    rawPage.on('dialog', (dialog) => {
+      logger.log('dialog', { type: dialog.type(), message: _truncate(dialog.message(), 300) });
+    });
+    rawPage.on('download', (download) => {
+      logger.log('download', { filename: download.suggestedFilename(), url: download.url() });
+    });
+    rawPage.on('pageerror', (err) => {
+      logger.log('page_error', { error: err.message });
+    });
+  }
   if (logger.level === 'verbose') {
-    const origTextContent = page.textContent.bind(page);
-    page.textContent = async (selector, opts) => {
-      const val = await origTextContent(selector, opts);
-      logger.log('textContent', { selector, value: _truncate(val), url: _safeUrl(page) });
-      return val;
-    };
-
-    const origEvaluate = page.evaluate.bind(page);
-    page.evaluate = async (fn, ...args) => {
-      const result = await origEvaluate(fn, ...args);
-      const expr = typeof fn === 'function' ? fn.toString().slice(0, 200) : String(fn).slice(0, 200);
-      logger.log('evaluate', { expr, result: _truncate(result), url: _safeUrl(page) });
-      return result;
-    };
-
-    const origQS = page.$.bind(page);
-    page.$ = async (selector) => {
-      const el = await origQS(selector);
-      logger.log('querySelector', { selector, found: !!el, url: _safeUrl(page) });
-      return el;
-    };
+    rawPage.on('console', (msg) => {
+      if (msg.type() === 'error' || msg.type() === 'warning') {
+        logger.log('console', { type: msg.type(), text: _truncate(msg.text(), 300) });
+      }
+    });
+    rawPage.on('response', (resp) => {
+      const status = resp.status();
+      if (status >= 400) {
+        logger.log('http_error', { url: resp.url(), status });
+      }
+    });
   }
 
   // ── Wrap human* functions ──
   const wrap = (name, fn) => {
     if (logger.level === 'off') return fn;
     return async (...args) => {
-      const url = _safeUrl(page);
+      const url = _safeUrl(rawPage);
       try {
         const result = await fn(...args);
         logger.log(name, { args: _sanitizeArgs(name, args), url, ok: true });
@@ -1052,20 +1337,74 @@ function buildResult(browser, ctx, page, logger) {
     };
   };
 
+  // ── Wrap observation functions ──
+  const wrappedSnapshot = async (opts) => {
+    const result = await snapshot(rawPage, opts);
+    if (logger.level !== 'off') {
+      logger.log('snapshot', { selector: opts?.selector || 'body', interactiveOnly: opts?.interactiveOnly || false, length: result.length, url: _safeUrl(rawPage) });
+    }
+    return result;
+  };
+
+  const wrappedDumpInteractive = async (opts) => {
+    const result = await dumpInteractiveElements(rawPage, opts);
+    if (logger.level !== 'off') {
+      logger.log('dumpInteractiveElements', { count: result.length, url: _safeUrl(rawPage) });
+    }
+    return result;
+  };
+
+  const wrappedScreenshot = async (opts) => {
+    const result = await takeScreenshot(rawPage, opts);
+    if (logger.level !== 'off') {
+      logger.log('screenshot', { url: _safeUrl(rawPage) });
+    }
+    return result;
+  };
+
+  const wrappedScreenshotAndReport = async (message, opts) => {
+    const result = await screenshotAndReport(rawPage, message, opts);
+    if (logger.level !== 'off') {
+      logger.log('screenshotAndReport', { message: _truncate(message, 200), url: _safeUrl(rawPage) });
+    }
+    return result;
+  };
+
   return {
-    browser, ctx, page, logger,
+    browser, ctx,
+    page: proxiedPage,
+    logger,
     humanClick:     wrap('humanClick', humanClick),
     humanMouseMove: wrap('humanMouseMove', humanMouseMove),
     humanType:      wrap('humanType', humanType),
     humanScroll:    wrap('humanScroll', humanScroll),
     humanRead:      wrap('humanRead', humanRead),
-    solveCaptcha:   wrap('solveCaptcha', (captchaOpts) => solveCaptcha(page, captchaOpts)),
-    takeScreenshot: (opts) => takeScreenshot(page, opts),
-    screenshotAndReport: (message, opts) => screenshotAndReport(page, message, opts),
+    solveCaptcha:   wrap('solveCaptcha', (captchaOpts) => solveCaptcha(rawPage, captchaOpts)),
+    takeScreenshot: wrappedScreenshot,
+    screenshotAndReport: wrappedScreenshotAndReport,
 
     // Observation layer — use these instead of page.textContent()
-    snapshot:               (opts) => snapshot(page, opts),
-    dumpInteractiveElements:(opts) => dumpInteractiveElements(page, opts),
+    snapshot:               wrappedSnapshot,
+    snapshotAI:             wrap('snapshotAI', (opts) => snapshotAI(rawPage, opts)),
+    dumpInteractiveElements: wrappedDumpInteractive,
+
+    // Ref-based interactions — use refs from snapshotAI() output
+    clickRef:       wrap('clickRef', (ref, opts) => clickRef(rawPage, ref, opts)),
+    fillRef:        wrap('fillRef', (ref, value, opts) => fillRef(rawPage, ref, value, opts)),
+    typeRef:        wrap('typeRef', (ref, text, opts) => typeRef(rawPage, ref, text, opts)),
+    selectRef:      wrap('selectRef', (ref, value, opts) => selectRef(rawPage, ref, value, opts)),
+    hoverRef:       wrap('hoverRef', (ref, opts) => hoverRef(rawPage, ref, opts)),
+
+    // Text extraction — clean readable text from pages
+    extractText:    wrap('extractText', (opts) => extractText(rawPage, opts)),
+
+    // Cookie management — get/set/clear cookies
+    getCookies:     wrap('getCookies', (urls) => getCookies(ctx, urls)),
+    setCookies:     wrap('setCookies', (cookies) => setCookies(ctx, cookies)),
+    clearCookies:   wrap('clearCookies', () => clearCookies(ctx)),
+
+    // Batch actions — execute multiple actions in one call
+    batchActions:   wrap('batchActions', (actions, opts) => batchActions(rawPage, actions, opts)),
 
     sleep, rand,
     getSessionLog:  () => logger.getLog(),
@@ -1085,7 +1424,8 @@ function buildResult(browser, ctx, page, logger) {
  *                                   Default: "default". Pass null for ephemeral.
  * @param {boolean} opts.reuse     — Reuse running browser for this profile. Proxy mode must match
  *                                   the existing live context. Default: true
- * @param {string}  opts.logLevel  — 'off' | 'actions' | 'verbose'. Default: 'actions' (env PB_LOG_LEVEL)
+ * @param {string}  opts.logLevel  — 'off' | 'actions' | 'verbose'. Default: 'actions' (env CN_LOG_LEVEL)
+ * @param {string}  opts.task      — User's task / prompt to record in the session log. Optional.
  *
  * @returns {{ browser, ctx, page, logger, humanClick, humanMouseMove, humanType, humanScroll, humanRead, solveCaptcha, takeScreenshot, screenshotAndReport, snapshot, dumpInteractiveElements, sleep, rand, getSessionLog }}
  */
@@ -1099,14 +1439,16 @@ async function launchBrowser(opts = {}) {
     profile  = DEFAULT_PROFILE_NAME,
     reuse    = true,
     logLevel = null,
+    task     = null,
   } = opts;
   const normalizedProfile = typeof profile === 'string' ? profile.trim() : profile;
   const profileName = normalizedProfile === '' ? DEFAULT_PROFILE_NAME : normalizedProfile;
 
-  const cty   = country || process.env.PB_PROXY_COUNTRY || 'us';
-  const level = logLevel || process.env.PB_LOG_LEVEL || 'actions';
+  const cty   = country || process.env.CN_PROXY_COUNTRY || 'us';
+  const level = logLevel || process.env.CN_LOG_LEVEL || 'actions';
   const logger = new ActionLogger(_crypto.randomUUID(), level);
   logger.log('launch', { country: cty, mobile, profile: profileName, useProxy, headless, logLevel: level });
+  if (task) logger.log('task', { prompt: typeof task === 'string' ? task : JSON.stringify(task) });
 
   // ── Reuse: return existing browser if alive ──
   // Reuse is only safe when requested proxy mode matches the live context.
@@ -1114,11 +1456,11 @@ async function launchBrowser(opts = {}) {
   if (reuse && profileName) {
     const active = _activeBrowsers.get(profileName);
     if (active) {
-      const requestedProxyEnabled = Boolean(useProxy) && process.env.PB_NO_PROXY !== '1';
+      const requestedProxyEnabled = Boolean(useProxy) && process.env.CN_NO_PROXY !== '1';
       const activeProxyEnabled = Boolean(active.proxyEnabled);
       if (requestedProxyEnabled !== activeProxyEnabled) {
         throw new Error(
-          `[pets-browser] Reuse refused for profile "${profileName}": ` +
+          `[clawnet] Reuse refused for profile "${profileName}": ` +
           `existing context proxy=${activeProxyEnabled ? 'on' : 'off'}, requested proxy=${requestedProxyEnabled ? 'on' : 'off'}. ` +
           'Close this profile (closeBrowser) or launch with reuse:false/new profile to change proxy mode.'
         );
@@ -1127,7 +1469,7 @@ async function launchBrowser(opts = {}) {
       try {
         active.ctx.pages(); // throws if context is dead
         const page = await active.ctx.newPage();
-        console.log(`[pets-browser] Reusing browser for profile "${profileName}"`);
+        console.log(`[clawnet] Reusing browser for profile "${profileName}"`);
         logger.log('reuse', { profile: profileName });
         return buildResult(active.browser, active.ctx, page, logger);
       } catch (_) {
@@ -1139,12 +1481,12 @@ async function launchBrowser(opts = {}) {
 
   // ── Fresh launch: ensure credentials exist and fetch managed config ──
   if (!resolveAgentCredentials()) {
-    await autoRegisterAgent(process.env.PB_API_URL || DEFAULT_API_URL);
+    await autoRegisterAgent(process.env.CN_API_URL || DEFAULT_API_URL);
   }
   try {
     await getCredentials();
   } catch (e) {
-    console.warn('[pets-browser] Could not fetch managed credentials:', e.message);
+    console.warn('[clawnet] Could not fetch managed credentials:', e.message);
   }
 
   const device = buildDevice(mobile, cty);
@@ -1154,11 +1496,11 @@ async function launchBrowser(opts = {}) {
   // Fail-closed: refuse to launch without proxy unless explicitly opted out.
   // A silent fallback to no-proxy would expose the agent's real datacenter IP,
   // defeating the entire purpose of a stealth browser.
-  // Users who intentionally want no proxy must set useProxy:false or PB_NO_PROXY=1.
-  if (useProxy && !proxy && process.env.PB_NO_PROXY !== '1') {
+  // Users who intentionally want no proxy must set useProxy:false or CN_NO_PROXY=1.
+  if (useProxy && !proxy && process.env.CN_NO_PROXY !== '1') {
     throw new Error(
-      '[pets-browser] Proxy unavailable — auto-registration failed or trial/subscription expired. ' +
-      'Set PB_NO_PROXY=1 to launch without proxy, or provide BYO credentials via PB_PROXY_SERVER/PB_PROXY_USER.'
+      '[clawnet] Proxy unavailable — auto-registration failed or trial/subscription expired. ' +
+      'Set CN_NO_PROXY=1 to launch without proxy, or provide BYO credentials via CN_PROXY_SERVER/CN_PROXY_USER.'
     );
   }
 
@@ -1174,7 +1516,7 @@ async function launchBrowser(opts = {}) {
     launchArgs.unshift('--disable-setuid-sandbox');
     launchArgs.unshift('--no-sandbox');
   }
-  if (process.env.PB_DISABLE_WEB_SECURITY === '1') {
+  if (process.env.CN_DISABLE_WEB_SECURITY === '1') {
     launchArgs.push('--disable-web-security');
   }
 
@@ -1206,7 +1548,7 @@ async function launchBrowser(opts = {}) {
       _activeBrowsers.set(profileName, { browser, ctx, proxyEnabled: Boolean(proxy) });
     }
 
-    console.log(`[pets-browser] Launched with persistent profile "${profileName}"`);
+    console.log(`[clawnet] Launched with persistent profile "${profileName}"`);
     return result;
   }
 
@@ -1425,6 +1767,270 @@ async function snapshot(page, opts = {}) {
   return yaml;
 }
 
+// ─── AI SNAPSHOT (with refs) ────────────────────────────────────────────────
+// Uses Playwright's _snapshotForAI() (available in 1.58+) which returns a
+// structured accessibility tree with embedded [ref=eN] annotations.
+// Agents can then click/fill/type by ref instead of guessing CSS selectors.
+//
+// Example output:
+//   - navigation "Main" [ref=e1]:
+//     - link "Home" [ref=e2]
+//   - heading "Nike Air Jordan 1 Low" [ref=e3]
+//   - list "Sizes" [ref=e4]:
+//     - button "7" [ref=e5]
+//     - button "8" [ref=e6]
+//   - button "Add to Bag" [ref=e7]
+
+/**
+ * Capture an AI-optimized snapshot of the page with embedded element refs.
+ *
+ * Returns `{ snapshot, refs, truncated }` where `snapshot` is a formatted
+ * string and `refs` is a set of available ref IDs (e.g. "e1", "e2").
+ *
+ * Falls back to ariaSnapshot() if _snapshotForAI is unavailable.
+ *
+ * @param {import('playwright').Page} page
+ * @param {Object} [opts]
+ * @param {number} [opts.maxChars=20000] — Truncate snapshot to N characters
+ * @param {number} [opts.timeout=5000]   — Playwright timeout in ms
+ * @returns {Promise<{snapshot: string, refs: Object<string, boolean>, truncated?: boolean}>}
+ */
+async function snapshotAI(page, opts = {}) {
+  const { maxChars = 20000, timeout = 5000 } = opts;
+
+  // _snapshotForAI is a private Playwright API (available in 1.58+)
+  if (!page._snapshotForAI) {
+    // Fallback to ariaSnapshot if not available
+    const yaml = await snapshot(page, { maxLength: maxChars, timeout });
+    return { snapshot: yaml, refs: {} };
+  }
+
+  const result = await page._snapshotForAI({
+    timeout: Math.max(500, Math.min(60000, timeout)),
+    track: 'response',
+  });
+
+  let snap = String(result?.full ?? '');
+  let truncated = false;
+
+  if (maxChars && snap.length > maxChars) {
+    snap = snap.slice(0, maxChars) + '\n\n[...TRUNCATED - page too large]';
+    truncated = true;
+  }
+
+  // Parse ref IDs from snapshot text: [ref=eN]
+  const refs = {};
+  const refRegex = /\[ref=(e\d+)\]/g;
+  let m;
+  while ((m = refRegex.exec(snap)) !== null) {
+    refs[m[1]] = true;
+  }
+
+  return { snapshot: snap, refs, truncated: truncated || undefined };
+}
+
+// ─── REF-BASED INTERACTIONS ─────────────────────────────────────────────────
+// Click, fill, and type using [ref=eN] from snapshotAI() output.
+// Uses Playwright's aria-ref locator which resolves refs from the last
+// _snapshotForAI() call automatically.
+
+/**
+ * Click an element by its ref ID from a previous snapshotAI() call.
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} ref — Ref ID (e.g. "e4") from snapshotAI() output
+ * @param {Object} [opts]
+ * @param {number} [opts.timeout=8000]
+ * @param {'left'|'right'|'middle'} [opts.button='left']
+ * @param {boolean} [opts.doubleClick=false]
+ */
+async function clickRef(page, ref, opts = {}) {
+  const { timeout = 8000, button = 'left', doubleClick = false } = opts;
+  const locator = page.locator(`aria-ref=${ref}`);
+  if (doubleClick) {
+    await locator.dblclick({ timeout, button });
+  } else {
+    await locator.click({ timeout, button });
+  }
+}
+
+/**
+ * Fill an input/textarea by its ref ID. Clears existing value first.
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} ref — Ref ID from snapshotAI()
+ * @param {string} value — Value to fill
+ * @param {Object} [opts]
+ * @param {number} [opts.timeout=8000]
+ */
+async function fillRef(page, ref, value, opts = {}) {
+  const { timeout = 8000 } = opts;
+  const locator = page.locator(`aria-ref=${ref}`);
+  await locator.fill(value, { timeout });
+}
+
+/**
+ * Type text into an element by ref ID. Supports human-like slow typing.
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} ref — Ref ID from snapshotAI()
+ * @param {string} text — Text to type
+ * @param {Object} [opts]
+ * @param {boolean} [opts.slowly=false] — Type character-by-character with delay
+ * @param {boolean} [opts.submit=false] — Press Enter after typing
+ * @param {number} [opts.timeout=8000]
+ */
+async function typeRef(page, ref, text, opts = {}) {
+  const { slowly = false, submit = false, timeout = 8000 } = opts;
+  const locator = page.locator(`aria-ref=${ref}`);
+  if (slowly) {
+    await locator.click({ timeout });
+    await locator.type(text, { timeout, delay: 75 });
+  } else {
+    await locator.fill(text, { timeout });
+  }
+  if (submit) {
+    await locator.press('Enter', { timeout });
+  }
+}
+
+/**
+ * Select an option in a <select> element by ref ID.
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} ref — Ref ID from snapshotAI()
+ * @param {string} value — Option value or visible text
+ * @param {Object} [opts]
+ * @param {number} [opts.timeout=8000]
+ */
+async function selectRef(page, ref, value, opts = {}) {
+  const { timeout = 8000 } = opts;
+  const locator = page.locator(`aria-ref=${ref}`);
+  await locator.selectOption(value, { timeout });
+}
+
+/**
+ * Hover over an element by ref ID (useful for revealing tooltips/menus).
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} ref — Ref ID from snapshotAI()
+ * @param {Object} [opts]
+ * @param {number} [opts.timeout=8000]
+ */
+async function hoverRef(page, ref, opts = {}) {
+  const { timeout = 8000 } = opts;
+  const locator = page.locator(`aria-ref=${ref}`);
+  await locator.hover({ timeout });
+}
+
+// ─── TEXT EXTRACTION ────────────────────────────────────────────────────────
+// Inspired by PinchTab's /text endpoint (internal/handlers/text.go).
+// Extracts clean readable text from pages, stripping navigation/ads/noise.
+
+/**
+ * Extract clean text from the page using readability heuristics.
+ *
+ * Two modes:
+ *   - 'readability' (default): Finds the main content area (<article>, <main>,
+ *     [role="main"]), or falls back to cloning <body> and stripping noise elements
+ *     (nav, footer, ads, modals, cookie banners, etc.).
+ *   - 'raw': Returns document.body.innerText as-is.
+ *
+ * @param {import('playwright').Page} page
+ * @param {Object} [opts]
+ * @param {'readability'|'raw'} [opts.mode='readability'] - Extraction mode
+ * @param {number} [opts.maxChars] - Truncate text to N characters
+ * @returns {Promise<{url: string, title: string, text: string, truncated: boolean}>}
+ */
+async function extractText(page, opts = {}) {
+  const { mode = 'readability', maxChars } = opts;
+  const url = page.url();
+  const title = await page.title();
+
+  let text;
+  if (mode === 'raw') {
+    text = await page.evaluate(() => document.body.innerText);
+  } else {
+    text = await page.evaluate(() => {
+      // Try semantic containers first
+      const selectors = ['article', '[role="main"]', 'main'];
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el && el.innerText.trim().length > 100) {
+          return el.innerText.replace(/\n{3,}/g, '\n\n').trim();
+        }
+      }
+      // Fallback: clone body and strip noise elements
+      const clone = document.body.cloneNode(true);
+      const noiseSelectors = [
+        'nav', 'footer', 'aside', 'header',
+        '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
+        '.ad', '.ads', '.advertisement', '.sidebar',
+        '.cookie-banner', '.cookie-consent', '.popup', '.modal',
+        '.social-share', '.comments', '.related-posts',
+        'script', 'style', 'noscript', 'svg', 'iframe',
+        '[hidden]', '[aria-hidden="true"]',
+      ];
+      for (const sel of noiseSelectors) {
+        clone.querySelectorAll(sel).forEach(el => el.remove());
+      }
+      return clone.innerText.replace(/\n{3,}/g, '\n\n').trim();
+    });
+  }
+
+  let truncated = false;
+  if (maxChars && text.length > maxChars) {
+    text = text.slice(0, maxChars);
+    truncated = true;
+  }
+
+  return { url, title, text, truncated };
+}
+
+// ─── COOKIE MANAGEMENT ──────────────────────────────────────────────────────
+// Inspired by PinchTab's /cookies endpoint (internal/handlers/cookies.go).
+// Wraps Playwright's BrowserContext cookie API with logging-friendly interface.
+
+/**
+ * Get cookies for the current browser context.
+ *
+ * @param {import('playwright').BrowserContext} ctx - Playwright browser context
+ * @param {string|string[]} [urls] - Filter by URL(s). If omitted, returns all cookies.
+ * @returns {Promise<Array<{name: string, value: string, domain: string, path: string, secure: boolean, httpOnly: boolean, sameSite: string, expires: number}>>}
+ */
+async function getCookies(ctx, urls) {
+  if (urls) {
+    return ctx.cookies(Array.isArray(urls) ? urls : [urls]);
+  }
+  return ctx.cookies();
+}
+
+/**
+ * Set cookies on the browser context.
+ *
+ * Each cookie must have at least `name`, `value`, and either `url` or `domain`+`path`.
+ *
+ * @param {import('playwright').BrowserContext} ctx - Playwright browser context
+ * @param {Array<{name: string, value: string, url?: string, domain?: string, path?: string, secure?: boolean, httpOnly?: boolean, sameSite?: 'Strict'|'Lax'|'None', expires?: number}>} cookies
+ * @returns {Promise<{set: number, total: number}>}
+ */
+async function setCookies(ctx, cookies) {
+  const cookieArray = Array.isArray(cookies) ? cookies : [cookies];
+  await ctx.addCookies(cookieArray);
+  return { set: cookieArray.length, total: cookieArray.length };
+}
+
+/**
+ * Clear all cookies from the browser context.
+ *
+ * @param {import('playwright').BrowserContext} ctx
+ * @returns {Promise<{cleared: true}>}
+ */
+async function clearCookies(ctx) {
+  await ctx.clearCookies();
+  return { cleared: true };
+}
+
 // ─── RICH TEXT EDITOR UTILITIES ───────────────────────────────────────────────
 
 async function pasteIntoEditor(page, editorSelector, text) {
@@ -1493,7 +2099,19 @@ module.exports = {
   takeScreenshot, screenshotAndReport,
 
   // Observation layer (accessibility tree)
-  snapshot, dumpInteractiveElements,
+  snapshot, snapshotAI, dumpInteractiveElements,
+
+  // Ref-based interactions (use with snapshotAI)
+  clickRef, fillRef, typeRef, selectRef, hoverRef,
+
+  // Text extraction (readability)
+  extractText,
+
+  // Cookie management
+  getCookies, setCookies, clearCookies,
+
+  // Batch actions
+  batchActions,
 
   // Shadow DOM utilities
   shadowQuery, shadowFill, shadowClickButton,
@@ -1514,7 +2132,7 @@ module.exports = {
 // ─── QUICK TEST ───────────────────────────────────────────────────────────────
 if (require.main === module) {
   const country = process.argv[2] || 'us';
-  console.log(`Testing Pets Browser v1.0.0 — country: ${country.toUpperCase()}\n`);
+  console.log(`Testing Clawnet v1.0.0 — country: ${country.toUpperCase()}\n`);
   (async () => {
     const { browser, page } = await launchBrowser({ country, mobile: true });
     await page.goto('https://ipinfo.io/json', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -1530,6 +2148,6 @@ if (require.main === module) {
     } else {
       await page.context().close();
     }
-    console.log('\nPets Browser v1.0.0 is ready.');
+    console.log('\nClawnet v1.0.0 is ready.');
   })().catch(console.error);
 }

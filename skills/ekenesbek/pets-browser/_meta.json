@@ -1,13 +1,18 @@
 {
   "owner": "ekenesbek",
   "slug": "pets-browser",
-  "displayName": "Pets Browser",
+  "displayName": "Clawnet",
   "latest": {
-    "version": "0.1.6",
-    "publishedAt": 1772460918554,
-    "commit": "https://github.com/openclaw/skills/commit/f84fe9594eec5611637279269c5c2184f54bfabc"
+    "version": "0.1.8",
+    "publishedAt": 1772540974857,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.6",
+      "publishedAt": 1772460918554,
+      "commit": "https://github.com/openclaw/skills/commit/f84fe9594eec5611637279269c5c2184f54bfabc"
+    },
     {
       "version": "0.1.4",
       "publishedAt": 1772353381494,
