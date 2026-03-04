@@ -1,122 +1,113 @@
-# Web3 Investor Skill - Known Issues & TODO
+# Web3 Investor Skill - Development Progress
 
-## Version: 0.1.0-demo
+## Version: 0.2.0
 
-**Status**: Demo ready, known limitations documented below.
-
----
-
-## Known Issues (暂停存档)
-
-### 1. DefiLlama API Data Parsing Issues
-
-**Problem**: 
-- `analyze_protocol.py` 返回的数据不完整
-- 某些字段（TVL, chains, category）可能为空或格式不一致
-- DefiLlama API 的 `/protocol/{slug}` 端点返回结构因协议而异
-
-**Root Cause**:
-- DefiLlama API 没有严格的 schema
-- 不同协议的数据结构差异大
-- 某些旧协议缺少字段
-
-**Current Workaround**:
-- 使用 `--output json` 查看原始数据
-- 对空值做默认处理
-
-**TODO**:
-- [ ] 添加数据验证和清洗层
-- [ ] 针对主流协议（Aave, Compound, Uniswap 等）做特殊处理
-- [ ] 添加更多错误处理和 fallback 逻辑
-
-**Priority**: Medium
+**Status**: Core refactoring complete, ready for integration testing.
 
 ---
 
-### 2. Risk Scoring Algorithm Accuracy
+## ✅ Completed (2026-03-04)
 
-**Problem**:
-- 风险评分算法过于简单
-- Uniswap V4 新池子（TVL < $20k）被误评为 LOW risk
-- 缺少对协议类型、代币类型的区分
+### 1. Risk Assessment Refactoring
+- ✅ Removed local `calculate_risk_score()` from find_opportunities.py
+- ✅ Added `risk_signals` collection for LLM-based analysis
+- ✅ Added `actionable_addresses` structure for execution readiness
+- ✅ Protocol registry integration (protocols.md + protocols.json)
 
-**Root Cause**:
-- 当前算法仅基于：审计数量、TVL、是否有治理代币
-- 缺少对以下因素的考量：
-  - 协议类型（借贷 vs DEX vs 衍生品）
-  - 底层资产风险（稳定币 vs 山寨币）
-  - 流动性深度
-  - 智能合约复杂度
-  - 历史漏洞/攻击记录
+### 2. Trading Execution Optimization
+- ✅ Balance pre-check before deposit (`check_balance_before_deposit`)
+- ✅ Deposit preview with calldata generation (Aave/Compound/Lido)
+- ✅ Native + ERC20 balance queries via RPC
+- ✅ JSON output format for all commands
 
-**Current Workaround**:
-- 用户需自行判断，不要完全依赖风险评分
-- 结合 TVL 和 APY 做综合判断
+### 3. Unified Search Interface
+- ✅ `--llm-ready` output mode for LLM analysis
+- ✅ Removed `max_risk` filter (LLM handles risk)
+- ✅ Version tracking in output
 
-**TODO**:
-- [ ] 重构风险评分框架，增加更多维度
-- [ ] 添加代币类型分析（stablecoin vs volatile）
-- [ ] 集成外部风险数据源（如 DeFi Safety）
-- [ ] 添加流动性风险评分
-
-**Priority**: High (但 Demo 阶段可接受)
+### 4. Protocol Registry
+- ✅ JSON format protocol registry (`config/protocols.json`)
+- ✅ Contains primary contracts, categories, risk levels
+- ✅ Action method signatures for deposit/withdraw
 
 ---
 
-### 3. Portfolio Indexer Limited Functionality
+## Files Modified
 
-**Problem**:
-- 只能查询已知代币余额
-- 无法获取 DeFi 持仓（借贷、质押等）
-- 无法获取 NFT 价值
-
-**Root Cause**:
-- 简单 RPC 查询无法覆盖复杂 DeFi 交互
-- 需要解析各协议的特定合约
-
-**Current Workaround**:
-- 配置 Debank API Key 可获取完整数据
-- Demo 阶段仅展示基础代币余额
-
-**TODO**:
-- [ ] 集成更多协议的持仓解析（Aave, Compound, Uniswap LP 等）
-- [ ] 添加 NFT 估值功能
-- [ ] 优化 Debank API 集成
-
-**Priority**: Medium
+| File | Changes |
+|------|---------|
+| `scripts/discovery/find_opportunities.py` | v0.2.0 rewrite - risk signals, actionable addresses |
+| `scripts/discovery/unified_search.py` | v0.2.0 update - LLM-ready output |
+| `scripts/trading/safe_vault.py` | v0.2.0 rewrite - balance check, deposit preview |
+| `config/protocols.json` | New - static protocol registry |
 
 ---
 
-## Future Enhancements (Future TODO)
+## 🔄 Pending Tasks
 
-### Phase 2 - Enhanced Discovery
-- [ ] MCP Server 集成（搜索并测试可用的 Web3 MCP 服务器）
-- [ ] 多链支持（Arbitrum, Optimism, Base）
-- [ ] 社交情绪分析（Twitter, Discord 活跃度）
-- [ ] 链上数据分析（大户持仓、资金流向）
+### High Priority
+- [ ] Execute Dune queries to get actual APY data
+- [ ] Test end-to-end flow: search → preview → execute
+- [ ] Add more protocols to deposit preview (Rocket Pool, Yearn)
 
-### Phase 2 - Trading Automation
-- [ ] Phase 2 实现：限额内自动执行
-- [ ] Safe{Wallet} 多签集成
-- [ ] 交易历史记录和分析
-- [ ] Gas 优化策略
+### Medium Priority
+- [ ] Safe{Wallet} multisig integration
+- [ ] Transaction history logging
+- [ ] Gas optimization strategies
 
-### Phase 3 - Full Autonomy
-- [ ] Phase 3 实现：完全自主投资
-- [ ] 安全审计
-- [ ] 保险机制
-- [ ] 回撤控制
+### Low Priority
+- [ ] Insurance mechanism
+- [ ] Drawdown controls
+- [ ] Full autonomy mode (Phase 3)
 
 ---
 
-## Contributing
+## Known Issues (Archived)
 
-If you encounter issues not listed here, please:
-1. Check the error message
-2. Try the workarounds above
-3. Submit an issue with reproduction steps
+Issues from v0.1.0 have been addressed or are no longer relevant:
+
+1. ~~DefiLlama API data parsing issues~~ → Handled with `safe_get()` and null protection
+2. ~~Risk scoring algorithm accuracy~~ → Replaced with LLM-based analysis
+3. ~~Portfolio indexer limited functionality~~ → Deferred to future phase
 
 ---
 
-**Last Updated**: 2026-03-03
+## API Reference (v0.2.0)
+
+### find_opportunities.py
+```bash
+# Basic search
+python3 find_opportunities.py --min-apy 5 --chain ethereum
+
+# LLM-ready output
+python3 find_opportunities.py --min-apy 10 --llm-ready --output json
+
+# With risk signals
+python3 find_opportunities.py --min-apy 5 --limit 10 --output json
+```
+
+### safe_vault.py
+```bash
+# Check balance
+python3 safe_vault.py balance --wallet 0x... --token USDC
+
+# Preview deposit
+python3 safe_vault.py preview-deposit --protocol aave --asset USDC --amount 1000
+
+# Prepare transaction
+python3 safe_vault.py prepare-tx --to 0x... --value 0 --data 0x...
+```
+
+### unified_search.py
+```bash
+# Unified search
+python3 unified_search.py --min-apy 5 --chain ethereum
+
+# LLM-ready format
+python3 unified_search.py --min-apy 10 --llm-ready
+```
+
+---
+
+**Last Updated**: 2026-03-04
 **Maintainer**: Web3 Investor Skill Team

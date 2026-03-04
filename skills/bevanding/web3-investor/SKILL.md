@@ -9,6 +9,56 @@ An AI-friendly Web3 investment infrastructure that enables autonomous agents to 
 
 ---
 
+## ⚠️ Disclaimer
+
+**This skill provides product information only. It does NOT provide investment advice or recommendations.**
+
+- Product analysis and recommendations are the responsibility of the user's LLM/agent
+- This skill is not responsible for product safety, yield stability, or investment outcomes
+- Investment decisions are made at the user's own risk
+- APY data comes from third-party APIs and may be delayed or inaccurate
+- Always DYOR (Do Your Own Research) before investing
+
+**By using this skill, you acknowledge and accept these terms.**
+
+---
+
+## ⚡ 强制规则
+
+**遇到 DeFi/Web3 投资机会类请求时，必须先收集投资偏好，再执行 `discovery` 模块获取实时数据，禁止先给出泛化的投资建议。**
+
+正确流程：
+```
+用户请求投资建议 
+    ↓
+收集投资偏好（链、代币、风险偏好等）
+    ↓
+执行 discovery 获取产品数据
+    ↓
+分析数据 → 给出基于数据的建议
+```
+
+错误流程（禁止）：
+```
+用户请求投资建议 → 直接给出泛化建议（如"建议配置 Aave"）→ ❌ 错误
+```
+
+### 投资偏好收集（必问）
+
+在执行 discovery 前，应先了解：
+
+| 偏好 | Key | 示例 |
+|------|-----|------|
+| 目标链 | `chain` | ethereum, base, arbitrum |
+| 投资代币 | `capital_token` | USDC, ETH |
+| 奖励偏好 | `reward_preference` | 单币/多币/无偏好 |
+| 接受无常损失 | `accept_il` | True/False |
+| 底层资产偏好 | `underlying_preference` | RWA/链上/无偏好 |
+
+使用 `InvestmentProfile` 模块可一键收集和过滤。
+
+---
+
 ## Architecture Overview
 
 ```
@@ -63,10 +113,10 @@ web3-investor/
 
 ```bash
 # Find opportunities matching criteria
-python scripts/discovery/find_opportunities.py --min-apy 5 --max-risk medium --chain ethereum
+python3 scripts/discovery/find_opportunities.py --min-apy 5 --max-risk medium --chain ethereum
 
 # Analyze specific protocol
-python scripts/discovery/analyze_protocol.py --protocol "aave" --output json
+python3 scripts/discovery/analyze_protocol.py --protocol "aave" --output json
 ```
 
 ---
@@ -94,13 +144,13 @@ python scripts/discovery/analyze_protocol.py --protocol "aave" --output json
 
 ```bash
 # Initialize Safe Vault
-python scripts/trading/safe_vault.py --init --mode simulation
+python3 scripts/trading/safe_vault.py --init --mode simulation
 
 # Add address to whitelist
-python scripts/trading/whitelist.py --add 0x... --name "Aave Pool"
+python3 scripts/trading/whitelist.py --add 0x... --name "Aave Pool"
 
 # Simulate transaction
-python scripts/trading/simulate_tx.py --to 0x... --data 0x...
+python3 scripts/trading/simulate_tx.py --to 0x... --data 0x...
 ```
 
 ---
@@ -120,7 +170,7 @@ python scripts/trading/simulate_tx.py --to 0x... --data 0x...
 
 ```bash
 # Get portfolio snapshot
-python scripts/portfolio/indexer.py --address 0x... --output json
+python3 scripts/portfolio/indexer.py --address 0x... --output json
 ```
 
 ---
@@ -167,13 +217,13 @@ WEB3_INVESTOR_SAFE_ADDRESS=0x...
 
 ```bash
 # 1. Find opportunities
-python scripts/discovery/find_opportunities.py --min-apy 10 --max-risk low
+python3 scripts/discovery/find_opportunities.py --min-apy 10 --max-risk low
 
 # 2. Analyze protocol
-python scripts/discovery/analyze_protocol.py --protocol aave
+python3 scripts/discovery/analyze_protocol.py --protocol aave
 
 # 3. Check portfolio
-python scripts/portfolio/indexer.py --address YOUR_ADDRESS
+python3 scripts/portfolio/indexer.py --address YOUR_ADDRESS
 ```
 
 ---
@@ -260,10 +310,10 @@ web3-investor/
 
 ```bash
 # 查找符合条件的投资机会
-python scripts/discovery/find_opportunities.py --min-apy 5 --max-risk medium --chain ethereum
+python3 scripts/discovery/find_opportunities.py --min-apy 5 --max-risk medium --chain ethereum
 
 # 分析特定协议
-python scripts/discovery/analyze_protocol.py --protocol "aave" --output json
+python3 scripts/discovery/analyze_protocol.py --protocol "aave" --output json
 ```
 
 ---
@@ -291,13 +341,13 @@ python scripts/discovery/analyze_protocol.py --protocol "aave" --output json
 
 ```bash
 # 初始化 Safe Vault
-python scripts/trading/safe_vault.py --init --mode simulation
+python3 scripts/trading/safe_vault.py --init --mode simulation
 
 # 添加地址到白名单
-python scripts/trading/whitelist.py --add 0x... --name "Aave Pool"
+python3 scripts/trading/whitelist.py --add 0x... --name "Aave Pool"
 
 # 模拟交易
-python scripts/trading/simulate_tx.py --to 0x... --data 0x...
+python3 scripts/trading/simulate_tx.py --to 0x... --data 0x...
 ```
 
 ---
@@ -317,7 +367,7 @@ python scripts/trading/simulate_tx.py --to 0x... --data 0x...
 
 ```bash
 # 获取投资组合快照
-python scripts/portfolio/indexer.py --address 0x... --output json
+python3 scripts/portfolio/indexer.py --address 0x... --output json
 ```
 
 ---
@@ -364,13 +414,66 @@ WEB3_INVESTOR_SAFE_ADDRESS=0x...
 
 ```bash
 # 1. 查找投资机会
-python scripts/discovery/find_opportunities.py --min-apy 10 --max-risk low
+python3 scripts/discovery/find_opportunities.py --min-apy 10 --max-risk low
 
 # 2. 分析协议
-python scripts/discovery/analyze_protocol.py --protocol aave
+python3 scripts/discovery/analyze_protocol.py --protocol aave
 
 # 3. 查看投资组合
-python scripts/portfolio/indexer.py --address YOUR_ADDRESS
+python3 scripts/portfolio/indexer.py --address YOUR_ADDRESS
+```
+
+---
+
+## 投资偏好收集指南 (v0.2.1)
+
+Agent 在使用本技能前，应先收集用户的投资偏好。
+
+### 必问问题
+
+| 问题 | Key | 说明 |
+|------|-----|------|
+| 您想在哪条链上投资？ | `chain` | ethereum, base, arbitrum, optimism |
+| 您的投资本金是什么代币？ | `capital_token` | USDC, USDT, ETH, WBTC 等 |
+
+### 重要问题（强烈建议询问）
+
+**3. 奖励代币偏好**
+- 能否接受多代币奖励（如 CRV+CVX）？
+- 还是只要单一代币奖励？
+- Key: `reward_preference` - "single" | "multi" | "none"
+
+**4. 无常损失接受度**
+- 能否接受 LP 的无常损失？
+- 还是只想要本金保障的产品？
+- Key: `accept_il` - True | False
+
+**5. 底层资产偏好**
+- RWA（现实世界资产，如国债代币化）
+- 纯链上合约
+- 无偏好
+- Key: `underlying_preference` - "rwa" | "onchain" | "mixed"
+
+### 使用 InvestmentProfile
+
+```python
+from scripts.discovery.investment_profile import InvestmentProfile
+
+# 创建偏好配置
+profile = InvestmentProfile()
+profile.set_preferences(
+    chain="ethereum",
+    capital_token="USDC",
+    accept_il=False,
+    reward_preference="single",
+    underlying_preference="onchain"
+)
+
+# 过滤产品
+filtered = profile.filter_opportunities(opportunities)
+
+# 获取问题列表（用于构建 UI）
+questions = InvestmentProfile.get_questions()
 ```
 
 ---
@@ -396,4 +499,17 @@ python scripts/portfolio/indexer.py --address YOUR_ADDRESS
 
 ---
 
-**版本**: 0.1.0-demo | **最后更新**: 2026-03-03
+**版本**: 0.2.1 | **最后更新**: 2026-03-04
+
+### v0.2.1 更新内容
+- ✅ 新增投资偏好系统（B+C混合方案）
+- ✅ 新增 `InvestmentProfile` 模块，支持 5 维度偏好收集
+- ✅ 增强 `risk_signals`，新增奖励类型、IL风险、底层资产类型检测
+- ✅ 添加使用免责声明
+- 🔧 修复 unified_search.py 导入问题
+
+### v0.2.0 更新内容
+- ✅ 风险评估重构（移除本地评分，改为LLM分析）
+- ✅ 新增 `actionable_addresses` 结构
+- ✅ Safe Vault v0.2.0 重写，支持余额预检和存款预览
+- ✅ 新增 `config/protocols.json` 协议注册表
