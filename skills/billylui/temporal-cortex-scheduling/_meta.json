@@ -3,11 +3,16 @@
   "slug": "temporal-cortex-scheduling",
   "displayName": "temporal-cortex-scheduling",
   "latest": {
-    "version": "0.6.2",
-    "publishedAt": 1772602564501,
-    "commit": "https://github.com/openclaw/skills/commit/2dc37598062c1925af5a3d03f3e98e89346dfa13"
+    "version": "0.7.3",
+    "publishedAt": 1772635281712,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.6.2",
+      "publishedAt": 1772602564501,
+      "commit": "https://github.com/openclaw/skills/commit/2dc37598062c1925af5a3d03f3e98e89346dfa13"
+    },
     {
       "version": "0.5.8",
       "publishedAt": 1772355111022,
