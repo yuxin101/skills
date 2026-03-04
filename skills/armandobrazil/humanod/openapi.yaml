@@ -284,6 +284,13 @@ components:
             items:
                 type: string
             description: List of required skills (e.g. ["photography", "french"])
+        is_live_show:
+            type: boolean
+            description: Set to true to broadcast this task live on The Humanod Show
+        sla_tier:
+            type: string
+            enum: [standard, guaranteed_1h, guaranteed_24h]
+            description: Service Level Agreement tier for execution speed.
     TaskResponse:
       type: object
       properties:
