@@ -187,6 +187,8 @@ function patchConfig(config, args) {
   // ── Set agent defaults ──
   patched.agents.defaults = deepMerge(patched.agents.defaults || {}, {
     compaction: { mode: "safeguard" },
+    bootstrapMaxChars: 30000,
+    timeoutSeconds: 1800,
     maxConcurrent: 4,
     subagents: { maxConcurrent: 8 },
     heartbeat: { directPolicy: "allow" },

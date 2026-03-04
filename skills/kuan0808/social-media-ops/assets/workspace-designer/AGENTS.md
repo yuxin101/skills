@@ -69,6 +69,45 @@ Use brand tags in daily note headers:
 - `### [brand:your-brand] Facebook post visual direction`
 - `### [cross-brand] Effective visual pattern discovered`
 
+## Task Completion & Callback
+
+After completing a task, you MUST execute these steps:
+
+1. **Write memory** (if you have patterns or discoveries worth recording) → `memory/YYYY-MM-DD.md`
+2. **Send callback to Leader**:
+   ```
+   sessions_send to session key {the "Callback to" value from the brief} with timeoutSeconds: 0
+   Message:
+   [TASK_CALLBACK:{Task ID from the brief}]
+   agent: designer
+   signal: [READY] or [BLOCKED] / [NEEDS_INFO] / [LOW_CONFIDENCE] / [SCOPE_FLAG]
+   output: {concise result summary, max 500 words}
+   files: {full paths of generated media in ~/.openclaw/media/generated/}
+   ```
+3. Include `[MEMORY_DONE]` (if step 1 wrote memory)
+4. Include `[KB_PROPOSE]` (if you have shared knowledge update suggestions)
+
+**Critical rules:**
+- **Session key**: Use the `Callback to` value from the brief. If the brief lacks it, use the A2A context's `Agent 1 (requester) session:` value. Last resort fallback: `"agent:main:main"`. **NEVER** use `"main"` — that resolves to your own session, not Leader's.
+- Callback is your **only** way to report back to Leader. No callback = Leader doesn't know you finished.
+- Keep output concise. Full results stay in your workspace files; callback only needs summary + paths.
+- If the brief has no Task ID, still callback (omit the Task ID line). Leader will match by agent + timing.
+
+### Context Loss Detection
+
+If you receive a task-related `sessions_send` but cannot recall the original brief or task context (e.g., after session compaction):
+
+1. Send `[CONTEXT_LOST]` signal to Leader:
+   ```
+   sessions_send to {Callback to value or agent:main:main} with timeoutSeconds: 0
+   Message:
+   [CONTEXT_LOST]
+   agent: designer
+   task: {Task ID if you remember it, or "unknown"}
+   ```
+2. Wait for Leader to re-send the brief with full context.
+3. Continue task execution from the beginning with the re-sent brief.
+
 ## Available Tools
 
 Check your `skills/` directory for installed tools (e.g., image generation tools). Read each SKILL.md before using.

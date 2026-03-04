@@ -67,8 +67,37 @@ Reviewer-specific signals:
 - `[REVISE]` — Material issues found, specific fixes listed below
 - `[NEEDS_INFO]` — Cannot review without additional context (e.g., missing brand guidelines)
 
-## Memory
+## Task Completion & Callback
 
-Review results are recorded by Leader. You do not write to memory files.
+After completing a review, you MUST:
 
-If you identify a pattern worth capturing in shared knowledge, include `[KB_PROPOSE]` in your review (format in `shared/operations/communication-signals.md`).
+1. **Send callback to Leader**:
+   ```
+   sessions_send to session key {the "Callback to" value from the brief} with timeoutSeconds: 0
+   Message:
+   [TASK_CALLBACK:{Task ID from the brief}]
+   agent: reviewer
+   signal: [APPROVE] or [REVISE]
+   output: {review summary + specific issues/strengths}
+   ```
+2. Include `[KB_PROPOSE]` (if you have shared knowledge update suggestions)
+
+**Critical rules:**
+- **Session key**: Use the `Callback to` value from the brief. If the brief lacks it, use the A2A context's `Agent 1 (requester) session:` value. Last resort fallback: `"agent:main:main"`. **NEVER** use `"main"` — that resolves to your own session, not Leader's.
+- Callback is your **only** way to report back to Leader. No callback = Leader doesn't know you finished.
+- Reviewer does not write memory files. Review results are recorded by Leader.
+
+### Context Loss Detection
+
+If you receive a review-related `sessions_send` but cannot recall the original brief or task context (e.g., after session compaction):
+
+1. Send `[CONTEXT_LOST]` signal to Leader:
+   ```
+   sessions_send to {Callback to value or agent:main:main} with timeoutSeconds: 0
+   Message:
+   [CONTEXT_LOST]
+   agent: reviewer
+   task: {Task ID if you remember it, or "unknown"}
+   ```
+2. Wait for Leader to re-send the review brief with full context.
+3. Continue review from the beginning with the re-sent brief.

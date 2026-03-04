@@ -48,23 +48,21 @@
     {
       "id": "stale-task-check",
       "name": "stale-task-check",
-      "description": "Check SCRATCH.md for stale dispatched tasks and recover lost agent responses",
+      "description": "Scan tasks/ directory for stale dispatched tasks and recover lost agent callbacks",
       "enabled": true,
       "schedule": {
         "kind": "cron",
-        "expr": "*/10 * * * *"
+        "expr": "*/5 * * * *"
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Stale task check: Read SCRATCH.md. For any task step in [⏳] state, run sessions_history on that agent to check if they completed. If completed, extract the result and continue the task flow. If not completed and waiting longer than 10 minutes, send a non-blocking status check. Report findings to Operations topic only if action was taken.",
+        "message": "[CRON:TASK_CHECK] 定期任務檢查。掃描 tasks/ 目錄中的 active task files（排除 archive/）。對每個 [⏳] 步驟，若 dispatched 超過 15 分鐘，執行 sessions_history 檢查 agent 是否已完成。已完成但未 callback → 按 Agent Callback Protocol 完整流程處理（更新 task file → cascade → 編輯 Telegram status → 交付 owner）。Agent 仍在執行且超過 30 分鐘 → 用 message tool 通知 owner（解析 task file 的 route 欄位：split on `:` → to = chatId, threadId = threadId）。無待處理項目 → 回覆 HEARTBEAT_OK。",
         "timeoutSeconds": 60
       },
       "delivery": {
-        "mode": "channel",
-        "channel": "{{OPERATIONS_CHANNEL}}",
-        "accountId": ""
+        "mode": "none"
       }
     }
   ]

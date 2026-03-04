@@ -257,8 +257,9 @@ If `patch-config.js` reported "qmd binary not found" during Step 3, agents will 
 Leader uses **fully async dispatch** (`sessions_send` with `timeoutSeconds: 0`) for all agent communication. This means:
 
 - Leader is **never blocked** waiting for an agent — always available to the owner.
-- Agent results arrive as inter-session messages; Leader processes them per the "Handling Agent Reports" flow in AGENTS.md.
-- **Stale task detection** is handled by a cron job (`stale-task-check`, every 10 minutes) that checks SCRATCH.md for tasks stuck in `[⏳]` state.
+- Agents **callback** to Leader via `sessions_send` when done (event-driven, not polling). Leader processes callbacks per the "Agent Callback Protocol" flow in AGENTS.md.
+- Each task is tracked in a separate file: `tasks/T-{YYYYMMDD}-{HHMM}.md`. Completed tasks are archived to `tasks/archive/`.
+- **Stale task detection** is handled by a cron job (`stale-task-check`, every 5 minutes) that scans `tasks/` for steps stuck in `[⏳]` state. Runs as Leader (not operator).
 - **HEARTBEAT.md** ships empty by default — periodic checks are handled by cron jobs instead of heartbeat polls.
 
 ### Secrets Management (Optional)

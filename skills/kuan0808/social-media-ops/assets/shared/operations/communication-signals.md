@@ -31,7 +31,7 @@ Used in persistent A2A sessions (`sessions_send`):
 |--------|---------|-----------|---------------|
 | `[KB_PROPOSE]` | Agent proposes a shared knowledge base update | All agents (including Reviewer) | Parse proposal; apply directly if from owner-confirmed context, ask owner if from agent inference |
 | `[MEMORY_DONE]` | Agent has finished writing its own memory files | All agents except Reviewer | Safe to route next step or next task |
-| `[CONTEXT_LOST]` | Agent's session was compacted, context lost | All agents | Re-send current task state from SCRATCH.md |
+| `[CONTEXT_LOST]` | Agent's session was compacted, context lost | All agents | Re-send current task state from `tasks/T-{id}.md` |
 
 ### KB_PROPOSE Format
 

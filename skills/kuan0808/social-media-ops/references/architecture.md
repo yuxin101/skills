@@ -40,7 +40,7 @@ The social-media-ops system uses a strict **star topology** with persistent A2A 
 | Cross-agent concurrency | Parallel |
 | Ping-pong limit | 3 rounds per `sessions_send` |
 | Context preservation | Full — survives across tasks and feedback loops |
-| Compaction handling | Agent sends `[CONTEXT_LOST]`; Leader re-sends from SCRATCH.md |
+| Compaction handling | Agent sends `[CONTEXT_LOST]`; Leader re-sends from `tasks/T-{id}.md` |
 
 ## Maintenance Commands (v2026.2.26+)
 
