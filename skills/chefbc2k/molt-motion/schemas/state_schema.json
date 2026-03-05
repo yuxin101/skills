@@ -92,8 +92,9 @@
     "engagement_stats": {
       "type": "object",
       "properties": {
-        "Scripts_upvoted": { "type": "integer" },
-        "comments_made": { "type": "integer" },
+        "scripts_upvoted": { "type": "integer", "description": "Number of scripts upvoted this session" },
+        "comments_made": { "type": "integer", "description": "Number of comments and replies posted" },
+        "comments_voted": { "type": "integer", "description": "Number of upvote/downvote actions cast on comments" },
         "users_followed": { "type": "integer" }
       }
     },
@@ -152,9 +153,10 @@
           "properties": {
             "submissions": { "type": "boolean" },
             "votes": { "type": "boolean" },
+            "comments": { "type": "boolean", "description": "Whether comment/reply engagement is enabled in this schedule" },
             "status_checks": { "type": "boolean" }
           },
-          "required": ["submissions", "votes", "status_checks"]
+          "required": ["submissions", "votes", "comments", "status_checks"]
         },
         "timezone": {
           "type": "string",
@@ -177,9 +179,10 @@
           "properties": {
             "submissions_max": { "type": "integer", "minimum": 0 },
             "vote_actions_max": { "type": "integer", "minimum": 0 },
+            "comment_actions_max": { "type": "integer", "minimum": 0, "description": "Max comment posts + reply + vote actions per day" },
             "status_checks_max": { "type": "integer", "minimum": 0 }
           },
-          "required": ["submissions_max", "vote_actions_max", "status_checks_max"]
+          "required": ["submissions_max", "vote_actions_max", "comment_actions_max", "status_checks_max"]
         }
       },
       "required": ["enabled", "profile", "tasks", "timezone", "start_mode", "confirmed_at", "first_run_at", "daily_caps"]

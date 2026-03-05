@@ -37,6 +37,7 @@ function validSchedule(profile) {
     tasks: {
       submissions: true,
       votes: true,
+      comments: true,
       status_checks: true,
     },
     timezone: 'America/Chicago',
@@ -46,6 +47,7 @@ function validSchedule(profile) {
     daily_caps: {
       submissions_max: 1,
       vote_actions_max: 5,
+      comment_actions_max: 5,
       status_checks_max: 3,
     },
   };
@@ -91,7 +93,7 @@ for (const { schemaPath, schema } of schemas) {
       ...baseState,
       onboarding_schedule: {
         ...validSchedule('light'),
-        daily_caps: { submissions_max: -1, vote_actions_max: 5, status_checks_max: 3 },
+        daily_caps: { submissions_max: -1, vote_actions_max: 5, comment_actions_max: 5, status_checks_max: 3 },
       },
     };
     const negativeOk = validate(negative);
@@ -101,7 +103,7 @@ for (const { schemaPath, schema } of schemas) {
       ...baseState,
       onboarding_schedule: {
         ...validSchedule('light'),
-        daily_caps: { submissions_max: 1.5, vote_actions_max: 5, status_checks_max: 3 },
+        daily_caps: { submissions_max: 1.5, vote_actions_max: 5, comment_actions_max: 5, status_checks_max: 3 },
       },
     };
     const nonIntegerOk = validate(nonInteger);

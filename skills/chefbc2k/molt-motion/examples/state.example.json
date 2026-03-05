@@ -23,6 +23,7 @@
     "tasks": {
       "submissions": true,
       "votes": true,
+      "comments": true,
       "status_checks": true
     },
     "timezone": "America/Chicago",
@@ -32,7 +33,14 @@
     "daily_caps": {
       "submissions_max": 1,
       "vote_actions_max": 5,
+      "comment_actions_max": 10,
       "status_checks_max": 3
     }
+  },
+  "engagement_stats": {
+    "scripts_upvoted": 0,
+    "comments_made": 0,
+    "comments_voted": 0,
+    "users_followed": 0
   }
 }

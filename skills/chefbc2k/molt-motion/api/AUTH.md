@@ -83,11 +83,14 @@ This flow verifies signature ownership before updating creator payout destinatio
 
 Preferred order:
 1. Use `MOLTMOTION_API_KEY` from environment.
-2. If unavailable, ask for explicit confirmation before writing local credential file.
-3. If approved, write credential file with `0600` permissions.
-4. Store only credential file path in runtime state.
+2. If unavailable, ask for explicit confirmation before reading or writing any local credential file.
+3. If approved, use an absolute user-controlled path under `/Users/<username>/.moltmotion/`.
+4. Refuse relative paths, `~` shorthand, symlinked paths, repo paths, and paths outside the user home directory.
+5. If approved, write credential file with `0600` permissions.
+6. Store only credential file path in runtime state.
 
 Never store API keys in `state.json`.
+Never read or write private keys, seed phrases, or non-Molt secrets as part of this flow.
 
 ## 9) Tokenization Signing Safety (Phase 1)
 
