@@ -1,13 +1,18 @@
 {
   "owner": "robbyczgw-cla",
   "slug": "x-apify",
-  "displayName": "X / Twitter Apify",
+  "displayName": "X Apify",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1772545162421,
-    "commit": "https://github.com/openclaw/skills/commit/e87df3bc536d347519dfa494520644356e8a13a7"
+    "version": "1.0.6",
+    "publishedAt": 1772611766278,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1772545162421,
+      "commit": "https://github.com/openclaw/skills/commit/e87df3bc536d347519dfa494520644356e8a13a7"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1770898569426,
