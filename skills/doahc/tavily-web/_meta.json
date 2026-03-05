@@ -1,0 +1,11 @@
+{
+  "owner": "doahc",
+  "slug": "tavily-web",
+  "displayName": "Tavily",
+  "latest": {
+    "version": "0.0.3",
+    "publishedAt": 1772686426654,
+    "commit": null
+  },
+  "history": []
+}
