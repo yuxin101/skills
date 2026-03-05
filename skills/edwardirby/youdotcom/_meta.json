@@ -1,13 +1,18 @@
 {
   "owner": "edwardirby",
   "slug": "youdotcom",
-  "displayName": "You.com  CLI",
+  "displayName": "You.com  Web search, research, and content extraction",
   "latest": {
-    "version": "2.0.7",
-    "publishedAt": 1771534942916,
-    "commit": "https://github.com/openclaw/skills/commit/c9a73ad298340c58fb0584cfe49ba7ba988491a2"
+    "version": "3.0.0",
+    "publishedAt": 1772600726819,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.0.7",
+      "publishedAt": 1771534942916,
+      "commit": "https://github.com/openclaw/skills/commit/c9a73ad298340c58fb0584cfe49ba7ba988491a2"
+    },
     {
       "version": "2.0.6",
       "publishedAt": 1771486185122,
