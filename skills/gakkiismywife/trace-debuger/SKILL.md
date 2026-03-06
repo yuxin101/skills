@@ -31,6 +31,21 @@ python3 skills/trace_debuger/scripts/trace_debuger.py \
 ## Output
 
 - Writes Markdown report to `output_path`
+- **MUST send the generated Markdown report to the user as a file attachment via the chat window in the same session before finishing the task**
+- **MUST send the report as ONE chat message only: attach the Markdown file and put the strict summary block in the same message caption/body.**
+- **`【markdown报告文件】` is a placeholder and MUST be replaced with the real uploaded Markdown filename (example: `trace_debug_report_<trace_id>.md`).**
+- **Use exactly this format in caption/body:**
+
+```text
+<真实markdown报告文件名>
+trace_id: xxxx
+status: xxx
+jaeger_url: xxx
+es_url: xxx
+代码仓库路径：仓库路径
+关键结论摘要：xxxx
+```
+
 - Prints fixed summary lines to stdout:
 
 ```text
@@ -49,4 +64,6 @@ es_url: <es_url>
   - `这是我的日志，请根据日志结合代码帮我排查分析bug，输出bug原因及解决方案,必须保持固定的格式。`
 - If repository is provided, include code-context hints and file matches for suspected bug areas.
 - If repository is not provided, base bug hypotheses on logs + spans only.
-- After analysis in chat workflow: send the generated Markdown file to the user through the chat window, then delete the local Markdown file.
+- After analysis in chat workflow: send the generated Markdown report **as a file attachment** to the user through the chat window, with the strict summary block in the **same message** caption/body (single message only).
+- The first line must be the real Markdown filename (not placeholder text).
+- Finally, delete the local Markdown file.
