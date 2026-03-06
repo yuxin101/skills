@@ -1,13 +1,18 @@
 {
   "owner": "vlprosvirkin",
   "slug": "prob-trade-polymarket-analytics",
-  "displayName": "Openclaw Skill Publish",
+  "displayName": "Openclaw Skill",
   "latest": {
-    "version": "2.0.4",
-    "publishedAt": 1772113288835,
-    "commit": "https://github.com/openclaw/skills/commit/8e01df28c7a7713c12997415756543c32c7abebc"
+    "version": "2.0.5",
+    "publishedAt": 1772718141464,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.0.4",
+      "publishedAt": 1772113288835,
+      "commit": "https://github.com/openclaw/skills/commit/8e01df28c7a7713c12997415756543c32c7abebc"
+    },
     {
       "version": "2.0.3",
       "publishedAt": 1771443560146,

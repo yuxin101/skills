@@ -57,6 +57,46 @@ def fetch(endpoint: str, params: Optional[dict] = None) -> dict:
         sys.exit(1)
 
 
+def post_public(endpoint: str, body: Optional[dict] = None) -> dict:
+    """Make a POST request to the prob.trade Public API (authenticated with PTK key)."""
+    path = f"/api/public{endpoint}"
+    url = f"{_HOST}{path}"
+    body_str = json.dumps(body, separators=(',', ':')) if body else ""
+
+    config = _load_config()
+    if not config.get("api_key") or not config.get("api_secret"):
+        print("Error: API key not configured.", file=sys.stderr)
+        sys.exit(1)
+
+    headers = _sign(config["api_secret"], "POST", path, body_str)
+    headers["X-PTK-Key"] = config["api_key"]
+    headers["Content-Type"] = "application/json"
+    headers["User-Agent"] = "probtrade-openclaw-skill/1.0"
+
+    req = urllib.request.Request(url, method="POST", headers=headers)
+    if body_str:
+        req.data = body_str.encode()
+
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            data = json.loads(response.read().decode())
+            if not data.get("success"):
+                print(f"API error: {data.get('error', 'Unknown error')}", file=sys.stderr)
+                sys.exit(1)
+            return data.get("data", {})
+    except urllib.error.HTTPError as e:
+        body_resp = e.read().decode() if e.fp else ""
+        try:
+            err = json.loads(body_resp)
+            print(f"API error ({e.code}): {err.get('error', body_resp)}", file=sys.stderr)
+        except json.JSONDecodeError:
+            print(f"API error ({e.code}): {body_resp}", file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        print(f"Connection error: {e.reason}", file=sys.stderr)
+        sys.exit(1)
+
+
 # ---------------------------------------------------------------------------
 # Trading API client (HMAC-SHA256 authenticated)
 # ---------------------------------------------------------------------------
@@ -120,7 +160,7 @@ def trading_request(method: str, endpoint: str, body: Optional[dict] = None) -> 
 
     path = f"/api/trading{endpoint}"
     url = f"{_HOST}{path}"
-    body_str = json.dumps(body) if body and method.upper() not in ("GET", "DELETE") else ""
+    body_str = json.dumps(body, separators=(',', ':')) if body and method.upper() not in ("GET", "DELETE") else ""
 
     headers = _sign(config["api_secret"], method, path, body_str)
     headers["X-PTK-Key"] = config["api_key"]
