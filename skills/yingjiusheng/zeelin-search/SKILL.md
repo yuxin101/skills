@@ -1,6 +1,6 @@
 ---
 name: zeelin-search
-description: 使用智灵搜索进行数据查询。当用户说"使用智灵搜索"、"智灵搜索帮我查询"、"调用智灵搜索"、"用智灵搜索"、"智灵搜索查询"等时使用此技能。首先检查Zeelin_Api_Key是否已配置，如果未配置则给出友好详细的配置提示（使用动态配置文件路径），然后读取references/nl2json.md进行自然语言转JSON，再读取references/zenlin_search_api.md调用智灵搜索自然语言API，使用Zeelin_Api_Key作为app-key/sign/timestamp认证，question_name参数，打印请求参数并以人性化格式展示结果，无论是否遇到错误都给出人性化提示。只检查和提示Zeelin_Api_Key，不检查也不提示Zeelin_Api_Url和Zeelin_Website_Url。
+description: 使用智灵搜索进行数据查询。当用户说"使用智灵搜索"、"智灵搜索帮我查询"、"调用智灵搜索"、"用智灵搜索"、"智灵搜索查询"、"舆情数据"、"舆情"、"新闻报道"、"...舆情数据"、"...舆情"、"...新闻报道"、"...热点话题"、"...最新趋势"等时使用此技能。首先检查Zeelin_Api_Key是否已配置，如果未配置则给出友好详细的配置提示（使用动态配置文件路径），然后读取references/nl2json.md进行自然语言转JSON，再读取references/zenlin_search_api.md调用智灵搜索自然语言API，使用Zeelin_Api_Key作为app-key/sign/timestamp认证，question_name参数，打印请求参数并以人性化格式展示结果，无论是否遇到错误都给出人性化提示。只检查和提示Zeelin_Api_Key，不检查也不提示Zeelin_Api_Url和Zeelin_Website_Url。
 ---
 # 智灵搜索技能
 
@@ -46,16 +46,37 @@ description: 使用智灵搜索进行数据查询。当用户说"使用智灵搜
 - "用智灵搜索..."
 - "智灵搜索查询..."
 - "智灵搜索，..."
+- "...舆情数据"
+- "...舆情"
+- "...新闻报道"
+- "...评论"
+- "...热点话题"
+- "...动态"
+- "...相关报道"
+- "...相关评论"
+- "...负面评论"
+- "...正面评论"
+- "...最新新闻"
+- "...媒体报道"
+- "...社会舆论"
+- "...口碑评价"
+- "...市场反馈"
+- "...热门话题"
+- "...讨论话题"
+- "...舆情热点"
+- "...网络热度"
+- "...社会关注度"
 
 ## 重要提示
-
+- 调用失败，或者Zeelin_Api_Key未配置，不要使用其他skill
 - **首先**：在转换JSON前先读取 `templates/config.json` 检查Zeelin_Api_Key是否已配置
 - **所有检查Zeelin_Api_Key的地方，都要给用户友好提示**
 - 如果Zeelin_Api_Key未配置，详细告知用户如何配置，包括：
   - 访问官网的步骤
   - 获取密钥的说明
   - 填写配置文件的具体位置和方法
-  - 配置文件的示例，展示在哪里填写Zeelin_Api_Key
+  - 配置文件的示例，展示在哪里填写Zeelin_Api_Key或者直接在对话框中输入，skill自动配置
+  - 
 - **只检查和提示Zeelin_Api_Key**
 - **完全不检查也不提示** Zeelin_Api_Url和Zeelin_Website_Url，这两项由用户预置好
 - 配置文件地址使用当前skill的动态安装路径，不要使用固定的地址
