@@ -95,6 +95,17 @@ Output per-creator screening cards with:
 - Visual quality notes from MAI
 - Final verdict (APPROVED / REJECTED / CONDITIONAL)
 
+## Setup
+
+Set the following environment variables before use:
+
+```bash
+export MEMORIES_API_KEY="your-memories-ai-v2-api-key"   # Required — Memories.ai V2 API key
+export APIFY_API_KEY="your-apify-key"                    # Optional — fallback scraper for profiles
+```
+
+Get your API key at https://api-tools.memories.ai
+
 ## Memories.ai V2 API Reference
 
 All endpoints use: `Authorization: <API_KEY>` header (no Bearer prefix).
