@@ -1,16 +1,13 @@
 {
   "name": "cryptowatch",
-  "version": "1.0.0",
-  "description": "₿ CryptoWatch - 实时监控加密货币价格，价格突破自动预警",
+  "version": "1.0.2",
+  "description": "₿ CryptoWatch - 加密货币价格监控，24h 涨跌幅排行榜",
   "main": "scripts/watch.mjs",
   "type": "module",
   "scripts": {
     "watch": "node scripts/watch.mjs",
-    "watch:btc": "node scripts/watch.mjs btc",
-    "watch:eth": "node scripts/watch.mjs eth",
-    "watch:top": "node scripts/watch.mjs --top 20",
+    "top": "node scripts/top.mjs",
     "alert": "node scripts/alert.mjs",
-    "alert:list": "node scripts/alert.mjs --list",
     "test": "node scripts/watch.mjs btc,eth,sol"
   },
   "keywords": [
@@ -18,10 +15,9 @@
     "price",
     "bitcoin",
     "ethereum",
-    "monitoring",
+    "watch",
     "alert",
-    "defi",
-    "finance"
+    "coingecko"
   ],
   "author": "@gztanht",
   "license": "MIT",

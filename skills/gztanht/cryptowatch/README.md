@@ -1,64 +1,157 @@
 # ₿ CryptoWatch
 
-**Never Miss a Pump** - 实时追踪币价，猎杀每个波动！
+**Real-Time Cryptocurrency Price Monitor** - Track BTC, ETH, SOL and 25+ coins instantly!
 
-## 快速开始
+[![Version](https://img.shields.io/github/v/release/gztanht/cryptowatch)](https://github.com/gztanht/cryptowatch/releases)
+[![License](https://img.shields.io/github/license/gztanht/cryptowatch)](LICENSE)
+[![ClawHub](https://img.shields.io/badge/ClawHub-cryptowatch-blue)](https://clawhub.com/skills/cryptowatch)
+
+> **Never Miss a Pump** - Real-time price tracking with instant alerts! ₿
+
+---
+
+## 🌟 Features
+
+- **Live Price Tracking** - 25+ cryptocurrencies via CoinGecko API
+- **Price Alerts** - Get notified when price hits your target
+- **24h Change** - Track gains/losses with color indicators
+- **Market Cap Ranking** - Top 20/50/100 by market cap
+- **Multi-Currency** - USD, CNY, EUR support
+- **Volume Data** - 24h trading volume
+- **Lightning Fast** - < 30 second data delay
+
+---
+
+## 🚀 Quick Start
 
 ```bash
-# 查看主流币价格
-node scripts/watch.mjs
+# Install
+npx @gztanht/cryptowatch
 
-# 查询特定币种
-node scripts/watch.mjs btc
+# Check BTC, ETH, SOL prices
 node scripts/watch.mjs btc,eth,sol
 
-# 查看市值前 20 名
+# View top 20 by market cap
 node scripts/watch.mjs --top 20
-```
 
-## 价格预警
-
-```bash
-# 设置 BTC 突破 $100,000 提醒
+# Set price alert
 node scripts/alert.mjs btc --above 100000
-
-# 设置 ETH 跌破 $3,000 提醒
 node scripts/alert.mjs eth --below 3000
 
-# 查看所有预警
+# List all alerts
 node scripts/alert.mjs --list
 ```
 
-## 支持币种
+---
 
-- BTC, ETH, SOL, BNB, XRP, DOGE, ADA, AVAX
-- LINK, DOT, MATIC, LTC, UNI, ATOM, XLM, ETC
-- NEAR, ALGO, FIL, ICP, VET, HBAR, APT, ARB, OP, SUI
-- 以及 CoinGecko 支持的所有币种
+## 📊 Example Output
 
-## 数据源
+```bash
+$ node scripts/watch.mjs btc,eth,sol
 
-- **CoinGecko API** - https://www.coingecko.com/en/api
-- 免费 tier：10-50 calls/min，无需 API Key
-- 数据延迟：< 30 秒
+₿ CryptoWatch - Live Prices
 
-## 💰 定价 - 免费优先！
+Coin    Price        24h Change    Market Cap    24h Volume
+────────────────────────────────────────────────────────────────
+BTC     $71,177.00   🔴 -2.44%     $1.42T        $64.10B
+ETH     $2,077.72    🔴 -3.08%     $250.37B      $26.37B
+SOL     $88.51       🔴 -3.45%     $50.39B       $5.51B
 
-> 🎉 **每天 5 次免费查询** - 足够日常使用！
+💡 Tip: node scripts/watch.mjs --top 20 for market ranking
+```
 
-| 方案 | 价格 | 限制 |
-|------|------|------|
-| **免费版** | $0 | **5 次/天** |
-| **赞助解锁** | 0.5 USDT 或 0.5 USDC | 无限使用 |
+---
 
-**如果觉得好用，欢迎赞助支持！** ₿
+## 💰 Pricing - Free First!
 
-**赞助收款地址**:
-- USDT (ERC20): `0x33f943e71c7b7c4e88802a68e62cca91dab65ad9`
-- USDC (ERC20): `0xcb5173e3f5c2e32265fbbcaec8d26d49bf290e44`
+| Plan | Price | Limit |
+|------|-------|-------|
+| **Free** | $0 | **5 queries/day** |
+| **Sponsor Unlock** | 0.5 USDT or 0.5 USDC | Unlimited |
 
-💡 *赞助后请联系 @gztanht 获取无限使用权限*
+### Sponsorship Addresses
 
-## License
+- **USDT (ERC20)**: `0x33f943e71c7b7c4e88802a68e62cca91dab65ad9`
+- **USDC (ERC20)**: `0xcb5173e3f5c2e32265fbbcaec8d26d49bf290e44`
+
+---
+
+## 📖 All Commands
+
+| Command | Description |
+|---------|-------------|
+| `watch.mjs` | Live price monitoring |
+| `watch.mjs btc` | Single coin check |
+| `watch.mjs --top 20` | Market cap ranking |
+| `watch.mjs --vs cny` | CNY pricing |
+| `top.mjs` ✨ | 24h gainers leaderboard |
+| `top.mjs --losers` | 24h losers leaderboard |
+| `alert.mjs btc --above 100000` | Set price alert |
+| `alert.mjs --list` | List all alerts |
+| `alert.mjs --remove 1` | Remove alert #1 |
+
+---
+
+## 🪙 Supported Coins (25+)
+
+**Major**: BTC, ETH, SOL, BNB, XRP, DOGE, ADA, AVAX
+
+**DeFi**: LINK, DOT, MATIC, LTC, UNI, ATOM
+
+**L2**: ARB, OP
+
+**Emerging**: NEAR, ALGO, FIL, ICP, VET, HBAR, APT, SUI
+
+---
+
+## 📈 API Reference
+
+**Data Source**: CoinGecko API (Free, No Key Required)
+
+- **Endpoint**: `https://api.coingecko.com/api/v3`
+- **Rate Limit**: 10-50 calls/min (free tier)
+- **Data Delay**: < 30 seconds
+
+---
+
+## 🔧 Configuration
+
+Edit `config/coins.json` to customize your watchlist:
+
+```json
+{
+  "watchlist": [
+    {"id": "bitcoin", "symbol": "BTC", "name": "Bitcoin"},
+    {"id": "ethereum", "symbol": "ETH", "name": "Ethereum"}
+  ]
+}
+```
+
+---
+
+## ⚠️ Disclaimer
+
+- Cryptocurrency prices are highly volatile
+- This tool provides information only, not financial advice
+- Always do your own research before investing
+- Past performance does not guarantee future results
+
+---
+
+## 📞 Support
+
+- **ClawHub**: https://clawhub.com/skills/cryptowatch
+- **Email**: support@cryptowatch.shark
+- **Telegram**: @CryptoWatchBot
+
+---
+
+## 📄 License
 
 MIT © 2026 gztanht
+
+---
+
+**Made with ₿ by [@gztanht](https://github.com/gztanht)**
+
+*Never Miss a Pump!*
