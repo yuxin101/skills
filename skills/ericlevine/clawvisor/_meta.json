@@ -3,9 +3,15 @@
   "slug": "clawvisor",
   "displayName": "Clawvisor",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1772407806857,
-    "commit": "https://github.com/openclaw/skills/commit/0e63b970730ac124d088af46882939e624776952"
+    "version": "0.2.0",
+    "publishedAt": 1772746577938,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1772407806857,
+      "commit": "https://github.com/openclaw/skills/commit/0e63b970730ac124d088af46882939e624776952"
+    }
+  ]
 }
