@@ -1,467 +1,502 @@
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
-import { FootageClip } from './components/FootageClip';
-import { Play, Pause, RefreshCw, SkipForward, SkipBack } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import PlaybackControls from './components/PlaybackControls';
+import { Player } from './components/Player';
 import { useTTS } from './hooks/useTTS';
-import { Project, VideoClip } from './types';
+import { useProject } from './hooks/useProject';
+import { usePlayback } from './hooks/usePlayback';
+import { VideoClip } from '@/types';
 
-// Add type definition for window.seekTo
-declare global {
-  interface Window {
-    seekTo: (time: number) => void;
-    setClipIndex: (index: number) => void;
-    projectsFromScript?: Record<string, Project>;
-  }
-}
+import { generateAudio, loadAudioFiles, checkAudioExists, getSpeechClips } from './utils/audioManager';
+import { 
+  calculateCompleteTimeline, 
+  calculateEstimatedTimeline, 
+  getCurrentMediaFromTimeline, 
+  getClipPositionFromGlobalTime,
+  getGlobalTimeFromClipPosition,
+  seekToTime,
+  PlaybackTimeline 
+} from './utils/playbackEngine';
+import { getActiveMediaStates } from '@/utils/transitionEngine';
 
 export default function App() {
-  const STAGE_WIDTH = 1920;
-  const STAGE_HEIGHT = 1080;
-  const isRecordMode = new URLSearchParams(window.location.search).get('record') === 'true' ||
-    (typeof window !== 'undefined' && window.self !== window.top);
+  const [audioCache, setAudioCache] = useState<Map<string, HTMLAudioElement>>(new Map());
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [currentWord, setCurrentWord] = useState<string>('');
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<PlaybackTimeline | null>(null);
+  const [audioInitialized, setAudioInitialized] = useState(false);
+  const [iframesLoaded, setIframesLoaded] = useState(0);
 
-  const [projects, setProjects] = useState<Record<string, Project>>({});
-  const [isProjectsLoaded, setIsProjectsLoaded] = useState(false);
-  const [activeProject, setActiveProject] = useState('video-1');
-  const [currentClipIndex, setCurrentClipIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
+  // Check for render mode from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const isRecordMode = urlParams.get('record') === 'true';
+  const urlOrientation = urlParams.get('orientation');
+  const urlProject = urlParams.get('project');
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [stageScale, setStageScale] = useState(1);
+  // Override defaults if in record mode
+  const initialProject = urlProject || 'agentSaasPromoVideo';
+  const initialPortrait = urlOrientation === 'portrait';
 
-  useLayoutEffect(() => {
-    const updateDimensions = () => {
-      if (!containerRef.current) return;
-      if (isRecordMode) {
-        setStageScale(1);
-        return;
-      }
-      const { clientWidth, clientHeight } = containerRef.current;
+  // Use custom hooks
+  const { projects, availableProjects, activeProject, setActiveProject, isLoadingProject, currentProject } = useProject(initialProject);
 
-      const scale = Math.min(clientWidth / STAGE_WIDTH, clientHeight / STAGE_HEIGHT);
-      setStageScale(Number.isFinite(scale) && scale > 0 ? scale : 1);
-    };
+  const [configError, setConfigError] = useState<string | null>(null);
 
-    updateDimensions();
-    const observer = new ResizeObserver(updateDimensions);
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-    return () => observer.disconnect();
-  }, []);
-
+  // Calculate complete timeline once
   useEffect(() => {
-    if (isProjectsLoaded) return;
-    const globalAny = window as any;
-    if (globalAny.projectsFromScript) {
-      setProjects(globalAny.projectsFromScript as Record<string, Project>);
-      setIsProjectsLoaded(true);
+    if (!currentProject) {
+      setTimeline(null);
+      setMediaItems([]);
       return;
     }
-    let isMounted = true;
 
-    const resolveScriptUrl = () => {
-      const params = new URLSearchParams(window.location.search);
-      const raw = params.get('script');
-      if (!raw) return '/script/index.json';
+    try {
+      setConfigError(null);
+      
+      // First, create estimated timeline for immediate use
+      const estimatedTimeline = calculateEstimatedTimeline(currentProject);
+      setTimeline(estimatedTimeline);
+      setMediaItems(estimatedTimeline.mediaItems);
+      console.log('[Timeline] Estimated timeline ready:', estimatedTimeline);
+      
+      // Then, calculate accurate timeline with word boundaries
+      calculateCompleteTimeline(currentProject).then(accurateTimeline => {
+        setTimeline(accurateTimeline);
+        setMediaItems(accurateTimeline.mediaItems);
+        console.log('[Timeline] Accurate timeline ready:', accurateTimeline);
+      }).catch(error => {
+        console.warn('[Timeline] Failed to load accurate timeline, using estimates:', error);
+      });
+    } catch (error: any) {
+      setConfigError(error.message || 'Failed to process project');
+      console.error('[Config Error]', error);
+      setTimeline(null);
+      setMediaItems([]);
+    }
+  }, [currentProject]);
 
-      const trimmed = raw.trim();
-      if (!trimmed) return '/script/index.json';
-      if (trimmed.includes('/') || trimmed.includes('\\')) return '/script/index.json';
-      if (!/^[A-Za-z0-9._-]+$/.test(trimmed)) return '/script/index.json';
+  const processedClips = useMemo(() => {
+    return currentProject?.clips || [];
+  }, [currentProject]);
 
-      let filename = trimmed;
-      if (!filename.endsWith('.json')) filename = `${filename}.json`;
-      return `/script/${filename}`;
-    };
+  const [isPortrait, setIsPortrait] = useState(initialPortrait);
 
-    const applyProjectsToState = (loaded: Record<string, Project>) => {
-      setProjects(loaded);
-      const keys = Object.keys(loaded);
-      if (keys.length > 0) {
-        const urlProject = new URLSearchParams(window.location.search).get('project');
-        if (urlProject && loaded[urlProject]) {
-          setActiveProject(urlProject);
-        } else {
-          setActiveProject(prev => (loaded[prev] ? prev : keys[0]));
-        }
-      }
-    };
+  const {
+    currentClipIndex,
+    setCurrentClipIndex,
+    currentTime,
+    setCurrentTime,
+    isPlaying,
+    setIsPlaying,
+    resetCounter,
+    nextClip,
+    prevClip,
+    reset
+  } = usePlayback(processedClips);
 
-    const fetchJson = async (src: string) => {
-      const url = `${src}${src.includes('?') ? '&' : '?'}t=${Date.now()}`;
-      const res = await fetch(url, { method: 'GET' });
-      if (!res.ok) throw new Error(`Failed to fetch projects: ${src}`);
-      return (await res.json()) as any;
-    };
+  useEffect(() => {
+    if (urlProject && urlProject !== activeProject) {
+      setActiveProject(urlProject);
+    }
+  }, [urlProject, activeProject, setActiveProject]);
 
-    const mergeProjects = (acc: Record<string, Project>, next: any) => {
-      if (!next || typeof next !== 'object') return acc;
-      const exported = (next as any).projects;
-      if (!exported || typeof exported !== 'object') return acc;
-      for (const [id, project] of Object.entries(exported as Record<string, Project>)) {
-        acc[id] = project;
-      }
-      return acc;
-    };
+  // In record mode, auto-initialize audio state so renderState computes properly
+  useEffect(() => {
+    if (isRecordMode && !audioInitialized) {
+      setAudioInitialized(true);
+    }
+  }, [isRecordMode, audioInitialized]);
 
-    const loadProjectsFromScriptUrl = async (src: string) => {
-      const data = await fetchJson(src);
+  // TTS Integration - use preloaded audio from cache
+  const currentClip = processedClips[currentClipIndex] as VideoClip;
+  const shouldUseTTS = currentClip?.type !== 'transition' && currentClip?.speech;
 
-      if (data && typeof data === 'object') {
-        if (Array.isArray((data as any).entries)) {
-          const entries = (data as any).entries as unknown[];
-          const merged: Record<string, Project> = {};
-          for (const entry of entries) {
-            if (typeof entry !== 'string') continue;
-            const trimmed = entry.trim();
-            if (!trimmed) continue;
-            if (trimmed.includes('/') || trimmed.includes('\\')) continue;
-            if (!/^[A-Za-z0-9._-]+$/.test(trimmed)) continue;
-            const entryUrl = `/script/${trimmed}`;
-            const entryData = await fetchJson(entryUrl);
-            mergeProjects(merged, entryData);
-          }
-          return merged;
-        }
+  // Calculate the audio file index by counting non-transition clips up to and including current
+  const audioClipIndex = shouldUseTTS
+    ? processedClips.slice(0, currentClipIndex + 1).filter(c => c.type !== 'transition').length - 1
+    : undefined;
 
-        const merged: Record<string, Project> = {};
-        mergeProjects(merged, data);
-        return merged;
-      }
+  // Get preloaded audio from cache
+  const cachedAudio = audioClipIndex !== undefined
+    ? audioCache.get(`${activeProject}-${audioClipIndex}`)
+    : undefined;
 
-      return {} as Record<string, Project>;
-    };
-
-    const primaryUrl = resolveScriptUrl();
-    (async () => {
-      let loadedProjects: Record<string, Project> | null = null;
-      try {
-        loadedProjects = await loadProjectsFromScriptUrl(primaryUrl);
-      } catch {
-        if (primaryUrl !== '/script/index.json') {
-          try {
-            loadedProjects = await loadProjectsFromScriptUrl('/script/index.json');
-          } catch {
-          }
-        }
-      }
-
-      if (!isMounted) return;
-      if (!loadedProjects || Object.keys(loadedProjects).length === 0) loadedProjects = null;
-
-      if (loadedProjects) {
-        applyProjectsToState(loadedProjects);
-        setIsProjectsLoaded(true);
-        return;
-      }
-
-      if (primaryUrl === '/script/index.json') {
-        console.error('[projects] /script/index.json loaded but did not provide projects');
-        setProjects({});
-        setIsProjectsLoaded(true);
-        return;
-      }
-
-      try {
-        loadedProjects = await loadProjectsFromScriptUrl('/script/index.json');
-      } catch {
-      }
-
-      if (!isMounted) return;
-      if (loadedProjects && Object.keys(loadedProjects).length > 0) {
-        applyProjectsToState(loadedProjects);
-      } else {
-        console.error('[projects] Fallback /script/index.json loaded but did not provide projects');
-        setProjects({});
-      }
-      setIsProjectsLoaded(true);
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isProjectsLoaded]);
-
-  const project: Project = projects[activeProject] || { name: activeProject, clips: [] as VideoClip[] };
-  const hasClips = project.clips.length > 0;
-  const currentClip: VideoClip | null =
-    hasClips && currentClipIndex < project.clips.length ? project.clips[currentClipIndex] : null;
-
-  // Get duration from TTS hook or override
-  const { duration: ttsDuration, audio } = useTTS({
-    clip: currentClip || undefined,
-    projectId: activeProject,
-    clipIndex: currentClipIndex
+  const {
+    isLoading: isTTSLoading,
+    speak,
+    pause: pauseTTS,
+    resume: resumeTTS,
+    stop: stopTTS,
+    duration: ttsDuration
+  } = useTTS({
+    clip: shouldUseTTS ? currentClip : undefined,
+    projectId: shouldUseTTS ? activeProject : undefined,
+    clipIndex: audioClipIndex,
+    preloadedAudio: cachedAudio,
+    onWordBoundary: (word) => {
+      console.log('[TTS] Word boundary:', word);
+      setCurrentWord(word);
+    },
+    onEnd: () => {
+      console.log('[TTS] Audio ended');
+      // Don't auto-advance here, let the normal clip timing handle it
+    }
   });
 
-  const clipDuration = (ttsDuration || 3);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
 
-  const requestRef = useRef<number>(0);
-  const previousTimeRef = useRef<number>(0);
+  const CANVAS_WIDTH = isPortrait ? 1080 : 1920;
+  const CANVAS_HEIGHT = isPortrait ? 1920 : 1080;
 
-  const animate = useCallback((time: number) => {
-    if (previousTimeRef.current !== undefined) {
-      const deltaTime = (time - previousTimeRef.current) / 1000;
+  const clipDuration = useMemo(() => {
+    if (!timeline || currentClipIndex >= timeline.clipDurations.length) return 4;
+    return timeline.clipDurations[currentClipIndex];
+  }, [timeline, currentClipIndex]);
 
-      setCurrentTime(prevTime => {
-        const newTime = prevTime + deltaTime;
-
-        if (clipDuration > 0 && newTime >= clipDuration && hasClips) {
-          if (currentClipIndex < project.clips.length - 1) {
-            // Cap at duration while waiting for the effect to switch clips
-            return clipDuration;
-          } else {
-            setIsPlaying(false);
-            return clipDuration;
-          }
-        }
-        return newTime;
-      });
-    }
-    previousTimeRef.current = time;
-    if (isPlaying) {
-      requestRef.current = requestAnimationFrame(animate);
-    }
-  }, [isPlaying, clipDuration, currentClipIndex, project.clips.length, hasClips]);
+  const globalPlaybackTime = useMemo(() => {
+    if (!timeline) return 0;
+    return getGlobalTimeFromClipPosition(timeline, currentClipIndex, currentTime);
+  }, [timeline, currentClipIndex, currentTime]);
 
   useEffect(() => {
-    if (audio) {
-      if (isPlaying) {
-        // Sync time only when starting or if it drifts significantly
-        if (Math.abs(audio.currentTime - currentTime) > 0.3) {
-          audio.currentTime = currentTime;
-        }
-        audio.play().catch(e => console.warn("Audio play blocked", e));
-      } else {
-        audio.pause();
+    const updateScale = () => {
+      if (containerRef.current) {
+        const { clientWidth, clientHeight } = containerRef.current;
+        const availableWidth = clientWidth - 64; // 32px padding on each side
+        const availableHeight = clientHeight - 64;
+
+        const scaleX = availableWidth / CANVAS_WIDTH;
+        const scaleY = availableHeight / CANVAS_HEIGHT;
+        setScale(Math.min(scaleX, scaleY));
       }
-    }
-  }, [isPlaying, audio]);
+    };
 
-  // Handle frame animation
-  useEffect(() => {
-    if (isPlaying) {
-      previousTimeRef.current = performance.now();
-      requestRef.current = requestAnimationFrame(animate);
-    } else {
-      cancelAnimationFrame(requestRef.current);
-    }
-    return () => cancelAnimationFrame(requestRef.current);
-  }, [isPlaying, animate]);
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [isPortrait, CANVAS_WIDTH, CANVAS_HEIGHT]);
 
-  // Handle clip switching
+  // Handle clip advancement
   useEffect(() => {
-    if (clipDuration > 0 && currentTime >= clipDuration && hasClips) {
-      if (currentClipIndex < project.clips.length - 1) {
-        setCurrentClipIndex(prev => prev + 1);
+    if (currentTime >= clipDuration && isPlaying) {
+      if (currentClipIndex < processedClips.length - 1) {
+        const nextIndex = currentClipIndex + 1;
+        setCurrentClipIndex(nextIndex);
         setCurrentTime(0);
+        setCurrentWord(''); // Reset word on clip change
       } else {
         setIsPlaying(false);
+        setCurrentTime(clipDuration);
       }
     }
-  }, [currentTime, clipDuration, currentClipIndex, project.clips.length, hasClips]);
+  }, [currentTime, clipDuration, isPlaying, currentClipIndex, processedClips, setCurrentClipIndex, setCurrentTime, setIsPlaying]);
 
-  // Expose seekTo for headless rendering
+  // Auto-start TTS when clip changes and is playing (only if audio is initialized)
   useEffect(() => {
-    window.seekTo = (time: number) => {
-      setIsPlaying(false);
-      setCurrentTime(time);
-    };
-    window.setClipIndex = (index: number) => {
-      setIsPlaying(false);
-      setCurrentClipIndex(index);
-      setCurrentTime(0);
-    };
-  }, []);
+    if (isPlaying && shouldUseTTS && currentTime === 0 && audioInitialized) {
+      speak();
+    }
+  }, [currentClipIndex, shouldUseTTS, isPlaying, speak, currentTime, audioInitialized]);
 
-  // Check if audio exists, if not generate it
+  // Sync time with all iframes
   useEffect(() => {
-    const checkAudio = async () => {
-      try {
-        const projectClips = projects[activeProject]?.clips || [];
-        const hasAnySpeech = projectClips.some(c => typeof c?.speech === 'string' && c.speech.trim().length > 0);
-        if (!hasAnySpeech) {
-          setIsGenerating(false);
-          return;
-        }
-        const testUrl = `/audio/${activeProject}/0.mp3?t=${Date.now()}`;
-        console.log(`[checkAudio] Checking ${testUrl}`);
-        const resp = await fetch(testUrl, { method: 'HEAD' });
-        const contentType = resp.headers.get('content-type');
-
-        console.log(`[checkAudio] Status: ${resp.status}, Content-Type: ${contentType}`);
-
-        // If it's not ok, or it's giving us HTML instead of audio, it's missing
-        if (!resp.ok || (contentType && contentType.includes('text/html'))) {
-          console.log(`Audio for ${activeProject} missing or invalid. Triggering generation...`);
-          setIsGenerating(true);
+    const syncWithIframes = () => {
+      const iframes = document.querySelectorAll('iframe');
+      iframes.forEach(iframe => {
+        if (iframe.contentWindow) {
           try {
-            const genResp = await fetch('/api/generate-audio', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ projectId: activeProject })
-            });
-            const result = await genResp.json();
-            console.log("[checkAudio] Generation result:", result);
-          } catch (genErr) {
-            console.error("[checkAudio] Generation API call failed:", genErr);
-          } finally {
-            setIsGenerating(false);
+            iframe.contentWindow.postMessage({
+              type: 'seek',
+              time: currentTime,
+              globalTime: globalPlaybackTime
+            }, '*');
+          } catch (e) {
+            // Ignore cross-origin errors
           }
-        } else {
-          console.log(`[checkAudio] Audio assets for ${activeProject} found.`);
-          setIsGenerating(false);
         }
-      } catch (e) {
-        console.warn("[checkAudio] Audio check failed", e);
-        setIsGenerating(false);
-      }
+      });
     };
-    if (activeProject) checkAudio();
-  }, [activeProject, projects]);
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
-  const reset = () => {
-    setIsPlaying(false);
-    setCurrentClipIndex(0);
-    setCurrentTime(0);
-  };
-  const nextClip = () => {
-    if (currentClipIndex < project.clips.length - 1) {
-      setCurrentClipIndex(prev => prev + 1);
-      setCurrentTime(0);
+    // Sync when time changes and we're playing, or when iframes are loaded
+    if (isPlaying || currentTime > 0 || iframesLoaded > 0) {
+      syncWithIframes();
     }
-  };
-  const prevClip = () => {
-    if (currentClipIndex > 0) {
-      setCurrentClipIndex(prev => prev - 1);
-      setCurrentTime(0);
-    }
+  }, [currentTime, globalPlaybackTime, isPlaying, iframesLoaded]);
+
+  const handleIframeLoad = () => {
+    setIframesLoaded(prev => prev + 1);
+    // Sync current time with newly loaded iframe
+    setTimeout(() => {
+      const iframes = document.querySelectorAll('iframe');
+      iframes.forEach(iframe => {
+        if (iframe.contentWindow) {
+          try {
+            iframe.contentWindow.postMessage({
+              type: 'seek',
+              time: currentTime,
+              globalTime: globalPlaybackTime
+            }, '*');
+          } catch (e) {
+            // Ignore cross-origin errors
+          }
+          }
+        });
+      }, 100); // Small delay to ensure iframe script is loaded
   };
 
-  return (
-    <div className="w-full h-screen bg-black text-white flex flex-col font-sans">
-      {/* Viewport / Stage */}
-      <div
-        ref={containerRef}
-        className={
-          isRecordMode
-            ? 'flex-1 relative overflow-hidden flex items-start justify-start p-0 bg-black'
-            : 'flex-1 relative overflow-hidden flex items-center justify-center p-8 bg-zinc-950'
+  const togglePlay = async () => {
+    console.log('[togglePlay] Function called, isPlaying:', isPlaying);
+
+    // If trying to play and audio not initialized, handle audio loading/generation
+    if (!isPlaying && !audioInitialized) {
+      console.log('[togglePlay] Starting audio loading process...');
+      setIsLoadingAudio(true);
+
+      try {
+        const speechClips = getSpeechClips(currentProject);
+        console.log('[togglePlay] Found', speechClips.length, 'speech clips');
+        console.log('[togglePlay] Speech clips:', speechClips.map((c: VideoClip) => c.speech?.substring(0, 30)));
+
+        if (speechClips.length > 0) {
+          // Check if audio files exist
+          console.log('[togglePlay] Checking if audio exists for project:', activeProject);
+          const audioExists = await checkAudioExists(activeProject, speechClips);
+          console.log('[togglePlay] Audio exists:', audioExists);
+
+          if (!audioExists) {
+            console.log(`[togglePlay] Audio missing, calling generateAudio API...`);
+
+            const result = await generateAudio(activeProject);
+            console.log('[togglePlay] Generate audio result:', result);
+
+            if (!result.success) {
+              throw new Error(result.error || 'Audio generation failed');
+            }
+
+            console.log('[togglePlay] Audio generation successful:', result.message);
+          } else {
+            console.log('[togglePlay] Audio files already exist, skipping generation');
+          }
+
+          // Now load all audio files
+          console.log('[togglePlay] Loading audio files...');
+          const newCache = await loadAudioFiles(activeProject, speechClips);
+          setAudioCache(newCache);
+          console.log(`[togglePlay] Successfully loaded ${newCache.size} audio files`);
+        } else {
+          console.log('[togglePlay] No speech clips found, skipping audio processing');
         }
-      >
-        <div
-          style={{
-            width: STAGE_WIDTH * stageScale,
-            height: STAGE_HEIGHT * stageScale
-          }}
-          className="relative"
-        >
-          <div
-            style={{
-              width: STAGE_WIDTH,
-              height: STAGE_HEIGHT,
-              transform: `scale(${stageScale})`,
-              transformOrigin: 'top left'
-            }}
-            className="relative bg-black shadow-2xl overflow-hidden border border-zinc-800"
-          >
-            {/* Static Background Iframe */}
-            {hasClips && (
-              <iframe
-                key={activeProject}
-                src={project.background || "/footage/background.html"}
-                className="absolute inset-0 w-full h-full border-none z-0 pointer-events-none"
-                title="background"
-              />
-            )}
 
-            {currentClip && (
-              <FootageClip
-                key={`${activeProject}-${currentClipIndex}`}
-                clip={currentClip}
-                currentTime={currentTime}
-                projectId={activeProject}
-                clipIndex={currentClipIndex}
-                duration={clipDuration}
-              />
-            )}
+        setAudioInitialized(true);
+        setIsLoadingAudio(false);
+      } catch (error: any) {
+        console.error('[togglePlay] Audio loading failed:', error);
+        alert(`Failed to load audio: ${error.message}`);
+        setIsLoadingAudio(false);
+        return;
+      }
+    }
 
-            {isGenerating && (
-              <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center">
-                <RefreshCw className="w-12 h-12 text-[#00FF00] animate-spin mb-4" />
-                <h2 className="text-2xl font-black tracking-widest uppercase">Generating Audio Assets...</h2>
-                <p className="text-zinc-500 mt-2 font-mono">Edge-TTS is synthesizing your project scripts</p>
-              </div>
-            )}
+    if (currentTime >= clipDuration && currentClipIndex >= processedClips.length - 1) {
+      setCurrentClipIndex(0);
+      setCurrentTime(0);
+    }
+
+    const newIsPlaying = !isPlaying;
+    console.log('[togglePlay] Setting isPlaying to:', newIsPlaying);
+    setIsPlaying(newIsPlaying);
+
+    // Sync TTS audio
+    if (shouldUseTTS && audioInitialized) {
+      if (newIsPlaying) {
+        if (currentTime === 0) {
+          speak(); // Start from beginning
+        } else {
+          resumeTTS(); // Resume from current position
+        }
+      } else {
+        pauseTTS();
+      }
+    }
+  };
+
+  const handleNextClip = () => {
+    stopTTS(); // Stop current TTS
+    setCurrentWord(''); // Reset word
+    nextClip();
+  };
+
+  const handlePrevClip = () => {
+    stopTTS(); // Stop current TTS
+    setCurrentWord(''); // Reset word
+    prevClip();
+  };
+
+  const handleReset = () => {
+    stopTTS(); // Stop current TTS
+    setCurrentWord(''); // Reset word
+    setAudioInitialized(false); // Reset to uninitialized state
+    setAudioCache(new Map()); // Clear audio cache
+    setIframesLoaded(0); // Reset iframe counter
+    reset();
+  };
+
+  const toggleOrientation = () => {
+    setIsPortrait(!isPortrait);
+  };
+
+  // 使用预计算的时间轴渲染状态
+  const renderState = useMemo(() => {
+    if (!timeline) {
+      return { activeMedias: [], currentClip: null };
+    }
+
+    const activeMedias = getActiveMediaStates(timeline, globalPlaybackTime);
+    let mediasToRender = activeMedias;
+
+    if (mediasToRender.length === 0) {
+      const fallbackMedia = getCurrentMediaFromTimeline(timeline, globalPlaybackTime);
+      if (fallbackMedia) {
+        mediasToRender = [{ media: fallbackMedia, style: { opacity: 1, transform: 'translate3d(0, 0, 0)', zIndex: 1 } }];
+      }
+    }
+
+    if (mediasToRender[0]?.media) {
+      const firstMedia = mediasToRender[0].media;
+      console.log(`[Render] Global time ${globalPlaybackTime.toFixed(2)}s, Media: ${firstMedia.src.split('/').pop()}, Words: "${firstMedia.words}"`);
+    }
+
+    return {
+      activeMedias: mediasToRender,
+      currentClip: processedClips[currentClipIndex] || null,
+      timeline // Pass timeline to Player
+    };
+  }, [timeline, globalPlaybackTime, processedClips, currentClipIndex]);
+
+  // Expose functions for rendering mode
+  useEffect(() => {
+    if (isRecordMode && timeline) {
+      // Get total duration using timeline
+      const getTotalDurationFunc = () => {
+        return timeline.totalDuration;
+      };
+
+      // Seek to specific time using timeline
+      const seekTo = (time: number) => {
+        const position = seekToTime(timeline, time);
+        setCurrentClipIndex(position.clipIndex);
+        setCurrentTime(position.localTime);
+        setIsPlaying(false);
+      };
+
+      // Get audio log with timings from timeline
+      const getAudioLog = () => {
+        let accumulated = 0;
+        return timeline.clipDurations.map((duration, index) => {
+          const result = {
+            file: `${activeProject}/audio/${index}.mp3`,
+            startTime: accumulated
+          };
+          accumulated += duration;
+          return result;
+        });
+      };
+
+      // Get current clip index
+      const getCurrentClipIndex = () => {
+        return currentClipIndex;
+      };
+
+      // Expose to window for puppeteer
+      (window as any).seekTo = seekTo;
+      (window as any).getTotalDuration = getTotalDurationFunc;
+      (window as any).getAudioLog = getAudioLog;
+      (window as any).getCurrentClipIndex = getCurrentClipIndex;
+      (window as any).suppressTTS = true;
+
+      console.log('[Render Mode] Functions exposed to window');
+    }
+  }, [isRecordMode, timeline, activeProject, currentClipIndex]);
+
+  if (isLoadingProject || !currentProject) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
+        <div className="animate-pulse">Loading project...</div>
+      </div>
+    );
+  }
+
+  if (configError) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-8">
+        <div className="max-w-2xl">
+          <div className="bg-red-900/20 border border-red-500 rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-red-400 mb-4">Configuration Error</h2>
+            <p className="text-red-200 mb-4 whitespace-pre-wrap">{configError}</p>
+            <button
+              onClick={() => {
+                setConfigError(null);
+                window.location.reload();
+              }}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors"
+            >
+              Reload
+            </button>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Controls */}
-      {!isRecordMode && (
-        <div className="h-20 bg-zinc-900 border-t border-zinc-800 flex items-center px-8 justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex flex-col">
-              <span className="text-xs font-mono text-zinc-500 uppercase font-bold text-zinc-400">Project</span>
-              <select
-                value={activeProject}
-                onChange={(e) => {
-                  setActiveProject(e.target.value);
-                  setCurrentClipIndex(0);
-                  setCurrentTime(0);
-                  setIsPlaying(false);
-                }}
-                className="bg-zinc-800 text-sm font-bold text-white border border-white/10 rounded px-2 py-0.5 cursor-pointer hover:border-[#00FF00] transition-colors outline-none"
-              >
-                {Object.keys(projects).map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-              </select>
-            </div>
-            <span className="text-zinc-600">|</span>
-            <div className="flex flex-col">
-              <span className="text-xs font-mono text-zinc-400 uppercase font-bold">Current Clip</span>
-              <span className="text-sm font-bold text-white">
-                {hasClips ? `${currentClipIndex + 1} / ${project.clips.length} : ${currentClip?.type}` : 'No clips'}
-              </span>
-            </div>
-            <span className="text-zinc-600">|</span>
-            <div className="flex flex-col">
-              <span className="text-xs font-mono text-zinc-400 uppercase font-bold">Time</span>
-              <span className="text-sm font-mono text-[#00FF00]">
-                {currentTime.toFixed(2)}s / {clipDuration.toFixed(2)}s
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <button onClick={prevClip} className="p-3 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
-              <SkipBack size={20} />
-            </button>
-
-            <button
-              onClick={togglePlay}
-              className="flex items-center space-x-2 bg-white text-black px-8 py-3 rounded-full font-bold hover:bg-[#00FF00] hover:text-black transition-colors"
-            >
-              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-              <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
-            </button>
-
-            <button onClick={nextClip} className="p-3 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors">
-              <SkipForward size={20} />
-            </button>
-
-            <button
-              onClick={reset}
-              className="p-3 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors ml-2"
-            >
-              <RefreshCw size={20} />
-            </button>
-          </div>
+  return (
+    <div className={`h-screen w-screen bg-neutral-950 text-white flex flex-col font-sans overflow-hidden ${isRecordMode && !isLoadingAudio ? 'ready-to-record' : ''}`}>
+      {/* Main Canvas Area */}
+      <main ref={containerRef} className="flex-1 relative flex items-center justify-center bg-[#0a0a0a] overflow-hidden">
+        <div
+          className="relative bg-black shadow-2xl ring-1 ring-neutral-800 overflow-hidden shrink-0"
+          style={{
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
+            transform: `scale(${scale})`,
+            transformOrigin: 'center center'
+          }}
+        >
+          <Player renderState={renderState} background={currentProject.background} resetCounter={resetCounter} isPlaying={isPlaying} onIframeLoad={handleIframeLoad} />
         </div>
+      </main>
+
+      {/* Bottom Controls Bar */}
+      {!isRecordMode && (
+        <PlaybackControls
+          projects={projects}
+          availableProjects={availableProjects}
+          activeProject={activeProject}
+          isGenerating={isTTSLoading}
+          isLoadingAudio={isLoadingAudio}
+          isPlaying={isPlaying}
+          currentClipIndex={currentClipIndex}
+          currentTime={currentTime}
+          clipDuration={clipDuration}
+          totalClips={currentProject.clips.length}
+          isPortrait={isPortrait}
+          onProjectChange={(projectId: string) => {
+            stopTTS(); // Stop current TTS when switching projects
+            setCurrentWord(''); // Reset word
+            setActiveProject(projectId);
+            setCurrentClipIndex(0);
+            setCurrentTime(0);
+            setIsPlaying(false);
+            setAudioInitialized(false); // Reset audio initialization
+            setAudioCache(new Map()); // Clear audio cache
+            setIframesLoaded(0); // Reset iframe counter
+          }}
+          onTogglePlay={togglePlay}
+          onNextClip={handleNextClip}
+          onPrevClip={handlePrevClip}
+          onReset={handleReset}
+          onToggleOrientation={toggleOrientation}
+        />
       )}
     </div>
   );
