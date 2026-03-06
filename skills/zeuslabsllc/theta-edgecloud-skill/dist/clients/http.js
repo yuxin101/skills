@@ -3,8 +3,13 @@ const RETRIABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 function withAuth(headers = {}, auth) {
     if (!auth)
         return headers;
-    const token = Buffer.from(`${auth.user}:${auth.pass}`).toString('base64');
-    return { ...headers, Authorization: `Basic ${token}` };
+    if (auth.token)
+        return { ...headers, Authorization: `Bearer ${auth.token}` };
+    if (auth.user && auth.pass) {
+        const basic = Buffer.from(`${auth.user}:${auth.pass}`).toString('base64');
+        return { ...headers, Authorization: `Basic ${basic}` };
+    }
+    return headers;
 }
 function toPositiveInt(value, fallback, opts) {
     if (!Number.isFinite(value))

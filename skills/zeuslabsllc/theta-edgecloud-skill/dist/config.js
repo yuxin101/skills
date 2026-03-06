@@ -17,15 +17,17 @@ function readInt(name, fallback, opts) {
 export function loadConfig() {
     const user = env.THETA_INFERENCE_AUTH_USER;
     const pass = env.THETA_INFERENCE_AUTH_PASS;
+    const token = env.THETA_INFERENCE_AUTH_TOKEN;
     return {
         dryRun: env.THETA_DRY_RUN === '1',
         edgecloudApiKey: env.THETA_EC_API_KEY,
         edgecloudProjectId: env.THETA_EC_PROJECT_ID,
+        edgecloudOrgId: env.THETA_ORG_ID,
         videoSaId: env.THETA_VIDEO_SA_ID,
         videoSaSecret: env.THETA_VIDEO_SA_SECRET,
         inferenceEndpoint: env.THETA_INFERENCE_ENDPOINT,
-        inferenceAuth: user && pass ? { user, pass } : undefined,
-        onDemandApiToken: env.THETA_ONDEMAND_API_TOKEN,
+        inferenceAuth: token ? { token } : user && pass ? { user, pass } : undefined,
+        onDemandApiToken: env.THETA_ONDEMAND_API_TOKEN ?? env.THETA_ONDEMAND_API_KEY,
         httpTimeoutMs: readInt('THETA_HTTP_TIMEOUT_MS', 20000, { min: 1000, max: 120000 }),
         httpMaxRetries: readInt('THETA_HTTP_MAX_RETRIES', 2, { min: 0, max: 6 }),
         httpRetryBackoffMs: readInt('THETA_HTTP_RETRY_BACKOFF_MS', 250, { min: 25, max: 10000 })

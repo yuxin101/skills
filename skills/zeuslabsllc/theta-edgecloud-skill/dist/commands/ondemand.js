@@ -19,7 +19,28 @@ function clampInt(value, fallback, min, max) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export const ondemand = {
     catalog: ONDEMAND_SERVICE_CATALOG,
-    listServices: () => listOnDemandServices(),
+    listServices: async () => {
+        try {
+            const payload = await onDemandApiClient.listServices();
+            const services = payload?.body?.services;
+            if (Array.isArray(services) && services.length > 0) {
+                return services
+                    .map((s) => ({
+                    name: s?.name ?? s?.alias ?? 'unknown',
+                    service: s?.alias ?? s?.name ?? 'unknown',
+                    templateId: s?.template_id,
+                    workloadType: s?.workload_type,
+                    rank: s?.rank,
+                    source: 'live'
+                }))
+                    .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+            }
+        }
+        catch {
+            // Fall through to static catalog on transient errors.
+        }
+        return listOnDemandServices().map((s) => ({ ...s, source: 'catalog' }));
+    },
     infer: (cfg, service, payload) => cfg.dryRun ? { dryRun: true, service, payload } : onDemandApiClient.createInferRequest(cfg, service, payload),
     status: (cfg, requestId) => onDemandApiClient.getInferRequest(cfg, requestId),
     inputPresignedUrls: (cfg, service) => cfg.dryRun ? { dryRun: true, service } : onDemandApiClient.createInputPresignedUrls(cfg, service),
