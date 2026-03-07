@@ -19,6 +19,7 @@ AI art prompt optimizer for Midjourney, Nano Banana, Dreamina, Qwen. 0.005 USDT/
 | **optimize** | `scripts/optimize.py` | Optimize a prompt for target platform |
 | **multi** | `scripts/multi_platform.py` | Generate prompts for all platforms at once |
 | **style** | `scripts/style_library.py` | Browse/apply art styles |
+| **history** | `scripts/history.py` | Prompt history + favorites (NEW) |
 | **billing** | `scripts/billing.py` | SkillPay charge/balance/payment |
 
 ## Workflow
