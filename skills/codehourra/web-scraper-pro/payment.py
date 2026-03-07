@@ -1,86 +1,104 @@
 """
 SkillPay Payment Module for Web Scraper Pro
 ============================================
-Handles payment verification via skillpay.me API.
+Based on official SkillPay API: https://skillpay.me
+
+API Endpoints:
+    GET  /api/v1/billing/balance      - Check balance
+    POST /api/v1/billing/charge       - Charge per call (auto returns payment link if insufficient)
+    POST /api/v1/billing/payment-link - Generate payment link
 
 Usage:
-    from payment import verify_payment, require_payment
+    from payment import charge_user, check_balance, get_payment_link
 
-    # Method 1: Direct call
-    result = verify_payment("user_123")
-    if result["success"]:
+    # Charge before each fetch
+    result = charge_user("user_123")
+    if result["ok"]:
         # proceed with fetch
         pass
-
-    # Method 2: Decorator
-    @require_payment
-    def fetch_url(url):
-        # your fetch logic
-        pass
+    else:
+        print(f"Insufficient balance. Top up at: {result['payment_url']}")
 """
 
 import requests
 import os
 import functools
 
-# ==========================================
-# Configuration
-# ==========================================
-SKILLPAY_API = "https://api.skillpay.me/v1/charge"
-API_KEY = "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b"
-PRICE_USDT = 0.001
-SKILL_NAME = "web-scraper"
+# ═══════════════════════════════════════════════════
+# SkillPay Billing Configuration
+# ═══════════════════════════════════════════════════
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = '4fb2d57e-e583-4ca3-8170-52df37a6572b'
+AMOUNT_PER_CALL = 0.001  # USDT
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
 
 
-def verify_payment(user_id: str = None) -> dict:
+def check_balance(user_id: str) -> float:
     """
-    Verify payment via SkillPay API.
+    Check user's USDT balance.
     
     Args:
-        user_id: Unique user identifier (defaults to env var or 'anonymous_user')
+        user_id: Unique user identifier
     
     Returns:
-        dict with keys:
-            - success (bool): Whether payment was verified
-            - transaction_id (str): Transaction ID if successful
-            - payment_url (str): URL to pay if payment required
+        float: USDT balance amount
     """
-    if user_id is None:
-        user_id = os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
+    resp = requests.get(
+        f'{BILLING_API_URL}/api/v1/billing/balance',
+        params={'user_id': user_id},
+        headers=HEADERS,
+        timeout=30
+    )
+    return resp.json()['balance']
+
+
+def charge_user(user_id: str) -> dict:
+    """
+    Charge user per call. If balance is insufficient, 
+    automatically returns a BNB Chain USDT payment link.
     
-    try:
-        response = requests.post(
-            SKILLPAY_API,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "user_id": user_id,
-                "amount": PRICE_USDT,
-                "currency": "USDT",
-                "skill": SKILL_NAME,
-                "description": "Web page fetch fee"
-            },
-            timeout=30
-        )
-        
-        result = response.json()
-        
-        if response.status_code == 200 and result.get("success"):
-            return {
-                "success": True,
-                "transaction_id": result.get("transaction_id")
-            }
-        else:
-            return {
-                "success": False,
-                "payment_url": result.get("payment_url", f"https://skillpay.me/pay/{SKILL_NAME}")
-            }
-            
-    except requests.exceptions.RequestException as e:
-        # Fail-open for availability
-        return {"success": True, "note": f"Payment service unavailable: {e}"}
+    Args:
+        user_id: Unique user identifier
+    
+    Returns:
+        dict: {"ok": True, "balance": float} if charge successful
+              {"ok": False, "balance": float, "payment_url": str} if insufficient balance
+    """
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/charge',
+        headers=HEADERS,
+        json={
+            'user_id': user_id,
+            'skill_id': SKILL_ID,
+            'amount': AMOUNT_PER_CALL,
+        },
+        timeout=30
+    )
+    data = resp.json()
+    if data['success']:
+        return {'ok': True, 'balance': data['balance']}
+    return {'ok': False, 'balance': data['balance'], 'payment_url': data.get('payment_url')}
+
+
+def get_payment_link(user_id: str, amount: float = 1.0) -> str:
+    """
+    Generate a BNB Chain USDT top-up payment link.
+    
+    Args:
+        user_id: Unique user identifier
+        amount: USDT amount to top up
+    
+    Returns:
+        str: Payment URL (BNB Chain USDT)
+    """
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/payment-link',
+        headers=HEADERS,
+        json={'user_id': user_id, 'amount': amount},
+        timeout=30
+    )
+    return resp.json()['payment_url']
 
 
 def require_payment(func):
@@ -89,12 +107,12 @@ def require_payment(func):
     def wrapper(*args, **kwargs):
         user_id = kwargs.pop("user_id", None) or os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
         
-        payment = verify_payment(user_id)
+        result = charge_user(user_id)
         
-        if not payment.get("success"):
-            payment_url = payment.get("payment_url", f"https://skillpay.me/pay/{SKILL_NAME}")
+        if not result['ok']:
             raise PermissionError(
-                f"Payment required (0.001 USDT). Pay at: {payment_url}"
+                f"Insufficient balance ({result['balance']} USDT). "
+                f"Top up at: {result['payment_url']}"
             )
         
         return func(*args, **kwargs)
@@ -107,22 +125,26 @@ class PaymentContext:
     
     def __init__(self, user_id: str = None):
         self.user_id = user_id or os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
-        self.payment_result = None
+        self.charge_result = None
     
     def __enter__(self):
-        self.payment_result = verify_payment(self.user_id)
-        if not self.payment_result.get("success"):
-            payment_url = self.payment_result.get("payment_url", f"https://skillpay.me/pay/{SKILL_NAME}")
+        self.charge_result = charge_user(self.user_id)
+        if not self.charge_result['ok']:
             raise PermissionError(
-                f"Payment required (0.001 USDT). Pay at: {payment_url}"
+                f"Insufficient balance ({self.charge_result['balance']} USDT). "
+                f"Top up at: {self.charge_result['payment_url']}"
             )
-        return self.payment_result
+        return self.charge_result
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         return False
 
 
 if __name__ == "__main__":
-    # Test payment verification
-    result = verify_payment("test_user")
-    print(f"Payment result: {result}")
+    user = os.environ.get("SKILLPAY_USER_ID", "test_user")
+    print(f"Checking balance for {user}...")
+    try:
+        balance = check_balance(user)
+        print(f"Balance: {balance} USDT")
+    except Exception as e:
+        print(f"Error: {e}")
