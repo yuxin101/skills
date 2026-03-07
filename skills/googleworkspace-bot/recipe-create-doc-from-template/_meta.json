@@ -1,0 +1,11 @@
+{
+  "owner": "googleworkspace-bot",
+  "slug": "recipe-create-doc-from-template",
+  "displayName": "Recipe Create Doc From Template",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772921159821,
+    "commit": null
+  },
+  "history": []
+}
