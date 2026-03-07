@@ -11,10 +11,9 @@ import subprocess
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-DEFAULT_AWAL_PACKAGE = "awal@1.0.0"
-
 # Shell metacharacters to reject for security
 _SHELL_DANGEROUS_CHARS = set(';&|`$()<>!\n\r')
+_SAFE_AWAL_VALUE = re.compile(r"^[A-Za-z0-9._/@:+-]{1,180}$")
 
 
 def _validate_safe_string(value: str) -> str:
@@ -27,17 +26,28 @@ def _validate_safe_string(value: str) -> str:
     return value
 
 
+def _validate_env_token(name: str, value: str) -> str:
+    if not value:
+        raise ValueError(f"{name} cannot be empty")
+    if not _SAFE_AWAL_VALUE.match(value):
+        raise ValueError(f"{name} contains unsupported characters")
+    return value
+
+
 def build_awal_command(args: List[str]) -> List[str]:
     explicit_bin = os.getenv("AWAL_BIN", "").strip()
     if explicit_bin:
+        _validate_env_token("AWAL_BIN", explicit_bin)
         return [explicit_bin, *args]
 
     local_awal = shutil.which("awal")
-    if local_awal and os.getenv("AWAL_FORCE_NPX", "").strip() != "1":
+    if local_awal:
         return [local_awal, *args]
 
-    package = os.getenv("AWAL_PACKAGE", DEFAULT_AWAL_PACKAGE).strip() or DEFAULT_AWAL_PACKAGE
-    return ["npx", "-y", package, *args]
+    raise ValueError(
+        "AWAL binary not found in PATH. Install Coinbase Agentic Wallet skills "
+        "with `npx skills add coinbase/agentic-wallet-skills`, then run again."
+    )
 
 
 def run_awal(args: List[str], timeout: int = 180) -> Dict[str, Any]:
