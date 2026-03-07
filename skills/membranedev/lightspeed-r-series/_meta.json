@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "lightspeed-r-series",
+  "displayName": "Lightspeed R Series",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772848936580,
+    "commit": null
+  },
+  "history": []
+}
