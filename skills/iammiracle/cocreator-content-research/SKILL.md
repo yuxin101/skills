@@ -12,11 +12,11 @@ metadata:
       "primaryEnv": "SCRAPE_CREATORS_API_KEY",
       "install": [
         {
-          "id": "uv-brew",
-          "kind": "brew",
-          "formula": "uv",
+          "id": "uv-install",
+          "kind": "bash",
+          "script": "curl -LsSf https://astral.sh/uv/install.sh | sh",
           "bins": ["uv"],
-          "label": "Install uv (brew)"
+          "label": "Install uv (cross-platform via bash)"
         }
       ]
     }
