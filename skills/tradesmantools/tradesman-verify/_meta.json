@@ -1,0 +1,11 @@
+{
+  "owner": "tradesmantools",
+  "slug": "tradesman-verify",
+  "displayName": "tradesman-verify",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773005156601,
+    "commit": null
+  },
+  "history": []
+}
