@@ -4,11 +4,10 @@ version: 1.0.0
 description: EU regional compliance — VAT (27 member states), reverse charge, OSS, Intrastat, EN 16931 e-invoicing, SAF-T, EC Sales List, IBAN validation, EORI, VIES format, withholding tax, and European CoA template for ERPClaw ERP
 author: AvanSaber / Nikhil Jathar
 homepage: https://www.erpclaw.ai
-source: https://github.com/avansaber/erpclaw-region-eu
+source: https://github.com/avansaber/erpclaw/tree/main/skills/erpclaw-region-eu
 tier: 3
 category: regional
-requires: [erpclaw-setup, erpclaw-gl, erpclaw-tax]
-optional-requires: [erpclaw-selling, erpclaw-buying]
+requires: [erpclaw]
 database: ~/.openclaw/erpclaw/data.sqlite
 user-invocable: true
 tags: [eu, vat, reverse-charge, oss, intrastat, en16931, saft, ec-sales, iban, eori, vies, withholding-tax, compliance, regional]
@@ -59,7 +58,7 @@ action checks that the company country is an EU member state.
 
 - **Local-only**: All data in `~/.openclaw/erpclaw/data.sqlite` (single SQLite file)
 - **Fully offline**: No external API calls, no VIES lookups, no cloud dependencies
-- **No credentials required**: Uses Python standard library + erpclaw_lib shared library (installed by erpclaw-setup). The shared library is also fully offline and stdlib-only.
+- **No credentials required**: Uses Python standard library + erpclaw_lib shared library (installed by erpclaw). The shared library is also fully offline and stdlib-only.
 - **Optional env vars**: `ERPCLAW_DB_PATH` (custom DB location, defaults to `~/.openclaw/erpclaw/data.sqlite`)
 - **Pure overlay**: Reads any table, writes only for seeding (accounts, templates)
 - **SQL injection safe**: All queries use parameterized statements
