@@ -3,11 +3,16 @@
   "slug": "ravi-contacts",
   "displayName": "Ravi contacts",
   "latest": {
-    "version": "1.7.0",
-    "publishedAt": 1772783499840,
-    "commit": "https://github.com/openclaw/skills/commit/bef510d1019fd0ec4bdaa25181c246518f0c3a74"
+    "version": "1.7.1",
+    "publishedAt": 1772960969182,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.7.0",
+      "publishedAt": 1772783499840,
+      "commit": "https://github.com/openclaw/skills/commit/bef510d1019fd0ec4bdaa25181c246518f0c3a74"
+    },
     {
       "version": "1.6.1",
       "publishedAt": 1772676184115,
