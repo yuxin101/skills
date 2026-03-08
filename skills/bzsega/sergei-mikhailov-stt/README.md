@@ -59,13 +59,13 @@ The skill will be placed at `./skills/sergei-mikhailov-stt/`.
 
 > If you have an OpenClaw workspace configured, `clawhub` will automatically use `<workspace>/skills/` as the destination.
 
-### Step 3 — Install Python dependencies
+### Step 3 — Run the setup script
 
-Navigate to the installed skill folder and install dependencies:
+Navigate to the installed skill folder and run the setup script. It creates a Python virtual environment, installs dependencies, and generates default configuration files:
 
 ```bash
 cd skills/sergei-mikhailov-stt
-pip install -r requirements.txt
+bash setup.sh
 ```
 
 ---
@@ -102,12 +102,7 @@ OpenClaw will inject these variables when the skill runs, without exposing them 
 
 ### Option B — Via `.env` file in the skill folder
 
-```bash
-cd skills/sergei-mikhailov-stt
-cp assets/env.example .env
-```
-
-Edit `.env`:
+The `.env` file is created automatically by `setup.sh`. Edit it:
 ```
 YANDEX_API_KEY=your_api_key_here
 YANDEX_FOLDER_ID=your_folder_id_here
@@ -162,12 +157,12 @@ OpenClaw: Recognized text (en-US): "Hello, how are you today?"
 ## Updating the Skill
 
 ```bash
-clawhub install sergei-mikhailov-stt --force
+clawhub update sergei-mikhailov-stt
 cd skills/sergei-mikhailov-stt
-pip install -r requirements.txt
+bash setup.sh
+bash check.sh
+openclaw gateway stop && openclaw gateway start
 ```
-
-Then start a new OpenClaw session to pick up the update.
 
 ---
 
@@ -210,7 +205,7 @@ sergei-mikhailov-stt/
 │       └── yandex_speechkit.py # Yandex SpeechKit integration
 └── assets/
     ├── config.example.json     # Configuration template
-    └── .env.example            # Environment variables template
+    └── env.example             # Environment variables template
 ```
 
 ---
@@ -307,8 +302,7 @@ For contributors who want to work with the source directly:
 ```bash
 git clone https://github.com/bzSega/sergei-mikhailov-stt.git
 cd sergei-mikhailov-stt
-pip install -r requirements.txt
-cp assets/env.example .env
+bash setup.sh
 # Edit .env with your credentials
 ```
 

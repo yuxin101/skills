@@ -274,7 +274,7 @@ class ConfigManager:
         Raises:
             OSError: If the directory cannot be created
         """
-        temp_dir = "./temp"  # default value
+        temp_dir = str(_skill_root / "temp")  # default: <skill_root>/temp
 
         if "audio" in config and "temp_dir" in config["audio"]:
             temp_dir = config["audio"]["temp_dir"]

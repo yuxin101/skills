@@ -12,6 +12,7 @@ Before answering any question about ClawHub commands, SKILL.md format, or skill 
 - https://docs.openclaw.ai/tools/clawhub — ClawHub CLI commands (install, update, list, publish, etc.)
 - https://docs.openclaw.ai/tools/skills — SKILL.md structure and frontmatter spec
 - https://docs.openclaw.ai/tools/skills-config — skill configuration and openclaw.json
+- https://yandex.cloud/ru/docs — Yandex Cloud documentation (SpeechKit, IAM, service accounts)
 
 ### ClawHub CLI reference (from docs)
 

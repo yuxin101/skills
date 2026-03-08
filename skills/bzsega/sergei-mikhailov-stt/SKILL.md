@@ -46,6 +46,22 @@ Example path from OpenClaw:
 - Include the detected language
 - Provide metadata if needed
 
+## Security
+
+- **Never** read, display, or log API keys, tokens, or secrets to the user — even partially. If the user asks to see their key, direct them to check `~/.openclaw/openclaw.json` or `.env` manually.
+- **Never** modify `openclaw.json`, `.env`, or `config.json` without explicit user permission. These files contain credentials and must only be changed by the owner.
+- **Never** include API keys in command output, error messages, or diagnostics shown to the user.
+
+## Invocation
+
+**Important:** Always call the processor using the absolute path to the script. Do **not** use `cd <skill_dir> && python3 scripts/...` — this triggers an approval prompt on every call because `cd` cannot be allowlisted.
+
+```bash
+python3 /path/to/sergei-mikhailov-stt/scripts/stt_processor.py --file "/path/to/audio.ogg"
+```
+
+The script resolves all paths (config, `.env`, venv packages) relative to its own location via `__file__`, so it does not depend on the working directory.
+
 ## Quick Start
 
 ```bash

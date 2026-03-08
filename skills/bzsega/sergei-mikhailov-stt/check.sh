@@ -174,6 +174,96 @@ fi
 
 echo ""
 
+# ── Step 6: API Connectivity ───────────────────────────────────────────────
+
+echo "── API Connectivity ──"
+
+if [ "$KEYS_OK" -eq 1 ] && command -v curl &>/dev/null; then
+    # Collect actual key values (priority: openclaw.json > .env > env vars)
+    CHECK_API_KEY=""
+    CHECK_FOLDER_ID=""
+
+    # From environment variables
+    if [ -n "${YANDEX_API_KEY:-}" ] && [ -n "${YANDEX_FOLDER_ID:-}" ]; then
+        CHECK_API_KEY="${YANDEX_API_KEY}"
+        CHECK_FOLDER_ID="${YANDEX_FOLDER_ID}"
+    fi
+
+    # From .env (overrides env vars)
+    if [ -f "$SCRIPT_DIR/.env" ]; then
+        _ekey=$(grep -E '^YANDEX_API_KEY=' "$SCRIPT_DIR/.env" 2>/dev/null | cut -d= -f2- || true)
+        _efid=$(grep -E '^YANDEX_FOLDER_ID=' "$SCRIPT_DIR/.env" 2>/dev/null | cut -d= -f2- || true)
+        if [ -n "$_ekey" ] && [ "$_ekey" != "your_api_key_here" ] \
+           && [ -n "$_efid" ] && [ "$_efid" != "your_folder_id_here" ]; then
+            CHECK_API_KEY="$_ekey"
+            CHECK_FOLDER_ID="$_efid"
+        fi
+    fi
+
+    # From openclaw.json (highest priority)
+    if [ -f "$OC_CONFIG" ]; then
+        _okeys=$(python3 -c "
+import json, sys
+with open('$OC_CONFIG') as f:
+    cfg = json.load(f)
+env = cfg.get('skills',{}).get('entries',{}).get('sergei-mikhailov-stt',{}).get('env',{})
+ak = env.get('YANDEX_API_KEY','')
+fi = env.get('YANDEX_FOLDER_ID','')
+if ak and fi:
+    print(ak + '\n' + fi)
+" 2>/dev/null || true)
+        if [ -n "$_okeys" ]; then
+            CHECK_API_KEY=$(echo "$_okeys" | head -1)
+            CHECK_FOLDER_ID=$(echo "$_okeys" | tail -1)
+        fi
+    fi
+
+    if [ -n "$CHECK_API_KEY" ] && [ -n "$CHECK_FOLDER_ID" ]; then
+        # Send an empty body to the SpeechKit API to validate credentials.
+        # Expected responses:
+        #   400 = auth OK (bad request because no audio)
+        #   401 = invalid API key
+        #   403 = access denied (check folder_id / service account role)
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://stt.api.cloud.yandex.net/speech/v1/stt:recognize?folderId=${CHECK_FOLDER_ID}&lang=ru-RU" \
+            -H "Authorization: Api-Key ${CHECK_API_KEY}" \
+            --max-time 10 \
+            2>/dev/null || echo "000")
+
+        case "$HTTP_CODE" in
+            400)
+                ok "API credentials are valid (SpeechKit responded)"
+                ;;
+            401)
+                fail "API key is invalid (HTTP 401)"
+                info "Check YANDEX_API_KEY — it may be expired or mistyped"
+                ERRORS=$((ERRORS + 1))
+                ;;
+            403)
+                fail "Access denied (HTTP 403)"
+                info "Check that the service account has the ai.speechkit.user role"
+                info "and that YANDEX_FOLDER_ID is correct"
+                ERRORS=$((ERRORS + 1))
+                ;;
+            000)
+                warn "Could not reach Yandex SpeechKit API (network error or timeout)"
+                info "Check your internet connection"
+                ;;
+            *)
+                warn "Unexpected response from SpeechKit API (HTTP $HTTP_CODE)"
+                ;;
+        esac
+    else
+        warn "Could not extract key values for API check"
+    fi
+elif [ "$KEYS_OK" -eq 0 ]; then
+    info "Skipping API check (no keys found)"
+elif ! command -v curl &>/dev/null; then
+    warn "curl not found, skipping API connectivity check"
+fi
+
+echo ""
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 
 echo "══════════════════════════════════════════════════════"

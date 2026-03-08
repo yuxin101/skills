@@ -1,13 +1,18 @@
 {
   "owner": "bzsega",
   "slug": "sergei-mikhailov-stt",
-  "displayName": "Speech to Text Skill (Yandex SpeechKit) for OpenClaw",
+  "displayName": "Speech to Text (Yandex SpeechKit)",
   "latest": {
-    "version": "1.1.6",
-    "publishedAt": 1772696722180,
-    "commit": "https://github.com/openclaw/skills/commit/1df2eb4717082a85f09b7d02dc95c9ba0d1c55fb"
+    "version": "1.1.8",
+    "publishedAt": 1772907627534,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.1.6",
+      "publishedAt": 1772696722180,
+      "commit": "https://github.com/openclaw/skills/commit/1df2eb4717082a85f09b7d02dc95c9ba0d1c55fb"
+    },
     {
       "version": "1.1.2",
       "publishedAt": 1772261303638,
