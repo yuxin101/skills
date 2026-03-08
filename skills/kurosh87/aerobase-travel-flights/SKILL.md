@@ -1,86 +1,91 @@
 ---
+version: 3.1.0
 name: aerobase-travel-flights
-description: Search, compare, and score flights with jetlag optimization
+description: Search, compare, and score flights with jetlag optimization. Includes booking via Kiwi/Duffel APIs
 metadata: {"openclaw": {"emoji": "🛫", "primaryEnv": "AEROBASE_API_KEY", "user-invocable": true, "homepage": "https://aerobase.app"}}
 ---
 
-# Aerobase Flight Search
+# Aerobase Travel Flights 🛫
 
-Find the perfect flight with jetlag optimization. Aerobase.app scores every flight 0-100 for recovery impact — so you arrive fresh.
+## Search
 
-**Why Aerobase?**
-- 😴 **Jetlag scoring** — Every flight scored 0-100 for recovery
-- 🔍 **Compare options** — Side-by-side comparison
-- 🎯 **Multi-provider** — Kiwi, Amadeus, and more
-- 📊 **Smart ranking** — Best value = price + jetlag combined
+**POST /api/v1/flights/search** — live Kiwi search + DB fallback
+Body: `{ from: "JFK", to: "LHR", date: "2026-03-15", returnDate?: "2026-03-22", cabinClass?: "economy" }`
+Free tier: 5 results. Concierge: 50 results. Sorted by jetlag composite DESC, then price ASC.
 
-## What This Skill Does
+**POST /api/flights/search/agent** — multi-provider parallel search (Kiwi + Duffel)
+Same body. Returns UnifiedFlight[] with provider, price, jetlagScore, segments.
+15-second per-provider timeout. Dedup by flight number + departure time (5min tolerance, 5% price).
 
-- Search flights with jetlag scoring
-- Compare multiple flight options
-- Score flights 0-100 for recovery impact
-- Recommend optimal departure/arrival times
-- Generate recovery plans for each trip
+## Booking (API — preferred track)
 
-## Example Conversations
+**POST /api/flights/validate** — pre-booking price check
+Body: `{ flightId, provider, offerId }`
+Returns: `{ valid, currentPrice, priceChanged }`
 
-```
-User: "Find flights from LAX to NRT next week - but I need to be functional the next day"
-→ Scores each flight for jetlag
-→ Prioritizes recovery-friendly times
-→ Recommends best option for productivity
+**POST /api/flights/book** — book via AgentBookingService
+Body: `{ flightId, provider, offerId, passengers: [...], payment: { stripePaymentMethodId } }`
+- Kiwi: 3-phase (check_flights → save_booking → confirm_payment). 5% price tolerance.
+- Duffel: instant order with balance payment.
+- Neither available: returns deepLink URL for manual/browser booking.
 
-User: "Compare these 3 flights for jetlag impact"
-→ Side-by-side comparison
-→ Shows recovery days for each
-→ Recommends optimal choice
-```
+**NEVER submit payment without explicit user approval.**
 
-## API Documentation
+## Booking (browser — fallback track)
 
-Full API docs: https://aerobase.app/developers
+Only when API returns deepLink or provider unavailable:
+1. Open airline website via browser
+2. Fill passenger details from user profile
+3. Screenshot pre-payment page, send for approval
+4. Only submit after explicit "yes"
 
-OpenAPI spec: https://aerobase.app/api/v1/openapi
+## Comparison & Scoring
 
-**POST /api/v1/flights/score**
-
-```json
-{
-  "from": "LAX",
-  "to": "NRT",
-  "departure": "2026-04-15T13:25:00-07:00",
-  "arrival": "2026-04-16T15:40:00+09:00",
-  "cabin": "business"
-}
-```
-
-Returns score (0-100), recovery days, direction, and strategies.
-
-**POST /api/v1/flights/search** — Search with scoring
-**POST /api/v1/flights/compare** — Compare multiple flights
+**POST /api/v1/flights/compare** — compare 2-10 flights with recommendation + deltas
+**POST /api/v1/flights/score** — jetlag K2 score (0-100), direction, recoveryDays, strategies
+**GET /api/v1/flights/lookup/{carrier}/{number}** — live Amadeus + mv_flight_schedules fallback
+**GET /api/flights/providers/status** — circuit breaker state for Kiwi and Duffel (check before booking)
 
 ## Rate Limits
 
-- **Free tier**: 5 API requests per day
-- **Premium tier**: Unlimited requests + recovery plans
+- Search: max 20/hr (Kiwi rate limit). Agent search: max 10/hr (parallel providers)
+- Validate: max 5/hr per offer. Book: max 2/hr (irreversible)
+- Score/Compare: max 50/hr (lightweight). Lookup: max 30/hr (Amadeus quota)
 
-Get free API key at: https://aerobase.app/connect
+## Scrapling Flight Search (Preferred over Native Browser)
 
-## Premium: Recovery Plans
+Use the Scrapling `/search` endpoint for aggregator searches. Returns pre-parsed structured JSON —
+no browser snapshot/type/click needed. Helsinki server shows EUR prices.
 
-Premium subscribers get personalized recovery plans:
-- Pre-trip preparation schedule
-- In-flight strategies
-- Arrival timing recommendations
-- Sleep/diet adjustments
+Reference: [Scrapling Documentation](https://scrapling.readthedocs.io/en/latest/overview.html)
 
-→ https://aerobase.app/concierge/pricing
+### Google Flights
+```
+POST {SCRAPLING_URL}/search
+{"site":"google-flights","origin":"LAX","destination":"NRT","departure":"2026-03-15","return":"2026-03-22"}
+```
+Returns: `{"results": [{"airline":"..","price":"€1,216","duration":"11 hr 50 min","stops":"Nonstop"}], "count": N}`
 
-## Get the Full Experience
+### Kayak (may hit captcha — falls back to proxy)
+```
+POST {SCRAPLING_URL}/search
+{"site":"kayak","origin":"LAX","destination":"NRT","departure":"2026-03-15","return":"2026-03-22"}
+```
 
-Want ALL travel capabilities? Install the complete **Aerobase Travel Concierge** skill:
-- Flights, hotels, lounges, awards, activities, deals, wallet
-- Plus premium recovery plans
-- One skill for everything
+### API-First + Scrapling-Concurrent Pattern
+1. Fire API search (Kiwi/Duffel) immediately — show results to user
+2. Fire Scrapling `/search` in parallel for comparison data
+3. Merge: "Google Flights also shows €1,216 nonstop for the same route"
+4. Highlight discrepancies between API and browser data
 
-→ https://clawhub.ai/kurosh87/aerobase-travel-concierge
+### Fallback to Native Browser
+If Scrapling returns `challenge != "pass"` or 0 results:
+1. Try native browser with PROXY context
+2. Follow manual form-fill workflow (see aerobase-browser SKILL)
+3. Max 2 retries per site per session
+
+### Important Notes
+- Helsinki server → EUR prices by default. Convert if user expects USD
+- Google Flights typically returns 15-50 results per search
+- Kayak often hits captcha — Google Flights is more reliable via Scrapling
+- Skyscanner blocks entirely — skip it
