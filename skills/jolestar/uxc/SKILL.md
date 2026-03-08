@@ -76,6 +76,7 @@ Wrapper skills should default to a fixed local link command instead of calling `
 3. If command is missing, create it:
    - `uxc link <link_name> <host>`
    - For OpenAPI services whose schema is hosted at a separate fixed URL, create the link with `uxc link <link_name> <host> --schema-url <schema_url>`
+   - For stdio hosts that need credential-driven child env auth, create the link with `uxc link <link_name> <host> --credential <credential_id> --inject-env NAME={{secret}}`
 4. Validate link command:
    - `<link_name> -h`
 5. Use only the link command for the rest of the skill flow.
@@ -91,6 +92,7 @@ Wrapper skills should default to a fixed local link command instead of calling `
 
 - `<link_name> <operation> ...` is equivalent to `uxc <host> <operation> ...`.
 - If the link was created with `--schema-url <schema_url>`, it is equivalent to `uxc <host> --schema-url <schema_url> <operation> ...`.
+- If the link was created with `--credential <credential_id> --inject-env NAME={{secret}}`, it is equivalent to `uxc --auth <credential_id> --inject-env NAME={{secret}} <host> <operation> ...`.
 - Callers can still override that persisted schema by passing `--schema-url <other_url>` explicitly at runtime.
 - Use `uxc <host> ...` only as a temporary fallback when link setup is unavailable.
 
@@ -129,7 +131,7 @@ Default output is JSON. Do not use `--text` in agent automation paths.
   - `references/protocol-cheatsheet.md`
 - Public endpoint examples and availability notes:
   - `references/public-endpoints.md`
-- Authentication configuration (API keys, headers, secret sources):
+- Authentication configuration (API keys in headers/query params, secret sources):
   - `references/auth-configuration.md`
 - OAuth and credential/binding lifecycle:
   - `references/oauth-and-binding.md`

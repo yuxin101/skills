@@ -46,6 +46,22 @@ uxc link <provider>-openapi-cli <host> --schema-url <schema_url>
 <provider>-openapi-cli -h
 ```
 
+For stdio hosts that expect credentials in child-process env vars, persist credential selection and env injection on the link:
+
+```bash
+uxc auth credential set <credential_id> --secret-env <ENV_NAME>
+uxc link <provider>-mcp-cli <stdio_command> --credential <credential_id> --inject-env <ENV_NAME>={{secret}}
+<provider>-mcp-cli -h
+```
+
+For MCP HTTP or other HTTP endpoints that require API keys in the URL query string, configure the credential with `--query-param` and keep the endpoint itself clean:
+
+```bash
+uxc auth credential set flipside --auth-type api_key --query-param "apiKey={{secret}}" --secret-env FLIPSIDE_API_KEY
+uxc auth binding add --id flipside-mcp --host mcp.flipsidecrypto.xyz --path-prefix /mcp --scheme https --credential flipside --priority 100
+uxc https://mcp.flipsidecrypto.xyz/mcp -h
+```
+
 Examples:
 
 ```bash

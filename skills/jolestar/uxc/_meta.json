@@ -3,11 +3,16 @@
   "slug": "uxc",
   "displayName": "Uxc",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1772843316623,
-    "commit": "https://github.com/openclaw/skills/commit/12fca9fd17ba34cc44a271beeb2e7f45d1b93716"
+    "version": "1.0.3",
+    "publishedAt": 1772960564317,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1772843316623,
+      "commit": "https://github.com/openclaw/skills/commit/12fca9fd17ba34cc44a271beeb2e7f45d1b93716"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772547024924,
