@@ -1,11 +1,17 @@
 {
   "owner": "homeofe",
   "slug": "openclaw-cli-bridge-elvatis",
-  "displayName": "Openclaw Cli Bridge Elvatis",
+  "displayName": "OpenClaw CLI Bridge",
   "latest": {
-    "version": "0.2.2",
-    "publishedAt": 1772919219737,
-    "commit": "https://github.com/openclaw/skills/commit/6f31b69386dbc598f6c9ee342d56959c3658df20"
+    "version": "0.2.20",
+    "publishedAt": 1772991451313,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.2.2",
+      "publishedAt": 1772919219737,
+      "commit": "https://github.com/openclaw/skills/commit/6f31b69386dbc598f6c9ee342d56959c3658df20"
+    }
+  ]
 }
