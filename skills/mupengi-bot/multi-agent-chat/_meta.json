@@ -1,0 +1,11 @@
+{
+  "owner": "mupengi-bot",
+  "slug": "multi-agent-chat",
+  "displayName": "Multi-Agent Chat Protocol",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772883230481,
+    "commit": null
+  },
+  "history": []
+}
