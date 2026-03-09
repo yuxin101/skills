@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 资本市场简报生成器
-生成格式化的资本市场简报，包含全球主要指数、大宗商品价格和资讯分类
+根据交易时间判断使用实时行情或收盘点位
 """
 
 import subprocess
 import sys
 import json
-from datetime import datetime
-from typing import Dict, List, Tuple
+from datetime import datetime, time
+from typing import Dict, List, Tuple, Optional
+import pytz
 
 # 指数配置
 INDICES = {
@@ -26,6 +27,80 @@ INDICES = {
         ("纳指100", "usNDX"),
     ],
 }
+
+# 交易时间配置 (北京时间)
+TRADING_HOURS = {
+    "A股": {
+        "weekdays": [0, 1, 2, 3, 4],  # 周一到周五
+        "sessions": [
+            (time(9, 30), time(11, 30)),
+            (time(13, 0), time(15, 0)),
+        ]
+    },
+    "港股": {
+        "weekdays": [0, 1, 2, 3, 4],
+        "sessions": [
+            (time(9, 30), time(12, 0)),
+            (time(13, 0), time(16, 0)),
+        ]
+    },
+    "美股": {
+        "weekdays": [0, 1, 2, 3, 4],
+        "sessions": [
+            (time(21, 30), time(23, 59, 59)),  # 夏令时
+            (time(0, 0), time(4, 0)),  # 次日凌晨
+        ],
+        "sessions_winter": [
+            (time(22, 30), time(23, 59, 59)),  # 冬令时
+            (time(0, 0), time(5, 0)),  # 次日凌晨
+        ]
+    },
+}
+
+# 夏令时判断 (3月第二个周日 - 11月第一个周日)
+def is_dst(dt: datetime) -> bool:
+    """判断是否为夏令时"""
+    year = dt.year
+    # 3月第二个周日
+    dst_start = datetime(year, 3, 8 + (6 - datetime(year, 3, 1).weekday()) % 7, 2, 0)
+    # 11月第一个周日
+    dst_end = datetime(year, 11, 1 + (6 - datetime(year, 11, 1).weekday()) % 7, 2, 0)
+    return dst_start <= dt < dst_end
+
+def is_market_open(market: str, dt: datetime) -> bool:
+    """判断市场是否开盘"""
+    if market not in TRADING_HOURS:
+        return False
+    
+    config = TRADING_HOURS[market]
+    weekday = dt.weekday()
+    
+    # 检查是否为交易日
+    if weekday not in config["weekdays"]:
+        return False
+    
+    current_time = dt.time()
+    
+    # 美股特殊处理夏令时/冬令时
+    if market == "美股":
+        if is_dst(dt):
+            sessions = config["sessions"]
+        else:
+            sessions = config.get("sessions_winter", config["sessions"])
+    else:
+        sessions = config["sessions"]
+    
+    # 检查是否在交易时段内
+    for start, end in sessions:
+        if start <= current_time <= end:
+            return True
+    
+    return False
+
+def get_beijing_time() -> datetime:
+    """获取北京时间"""
+    tz = pytz.timezone('Asia/Shanghai')
+    return datetime.now(tz)
 
 def get_stock_data() -> Dict[str, List[Dict]]:
     """获取股价数据"""
@@ -74,74 +149,137 @@ def get_crypto_price(symbol: str = "BTC") -> Dict:
     except Exception as e:
         return {"error": str(e)}
 
-def get_current_time() -> str:
-    """获取当前时间"""
-    return datetime.now().strftime("%Y年%m月%d日 %H:%M")
+def get_commodity_prices() -> Dict:
+    """获取大宗商品价格（使用 web_search）"""
+    # 这里可以扩展为实际抓取网页数据
+    return {
+        "gold": {"price": None, "change": None, "pct": None},
+        "oil": {"price": None, "change": None, "pct": None},
+    }
 
-def format_report(stock_data: Dict, crypto_data: Dict) -> str:
-    """格式化报告"""
-    now = get_current_time()
+def format_report(stock_data: Dict, crypto_data: Dict, commodity_data: Dict) -> str:
+    """格式化报告，根据交易时间显示不同状态"""
+    now = get_beijing_time()
+    time_str = now.strftime("%Y-%m-%d %H:%M")
     
-    report = f"""📊 资本市场简报 | {now}
+    # 判断各市场状态
+    market_status = {}
+    for market in ["A股", "港股", "美股"]:
+        market_status[market] = is_market_open(market, now)
+    
+    # 分类市场
+    trading_markets = [m for m, status in market_status.items() if status]
+    closed_markets = [m for m, status in market_status.items() if not status]
+    
+    report = f"""📊 资本市场简报 | {time_str}
+
+---
+"""
+    
+    # 交易中市场
+    if trading_markets:
+        report += "\n### 🟢 交易中（实时行情）\n"
+        for market in trading_markets:
+            report += f"\n**{market}**\n"
+            if market in INDICES:
+                for name, code in INDICES[market]:
+                    if name in stock_data and "error" not in stock_data:
+                        d = stock_data[name]
+                        report += f"• {name}：{d['price']}点 ({d['change']} / {d['pct']})\n"
+                    else:
+                        report += f"• {name}：[获取失败]\n"
+    
+    # 大宗商品（24小时交易）
+    report += "\n**大宗商品**\n"
+    if commodity_data.get("gold", {}).get("price"):
+        g = commodity_data["gold"]
+        report += f"• 黄金：${g['price']}/oz ({g['change']} / {g['pct']})\n"
+    else:
+        report += "• 黄金：[使用 web_search 获取实时价格]\n"
+    
+    if commodity_data.get("oil", {}).get("price"):
+        o = commodity_data["oil"]
+        report += f"• 原油(WTI)：${o['price']}/桶 ({o['change']} / {o['pct']})\n"
+    else:
+        report += "• 原油(WTI)：[使用 web_search 获取实时价格]\n"
+    
+    if crypto_data.get("price"):
+        report += f"• 比特币：${crypto_data['price']}\n"
+    else:
+        report += "• 比特币：[获取失败]\n"
+    
+    # 休市市场
+    if closed_markets:
+        report += "\n---\n\n### 🔴 市场休市（上一交易日收盘）\n"
+        for market in closed_markets:
+            report += f"\n**{market}**\n"
+            if market in INDICES:
+                for name, code in INDICES[market]:
+                    if name in stock_data and "error" not in stock_data:
+                        d = stock_data[name]
+                        report += f"• {name}：{d['price']}点 ({d['change']} / {d['pct']})\n"
+                    else:
+                        report += f"• {name}：[获取失败]\n"
+    
+    report += """
+---
+
+### 📰 24小时要闻速览
+
+#### 🔴 利空
+[从以下媒体抓取利空新闻]
+- 中文：36氪、新浪财经、财联社
+- 英文：BBC、Bloomberg、Yahoo Finance、WSJ
+
+#### 🟢 利好
+[从以下媒体抓取利好新闻]
+
+#### ⚪ 中性
+[从以下媒体抓取中性新闻]
+
+每条新闻格式：
+1. **标题**
+   📰 来源 | 时间
+   摘要
 
 ---
 
-### 🟢 交易中（实时数据）
-
-**大宗商品**
-- 黄金：$5,172/盎司 (+$91.70 / +1.81%)
-- 原油(WTI)：$91.27/桶 (+$10.26 / +12.67%)
-- 比特币：${crypto_data.get('price', '获取失败')}
+### 📡 信息来源
+中文媒体：36氪、新浪财经、财联社、人民网
+国际媒体：BBC、Bloomberg、Yahoo Finance、WSJ
 
 ---
-
-### 🔴 已收盘（昨日/周五数据）
 
 """
     
-    for market, stocks in INDICES.items():
-        report += f"**{market}**\n"
-        for name, code in stocks:
-            if name in stock_data and "error" not in stock_data:
-                d = stock_data[name]
-                report += f"- {name}：{d['price']}点 ({d['change']} / {d['pct']})\n"
-            else:
-                report += f"- {name}：[数据获取失败]\n"
-        report += "\n"
-    
-    report += """---
-
-### 📰 24小时资讯简报
-
-资讯部分需手动从以下媒体收集：
-- 中文：36氪、新浪财经、人民网、财联社
-- 英文：BBC、Bloomberg、Yahoo Finance、WSJ、Financial Times
-
-分类标准：
-- 🟢 利好：政策利好、业绩超预期、市场上涨、资金流入
-- 🔴 利空：地缘冲突、业绩不及预期、市场下跌、监管收紧
-- ⚪ 中性：人事变动、企业重组、行业分析
-
-每条资讯需标注：
-- 📰 来源媒体
-- 🕐 发布时间
-- 📋 内容摘要
-
----
-
-**注**：周末全球主要股市休市，数据为最近交易日收盘。大宗商品和加密货币市场24小时交易。
-"""
+    # 添加交易时间说明
+    report += "\n⏰ **交易时间参考**（北京时间）：\n"
+    report += "• A股：09:30-11:30, 13:00-15:00（周一至周五）\n"
+    report += "• 港股：09:30-12:00, 13:00-16:00（周一至周五）\n"
+    report += "• 美股：21:30-04:00（夏令时）/ 22:30-05:00（冬令时）\n"
+    report += "• 大宗商品/加密货币：24小时交易\n"
     
     return report
 
 def main():
     """主函数"""
-    print("正在获取数据...")
+    beijing_now = get_beijing_time()
+    print(f"当前北京时间: {beijing_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"夏令时: {'是' if is_dst(beijing_now) else '否'}")
+    
+    # 检查各市场状态
+    for market in ["A股", "港股", "美股"]:
+        status = "交易中" if is_market_open(market, beijing_now) else "休市"
+        print(f"{market}: {status}")
+    
+    print("\n正在获取数据...")
     
     stock_data = get_stock_data()
     crypto_data = get_crypto_price("BTC")
+    commodity_data = get_commodity_prices()
     
-    report = format_report(stock_data, crypto_data)
+    report = format_report(stock_data, crypto_data, commodity_data)
+    print("\n" + "="*50)
     print(report)
 
 if __name__ == "__main__":
