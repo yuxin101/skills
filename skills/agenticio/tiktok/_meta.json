@@ -1,0 +1,11 @@
+{
+  "owner": "agenticio",
+  "slug": "tiktok",
+  "displayName": "TikTok",
+  "latest": {
+    "version": "2.0.0",
+    "publishedAt": 1772975499252,
+    "commit": null
+  },
+  "history": []
+}
