@@ -1,0 +1,11 @@
+{
+  "owner": "miniade",
+  "slug": "miniade-agent-lifecycle-manager",
+  "displayName": "Agent Lifecycle Manager",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773018009606,
+    "commit": null
+  },
+  "history": []
+}
