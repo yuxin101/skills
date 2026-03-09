@@ -39,6 +39,20 @@ openclaw status --deep
 OPENCLAW_HOME=~/.openclaw-wife openclaw gateway health --url ws://127.0.0.1:18889 --token wife-instance-token-18889
 ```
 
+## Automation script (v1.0.1)
+
+This skill includes `safe-change.sh` to enforce the flow with automatic rollback.
+
+Example:
+
+```bash
+./safe-change.sh \
+  --main-cmd "python3 edit_main.py" \
+  --wife-cmd "python3 edit_wife.py"
+```
+
+If validation fails on either instance, the script restores backups automatically.
+
 ## Notes
 
 - Never deploy unvalidated config edits directly to production instance.
