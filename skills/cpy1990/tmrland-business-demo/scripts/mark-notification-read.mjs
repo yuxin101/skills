@@ -8,5 +8,4 @@ if (help || !positional[0]) {
 }
 
 const data = await tmrFetch("POST", `/notifications/${positional[0]}/read`);
-console.log(`Notification ${positional[0]} marked as read.`);
 console.log(JSON.stringify(data, null, 2));

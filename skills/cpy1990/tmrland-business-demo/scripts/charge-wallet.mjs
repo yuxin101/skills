@@ -13,5 +13,4 @@ const body = {
 };
 
 const data = await tmrFetch("POST", "/wallet/charge", body);
-console.log(`Charged ${body.amount} ${body.currency} to wallet.`);
 console.log(JSON.stringify(data, null, 2));

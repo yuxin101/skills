@@ -14,5 +14,4 @@ if (direction !== "like" && direction !== "dislike") {
 }
 
 const data = await tmrFetch("POST", `/apparatus/answers/${positional[0]}/${direction}`);
-console.log(`Voted ${direction} on answer ${positional[0]}.`);
 console.log(JSON.stringify(data, null, 2));

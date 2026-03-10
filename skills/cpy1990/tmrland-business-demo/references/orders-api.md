@@ -107,6 +107,42 @@ Returns the updated order with `status: "pending_review"`.
 
 ---
 
+## POST /api/v1/orders/{order_id}/revision-proposal
+
+Submit a revision proposal during the `revision_requested` phase. **Business only.** Only one open proposal is allowed at a time.
+
+**Auth:** Required (business only)
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `content` | str | Yes | The revision plan text (min 1 character) |
+
+### Response Example
+
+Returns a message object with `message_type: "revision_proposal"` and `proposal_status: "open"`.
+
+---
+
+## POST /api/v1/orders/{order_id}/withdraw-revision
+
+Withdraw an open revision proposal. **Business only.**
+
+**Auth:** Required (business only)
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `message_id` | uuid | Yes | The ID of the revision proposal message to withdraw |
+
+### Response Example
+
+Returns the message with `proposal_status: "withdrawn"`.
+
+---
+
 ## POST /api/v1/orders/{order_id}/cancel
 
 Cancel an order. Only the personal user can cancel.

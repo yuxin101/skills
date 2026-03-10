@@ -8,5 +8,4 @@ if (help) {
 }
 
 const data = await tmrFetch("POST", "/notifications/read-all");
-console.log("All notifications marked as read.");
 console.log(JSON.stringify(data, null, 2));

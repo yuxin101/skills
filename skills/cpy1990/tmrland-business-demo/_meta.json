@@ -3,11 +3,16 @@
   "slug": "tmrland-business-demo",
   "displayName": "tmrland-business-demo",
   "latest": {
-    "version": "1.0.4",
-    "publishedAt": 1772716556289,
-    "commit": "https://github.com/openclaw/skills/commit/df54ac02c9dd87696717abdd28776bb5864d858e"
+    "version": "1.11.0",
+    "publishedAt": 1773121800067,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.4",
+      "publishedAt": 1772716556289,
+      "commit": "https://github.com/openclaw/skills/commit/df54ac02c9dd87696717abdd28776bb5864d858e"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1772551792367,

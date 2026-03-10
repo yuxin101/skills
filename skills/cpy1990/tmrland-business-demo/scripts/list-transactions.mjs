@@ -9,9 +9,4 @@ if (help) {
 
 const limit = Number.parseInt(named.limit ?? "20", 10);
 const data = await tmrFetch("GET", `/wallet/transactions?limit=${limit}`);
-
-console.log(`## Transactions (${data.items?.length ?? 0})\n`);
-for (const t of data.items ?? []) {
-  console.log(`- ${t.id} | ${t.type ?? "—"} | ${t.amount ?? "—"} ${t.currency ?? ""} | ${t.created_at ?? "—"}`);
-}
 console.log(JSON.stringify(data, null, 2));

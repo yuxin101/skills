@@ -8,5 +8,4 @@ if (help || !positional[0]) {
 }
 
 const data = await tmrFetch("POST", `/negotiations/${positional[0]}/messages/read`);
-console.log(`Negotiation ${positional[0]} messages marked as read.`);
 console.log(JSON.stringify(data, null, 2));

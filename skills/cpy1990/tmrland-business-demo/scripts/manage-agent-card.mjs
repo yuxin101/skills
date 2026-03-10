@@ -15,11 +15,9 @@ if (named["a2a-endpoint"]) body.a2a_endpoint = named["a2a-endpoint"];
 // Try PATCH first (update); fall back to POST (create) on 404
 const patchResult = await tmrFetchSafe("PATCH", `/businesses/${businessId}/agent-card`, body);
 if (patchResult.ok) {
-  console.log("Agent card updated.");
   console.log(JSON.stringify(patchResult.data, null, 2));
 } else if (patchResult.status === 404) {
   const data = await tmrFetch("POST", `/businesses/${businessId}/agent-card`, body);
-  console.log("Agent card created.");
   console.log(JSON.stringify(data, null, 2));
 } else {
   console.error(`API error ${patchResult.status}: ${patchResult.error}`);

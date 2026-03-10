@@ -13,12 +13,8 @@ if (named.send) {
   const msg = await tmrFetch("POST", `/negotiations/${sessionId}/messages`, {
     content: named.send,
   });
-  console.log(`Message sent: ${msg.id}`);
+  console.log(JSON.stringify(msg, null, 2));
 }
 
 const data = await tmrFetch("GET", `/negotiations/${sessionId}/messages`);
-console.log(`## Messages for session ${sessionId}\n`);
-for (const m of data.items ?? []) {
-  const role = m.sender_role ?? "unknown";
-  console.log(`[${role}] ${m.content}`);
-}
+console.log(JSON.stringify(data, null, 2));

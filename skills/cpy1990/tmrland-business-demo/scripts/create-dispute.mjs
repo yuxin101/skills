@@ -12,5 +12,4 @@ if (named["refund-type"]) body.refund_type = named["refund-type"];
 if (named["refund-amount"]) body.refund_amount = Number.parseFloat(named["refund-amount"]);
 
 const data = await tmrFetch("POST", `/orders/${positional[0]}/dispute`, body);
-console.log(`Dispute created for order ${positional[0]}.`);
 console.log(JSON.stringify(data, null, 2));

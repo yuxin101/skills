@@ -14,5 +14,4 @@ const body = {
 };
 
 const data = await tmrFetch("POST", "/a2a/task", body);
-console.log(`A2A task created.`);
 console.log(JSON.stringify(data, null, 2));

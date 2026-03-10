@@ -64,12 +64,12 @@ export function parseArgs(argv) {
   const named = {};
   const positional = [];
   for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith("--")) {
+    if (args[i] === "-h" || args[i] === "--help") {
+      return { help: true, named, positional };
+    } else if (args[i].startsWith("--")) {
       const key = args[i].slice(2);
       named[key] = args[i + 1] ?? "";
       i++;
-    } else if (args[i] === "-h" || args[i] === "--help") {
-      return { help: true, named, positional };
     } else {
       positional.push(args[i]);
     }

@@ -8,5 +8,4 @@ if (help || !positional[0]) {
 }
 
 const data = await tmrFetch("POST", `/negotiations/${positional[0]}/reject`);
-console.log(`Deal rejected for session ${positional[0]}`);
 console.log(JSON.stringify(data, null, 2));

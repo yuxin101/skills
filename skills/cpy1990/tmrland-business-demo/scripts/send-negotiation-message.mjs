@@ -10,5 +10,4 @@ if (help || !positional[0] || !named.content) {
 const data = await tmrFetch("POST", `/negotiations/${positional[0]}/messages`, {
   content: named.content,
 });
-console.log(`Message sent in session ${positional[0]}: ${data.id}`);
 console.log(JSON.stringify(data, null, 2));

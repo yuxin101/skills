@@ -2,7 +2,7 @@
 
 Base URL: `/api/v1/api-keys`
 
-Manage API keys for programmatic access. Business agents use API keys to authenticate without the web-based JWT flow. Each key can be scoped to a specific role and set of permissions.
+Manage API keys for programmatic access. Business agents use API keys to authenticate without the web-based JWT flow. Each role allows at most 2 active keys (to support key rotation with a 24h grace period).
 
 ---
 
@@ -16,57 +16,105 @@ Create a new API key. The full key value is only shown once at creation time.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `name` | str | Yes | Human-readable name for the key |
-| `role` | str | No | Role scope for the key. Use `"business"` for business agent access |
-| `permissions` | list[str] \| null | No | Fine-grained permission scopes (e.g., `["orders:read", "orders:deliver", "apparatus:write"]`) |
+| `role` | str | No | Role scope: `"personal"` (default) or `"business"` |
+| `permissions` | list[str] \| null | No | Fine-grained permission scopes |
 
 ### Request Example
 
 ```json
 {
-  "name": "SmartData Production Agent",
   "role": "business",
-  "permissions": ["orders:read", "orders:deliver", "contracts:read", "contracts:write", "apparatus:write", "messages:read", "messages:write"]
+  "permissions": ["orders:read", "orders:deliver", "apparatus:write"]
 }
 ```
 
 ### Response Example
 
+**Status: 201 Created**
+
 ```json
 {
   "id": "key00001-1111-2222-3333-444455556666",
-  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "name": "SmartData Production Agent",
-  "key": "tmr_sk_live_a1b2c3d4e5f6789012345678901234567890abcdef",
-  "key_preview": "tmr_sk_live_a1b2...cdef",
+  "name": "Business API Key",
+  "key_prefix": "tmr_b_7k",
   "role": "business",
-  "permissions": ["orders:read", "orders:deliver", "contracts:read", "contracts:write", "apparatus:write", "messages:read", "messages:write"],
-  "is_active": true,
+  "permissions": ["orders:read", "orders:deliver", "apparatus:write"],
+  "status": "active",
+  "usage_count": 0,
+  "created_at": "2026-02-27T10:30:00Z",
+  "expires_at": null,
   "last_used_at": null,
-  "created_at": "2026-02-27T10:30:00Z"
+  "raw_key": "tmr_b_7k3mX9pLqR2wN8vT4jH6cF1dA5sY0eU3gI7oK"
 }
 ```
 
-> The `key` field contains the full API key. Store it securely; it is not retrievable after this response.
+> The `raw_key` field contains the full API key. Store it securely; it is not retrievable after this response.
 
 ### Errors
 
-| Status | Code | Description |
+| Status | Detail | Condition |
 |---|---|---|
-| 401 | `not_authenticated` | Missing or invalid access token |
-| 422 | `validation_error` | Name is required |
+| 401 | `"Not authenticated"` | Missing or invalid access token |
+| 409 | `"Maximum active {role} API keys reached (2)"` | Already have 2 active keys for this role |
 
 ---
 
-## GET /api/v1/api-keys
+## POST /api/v1/api-keys/rotate
 
-List all API keys for the authenticated user. Full key values are not returned; only the preview.
+Rotate an existing API key. Creates a new key and sets the old key to expire in 24 hours (grace period).
 
 **Auth:** Required
 
 ### Request Body
 
-None.
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `role` | str | No | Role to rotate: `"personal"` (default) or `"business"` |
+
+### Request Example
+
+```json
+{
+  "role": "business"
+}
+```
+
+### Response Example
+
+**Status: 201 Created**
+
+```json
+{
+  "id": "key00002-2222-3333-4444-555566667777",
+  "name": "Business API Key",
+  "key_prefix": "tmr_c_9x",
+  "role": "business",
+  "permissions": null,
+  "status": "active",
+  "usage_count": 0,
+  "created_at": "2026-03-07T10:30:00Z",
+  "expires_at": null,
+  "last_used_at": null,
+  "raw_key": "tmr_c_9xPqR2wN8vT4jH6cF1dA5sY0eU3gI7oKmX"
+}
+```
+
+After rotation, the old key remains active with an `expires_at` 24 hours in the future. Both old and new keys work during the grace period.
+
+### Errors
+
+| Status | Detail | Condition |
+|---|---|---|
+| 401 | `"Not authenticated"` | Missing or invalid access token |
+| 404 | `"No active {role} API key to rotate"` | No permanent key exists for this role |
+
+---
+
+## GET /api/v1/api-keys
+
+List all active API keys for the authenticated user. Expired keys are excluded. The `raw_key` field is never included in list responses.
+
+**Auth:** Required
 
 ### Request Example
 
@@ -77,38 +125,42 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ### Response Example
 
+**Status: 200 OK**
+
 ```json
 [
   {
-    "id": "key00001-1111-2222-3333-444455556666",
-    "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "name": "SmartData Production Agent",
-    "key_preview": "tmr_sk_live_a1b2...cdef",
+    "id": "key00002-2222-3333-4444-555566667777",
+    "name": "Business API Key",
+    "key_prefix": "tmr_c_9x",
     "role": "business",
-    "permissions": ["orders:read", "orders:deliver", "contracts:read", "contracts:write", "apparatus:write", "messages:read", "messages:write"],
-    "is_active": true,
-    "last_used_at": "2026-02-27T14:00:00Z",
-    "created_at": "2026-02-27T10:30:00Z"
+    "permissions": null,
+    "status": "active",
+    "usage_count": 5,
+    "created_at": "2026-03-07T10:30:00Z",
+    "expires_at": null,
+    "last_used_at": "2026-03-07T14:22:00Z"
   },
   {
-    "id": "key00002-2222-3333-4444-555566667777",
-    "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "name": "SmartData Staging Agent",
-    "key_preview": "tmr_sk_test_b2c3...ef01",
+    "id": "key00001-1111-2222-3333-444455556666",
+    "name": "Business API Key",
+    "key_prefix": "tmr_b_7k",
     "role": "business",
-    "permissions": ["orders:read", "apparatus:write"],
-    "is_active": true,
-    "last_used_at": null,
-    "created_at": "2026-02-20T09:00:00Z"
+    "permissions": ["orders:read"],
+    "status": "active",
+    "usage_count": 142,
+    "created_at": "2026-02-27T10:30:00Z",
+    "expires_at": "2026-03-08T10:30:00Z",
+    "last_used_at": "2026-03-07T09:15:00Z"
   }
 ]
 ```
 
 ### Errors
 
-| Status | Code | Description |
+| Status | Detail | Condition |
 |---|---|---|
-| 401 | `not_authenticated` | Missing or invalid access token |
+| 401 | `"Not authenticated"` | Missing or invalid access token |
 
 ---
 
@@ -133,17 +185,13 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ### Response Example
 
-```json
-{
-  "ok": true,
-  "message": "API key deleted"
-}
-```
+**Status: 204 No Content**
+
+No response body.
 
 ### Errors
 
-| Status | Code | Description |
+| Status | Detail | Condition |
 |---|---|---|
-| 401 | `not_authenticated` | Missing or invalid access token |
-| 403 | `not_owner` | Authenticated user does not own this API key |
-| 404 | `key_not_found` | No API key with this ID |
+| 401 | `"Not authenticated"` | Missing or invalid access token |
+| 404 | `"API key not found"` | Key ID does not exist or user does not own it |

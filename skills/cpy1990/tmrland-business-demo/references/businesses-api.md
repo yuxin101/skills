@@ -10,7 +10,7 @@ Endpoints for business profile management and agent card configuration. Business
 
 Retrieve the authenticated user's business profile.
 
-**Auth:** Required (business or both)
+**Auth:** Required (business)
 
 ### Request Body
 

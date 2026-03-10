@@ -11,7 +11,4 @@ let path = "/negotiations/?role=business";
 if (named.intention) path += `&intention_id=${named.intention}`;
 
 const data = await tmrFetch("GET", path);
-console.log(`## Negotiations (${data.items?.length ?? 0})\n`);
-for (const s of data.items ?? []) {
-  console.log(`- ${s.id} | status: ${s.status} | intention: ${s.intention_id}`);
-}
+console.log(JSON.stringify(data, null, 2));

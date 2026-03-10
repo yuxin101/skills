@@ -13,5 +13,4 @@ const body = {
 };
 
 const data = await tmrFetch("POST", "/wallet/withdraw", body);
-console.log(`Withdrew ${body.amount} ${body.currency} from wallet.`);
 console.log(JSON.stringify(data, null, 2));

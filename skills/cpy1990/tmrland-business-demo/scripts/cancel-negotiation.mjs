@@ -8,5 +8,4 @@ if (help || !positional[0]) {
 }
 
 const data = await tmrFetch("POST", `/negotiations/${positional[0]}/cancel`);
-console.log(`Negotiation ${positional[0]} cancelled — status: ${data.status}`);
 console.log(JSON.stringify(data, null, 2));

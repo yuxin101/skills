@@ -2,7 +2,7 @@
 
 Base URL: `/api/v1/wallet`
 
-All endpoints require authentication via Bearer token. Each user has a single wallet created automatically on registration.
+All endpoints require authentication via Bearer token. Each user has two wallets (personal and business) created automatically on registration. Use the `wallet_type` query parameter to select which wallet to operate on.
 
 ---
 
@@ -12,14 +12,16 @@ Retrieve the current user's wallet balances.
 
 **Auth:** Required
 
-### Request Body
+### Query Parameters
 
-None.
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `wallet_type` | str | No | `"personal"` (default) or `"business"` |
 
 ### Request Example
 
 ```
-GET /api/v1/wallet
+GET /api/v1/wallet?wallet_type=business
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
@@ -31,6 +33,8 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 {
   "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
   "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "wallet_type": "business",
+  "business_id": null,
   "usd_balance": "2450.00",
   "usdc_balance": "0.00",
   "created_at": "2026-02-27T10:30:00Z"
@@ -50,6 +54,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 Add funds to the wallet (simulated top-up for MVP).
 
 **Auth:** Required
+
+### Query Parameters
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `wallet_type` | str | No | `"personal"` (default) or `"business"` |
 
 ### Request Body
 
@@ -101,6 +111,12 @@ Add funds to the wallet (simulated top-up for MVP).
 Withdraw funds from the wallet. Businesses use this to cash out earnings.
 
 **Auth:** Required
+
+### Query Parameters
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `wallet_type` | str | No | `"personal"` (default) or `"business"` |
 
 ### Request Body
 
@@ -157,13 +173,14 @@ List wallet transactions with pagination.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `wallet_type` | str | No | `"personal"` (default) or `"business"` |
 | `offset` | int | No | Pagination offset, default `0` |
 | `limit` | int | No | Items per page, default `20`, max `100` |
 
 ### Request Example
 
 ```
-GET /api/v1/wallet/transactions?offset=0&limit=20
+GET /api/v1/wallet/transactions?wallet_type=business&offset=0&limit=20
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 

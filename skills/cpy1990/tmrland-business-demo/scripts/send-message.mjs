@@ -10,5 +10,4 @@ if (help || !positional[0] || !named.content) {
 const data = await tmrFetch("POST", `/messages/orders/${positional[0]}`, {
   content: named.content,
 });
-console.log(`Message sent in order ${positional[0]}: ${data.id}`);
 console.log(JSON.stringify(data, null, 2));

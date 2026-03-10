@@ -8,5 +8,4 @@ if (help || !positional[0]) {
 }
 
 const data = await tmrFetch("POST", `/negotiations/${positional[0]}/accept`);
-console.log(`Deal accepted — order created: ${data.order_id ?? data.id}`);
 console.log(JSON.stringify(data, null, 2));

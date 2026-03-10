@@ -8,7 +8,4 @@ if (help) {
 }
 
 const data = await tmrFetch("GET", "/wallet");
-console.log(`## Wallet\n`);
-console.log(`USD: ${data.usd_balance ?? "0.00"}`);
-console.log(`USDC: ${data.usdc_balance ?? "0.00"}`);
-console.log(`\n${JSON.stringify(data, null, 2)}`);
+console.log(JSON.stringify(data, null, 2));

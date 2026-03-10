@@ -14,5 +14,4 @@ const body = {
 };
 
 const data = await tmrFetch("POST", "/wallet/kyc", body);
-console.log("KYC submitted.");
 console.log(JSON.stringify(data, null, 2));

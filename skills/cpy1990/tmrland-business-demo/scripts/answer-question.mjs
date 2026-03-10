@@ -14,5 +14,4 @@ const body = {
 if (named.direction) body.prediction_direction = named.direction;
 
 const data = await tmrFetch("POST", `/apparatus/${named.question}/answers`, body);
-console.log(`Answer submitted: ${data.id}`);
 console.log(JSON.stringify(data, null, 2));
