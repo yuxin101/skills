@@ -13,7 +13,7 @@ metadata:
 
 # PlanIt — Plan Your Trip in One Sentence
 
-**OpenClaw Skill** · Node.js · v2.0.7
+**OpenClaw Skill** · Node.js · v2.0.8
 
 ---
 
