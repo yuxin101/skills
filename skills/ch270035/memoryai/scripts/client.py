@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Memory Addon — Standalone client for OpenClaw skill.
+"""MemoryAI — Standalone client for OpenClaw skill.
 
 No pip install required. Uses only urllib from stdlib.
 Configure via config.json or environment variables HM_ENDPOINT / HM_API_KEY.
@@ -15,6 +15,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.parent
 CONFIG_PATH = SCRIPT_DIR / "config.json"
+VERSION = "0.6.0"
 
 
 def load_config():
@@ -45,7 +46,7 @@ def api_call(method: str, path: str, body=None):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "MemoryAI-Skill/0.4.1",
+            "User-Agent": f"MemoryAI-Skill/{VERSION}",
         },
     )
     try:
@@ -59,6 +60,8 @@ def api_call(method: str, path: str, body=None):
         print(f"Connection error: {e.reason}", file=sys.stderr)
         sys.exit(1)
 
+
+# ── Core Commands ─────────────────────────────────────────
 
 def cmd_store(args):
     tags = [t.strip() for t in args.tags.split(",")] if args.tags else []
@@ -88,8 +91,6 @@ def cmd_recall(args):
         "min_score": args.min_score,
         "tags": tags,
     }
-    if args.memory_type:
-        body["memory_type"] = args.memory_type
     result = api_call("POST", "/v1/recall", body)
     if not result.get("results"):
         print("No relevant memories found.")
@@ -103,18 +104,6 @@ def cmd_recall(args):
 def cmd_stats(args):
     result = api_call("GET", "/v1/stats")
     print(json.dumps(result, indent=2))
-
-
-def cmd_reflect(args):
-    """Auto-reflection — scan recent chunks, find patterns, generate insights."""
-    body = {"hours_back": args.hours, "max_insights": args.max_insights}
-    result = api_call("POST", "/v1/reflect", body)
-    created = result.get("insights_created", 0)
-    patterns = result.get("patterns_found", [])
-    scanned = result.get("chunks_scanned", 0)
-    print(f"Scanned {scanned} chunks, found {len(patterns)} patterns, created {created} insights.\n")
-    for p in patterns:
-        print(f"  • {p}")
 
 
 def cmd_compact(args):
@@ -151,8 +140,95 @@ def cmd_check(args):
     print(json.dumps(result, indent=2))
 
 
+def cmd_reflect(args):
+    body = {"hours_back": args.hours, "max_insights": args.max_insights}
+    result = api_call("POST", "/v1/reflect", body)
+    print(json.dumps(result, indent=2))
+
+
+# ── Session Handoff Commands ──────────────────────────────
+
+def cmd_handoff_start(args):
+    """Start session handoff: send old session conversation to server."""
+    if args.conversation:
+        try:
+            conversation = json.loads(args.conversation)
+        except json.JSONDecodeError:
+            conversation = [{"role": "user", "content": args.conversation}]
+    else:
+        raw = sys.stdin.read()
+        try:
+            conversation = json.loads(raw)
+        except json.JSONDecodeError:
+            conversation = [{"role": "user", "content": raw}]
+
+    body = {"conversation": conversation}
+    if args.metadata:
+        try:
+            body["metadata"] = json.loads(args.metadata)
+        except json.JSONDecodeError:
+            body["metadata"] = {"info": args.metadata}
+
+    result = api_call("POST", "/v1/session/handoff/start", body)
+    print(json.dumps(result, indent=2))
+
+
+def cmd_handoff_restore(args):
+    """Restore old session conversation + memories for new session."""
+    body = {
+        "include_memories": not args.no_memories,
+        "memory_limit": args.memory_limit,
+    }
+    if args.handoff_id:
+        body["handoff_id"] = args.handoff_id
+
+    result = api_call("POST", "/v1/session/handoff/restore", body)
+
+    if result.get("status") == "not_found":
+        print("No pending handoff found.")
+        return
+
+    conv = result.get("conversation", [])
+    mems = result.get("memories", [])
+    print(f"Handoff {result.get('handoff_id')}: {len(conv)} turns, {len(mems)} memories\n")
+
+    if conv:
+        print("=== Old Session Conversation ===")
+        for t in conv[-20:]:
+            role = t.get("role", "?")
+            content = t.get("content", "")[:300]
+            print(f"[{role}] {content}")
+        print()
+
+    if mems:
+        print("=== Related Memories ===")
+        for m in mems:
+            score = int(m.get("score", 0) * 100)
+            print(f"[{score}%] {m.get('content', '')[:200]}")
+
+
+def cmd_handoff_complete(args):
+    """Complete handoff: archive old session into MemoryAI."""
+    body = {"archive_to_memory": not args.no_archive}
+    if args.handoff_id:
+        body["handoff_id"] = args.handoff_id
+    result = api_call("POST", "/v1/session/handoff/complete", body)
+    print(json.dumps(result, indent=2))
+
+
+def cmd_handoff_status(args):
+    """Check handoff status."""
+    result = api_call("GET", "/v1/session/handoff/status")
+    print(json.dumps(result, indent=2))
+
+
+# ── CLI Parser ────────────────────────────────────────────
+
 def main():
-    parser = argparse.ArgumentParser(description="Memory Addon CLI")
+    parser = argparse.ArgumentParser(
+        description="MemoryAI — Persistent memory for AI agents",
+        epilog="https://memoryai.dev",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # store
@@ -175,8 +251,6 @@ def main():
     p.add_argument("-l", "--limit", type=int, default=5)
     p.add_argument("--min-score", type=float, default=0.0)
     p.add_argument("-t", "--tags", default="", help="Comma-separated tags")
-    p.add_argument("--memory-type", default=None,
-                   choices=["fact", "decision", "preference", "error", "goal", "episodic"])
     p.set_defaults(func=cmd_recall)
 
     # stats
@@ -201,10 +275,34 @@ def main():
     p.set_defaults(func=cmd_check)
 
     # reflect
-    p = sub.add_parser("reflect", help="Auto-reflection — find patterns in recent memories")
-    p.add_argument("--hours", type=int, default=24, help="Hours to look back")
-    p.add_argument("--max-insights", type=int, default=5, help="Max insights to generate")
+    p = sub.add_parser("reflect", help="Auto-reflection — find patterns")
+    p.add_argument("--hours", type=int, default=24)
+    p.add_argument("--max-insights", type=int, default=5)
     p.set_defaults(func=cmd_reflect)
+
+    # handoff-start
+    p = sub.add_parser("handoff-start", help="Start session handoff (send old conversation)")
+    p.add_argument("-c", "--conversation", default=None,
+                   help="JSON array of {role, content} turns. Reads stdin if omitted.")
+    p.add_argument("-m", "--metadata", default=None, help="JSON metadata")
+    p.set_defaults(func=cmd_handoff_start)
+
+    # handoff-restore
+    p = sub.add_parser("handoff-restore", help="Restore old session for new session")
+    p.add_argument("--handoff-id", default=None)
+    p.add_argument("--no-memories", action="store_true", help="Skip MemoryAI memories")
+    p.add_argument("--memory-limit", type=int, default=5)
+    p.set_defaults(func=cmd_handoff_restore)
+
+    # handoff-complete
+    p = sub.add_parser("handoff-complete", help="Complete handoff (archive old session)")
+    p.add_argument("--handoff-id", default=None)
+    p.add_argument("--no-archive", action="store_true")
+    p.set_defaults(func=cmd_handoff_complete)
+
+    # handoff-status
+    p = sub.add_parser("handoff-status", help="Check handoff status")
+    p.set_defaults(func=cmd_handoff_status)
 
     args = parser.parse_args()
     args.func(args)

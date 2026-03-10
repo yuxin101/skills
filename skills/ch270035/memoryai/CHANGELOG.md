@@ -1,18 +1,35 @@
 # Changelog
 
+## 0.6.0 (2026-03-10)
+
+### Changed
+- **Context Guard v4.0** — Reads token usage directly from OpenClaw `sessions.json` instead of calling a non-existent API. Works immediately on all platforms (Windows, Linux, Mac).
+- **Cron payloads** — Removed all `cd ...;` commands, replaced with absolute paths. Fixes exec tool errors.
+- Client and skill version bumped to 0.6.0.
+
+## 0.5.0 (2026-03-09)
+
+### Added
+- **Session Handoff** — Zero-gap session switching. When context fills up, seamlessly transition to a new session without losing any context.
+  - `handoff-start` — Send old session conversation to MemoryAI server
+  - `handoff-restore` — New session reads old conversation + related long-term memories
+  - `handoff-complete` — Archive old session into long-term storage when ready
+  - `handoff-status` — Check handoff state
+- **Reflect command** — `client.py reflect` scans recent memories and creates insight chunks from patterns
+- Server-side handoff engine with PostgreSQL-backed state management
+
+### Changed
+- Context Guard interval updated to 15 minutes (was 20)
+- Client User-Agent updated to v0.5.0
+
 ## 0.4.2 (2026-03-08)
 
 ### Changed
-- **Context Guard is now opt-in** — Agent must ask user permission before creating the background cron job. No more silent auto-creation.
-- **Removed `always: true`** — Skill is no longer force-enabled on every session. Users enable it when needed.
-- **Installer scripts moved to separate section** — README now recommends reviewing scripts before running, with ClaWHub as the primary install method.
+- **Context Guard is now opt-in** — Agent must ask user permission before creating the background cron job.
+- **Skill is no longer force-enabled** — Users enable it when needed.
 - **Added Security & Privacy section** — Documents data handling, auditability, and key rotation guidance.
 
 ## 0.4.1 (2026-03-08)
-
-### Added
-- **One-liner installer** — `iwr -useb https://memoryai.dev/install.ps1 | iex` (Windows) or `curl -fsSL https://memoryai.dev/install.sh | bash` (Mac/Linux). Auto-downloads skill, prompts for API key, verifies connection.
-- **"How It Works" section** — Brain metaphor documentation explaining memory lifecycle (hot → warm → cold), natural aging, and recall strengthening.
 
 ### Fixed
 - **Cloudflare 403 fix** — Added `User-Agent` header to all API requests. Previously blocked by Cloudflare bot protection.
@@ -20,15 +37,13 @@
 ## 0.4.0 (2026-03-08)
 
 ### Added
-- **Context Guard** — Auto-setup cron job monitors brain health every 20 min, consolidates memories when urgency is high/critical
+- **Context Guard** — Optional cron job monitors brain health, consolidates memories when urgency is high/critical
 - **Check command** — `client.py check` returns brain urgency level (low/medium/high/critical)
-- Agent auto-creates `context-guard` cron on first session (no manual setup needed)
 
 ### Changed
 - SKILL.md rewritten with `{baseDir}` paths for proper skill resolution
-- Added metadata for OpenClaw gating (always: true, emoji: 🧠)
+- Added metadata for OpenClaw gating (emoji: 🧠)
 - Improved "When to Use" table with triggers, actions, priorities, and tags
-- Updated tags convention section
 
 ## 0.3.0 (2026-03-07)
 
@@ -43,7 +58,6 @@ Initial public release — **A Brain for Your AI Agent**.
 ### Features
 - **Store** — Save decisions, patterns, preferences with priority levels (hot / warm / cold)
 - **Recall** — Intelligent multi-signal search (fast / deep / exhaustive)
-- **Perfect Recall** — Deep reasoning mode for synthesized, detailed answers (Pro)
 - **Compact** — Consolidate long sessions into key memories automatically
 - **Restore** — Start new sessions with full context from previous work
 - **Stats** — Monitor brain health and memory usage

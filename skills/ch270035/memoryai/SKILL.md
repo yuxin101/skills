@@ -1,24 +1,52 @@
 ---
 name: memoryai
-description: "Persistent long-term memory via MemoryAI server. Store, recall, and manage context across sessions."
-metadata: {"openclaw": {"always": true, "emoji": "🧠"}}
+description: Persistent long-term memory for AI agents. Store, recall, reason, and seamlessly switch sessions with zero context loss.
+version: 0.6.0
+metadata: {"openclaw": {"emoji": "🧠", "requires": {"bins": ["python3"], "env": ["HM_API_KEY", "HM_ENDPOINT"]}, "primaryEnv": "HM_API_KEY"}}
 ---
 
-# MemoryAI
+# MemoryAI — A Brain for Your AI Agent 🧠
 
-Cloud memory system for AI agents. Server-backed PostgreSQL + pgvector + Neural Graph.
-Zero dependencies — uses only Python stdlib (urllib).
+> **Every AI session starts from zero. Yours doesn't have to.**
+
+You spend 2 hours explaining your codebase, your preferences, your architecture decisions. The session ends. Tomorrow? Your AI has amnesia. You start over. Again.
+
+**MemoryAI fixes this permanently.** It gives your AI agent a real long-term memory — one that remembers what you built, what you decided, what you prefer, and why. Not for hours. For **weeks, months, even years.**
+
+### See it in action:
+
+> **Monday:** "Our API uses /v1/ prefix, TypeScript with 2-space tabs, and we deploy via GitHub Actions."
+>
+> **3 weeks later:** You say "write a new endpoint." Your AI already knows the prefix, the style, the pipeline. Zero repetition. It just *remembers.*
+
+### Your AI's memory works like yours:
+
+- 🔥 **Hot** — Daily drivers: active projects, current preferences. Instant recall, always sharp.
+- 🌤️ **Warm** — Important context: past decisions, completed tasks. Fades gently, snaps back when needed.
+- ❄️ **Cold** — Deep archive: old projects, historical conversations. Never deleted, always searchable.
+
+The more your AI uses a memory, the sharper it stays. Unused memories age into cold storage — but a single recall brings them right back. Just like the human brain.
+
+**Zero dependencies.** Pure Python stdlib. Every line of source code is readable, auditable, and yours to inspect.
+
+### What's new:
+
+- **v0.6.0** — Context Guard v4: reads token usage directly from OpenClaw. No API dependency, cross-platform.
+- **v0.5.0** — Zero-gap session handoff: switch sessions without losing a single thought.
 
 ## Setup
 
-1. Get API key from your MemoryAI server
+1. Get API key from https://memoryai.dev (free tier available)
 2. Edit `{baseDir}/config.json`:
 ```json
 {
-  "endpoint": "https://your-memoryai-server.com",
+  "endpoint": "https://memoryai.dev",
   "api_key": "hm_sk_your_key_here"
 }
 ```
+Or set env vars: `HM_ENDPOINT` and `HM_API_KEY`.
+
+3. Test: `python {baseDir}/scripts/client.py stats`
 
 ## Commands
 
@@ -29,50 +57,34 @@ python {baseDir}/scripts/client.py store -c "data to remember" -t "tag1,tag2" -p
 Priority: `hot` (important, frequent recall) | `warm` (default) | `cold` (archive)
 
 Optional parameters:
-- `--memory-type <type>` — Classify the memory: `fact`, `decision`, `preference`, `error`, `goal`, `episodic`
-- `--retention <policy>` — Control lifespan: `forever`, `6m`, `1y`, `auto` (default)
-
-Examples:
-```bash
-# Store a decision that should never be deleted
-python {baseDir}/scripts/client.py store -c "Use PostgreSQL for all new services" -t "architecture" -p hot --memory-type decision --retention forever
-
-# Store a preference with 1-year retention
-python {baseDir}/scripts/client.py store -c "User prefers dark mode" -t "preferences" --memory-type preference --retention 1y
-
-# Store an error lesson (auto decay)
-python {baseDir}/scripts/client.py store -c "Never use rm -rf on mounted volumes" -t "errors" -p hot --memory-type error
-```
+- `--memory-type <type>` — `fact`, `decision`, `preference`, `error`, `goal`, `episodic`
+- `--retention <policy>` — `forever`, `6m`, `1y`, `auto` (default)
 
 ### Recall memory
 ```bash
 python {baseDir}/scripts/client.py recall -q "what was discussed?" -d deep
 ```
-Depth: `fast` (quick lookup) | `deep` (semantic + graph) | `exhaustive` (full scan)
-
-Optional: `--memory-type <type>` — Filter results by memory type.
-```bash
-# Recall only decisions
-python {baseDir}/scripts/client.py recall -q "database choices" --memory-type decision
-
-# Recall only preferences
-python {baseDir}/scripts/client.py recall -q "user settings" --memory-type preference
-```
+Depth controls how hard the brain tries to remember:
+- `fast` — Quick surface recall
+- `deep` — Thorough search, connecting related ideas
+- `exhaustive` — Deep concentrated effort
 
 ### Stats
 ```bash
 python {baseDir}/scripts/client.py stats
 ```
 
-### Compact (compress context into memory)
+### Compact (consolidate memories)
 ```bash
 python {baseDir}/scripts/client.py compact -c "session transcript or context" -t "task description"
 ```
+Like how the brain consolidates memories during sleep — distills a long session into key memories.
 
 ### Restore context
 ```bash
 python {baseDir}/scripts/client.py restore -t "what I was working on"
 ```
+Wake up with full context for your current task.
 
 ### Check context health
 ```bash
@@ -84,70 +96,56 @@ Returns `urgency`: `low` | `medium` | `high` | `critical`
 ```bash
 python {baseDir}/scripts/client.py reflect --hours 24 --max-insights 5
 ```
-Scans recent chunks, finds recurring patterns (tags, memory types), and creates insight chunks automatically.
+Finds recurring patterns in recent memories and creates insight chunks.
 
-## QF Features (v0.5.0)
+## Session Handoff (v0.5.0)
 
-### Memory Types
-Classify memories for better organization and filtering:
-| Type | Use for |
-|------|---------|
-| `fact` | Objective information, data points |
-| `decision` | Technical/architectural decisions |
-| `preference` | User preferences, settings |
-| `error` | Bugs, lessons learned |
-| `goal` | Objectives, targets |
-| `episodic` | Events, conversations, experiences |
+Zero-gap session switching — when context window fills up, seamlessly transition to a new session without losing any context.
 
-All types are optional — omit for general-purpose memories.
+### How it works:
+1. Old session sends its conversation to your configured MemoryAI endpoint (HTTPS)
+2. New session retrieves the old conversation + related long-term memories from the same endpoint
+3. Once the new session has enough context, the old session is archived into long-term storage
 
-### Retention Policy
-Control how long memories live:
-| Policy | Behavior |
-|--------|----------|
-| `forever` | Never deleted or decayed. Inviolable. |
-| `6m` | Auto-expires after 6 months |
-| `1y` | Auto-expires after 1 year |
-| `auto` | Subject to Ebbinghaus decay (default) |
-
-Use `forever` for critical decisions, API keys, architecture choices. Use `auto` for day-to-day context.
-
-### Contradiction Detection
-When storing a new memory, the engine automatically checks for contradictions with existing memories. If a conflict is found, the response includes:
-- `contradiction_warning`: description of the conflict
-- `contradicts`: list of conflicting chunk IDs
-
-No action needed — just be aware that the store response may flag conflicts.
-
-### Spreading Activation
-Recall now follows edges between related chunks. Chunks linked by shared tags or entities are connected via a neural graph. BFS traversal from top results finds associatively related memories. This is transparent — recall just returns smarter results.
-
-### Hebbian Learning
-Memory connections strengthen with use. When chunks are co-recalled together, their edge weights increase by 0.1 per co-recall (capped at 5.0). Frequently associated memories become more tightly linked over time. Transparent to the user.
-
-### Memory Decay + Consolidation
-Automatic lifecycle management using Ebbinghaus-style decay:
-- Only affects `retention=auto` chunks
-- `forever`, `6m`, `1y` chunks are inviolable — never decayed
-- Unused memories gradually lose strength
-- Recalled memories get reinforced (see Hebbian Learning)
-
-### Auto-Reflection
-Generate insights from patterns in recent memories:
+### Start handoff (save old session)
 ```bash
-python {baseDir}/scripts/client.py reflect --hours 24 --max-insights 5
+python {baseDir}/scripts/client.py handoff-start -c '[{"role":"user","content":"..."},{"role":"assistant","content":"..."}]'
 ```
-- Scans chunks from the last N hours
-- Identifies recurring tags, memory types, content types
-- Creates insight chunks tagged `[insight, auto-reflection]`
-- Useful for periodic self-review or heartbeat tasks
+Or pipe from stdin:
+```bash
+echo '[ ... conversation ... ]' | python {baseDir}/scripts/client.py handoff-start
+```
 
-## Context Guard (Auto-Setup)
+### Restore handoff (new session reads old session)
+```bash
+python {baseDir}/scripts/client.py handoff-restore
+```
+Returns the old session conversation + related MemoryAI memories.
 
-On first use, create a cron job to automatically monitor and compact memory when needed.
+Options:
+- `--no-memories` — Skip related MemoryAI memories
+- `--memory-limit N` — Max related memories (default: 5)
+
+### Complete handoff (archive old session)
+```bash
+python {baseDir}/scripts/client.py handoff-complete
+```
+Archives the old session conversation into long-term MemoryAI storage and marks the handoff as done.
+
+### Check handoff status
+```bash
+python {baseDir}/scripts/client.py handoff-status
+```
+Returns whether there's an active handoff and its state.
+
+## Context Guard (Optional)
+
+Background job to automatically monitor and compact memory when context gets too large.
+
+**To enable, ask the user for permission first, then create a cron job:**
 
 - Name: `context-guard`
-- Schedule: every 20 minutes (`everyMs: 1200000`)
+- Schedule: every 15 minutes (`everyMs: 900000`)
 - Session: `isolated`
 - Delivery: `none`
 - Payload (agentTurn):
@@ -157,35 +155,65 @@ If urgency is 'high' or 'critical': run python {baseDir}/scripts/client.py compa
 Reply NO_REPLY.
 ```
 
+**Important:** Always ask the user before creating the cron job.
+
 ## When to Use
 
-| Trigger | Action | Priority | Tags | memory_type | retention |
-|---------|--------|----------|------|-------------|-----------|
-| Task completed | store outcome | hot | projects | fact | auto |
-| User says "remember this" | store content | hot | people | — | forever |
-| Research/search done | store findings | warm | research | fact | auto |
-| Technical decision | store decision | hot | decisions | decision | forever |
-| Error/lesson learned | store lesson | hot | errors | error | forever |
-| User preference noted | store preference | warm | preferences | preference | 1y |
-| Goal/objective set | store goal | hot | goals | goal | 1y |
-| Need past context | recall first | — | — | — | — |
-| End of session | compact context | — | — | — | — |
-| Start of session | restore context | — | — | — | — |
-| Periodic review | reflect | — | — | — | — |
+| Trigger | Action | Priority | Tags |
+|---------|--------|----------|------|
+| Task completed | store outcome | hot | projects |
+| User says "remember this" | store content | hot | people |
+| Research/search done | store findings | warm | research |
+| Technical decision | store decision | hot | decisions |
+| Error/lesson learned | store lesson | hot | errors |
+| Need past context | recall first | — | — |
+| End of session | compact important context | — | — |
+| Start of session | restore context for task | — | — |
+| Context too high | handoff-start + handoff-restore | — | — |
+| New session warm enough | handoff-complete | — | — |
+
+## Memory Lifecycle
+
+```
+Store → Active (hot) → Aging (warm) → Archive (cold)
+         ↑                                    |
+         └──── recalled = strengthened ───────┘
+```
 
 ## Rules
 
-- Always recall before answering questions about past work
-- Store important outcomes after completing tasks
-- Do not expose memory system internals to the user
-- Present recalled information naturally, as if you simply "remember" it
-- Context guard runs silently — never notify the user about compaction
-- Use `--memory-type` when the type is clear; omit when ambiguous
-- Use `--retention forever` for critical decisions and user-stated preferences
-- Contradiction warnings in store responses should be noted but don't block storage
+- Recall only when the user asks about past work, previous decisions, or you need context you don't already have in this session
+- Do NOT recall on every message — only when relevant past context is actually needed
+- Store important outcomes after completing tasks (not after every message)
+- Present memories naturally — integrate recalled information into your responses rather than showing raw API output
+- Ask for user permission before enabling context guard or any background tasks
+- Use handoff commands transparently — session management runs in the background
+
+## Platform Compatibility
+
+All core memory features work on any platform that can run Python 3.10+:
+
+| Feature | All Platforms | OpenClaw Only |
+|---------|:---:|:---:|
+| Store / Recall / Stats | ✅ | ✅ |
+| Compact / Restore / Check | ✅ | ✅ |
+| Session Handoff (manual) | ✅ | ✅ |
+| Reflect | ✅ | ✅ |
+| Context Guard (auto monitoring) | — | ✅ |
+| Auto session switch | — | ✅ |
+
+**On IDE platforms** (Cursor, VS Code, Claude Code, Windsurf, Antigravity):
+- All memory commands work via `client.py` CLI
+- Session handoff can be triggered manually when context gets large
+- Context Guard is not available (requires OpenClaw cron system)
+
+**On OpenClaw:**
+- Full feature set including Context Guard and automatic session switching
+- Context Guard uses OpenClaw's cron system for periodic health checks
 
 ## Data & Privacy
 
 This skill sends stored memories to the configured MemoryAI endpoint via HTTPS.
 All data is transmitted over encrypted connections and stored in isolated, private databases.
 Users can export all data via `/v1/export` and delete all data via `DELETE /v1/data` at any time.
+The included `client.py` uses only Python stdlib (urllib) — no third-party dependencies. Source is fully readable and auditable.
