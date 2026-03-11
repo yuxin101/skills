@@ -1,0 +1,11 @@
+{
+  "owner": "theshadowrose",
+  "slug": "openclaw-3tier-backup",
+  "displayName": "3-Tier Auto-Backup Daily Snapshots, Drive Mirror & Emergency Recovery",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773198010966,
+    "commit": null
+  },
+  "history": []
+}
