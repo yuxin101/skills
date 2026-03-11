@@ -1,0 +1,11 @@
+{
+  "owner": "coder-pig",
+  "slug": "fast-claw-paid-api",
+  "displayName": "调整 token 鉴权机制",
+  "latest": {
+    "version": "0.0.4",
+    "publishedAt": 1773200326915,
+    "commit": null
+  },
+  "history": []
+}
