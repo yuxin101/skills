@@ -1,0 +1,11 @@
+{
+  "owner": "lkisme",
+  "slug": "sst-simple",
+  "displayName": "Simple sound-to-text skill locally",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1773204232366,
+    "commit": null
+  },
+  "history": []
+}
