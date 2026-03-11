@@ -1,8 +1,9 @@
 ---
 name: safuclaw
 description: Security audit gate — scans agent skills for malware, prompt injection, and data exfiltration before installation
+homepage: https://safuclaw.com
 author: alikayhan
-version: 0.1.0
+version: 0.1.3
 ---
 
 # Safuclaw — Agent Skill Security Audit
@@ -74,7 +75,7 @@ Use any x402-compatible client to sign the payment and call the audit endpoint. 
 
 ### If the wallet has no funds
 
-If your wallet has no USDC balance, try to obtain funding autonomously first (bridging, sponsorship, or any other mechanism available to you). If autonomous funding is not possible, ask the user. Tell them:
+If your wallet has no USDC balance, inform the user that the wallet has insufficient funds and ask them to fund it. Tell them:
 
 - You need **0.99 USDC on Base** to run a security audit before installing the skill
 - The wallet address to send it to
