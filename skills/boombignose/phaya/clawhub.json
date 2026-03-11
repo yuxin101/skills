@@ -1,0 +1,12 @@
+{
+  "name": "Phaya Media API",
+  "tagline": "Generate images, videos, audio, and AI chat via the Phaya SaaS backend",
+  "description": "Phaya is a FastAPI SaaS backend that gives AI agents a single REST API to generate images (Z-Image, Seedream 5.0, Nano Banana 2), videos (Sora 2, Veo 3.1, Seedance 1.5 Pro, Kling 2.6, FFmpeg local), audio (Suno music, Google Gemini TTS), and run LLM chat completions (Phaya-GPT, OpenAI-compatible proxy). All endpoints follow an async job/polling pattern — create a job, receive a job_id, poll for status until complete. Includes a credit system with per-endpoint pricing, Redis-backed job status caching, and Supabase storage for all output media.",
+  "category": "media",
+  "tags": ["media", "ai", "video", "image", "audio", "api", "sora2", "veo3", "kling", "suno"],
+  "version": "1.0.0",
+  "license": "MIT-0",
+  "pricing": "free",
+  "models": ["claude-*", "gpt-*", "gemini-*"],
+  "minOpenClawVersion": "0.8.0"
+}
