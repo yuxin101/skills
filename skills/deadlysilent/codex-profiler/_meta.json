@@ -3,9 +3,15 @@
   "slug": "codex-profiler",
   "displayName": "Codex Profiler",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773098963354,
-    "commit": "https://github.com/openclaw/skills/commit/0ebebca1787fe9e106fc2e400aba1e491c7dbc02"
+    "version": "1.0.15",
+    "publishedAt": 1773170411579,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773098963354,
+      "commit": "https://github.com/openclaw/skills/commit/0ebebca1787fe9e106fc2e400aba1e491c7dbc02"
+    }
+  ]
 }
