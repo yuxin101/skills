@@ -509,4 +509,4 @@ PYEOF
 esac
 
 echo ""
-echo "  Powered by BytesAgain | bytesagain.com"
+echo "  Powered by BytesAgain | bytesagain.com | hello@bytesagain.com"
