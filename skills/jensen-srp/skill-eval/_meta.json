@@ -1,0 +1,11 @@
+{
+  "owner": "jensen-srp",
+  "slug": "skill-eval",
+  "displayName": "Skill-Eval",
+  "latest": {
+    "version": "0.4.0",
+    "publishedAt": 1773141189019,
+    "commit": null
+  },
+  "history": []
+}
