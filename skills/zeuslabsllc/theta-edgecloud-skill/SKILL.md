@@ -46,6 +46,7 @@ This runtime artifact is scoped to cloud API operations only.
 - Runtime command handlers do not execute local shell commands.
 - Runtime does not read local files for upload operations.
 - Runtime does not call localhost/default local RPC endpoints.
+- Dedicated inference endpoint override via `args.endpoint` is disabled in runtime commands; use `THETA_INFERENCE_ENDPOINT`.
 - Runtime secret resolution uses OpenClaw secret provider first, then env fallback for:
   - `THETA_ONDEMAND_API_TOKEN`
   - `THETA_INFERENCE_AUTH_TOKEN`
@@ -80,11 +81,15 @@ This ClawHub artifact is a dist/docs bundle intended for transparent inspection 
 - `THETA_DRY_RUN`
 - `THETA_EC_API_KEY`
 - `THETA_EC_PROJECT_ID`
+- `THETA_ORG_ID`
 - `THETA_INFERENCE_ENDPOINT`
 - `THETA_INFERENCE_AUTH_USER`
 - `THETA_INFERENCE_AUTH_PASS`
 - `THETA_INFERENCE_AUTH_TOKEN`
 - `THETA_ONDEMAND_API_TOKEN`
+- `THETA_ONDEMAND_API_KEY`
+- `THETA_VIDEO_SA_ID`
+- `THETA_VIDEO_SA_SECRET`
 - `THETA_HTTP_TIMEOUT_MS`
 - `THETA_HTTP_MAX_RETRIES`
 - `THETA_HTTP_RETRY_BACKOFF_MS`
@@ -138,6 +143,11 @@ Recommended reliability route:
 
 ## On-demand API key alias
 The runtime accepts either `THETA_ONDEMAND_API_TOKEN` or `THETA_ONDEMAND_API_KEY` for on-demand model API auth.
+
+
+## Reliability behavior
+- `theta.ai.dedicatedDeployments.list` now emits warning metadata if serving-template catalog calls fail; this avoids silent empty output.
+- `theta.ondemand.listServices` returns service entries tagged by source (`live` or `catalog`) and includes fallback reason/warning fields when live discovery is unavailable.
 
 
 ## Auth diagnostics

@@ -15,7 +15,7 @@ This is a dist-only runtime artifact for ClawHub scanning/install path validatio
 ## How users connect their Theta EdgeCloud account
 
 ## Install-time setup prompt
-This skill is configured to request baseline env vars during setup:
+For deployment/controller features, baseline env vars are:
 - `THETA_EC_API_KEY`
 - `THETA_EC_PROJECT_ID`
 
@@ -66,6 +66,7 @@ Then validate read/list endpoints before mutating calls.
 - `401` on inference:
   - verify `THETA_INFERENCE_ENDPOINT`
   - verify chosen auth mode matches endpoint policy (basic vs bearer)
+  - runtime command handlers intentionally ignore `args.endpoint` override for security; configure endpoint via env
   - if using basic, confirm username/password pair
   - if using bearer, confirm token validity and scope
 - `403` on deployments/video/on-demand:
@@ -147,6 +148,14 @@ For on-demand inference, the runtime accepts either:
 - `THETA_ONDEMAND_API_KEY` (alias)
 
 Infer requests are sent using the expected on-demand envelope shape: `{ input: ... }`.
+
+
+## Fallback transparency
+- `theta.ai.dedicatedDeployments.list` includes warnings and degradation metadata when template catalog calls fail.
+- `theta.ondemand.listServices` keeps live-first behavior and tags fallback responses with:
+  - `source: "catalog"`
+  - `fallbackReason`
+  - `warning`
 
 
 ## Credentials are command-scoped

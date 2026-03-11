@@ -1,4 +1,5 @@
 import { edgecloudControllerClient } from '../clients/edgecloudController.js';
+import { summarizeError } from '../errors.js';
 async function fetchAllStandardTemplateNames(cfg, category) {
     const pageSize = 50;
     const names = [];
@@ -15,24 +16,49 @@ async function fetchAllStandardTemplateNames(cfg, category) {
     return names;
 }
 async function listDedicatedByTemplateCatalog(cfg, projectId) {
+    let standardTemplatesError;
+    let customTemplatesError;
     const [all, standardNames, custom] = await Promise.all([
         edgecloudControllerClient.listDeployments(cfg, projectId),
-        fetchAllStandardTemplateNames(cfg, 'serving').catch(() => []),
-        edgecloudControllerClient.listCustomTemplates(cfg, projectId).catch(() => ({ body: { templates: [] } }))
+        fetchAllStandardTemplateNames(cfg, 'serving').catch((error) => {
+            standardTemplatesError = error;
+            return [];
+        }),
+        edgecloudControllerClient.listCustomTemplates(cfg, projectId).catch((error) => {
+            customTemplatesError = error;
+            return { body: { templates: [] } };
+        })
     ]);
     const customNames = (custom?.body?.templates ?? [])
         .filter((t) => !t?.category || String(t.category).toLowerCase() === 'serving')
         .map((t) => t?.name)
         .filter(Boolean);
     const allowed = new Set([...standardNames, ...customNames].map((n) => String(n).trim().toLowerCase()));
-    const body = (all?.body ?? []).filter((d) => allowed.has(String(d?.TemplateName ?? '').trim().toLowerCase()));
+    const rawDeployments = Array.isArray(all?.body) ? all.body : [];
+    const warnings = [];
+    if (standardTemplatesError) {
+        warnings.push(`Failed to fetch standard serving templates: ${summarizeError(standardTemplatesError)}`);
+    }
+    if (customTemplatesError) {
+        warnings.push(`Failed to fetch custom serving templates: ${summarizeError(customTemplatesError)}`);
+    }
+    const isCatalogDegraded = warnings.length > 0;
+    const fallbackUnfiltered = allowed.size === 0 && rawDeployments.length > 0;
+    if (fallbackUnfiltered) {
+        warnings.push('Template allowlist unavailable; returning unfiltered deployment list for visibility.');
+    }
+    const body = fallbackUnfiltered
+        ? rawDeployments
+        : rawDeployments.filter((d) => allowed.has(String(d?.TemplateName ?? '').trim().toLowerCase()));
     return {
         ...(all ?? {}),
         body,
         filter: {
-            mode: 'serving-template-allowlist',
-            templateCount: allowed.size
-        }
+            mode: fallbackUnfiltered ? 'unfiltered-fallback' : 'serving-template-allowlist',
+            templateCount: allowed.size,
+            degraded: isCatalogDegraded
+        },
+        warnings: warnings.length ? warnings : undefined
     };
 }
 export const deployments = {

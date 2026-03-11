@@ -1,5 +1,6 @@
 import { redact } from './redaction.js';
 const MAX_MESSAGE_LEN = 280;
+const MAX_SUMMARY_LEN = 220;
 export function thetaError(input) {
     return input;
 }
@@ -9,7 +10,8 @@ export function sanitizeHttpErrorMessage(message) {
     let out = message
         .replace(/\s+/g, ' ')
         .replace(/\b(Bearer|Basic)\s+([A-Za-z0-9\-._~+/]+=*)/gi, (_m, scheme, token) => `${scheme} ${redact(token)}`)
-        .replace(/\b(x-api-key|api[-_]?key|token|secret|password)=([^\s&]+)/gi, (_m, key, value) => `${key}=${redact(value)}`)
+        .replace(/\b(x-api-key|x-tva-sa-id|x-tva-sa-secret|authorization|api[-_]?key|apikey|token|secret|password|credential)\s*=\s*([^\s&]+)/gi, (_m, key, value) => `${key}=${redact(value)}`)
+        .replace(/\b(x-api-key|x-tva-sa-id|x-tva-sa-secret|authorization|api[-_]?key|apikey|token|secret|password|credential)\s*:\s*([^\s,;]+)/gi, (_m, key, value) => `${key}: ${redact(value)}`)
         .trim();
     if (out.length > MAX_MESSAGE_LEN) {
         out = `${out.slice(0, MAX_MESSAGE_LEN - 3)}...`;
@@ -53,4 +55,33 @@ export function fromConfigError(message, code = 'CONFIG_ERROR') {
         service: 'theta-runtime',
         endpoint: 'config'
     };
+}
+export function summarizeError(error, maxLen = MAX_SUMMARY_LEN) {
+    let message;
+    if (!error) {
+        message = 'unknown error';
+    }
+    else if (typeof error === 'string') {
+        message = error;
+    }
+    else if (error instanceof Error) {
+        message = error.message;
+    }
+    else if (typeof error === 'object') {
+        const asObj = error;
+        try {
+            message = asObj.message ? String(asObj.message) : JSON.stringify(asObj);
+        }
+        catch {
+            message = String(asObj);
+        }
+    }
+    else {
+        message = String(error);
+    }
+    const sanitized = sanitizeHttpErrorMessage(message);
+    if (sanitized.length > maxLen) {
+        return `${sanitized.slice(0, maxLen - 3)}...`;
+    }
+    return sanitized;
 }

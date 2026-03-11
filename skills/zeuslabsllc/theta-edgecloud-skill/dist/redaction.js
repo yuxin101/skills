@@ -1,4 +1,21 @@
-const SECRET_KEYS = ['api-key', 'api_key', 'authorization', 'secret', 'password', 'token', 'credential'];
+const SECRET_KEYS = [
+    'api-key',
+    'api_key',
+    'apikey',
+    'authorization',
+    'secret',
+    'password',
+    'token',
+    'credential',
+    'access_key',
+    'access-key',
+    'access_token',
+    'access-token',
+    'x-tva-sa-id',
+    'x-tva-sa-secret',
+    'sa-id',
+    'sa_id'
+];
 function isSecretKey(key) {
     const normalized = key.toLowerCase();
     return SECRET_KEYS.some((needle) => normalized.includes(needle));

@@ -4,8 +4,12 @@ import { healthCheck } from '../commands/health.js';
 import { inference } from '../commands/inference.js';
 import { ondemand } from '../commands/ondemand.js';
 import { video } from '../commands/video.js';
-import { fromConfigError } from '../errors.js';
+import { fromConfigError, summarizeError } from '../errors.js';
+import { redactObject } from '../redaction.js';
+import { clampFiniteInt } from '../utils/integers.js';
 import { resolveThetaInferenceAuth, resolveThetaOnDemandToken } from './secretResolver.js';
+const IDENTIFIER_PATTERN = /^[A-Za-z0-9._:-]+$/;
+const PROJECT_ID_PATTERN = /^prj_[A-Za-z0-9_]+$/;
 function coerceBool(value, fallback) {
     if (value === undefined)
         return fallback;
@@ -16,13 +20,54 @@ function coerceBool(value, fallback) {
         return false;
     return fallback;
 }
-function coerceInt(value, fallback, min, max) {
-    if (!value)
-        return fallback;
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed))
-        return fallback;
-    return Math.min(Math.max(parsed, min), max);
+function requireObject(value, field, code = 'INVALID_FIELD_TYPE') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw fromConfigError(`${field} must be an object`, code);
+    }
+    return value;
+}
+function requireText(value, field, code = 'INVALID_FIELD') {
+    if (value === undefined || value === null) {
+        throw fromConfigError(`${field} is required`, code);
+    }
+    const text = String(value).trim();
+    if (!text) {
+        throw fromConfigError(`${field} is required`, code);
+    }
+    return text;
+}
+function requireIdentifier(value, field, code = 'INVALID_IDENTIFIER') {
+    const text = requireText(value, field, code);
+    if (!IDENTIFIER_PATTERN.test(text)) {
+        throw fromConfigError(`${field} must contain only letters, numbers, dot, underscore, colon, and hyphen`, code);
+    }
+    return text;
+}
+function requireProjectId(value) {
+    const projectId = requireText(value, 'projectId', 'MISSING_THETA_EC_PROJECT_ID');
+    if (!PROJECT_ID_PATTERN.test(projectId)) {
+        throw fromConfigError('projectId must match prj_* format from thetaedgecloud.com', 'INVALID_THETA_EC_PROJECT_ID');
+    }
+    return projectId;
+}
+function requireNonNegativeInt(value, field, code = 'INVALID_INTEGER') {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+        throw fromConfigError(`${field} must be a non-negative integer`, code);
+    }
+    return parsed;
+}
+function requirePositiveInt(value, field, code = 'INVALID_INTEGER') {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+        throw fromConfigError(`${field} must be a positive integer`, code);
+    }
+    return parsed;
+}
+function rejectEndpointOverride(args) {
+    if (args?.endpoint !== undefined && String(args.endpoint).trim() !== '') {
+        throw fromConfigError('args.endpoint override is disabled for security. Set THETA_INFERENCE_ENDPOINT instead.', 'INFERENCE_ENDPOINT_OVERRIDE_DISABLED');
+    }
 }
 async function buildRuntimeConfig(ctx) {
     const base = loadConfig();
@@ -40,12 +85,15 @@ async function buildRuntimeConfig(ctx) {
         inferenceEndpoint: env.THETA_INFERENCE_ENDPOINT ?? base.inferenceEndpoint,
         inferenceAuth,
         onDemandApiToken,
-        httpTimeoutMs: coerceInt(env.THETA_HTTP_TIMEOUT_MS, base.httpTimeoutMs, 1000, 120000),
-        httpMaxRetries: coerceInt(env.THETA_HTTP_MAX_RETRIES, base.httpMaxRetries, 0, 6),
-        httpRetryBackoffMs: coerceInt(env.THETA_HTTP_RETRY_BACKOFF_MS, base.httpRetryBackoffMs, 25, 10000)
+        httpTimeoutMs: clampFiniteInt(env.THETA_HTTP_TIMEOUT_MS, base.httpTimeoutMs, 1000, 120000),
+        httpMaxRetries: clampFiniteInt(env.THETA_HTTP_MAX_RETRIES, base.httpMaxRetries, 0, 6),
+        httpRetryBackoffMs: clampFiniteInt(env.THETA_HTTP_RETRY_BACKOFF_MS, base.httpRetryBackoffMs, 25, 10000)
     };
 }
 function requireFields(args, fields) {
+    if (!args || typeof args !== 'object') {
+        throw fromConfigError('Command args must be an object', 'INVALID_COMMAND_ARGS');
+    }
     for (const field of fields) {
         if (!(field in args) || args[field] === undefined || args[field] === null || args[field] === '') {
             throw fromConfigError(`Missing required field: ${field}`, 'MISSING_REQUIRED_FIELD');
@@ -56,29 +104,18 @@ function resolveProjectId(cfg, args) {
     const projectId = args?.projectId ?? cfg.edgecloudProjectId;
     if (!projectId)
         throw fromConfigError('projectId missing. Set THETA_EC_PROJECT_ID or pass args.projectId. Find it in thetaedgecloud.com -> Account -> Projects (prj_...).', 'MISSING_THETA_EC_PROJECT_ID');
-    return projectId;
+    return requireProjectId(projectId);
 }
 function resolveDeleteTarget(args) {
     if (args?.deploymentId)
-        return { deploymentId: String(args.deploymentId) };
+        return { deploymentId: requireIdentifier(args.deploymentId, 'deploymentId', 'INVALID_DEPLOYMENT_ID') };
     if (args?.shard !== undefined && args?.suffix !== undefined) {
-        return { shard: Number(args.shard), suffix: String(args.suffix) };
+        return {
+            shard: requireNonNegativeInt(args.shard, 'shard', 'INVALID_SHARD'),
+            suffix: requireIdentifier(args.suffix, 'suffix', 'INVALID_SUFFIX')
+        };
     }
     throw fromConfigError('For theta.deployments.delete pass deploymentId OR shard + suffix.', 'MISSING_DEPLOYMENT_DELETE_TARGET');
-}
-function summarizeError(error) {
-    let message;
-    if (error instanceof Error) {
-        message = error.message;
-    }
-    else if (error && typeof error === 'object') {
-        const asObj = error;
-        message = asObj.message ? String(asObj.message) : JSON.stringify(asObj);
-    }
-    else {
-        message = String(error);
-    }
-    return message.length > 220 ? `${message.slice(0, 220)}…` : message;
 }
 async function probeCapability(name, probe, required, notes = undefined) {
     try {
@@ -90,8 +127,8 @@ async function probeCapability(name, probe, required, notes = undefined) {
     }
 }
 async function authCapabilities(cfg, args = {}) {
-    const endpoint = args.endpoint;
-    const overrideOrgId = args.orgId;
+    rejectEndpointOverride(args);
+    const overrideOrgId = args.orgId ? requireIdentifier(args.orgId, 'orgId', 'INVALID_THETA_ORG_ID') : undefined;
     const caps = [];
     const controllerConfigured = Boolean(cfg.edgecloudApiKey && cfg.edgecloudProjectId);
     if (!controllerConfigured) {
@@ -119,7 +156,7 @@ async function authCapabilities(cfg, args = {}) {
     else {
         caps.push(await probeCapability('billing.balance', () => deployments.balance(cfg, balanceOrgId), ['THETA_EC_API_KEY', 'THETA_ORG_ID'], 'Org credit balance lookup.'));
     }
-    caps.push(await probeCapability('ondemand.catalog', () => ondemand.listServices(), [], 'Public on-demand model catalog.'));
+    caps.push(await probeCapability('ondemand.catalog', () => ondemand.listServices(cfg), [], 'Public on-demand model catalog.'));
     if (!cfg.onDemandApiToken) {
         caps.push({
             name: 'ondemand.inference',
@@ -151,7 +188,7 @@ async function authCapabilities(cfg, args = {}) {
             });
         }
     }
-    const infEndpoint = endpoint ?? cfg.inferenceEndpoint;
+    const infEndpoint = cfg.inferenceEndpoint;
     if (!infEndpoint) {
         caps.push({
             name: 'inference.endpoint',
@@ -162,7 +199,7 @@ async function authCapabilities(cfg, args = {}) {
         });
     }
     else {
-        caps.push(await probeCapability('inference.endpoint', () => inference.models(cfg, infEndpoint), ['THETA_INFERENCE_ENDPOINT', 'THETA_INFERENCE_AUTH_TOKEN or THETA_INFERENCE_AUTH_USER/PASS'], 'Dedicated endpoint model/chat commands.'));
+        caps.push(await probeCapability('inference.endpoint', () => inference.models(cfg), ['THETA_INFERENCE_ENDPOINT', 'THETA_INFERENCE_AUTH_TOKEN or THETA_INFERENCE_AUTH_USER/PASS'], 'Dedicated endpoint model/chat commands.'));
     }
     if (!cfg.videoSaId || !cfg.videoSaSecret) {
         caps.push({
@@ -226,31 +263,38 @@ const commandRegistry = {
     },
     'theta.inference.models': {
         schema: { command: 'theta.inference.models', description: 'List models from dedicated inference endpoint', required: [] },
-        handler: (cfg, args) => inference.models(cfg, args.endpoint)
+        handler: (cfg, args) => {
+            rejectEndpointOverride(args);
+            return inference.models(cfg);
+        }
     },
     'theta.inference.chat': {
         schema: { command: 'theta.inference.chat', description: 'Run chat completion on dedicated inference endpoint', required: ['body'] },
-        handler: (cfg, args) => inference.chat(cfg, args.body, args.endpoint)
+        handler: (cfg, args) => {
+            rejectEndpointOverride(args);
+            const body = requireObject(args.body, 'body', 'INVALID_CHAT_BODY');
+            return inference.chat(cfg, body);
+        }
     },
     'theta.ondemand.listServices': {
         schema: { command: 'theta.ondemand.listServices', description: 'List supported on-demand services', required: [] },
-        handler: () => ondemand.listServices()
+        handler: (cfg) => ondemand.listServices(cfg)
     },
     'theta.ondemand.infer': {
         schema: { command: 'theta.ondemand.infer', description: 'Create on-demand infer request', required: ['service', 'payload'] },
-        handler: (cfg, args) => ondemand.infer(cfg, args.service, args.payload)
+        handler: (cfg, args) => ondemand.infer(cfg, requireIdentifier(args.service, 'service', 'INVALID_ONDEMAND_SERVICE'), args.payload)
     },
     'theta.ondemand.status': {
         schema: { command: 'theta.ondemand.status', description: 'Get on-demand infer request status', required: ['requestId'] },
-        handler: (cfg, args) => ondemand.status(cfg, args.requestId)
+        handler: (cfg, args) => ondemand.status(cfg, requireIdentifier(args.requestId, 'requestId', 'INVALID_ONDEMAND_REQUEST_ID'))
     },
     'theta.ondemand.inputPresignedUrls': {
         schema: { command: 'theta.ondemand.inputPresignedUrls', description: 'Create presigned URLs for on-demand inputs', required: ['service'] },
-        handler: (cfg, args) => ondemand.inputPresignedUrls(cfg, args.service)
+        handler: (cfg, args) => ondemand.inputPresignedUrls(cfg, requireIdentifier(args.service, 'service', 'INVALID_ONDEMAND_SERVICE'))
     },
     'theta.ondemand.pollUntilDone': {
         schema: { command: 'theta.ondemand.pollUntilDone', description: 'Poll on-demand request until terminal state', required: ['requestId'] },
-        handler: (cfg, args) => ondemand.pollUntilDone(cfg, args.requestId, args.options)
+        handler: (cfg, args) => ondemand.pollUntilDone(cfg, requireIdentifier(args.requestId, 'requestId', 'INVALID_ONDEMAND_REQUEST_ID'), args.options ? requireObject(args.options, 'options', 'INVALID_POLL_OPTIONS') : undefined)
     },
     'theta.deployments.list': {
         schema: { command: 'theta.deployments.list', description: 'List deployments for project', required: [] },
@@ -258,14 +302,17 @@ const commandRegistry = {
     },
     'theta.deployments.create': {
         schema: { command: 'theta.deployments.create', description: 'Create deployment in project', required: ['payload'] },
-        handler: (cfg, args) => deployments.create(cfg, {
-            ...args.payload,
-            project_id: args.payload?.project_id ?? resolveProjectId(cfg, args)
-        })
+        handler: (cfg, args) => {
+            const payload = requireObject(args.payload, 'payload', 'INVALID_DEPLOYMENT_PAYLOAD');
+            return deployments.create(cfg, {
+                ...payload,
+                project_id: payload.project_id ? requireProjectId(payload.project_id) : resolveProjectId(cfg, args)
+            });
+        }
     },
     'theta.deployments.stop': {
         schema: { command: 'theta.deployments.stop', description: 'Stop deployment by shard/suffix', required: ['shard', 'suffix'] },
-        handler: (cfg, args) => deployments.stop(cfg, resolveProjectId(cfg, args), Number(args.shard), String(args.suffix))
+        handler: (cfg, args) => deployments.stop(cfg, resolveProjectId(cfg, args), requireNonNegativeInt(args.shard, 'shard', 'INVALID_SHARD'), requireIdentifier(args.suffix, 'suffix', 'INVALID_SUFFIX'))
     },
     'theta.deployments.delete': {
         schema: { command: 'theta.deployments.delete', description: 'Delete deployment by deploymentId OR shard/suffix', required: [] },
@@ -281,11 +328,11 @@ const commandRegistry = {
     },
     'theta.billing.balance': {
         schema: { command: 'theta.billing.balance', description: 'Get org credit balance (API key scoped)', required: [] },
-        handler: (cfg, args) => deployments.balance(cfg, args.orgId)
+        handler: (cfg, args) => deployments.balance(cfg, args.orgId ? requireIdentifier(args.orgId, 'orgId', 'INVALID_THETA_ORG_ID') : undefined)
     },
     'theta.deployments.listStandard': {
         schema: { command: 'theta.deployments.listStandard', description: 'List standard deployment templates by category', required: ['category'] },
-        handler: (cfg, args) => deployments.listStandard(cfg, args.category, args.page ?? 0, args.number ?? 50)
+        handler: (cfg, args) => deployments.listStandard(cfg, requireIdentifier(args.category, 'category', 'INVALID_TEMPLATE_CATEGORY'), args.page === undefined ? 0 : requireNonNegativeInt(args.page, 'page', 'INVALID_PAGE'), args.number === undefined ? 50 : requirePositiveInt(args.number, 'number', 'INVALID_PAGE_SIZE'))
     },
     'theta.deployments.listCustom': {
         schema: { command: 'theta.deployments.listCustom', description: 'List custom templates for project', required: [] },
@@ -309,7 +356,7 @@ const commandRegistry = {
     },
     'theta.ai.storage.list': {
         schema: { command: 'theta.ai.storage.list', description: 'List persistent storage claims', required: [] },
-        handler: (cfg, args) => deployments.listStorageClaims(cfg, resolveProjectId(cfg, args), args.page ?? 1, args.number ?? 20)
+        handler: (cfg, args) => deployments.listStorageClaims(cfg, resolveProjectId(cfg, args), args.page === undefined ? 1 : requirePositiveInt(args.page, 'page', 'INVALID_PAGE'), args.number === undefined ? 20 : requirePositiveInt(args.number, 'number', 'INVALID_PAGE_SIZE'))
     },
     'theta.ai.agent.list': {
         schema: { command: 'theta.ai.agent.list', description: 'List AI agent (RAG chatbot) resources', required: [] },
@@ -317,7 +364,7 @@ const commandRegistry = {
     },
     'theta.video.list': {
         schema: { command: 'theta.video.list', description: 'List videos for service account', required: ['serviceAccountId'] },
-        handler: (cfg, args) => video.videoList(cfg, args.serviceAccountId, args.page ?? 1, args.number ?? 10)
+        handler: (cfg, args) => video.videoList(cfg, requireIdentifier(args.serviceAccountId, 'serviceAccountId', 'INVALID_SERVICE_ACCOUNT_ID'), args.page === undefined ? 1 : requirePositiveInt(args.page, 'page', 'INVALID_PAGE'), args.number === undefined ? 10 : requirePositiveInt(args.number, 'number', 'INVALID_PAGE_SIZE'))
     },
     'theta.video.uploadCreate': {
         schema: { command: 'theta.video.uploadCreate', description: 'Create Theta Video upload session', required: [] },
@@ -325,19 +372,19 @@ const commandRegistry = {
     },
     'theta.video.videoCreate': {
         schema: { command: 'theta.video.videoCreate', description: 'Create Theta Video transcoding job', required: ['payload'] },
-        handler: (cfg, args) => video.videoCreate(cfg, args.payload)
+        handler: (cfg, args) => video.videoCreate(cfg, requireObject(args.payload, 'payload', 'INVALID_VIDEO_PAYLOAD'))
     },
     'theta.video.videoGet': {
         schema: { command: 'theta.video.videoGet', description: 'Get Theta Video job by videoId', required: ['videoId'] },
-        handler: (cfg, args) => video.videoGet(cfg, args.videoId)
+        handler: (cfg, args) => video.videoGet(cfg, requireIdentifier(args.videoId, 'videoId', 'INVALID_VIDEO_ID'))
     },
     'theta.video.streamCreate': {
         schema: { command: 'theta.video.streamCreate', description: 'Create Theta Video livestream', required: ['payload'] },
-        handler: (cfg, args) => video.streamCreate(cfg, args.payload)
+        handler: (cfg, args) => video.streamCreate(cfg, requireObject(args.payload, 'payload', 'INVALID_STREAM_PAYLOAD'))
     },
     'theta.video.streamGet': {
         schema: { command: 'theta.video.streamGet', description: 'Get Theta Video stream by streamId', required: ['streamId'] },
-        handler: (cfg, args) => video.streamGet(cfg, args.streamId)
+        handler: (cfg, args) => video.streamGet(cfg, requireIdentifier(args.streamId, 'streamId', 'INVALID_STREAM_ID'))
     },
     'theta.video.ingestor.list': {
         schema: { command: 'theta.video.ingestor.list', description: 'List available Theta Video ingestors', required: [] },
@@ -345,7 +392,7 @@ const commandRegistry = {
     },
     'theta.video.ingestor.select': {
         schema: { command: 'theta.video.ingestor.select', description: 'Select Theta Video ingestor', required: ['ingestorId'] },
-        handler: (cfg, args) => video.ingestorSelect(cfg, args.ingestorId, args.body ?? {})
+        handler: (cfg, args) => video.ingestorSelect(cfg, requireIdentifier(args.ingestorId, 'ingestorId', 'INVALID_INGESTOR_ID'), args.body ? requireObject(args.body, 'body', 'INVALID_INGESTOR_BODY') : {})
     },
 };
 const onDemandTokenCommands = new Set([
@@ -359,6 +406,9 @@ export function listThetaRuntimeCommands() {
     return Object.keys(commandRegistry).sort();
 }
 export async function executeThetaRuntimeCommand(args, ctx = {}) {
+    if (!args || typeof args !== 'object') {
+        throw new Error('Command args must be an object');
+    }
     const registration = commandRegistry[args.command];
     if (!registration) {
         throw new Error(`Unsupported theta runtime command: ${args.command}`);
@@ -366,7 +416,8 @@ export async function executeThetaRuntimeCommand(args, ctx = {}) {
     requireFields(args, registration.schema.required);
     const cfg = await buildRuntimeConfig(ctx);
     if (onDemandTokenCommands.has(args.command) && !cfg.dryRun && !cfg.onDemandApiToken) {
-        throw new Error('On-demand API key/token missing. Set THETA_ONDEMAND_API_KEY (or THETA_ONDEMAND_API_TOKEN). You can create it from Theta dashboard under On-demand Model APIs -> API Key.');
+        throw fromConfigError('On-demand API key/token missing. Set THETA_ONDEMAND_API_KEY (or THETA_ONDEMAND_API_TOKEN). You can create it from Theta dashboard under On-demand Model APIs -> API Key.', 'MISSING_THETA_ONDEMAND_API_TOKEN');
     }
-    return registration.handler(cfg, args);
+    const result = await registration.handler(cfg, args);
+    return redactObject(result);
 }
