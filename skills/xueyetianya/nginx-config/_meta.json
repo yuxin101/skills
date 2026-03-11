@@ -1,0 +1,11 @@
+{
+  "owner": "xueyetianya",
+  "slug": "nginx-config",
+  "displayName": "Nginx Config",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773206253542,
+    "commit": null
+  },
+  "history": []
+}
