@@ -1,0 +1,11 @@
+{
+  "owner": "harven-droid",
+  "slug": "iflytek-asr",
+  "displayName": "iFlytek ASR - 讯飞语音转文字",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773136869849,
+    "commit": null
+  },
+  "history": []
+}
