@@ -38,7 +38,7 @@ class JiraAdapter(TicketAdapter):
         while True:
             try:
                 resp = requests.get(
-                    f"{self.url}/rest/api/3/search",
+                    f"{self.url}/rest/api/3/search/jql",
                     headers=self.headers,
                     params={
                         "jql": jql,

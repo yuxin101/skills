@@ -87,33 +87,32 @@ class GitLabAdapter(CodeAdapter):
         return mrs
 
     def get_branches(self, days: int = 30) -> List[Branch]:
-        """Fetch branches from all projects in the group."""
-        encoded_group = quote_plus(self.group)
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        """Derive branch activity from MR source branches.
 
-        # First get projects in the group
-        projects = self._get(f"/groups/{encoded_group}/projects", params={"archived": "false"})
+        Rather than fetching every branch across every project (expensive: N projects
+        x M branches API calls), we reuse the MR list which is already date-filtered
+        and paginated efficiently at the group level. Each MR's source_branch gives us
+        the branch name, the MR author gives us the engineer, and created_at / merged_at
+        give us the active lifespan. This is faster and more accurate for contribution
+        mapping since we only care about branches that actually produced MRs.
+        """
+        mrs = self.get_merge_requests(days=days)
         branches: List[Branch] = []
+        seen: set = set()
 
-        for proj in projects:
-            proj_id = proj["id"]
-            raw = self._get(f"/projects/{proj_id}/repository/branches")
-            for item in raw:
-                commit = item.get("commit", {})
-                committed_date_str = commit.get("committed_date", "")
-                if not committed_date_str:
-                    continue
-                last_commit = datetime.fromisoformat(
-                    committed_date_str.replace("Z", "+00:00")
+        for mr in mrs:
+            key = mr.source_branch
+            if key in seen or not key:
+                continue
+            seen.add(key)
+            end = mr.merged_at or datetime.now(timezone.utc)
+            branches.append(
+                Branch(
+                    name=mr.source_branch,
+                    author=mr.author,
+                    created_at=mr.created_at,
+                    last_commit_at=end,
+                    last_commit_sha="",
                 )
-                if last_commit < cutoff:
-                    continue
-                branches.append(
-                    Branch(
-                        name=item["name"],
-                        author=commit.get("author_name", "unknown"),
-                        last_commit_at=last_commit,
-                        last_commit_sha=commit.get("id", ""),
-                    )
-                )
+            )
         return branches

@@ -8,7 +8,7 @@ description: >
 license: MIT
 metadata:
   author: larry.l.fang@gmail.com
-  version: "1.0.0"
+  version: "2.1.1"
   tags: engineering-manager,gitlab,github,jira,team-performance,morning-brief,eod-review,newsletter,dora
 ---
 
@@ -16,33 +16,72 @@ metadata:
 
 Track team performance, engineer contributions, and project health across GitLab/GitHub + Jira/GitHub Issues.
 
-## Quick Start
+## Agent Instructions (read this first)
+
+When this skill is triggered:
+
+**1. Check if configured:**
+```bash
+test -f <skill_dir>/.env && echo "configured" || echo "not_configured"
+```
+
+**If not configured**, say:
+> "em-intel needs a one-time setup. Run this and I'll guide you through it (takes ~2 min):"
+> `python3 <skill_dir>/em_intel.py setup`
+>
+> Or to preview without any credentials first:
+> `python3 <skill_dir>/em_intel.py morning-brief --dry-run`
+
+The `setup` command handles everything: asks questions, opens token pages in the browser, writes `.env`, installs deps, and runs `doctor` automatically.
+
+**If configured**, run the requested command directly:
+```bash
+cd <skill_dir> && python3 em_intel.py <command> [--dry-run]
+```
+
+**On error**, run `doctor` and surface the failing checks:
+```bash
+python3 <skill_dir>/em_intel.py doctor
+```
+
+---
+
+## Quick Start (manual)
 
 ```bash
-# Copy and fill environment variables
+# 1. Copy and fill in your API keys
 cp .env.example .env
+# See SETUP.md for token URLs and required scopes
 
-# Install dependencies
-pip install -r requirements.txt
+# 2. Install dependencies
+pip3 install -r requirements.txt
 
-# Run morning brief
-python em_intel.py morning-brief
+# 3. Validate configuration
+python3 em_intel.py doctor
 
-# Full help
-python em_intel.py --help
+# 4. Preview with mock data (no credentials needed)
+python3 em_intel.py morning-brief --dry-run
+
+# 5. Run for real
+python3 em_intel.py morning-brief
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `morning-brief` | Merged yesterday, open PRs >3d, quiet engineers, stalled epics |
-| `eod-review` | Today's merges/opens, contributor list, cycle time trend |
-| `team-report [--days N]` | Full team performance report |
-| `contributions [--engineer NAME] [--days N]` | Branch→ticket contribution map |
-| `quiet-engineers` | Engineers with no MR activity |
-| `epic-health` | Stalled and unassigned epics |
+| `doctor` | Check env vars and test API connections |
+| `morning-brief [--dry-run]` | Merged yesterday, open PRs >3d, quiet engineers, stalled epics |
+| `eod-review [--dry-run]` | Today's merges/opens, contributor list, cycle time trend |
+| `team-report [--days N] [--dry-run]` | Full team performance report |
+| `contributions [--engineer NAME] [--days N] [--dry-run]` | Branch→ticket contribution map |
+| `quiet-engineers [--dry-run]` | Engineers with no MR activity |
+| `epic-health [--dry-run]` | Stalled and unassigned epics |
 | `newsletter [--week]` | Weekly digest via configured delivery channel |
+
+### --dry-run
+
+Pass `--dry-run` to any supported command to use realistic synthetic mock data instead of hitting real APIs. Useful for previewing output format before configuring credentials.
 
 ## Configuration
 
@@ -62,6 +101,7 @@ adapters/            ← Code platform + ticket system adapters
   github_adapter.py  ← GitHub REST API
   jira_adapter.py    ← Jira REST API
   github_issues_adapter.py ← GitHub Issues as ticket system
+  mock_adapter.py    ← Synthetic data for --dry-run mode
 core/                ← Business logic
   branch_mapper.py   ← Map branches → tickets → engineers
   team_pulse.py      ← Quiet engineers, MR trends, cycle times

@@ -3,6 +3,7 @@
 import logging
 import os
 import smtplib
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import requests
@@ -83,8 +84,44 @@ def _send_slack(text: str, title: str) -> bool:
         return False
 
 
+def _markdown_to_html(text: str, title: str) -> str:
+    """Convert Markdown newsletter to a clean HTML email."""
+    try:
+        import markdown as md
+        body_html = md.markdown(text, extensions=["tables", "nl2br"])
+    except ImportError:
+        # Fallback: wrap plain text in pre tag
+        body_html = f"<pre>{text}</pre>"
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         max-width: 680px; margin: 0 auto; padding: 24px; color: #1a1a1a; }}
+  h1 {{ color: #1a1a1a; font-size: 22px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }}
+  h2 {{ color: #374151; font-size: 16px; margin-top: 24px; }}
+  a {{ color: #2563eb; text-decoration: none; }}
+  a:hover {{ text-decoration: underline; }}
+  table {{ border-collapse: collapse; width: 100%; font-size: 14px; }}
+  th {{ background: #f3f4f6; text-align: left; padding: 8px 12px; }}
+  td {{ padding: 6px 12px; border-bottom: 1px solid #e5e7eb; }}
+  ul {{ padding-left: 20px; }}
+  li {{ margin: 4px 0; }}
+  em {{ color: #6b7280; font-size: 13px; }}
+  hr {{ border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }}
+</style>
+</head>
+<body>
+<h1>{title}</h1>
+{body_html}
+</body>
+</html>"""
+
+
 def _send_email(text: str, title: str) -> bool:
-    """Send via SMTP."""
+    """Send via SMTP as multipart/alternative (HTML + plain text fallback)."""
     host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER", "")
@@ -95,10 +132,18 @@ def _send_email(text: str, title: str) -> bool:
         logger.warning("SMTP not fully configured, falling back to print")
         return _send_print(text, title)
 
-    msg = MIMEText(text, "plain", "utf-8")
+    # Build multipart/alternative: plain text + HTML
+    msg = MIMEMultipart("alternative")
     msg["Subject"] = title
     msg["From"] = user
     msg["To"] = to_addr
+
+    # Plain text part (for clients that prefer it)
+    msg.attach(MIMEText(text, "plain", "utf-8"))
+
+    # HTML part — Markdown converted to HTML with clickable Jira links
+    html = _markdown_to_html(text, title)
+    msg.attach(MIMEText(html, "html", "utf-8"))
 
     try:
         with smtplib.SMTP(host, port, timeout=15) as server:
