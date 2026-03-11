@@ -1,6 +1,6 @@
 {
-  "enable": true,
-  "mode": "full",
+  "enable": false,
+  "mode": "simple",
   "enabledModules": {
     "table": true,
     "flowchart": true,

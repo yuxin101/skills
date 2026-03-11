@@ -113,3 +113,33 @@ User can modify config through conversation:
 - Truncate overly long output with [...]
 - Clearly indicate reasons for failed calls
 - Keep output concise, don't over-detail
+
+## ⚠️ Security Guidelines
+
+### Sensitive Data Redaction (MANDATORY)
+
+Before displaying any tool call input/output, you MUST redact the following:
+
+**Must redact:**
+- API Keys, Tokens, Passwords (patterns: `key=`, `token=`, `password=`, `Authorization:`)
+- File contents that may contain secrets
+- User credentials or private data
+
+**How to redact:**
+- Replace with `[REDACTED]` or `[HIDDEN]`
+- Keep the structure but mask values
+- Example: `{"api_key": "sk-xxx"}` → `{"api_key": "[REDACTED]"}`
+
+### Safe Defaults
+
+Default configuration is set to:
+- `enable: false` (off by default, user must explicitly enable)
+- `detailedLog: false` (don't record full inputs/outputs)
+- `saveToFile: false` (don't persist to disk)
+
+### Best Practices
+
+1. **Test before enabling** - Enable in a safe environment first
+2. **Review outputs** - Check that no secrets appear in traces
+3. **Use simple mode** - Avoid detailed logging in production
+4. **Disable after use** - Turn off when not needed
