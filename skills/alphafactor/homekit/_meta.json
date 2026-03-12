@@ -1,0 +1,11 @@
+{
+  "owner": "alphafactor",
+  "slug": "homekit",
+  "displayName": "HomeKit Smart Home Control",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1773117931844,
+    "commit": null
+  },
+  "history": []
+}
