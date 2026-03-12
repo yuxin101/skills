@@ -1,0 +1,11 @@
+{
+  "owner": "pupillen",
+  "slug": "membox-cloud-sync",
+  "displayName": "Membox Cloud Sync",
+  "latest": {
+    "version": "0.1.12",
+    "publishedAt": 1773339306589,
+    "commit": null
+  },
+  "history": []
+}
