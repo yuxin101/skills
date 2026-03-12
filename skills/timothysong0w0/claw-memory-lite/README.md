@@ -133,6 +133,14 @@ Complete factual records stored in SQLite, queryable on demand.
 - [ ] Add `--export` flag to dump DB to JSON/Markdown
 - [ ] Integration with OpenClaw's native `memory_search` tool
 
+## Extensions (Community Ideas)
+
+These are not planned for the core repo, but could be built as optional plugins or external integrations:
+
+- **Auto-routing** based on `trust_scores` (e.g., X/Twitter → grok42, web_fetch fallback → tavily)
+- **Dashboard/UI** for visualizing trust and friction metrics
+- **Alerting** when trust scores drop below thresholds
+
 **Contributions welcome!** Have ideas or want to help? Open an issue or submit a PR.
 
 ## License
@@ -143,9 +151,11 @@ For detailed acknowledgments and inspiration sources, see [CREDITS.md](CREDITS.m
 
 ## Acknowledgments
 
+[original post](https://x.com/atlasforgeai/status/2026380335249002843)
 - **鸿蒙小张** (Xiaohongshu/RedNote blogger) — Original inspiration for this project's core concept. This implementation was created with permission and based on his ideas.
 - [OpenViking](https://github.com/volcengine/OpenViking) by ByteDance — Inspiration for the L0/L1/L2 hierarchy structure and context management paradigm.
 - [OpenClaw](https://github.com/openclaw/openclaw) — The AI agent framework this is built for.
+- **AtlasForgeAI** (X/Twitter) — Meta-learning pipeline concept (guardrails, friction detection, trust scoring).
 
 ---
 

@@ -96,30 +96,7 @@ These are sample daily memory files to demonstrate the extraction process.
 
 ---
 
-## Example 5: Communication Config (2026-02-24.md)
-
-```markdown
-# 2026-02-24
-
-## Discord Channel Setup
-- Created #a 股实验室📈 channel for investment discussions
-- Channel ID: 1473185274774159486
-- Configured bot to route A-share topics there
-
-## Telegram Bot
-- Updated webhook URL
-- Added inline button support
-```
-
-**Expected Extraction**:
-- Category: Comm
-- Facts:
-  - Created #a 股实验室📈 channel for investment discussions
-  - Channel ID: 1473185274774159486
-
----
-
-## Example 6: Security Policy (2026-02-25.md)
+## Example 5: Security Policy (2026-02-25.md)
 
 ```markdown
 # 2026-02-25

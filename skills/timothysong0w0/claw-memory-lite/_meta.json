@@ -3,9 +3,15 @@
   "slug": "claw-memory-lite",
   "displayName": "Claw Memory Lite",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1771503371795,
-    "commit": "https://github.com/openclaw/skills/commit/77e6364f27bec0bcb7fbfaf1cdb39ee0e74b2363"
+    "version": "1.0.1",
+    "publishedAt": 1773234538293,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1771503371795,
+      "commit": "https://github.com/openclaw/skills/commit/77e6364f27bec0bcb7fbfaf1cdb39ee0e74b2363"
+    }
+  ]
 }
