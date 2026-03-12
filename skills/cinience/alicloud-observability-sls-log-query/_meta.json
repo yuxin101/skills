@@ -3,9 +3,15 @@
   "slug": "alicloud-observability-sls-log-query",
   "displayName": "Alicloud Observability Sls Log Query",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1770768566155,
-    "commit": "https://github.com/openclaw/skills/commit/1e34fb997b01bf169a427d41588900a23a7c3238"
+    "version": "1.0.2",
+    "publishedAt": 1773222004852,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1770768566155,
+      "commit": "https://github.com/openclaw/skills/commit/1e34fb997b01bf169a427d41588900a23a7c3238"
+    }
+  ]
 }
