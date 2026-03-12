@@ -3,11 +3,16 @@
   "slug": "intranet",
   "displayName": "Intranet",
   "latest": {
-    "version": "3.2.6",
-    "publishedAt": 1772921798359,
-    "commit": "https://github.com/openclaw/skills/commit/deef1619cb207e5b5170c24cf737afb450da1d1d"
+    "version": "3.2.7",
+    "publishedAt": 1773306392913,
+    "commit": null
   },
   "history": [
+    {
+      "version": "3.2.6",
+      "publishedAt": 1772921798359,
+      "commit": "https://github.com/openclaw/skills/commit/deef1619cb207e5b5170c24cf737afb450da1d1d"
+    },
     {
       "version": "3.2.5",
       "publishedAt": 1772570412697,
