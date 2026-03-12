@@ -1,11 +1,26 @@
 ---
 name: alicloud-ai-image-qwen-image
-description: Generate images with Model Studio DashScope SDK using Qwen Image generation models (qwen-image-max, qwen-image-plus-2026-01-09). Use when implementing or documenting image.generate requests/responses, mapping prompt/negative_prompt/size/seed/reference_image, or integrating image generation into the video-agent pipeline.
+description: Generate images with Model Studio DashScope SDK using Qwen Image generation models (qwen-image, qwen-image-plus, qwen-image-max and snapshots). Use when implementing or documenting image.generate requests/responses, mapping prompt/negative_prompt/size/seed/reference_image, or integrating image generation into the video-agent pipeline.
+version: 1.0.0
 ---
 
 Category: provider
 
 # Model Studio Qwen Image
+
+## Validation
+
+```bash
+mkdir -p output/alicloud-ai-image-qwen-image
+python -m py_compile skills/ai/image/alicloud-ai-image-qwen-image/scripts/generate_image.py && echo "py_compile_ok" > output/alicloud-ai-image-qwen-image/validate.txt
+```
+
+Pass criteria: command exits 0 and `output/alicloud-ai-image-qwen-image/validate.txt` is generated.
+
+## Output And Evidence
+
+- Write generated image URLs, prompts, and metadata to `output/alicloud-ai-image-qwen-image/`.
+- Keep at least one sample JSON response per run.
 
 Build consistent image generation behavior for the video-agent pipeline by standardizing `image.generate` inputs/outputs and using DashScope SDK (Python) with the exact model name.
 
@@ -23,7 +38,12 @@ python -m pip install dashscope
 ## Critical model names
 
 Use one of these exact model strings:
+- `qwen-image`
+- `qwen-image-plus`
 - `qwen-image-max`
+- `qwen-image-2.0`
+- `qwen-image-2.0-pro`
+- `qwen-image-max-2025-12-30`
 - `qwen-image-plus-2026-01-09`
 
 ## Normalized interface (image.generate)
@@ -58,7 +78,7 @@ Minimal normalized request body:
 Preview workflow (download then open):
 
 ```bash
-curl -L -o output/ai-image-qwen-image/images/preview.png "<IMAGE_URL_FROM_RESPONSE>" && open output/ai-image-qwen-image/images/preview.png
+curl -L -o output/alicloud-ai-image-qwen-image/images/preview.png "<IMAGE_URL_FROM_RESPONSE>" && open output/alicloud-ai-image-qwen-image/images/preview.png
 ```
 
 Local helper script (JSON request -> image file):
@@ -66,7 +86,7 @@ Local helper script (JSON request -> image file):
 ```bash
 python skills/ai/image/alicloud-ai-image-qwen-image/scripts/generate_image.py \\
   --request '{"prompt":"a studio product photo of headphones","size":"1024*1024"}' \\
-  --output output/ai-image-qwen-image/images/headphones.png \\
+  --output output/alicloud-ai-image-qwen-image/images/headphones.png \\
   --print-response
 ```
 
@@ -144,7 +164,7 @@ def generate_image(req: dict) -> dict:
 
 ## Output location
 
-- Default output: `output/ai-image-qwen-image/images/`
+- Default output: `output/alicloud-ai-image-qwen-image/images/`
 - Override base dir with `OUTPUT_DIR`.
 
 ## Operational guidance
@@ -165,6 +185,13 @@ def generate_image(req: dict) -> dict:
 - Do not invent model names or aliases; use official model IDs only.
 - Do not store large base64 blobs in DB rows; use object storage.
 - Do not omit user-visible progress for long generations.
+
+## Workflow
+
+1) Confirm user intent, region, identifiers, and whether the operation is read-only or mutating.
+2) Run one minimal read-only query first to verify connectivity and permissions.
+3) Execute the target operation with explicit parameters and bounded scope.
+4) Verify results and save output/evidence files.
 
 ## References
 
