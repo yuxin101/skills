@@ -1,0 +1,11 @@
+{
+  "owner": "boleyn",
+  "slug": "agent-governance",
+  "displayName": "agent-governance",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773045975149,
+    "commit": null
+  },
+  "history": []
+}
