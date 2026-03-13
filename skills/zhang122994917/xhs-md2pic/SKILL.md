@@ -1,7 +1,6 @@
 ---
 name: xhs-md2img
-description: Convert Markdown text to beautiful Xiaohongshu (XHS) style card images with 5 themes, auto-pagination, smart title extraction, and AI-generated decorative backgrounds.
-version: 1.0.0
+description: Convert Markdown text to beautiful Xiaohongshu (XHS) style card images with 5 themes, deterministic browser screenshot rules, auto-pagination, smart title extraction, and AI-generated decorative backgrounds.
 metadata:
   clawdbot:
     emoji: "🎴"
@@ -16,16 +15,16 @@ metadata:
 
 # xhs-md2img
 
-Convert Markdown text into beautiful Xiaohongshu (XHS) style card images. Supports 5 color themes, automatic pagination, smart LLM-powered title extraction, and AI-generated decorative backgrounds.
+Convert Markdown text into Xiaohongshu (XHS) style multi-page card images with deterministic browser rendering and screenshot behavior.
 
 ## Overview
 
-This skill renders Markdown content as multi-page card images optimized for Xiaohongshu (Little Red Book) posts. It handles the full pipeline from raw text to publish-ready PNG images.
+This skill renders Markdown content as publish-ready XHS card images and is designed to run reliably in browser screenshot services.
 
 **Use cases:**
 - Convert long-form content into XHS-ready multi-image posts
 - Generate styled card images from Markdown articles
-- Create visually appealing social media graphics with AI backgrounds
+- Produce stable multi-page screenshots with consistent size and pagination
 
 ## Quick Start
 
@@ -37,98 +36,110 @@ Minimal input — just provide Markdown text:
 }
 ```
 
-This produces a single card image with the `default` (white) theme.
+Default export is one 1125x1500 PNG card (`375x500` CSS px at `export_scale=3`).
 
 ## Input Parameters
 
-See `templates/input-schema.json` for the full JSON Schema. Key parameters:
+See `templates/input-schema.json` for the full schema.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `markdown` | string | *(required)* | Markdown content. Use `---` for manual page breaks. |
-| `title` | string | *(auto-extracted)* | Cover title. If omitted, LLM extracts one from content. |
-| `author` | string | — | Author name shown on cover. |
-| `description` | string | — | Cover subtitle/description. |
-| `theme` | enum | `"default"` | Color theme: `default`, `monokai`, `nord`, `sakura`, `mint`. |
-| `font_family` | enum | `"sans-serif"` | Font: `sans-serif`, `serif`, `wenkai`. |
-| `padding` | enum | `"medium"` | Card padding: `small`, `medium`, `large`. |
-| `show_cover` | boolean | `true` | Whether to show cover block. |
-| `bg_style` | enum | `"ai_art"` | Background: `ai_art` (AI-generated) or `none` (solid color). |
+Core content/style params:
+- `markdown` (required): Markdown content. Use `---` for manual page breaks.
+- `title`, `author`, `description`: Cover metadata.
+- `theme`: `default`, `monokai`, `nord`, `sakura`, `mint`.
+- `font_family`: `sans-serif`, `serif`, `wenkai`.
+- `padding`: `small`, `medium`, `large`.
+- `show_cover`: Whether to show cover block.
+- `bg_style`: `ai_art` or `none`.
+
+Browser screenshot control params:
+- `card_width` / `card_height`: Single card CSS size (default `375x500`).
+- `export_scale`: Pixel ratio multiplier (default `3`).
+- `viewport_width` / `viewport_height`: Browser viewport size for rendering stability.
+- `page_gap`: Vertical gap between cards in DOM (default `20`).
+- `pagination_mode`: `mixed` (default), `auto`, `manual_only`.
+- `max_pages`: Hard limit to avoid runaway pagination.
+- `show_page_number`: Whether to render `1 / N` indicator.
+- `avoid_orphan_heading`: Keep headings with at least one following block.
+- `last_page_compact`: Shrink last card when content is short.
+
+## Deterministic Browser Screenshot Contract
+
+Use these hard rules for consistent XHS-like output:
+
+1. **Fixed card geometry**
+- Card ratio must stay `3:4` (`375x500` base).
+- Output pixel size must be `card_width * export_scale` by `card_height * export_scale`.
+- Prefer `export_scale=3` for XHS quality (`1125x1500`).
+
+2. **Stable browser context**
+- Run headless browser with `deviceScaleFactor=export_scale`.
+- Keep zoom at 100%; do not use browser print mode.
+- Use explicit viewport (recommended `440x760` for default card).
+
+3. **Render readiness gates (must pass before pagination/screenshot)**
+- Wait for `document.fonts.ready`.
+- Wait until `document.body[data-fonts-loaded="true"]` is present.
+- Wait 2 consecutive animation frames with unchanged `.xhs-card` bounding boxes.
+
+4. **Element-only screenshot**
+- Screenshot each `.xhs-card` element, never full page + crop.
+- Disable animations/transitions during capture.
+- Export PNG only.
+
+For implementation runbook and failure checks, read `references/browser-screenshot-spec.md`.
 
 ## Rendering Pipeline
 
-The rendering pipeline has 5 stages:
-
 ### 1. Smart Format (LLM)
 
-If the input is plain text (not already Markdown), the LLM reformats it:
-
-- **Title extraction**: Extracts a short, punchy cover title (10-20 chars)
-- **Body formatting**: Adds Markdown structure (`##` headings, `**bold**`, `- lists`, `> quotes`)
-- **Constraint**: The LLM is strictly forbidden from modifying any original text content — it can only add Markdown formatting marks
-
-The LLM prompt enforces: all emojis, hashtags, special symbols, and wording must be preserved verbatim. Only Markdown formatting (`##`, `**`, `-`, `>`, blank lines) may be added.
+If input is plain text, reformat to Markdown without changing wording:
+- Extract a short cover title (10-20 chars)
+- Add structure (`##`, `**`, lists, quotes)
+- Preserve all original symbols/emojis/hashtags verbatim
 
 ### 2. Markdown to HTML
 
-Uses `python-markdown` with extensions:
-- `tables`, `fenced_code`, `codehilite` (Pygments), `nl2br`, `sane_lists`, `smarty`, `attr_list`, `md_in_html`, `toc`
-- XHS hashtags (`#tag#`) are converted to styled pill badges
+Use `python-markdown` with extensions:
+- `tables`, `fenced_code`, `codehilite`, `nl2br`, `sane_lists`, `smarty`, `attr_list`, `md_in_html`, `toc`
+- Convert XHS hashtags (`#tag#`) into styled pills
 
 ### 3. HTML/CSS Card Construction
 
-Builds a full HTML page with CSS styling per theme. Each card is a fixed-size div (`375x500px` base, exported at 3x = `1125x1500px`). See `templates/card-template.html` for the template structure.
+Use `templates/card-template.html` with fixed card dimensions and theme variables.
 
-Card structure:
-```
-.xhs-card (fixed size, background color)
-├── .bg-art (optional AI background, low opacity overlay)
-└── .card-inner (z-index:1, above background)
-    ├── .cover-block (title, author, description — first page only)
-    └── .prose-content (rendered Markdown HTML)
-```
+Card layers:
+- `.xhs-card`: fixed-size card container
+- `.bg-art`: optional low-opacity decorative image
+- `.card-inner`: content layer above background
 
-### 4. Auto-Pagination (Playwright JS)
+### 4. Pagination Rules (Critical)
 
-Content that overflows a single card is automatically split across multiple pages:
+Apply pagination in DOM, not PDF/print pagination.
 
-1. Playwright measures each top-level element's height in the browser
-2. Elements are grouped into pages that fit the card height
-3. New card divs are created in the DOM with cloned background art
-4. Page numbers (`1 / N`) are added to each card
-5. The last card is shrunk to fit its content (avoids large empty space)
+Priority order:
+1. Split by manual separators (`---`) first.
+2. Within each segment, split by top-level block elements.
+3. If `avoid_orphan_heading=true`, never place a heading as the last visible block on a page.
+4. Keep list/table/code blocks intact when possible.
+5. If a single block exceeds one page, split safely:
+- list: split by `li`
+- table: split by row groups
+- code/pre: split by line groups
+- paragraph: split by sentences as final fallback
 
-### 5. Screenshot & Upload
+Overflow rule:
+- Page content area must satisfy `scrollHeight <= clientHeight`.
+- Keep a bottom safety space (~16 CSS px) to avoid visual clipping.
 
-Each `.xhs-card` div is screenshotted as PNG via Playwright. Images are uploaded to Alibaba Cloud OSS if configured, otherwise returned as base64 data URIs.
+### 5. Multi-Page Screenshot Output
 
-## Theme System
+For each page:
+- Create one `.xhs-card` node
+- Add optional page indicator `page / total_pages`
+- Capture element screenshot in PNG
+- Return pages ordered by index
 
-5 built-in themes with carefully tuned palettes. See `references/themes.md` for full hex values.
-
-| Theme | Background | Feel |
-|-------|-----------|------|
-| `default` | White `#ffffff` | Clean, professional |
-| `monokai` | Dark `#272822` | Tech, developer-oriented |
-| `nord` | Deep blue `#2e3440` | Nordic minimalist |
-| `sakura` | Soft pink `#fff5f5` | Warm, feminine |
-| `mint` | Light green `#f0faf4` | Fresh, natural |
-
-## AI Background Generation
-
-When `bg_style: "ai_art"`, the skill generates a subtle decorative background image:
-
-1. **Prompt generation**: LLM creates an image prompt based on the card's text content and theme
-2. **Image generation**: Routes to one of two providers automatically:
-   - **Gemini** (if `LLM_API_KEY` points to `googleapis.com`): Native Gemini API, returns base64 data URI, synchronous
-   - **DashScope wanx** (if `DASHSCOPE_API_KEY` is set): Async submit + poll, returns URL
-3. **Compositing**: Background is overlaid at very low opacity (8-18% depending on theme) behind the card content
-
-See `references/api-reference.md` for API details.
-
-**Prompt constraints**: Generated backgrounds are always abstract decorative elements (watercolor, bokeh, geometric lines, plant silhouettes) — never text, faces, or specific objects.
-
-## Output Format
+Output shape:
 
 ```json
 {
@@ -151,17 +162,49 @@ See `references/api-reference.md` for API details.
 }
 ```
 
-If OSS is not configured, each page includes `data_uri` instead of `url`, with `oss_uploaded: false`.
+If OSS is not configured, return `data_uri` for each page.
+
+## XHS Visual Quality Checklist
+
+Before returning images, verify:
+- Exact size per page matches export formula
+- No cropped text at bottom edge
+- Heading/body spacing is consistent across pages
+- Page number style is subtle (low opacity)
+- Last page has no large empty area when `last_page_compact=true`
+
+## Theme System
+
+5 built-in themes are defined in `references/themes.md`.
+
+| Theme | Background | Feel |
+|-------|-----------|------|
+| `default` | White `#ffffff` | Clean, professional |
+| `monokai` | Dark `#272822` | Tech, developer-oriented |
+| `nord` | Deep blue `#2e3440` | Nordic minimalist |
+| `sakura` | Soft pink `#fff5f5` | Warm, feminine |
+| `mint` | Light green `#f0faf4` | Fresh, natural |
+
+## AI Background Generation
+
+When `bg_style: "ai_art"`:
+1. LLM generates an abstract decorative prompt from content/theme
+2. Provider auto-select:
+- Gemini first when `LLM_BASE_URL` is Google
+- DashScope wanx fallback when available
+3. Blend into card with low opacity (8-18% by theme)
+
+Constraints:
+- Decorative only (watercolor/bokeh/geometric/plant silhouettes)
+- No text, no faces, no explicit objects
+
+See `references/api-reference.md` for provider API details.
 
 ## Privacy & External Endpoints
 
-This skill makes network calls to:
+Network calls may include:
+- LLM API: format + title + bg prompt generation
+- DashScope/Gemini: background image generation (prompt only)
+- Alibaba Cloud OSS: optional output image upload
 
-| Endpoint | Purpose | Data sent |
-|----------|---------|-----------|
-| LLM API (configurable) | Smart formatting, BG prompt generation | Text content (title + body summary) |
-| DashScope wanx API | AI background image generation | English image prompt (no user content) |
-| Gemini API | AI background image generation (alternative) | English image prompt (no user content) |
-| Alibaba Cloud OSS | Image upload (optional) | Generated PNG images |
-
-No user content is sent to image generation APIs — only LLM-generated English art prompts describing abstract decorative elements.
+No raw user document is sent to image models; only abstract prompt text is used.
