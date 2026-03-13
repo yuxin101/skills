@@ -400,11 +400,11 @@ def cmd_year_info(args):
     for i in range(1, 13):
         md = month_days(year_idx, i)
         m_size = "(大)" if md == 30 else "(小)"
-            print("    {}月: {}天 {}".format(LUNAR_MONTHS[i-1], md, m_size))
+        print("    {}月: {}天 {}".format(LUNAR_MONTHS[i-1], md, m_size))
         if i == lm:
             lmd = leap_month_days(year_idx)
             lm_size = "(大)" if lmd == 30 else "(小)"
-                print("    闰{}月: {}天 {}".format(LUNAR_MONTHS[i-1], lmd, lm_size))
+            print("    闰{}月: {}天 {}".format(LUNAR_MONTHS[i-1], lmd, lm_size))
     print("━" * 45)
 
 # 主入口
