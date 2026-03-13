@@ -3,33 +3,15 @@
 IMA Image Creation Script — ima_image_create.py
 Version: 1.0.8
 
-Specialized script for image generation via IMA Open API.
-Handles: product list query → virtual param resolution → task create → poll status
+Image generation via IMA Open API.
+Flow: product list → virtual param resolution → task create → poll status.
 
-🆕 v1.0.8 Features:
-  - Enhanced error handling for 401 (Unauthorized) and 4008 (Insufficient points)
-  - Clickable links to API key generation and credit purchase pages
-
-🆕 v1.0.5 Features:
-  - Automatic error recovery (Reflection mechanism)
-  - Smart parameter matching with case-insensitive support
-  - 500 error handling with parameter degradation (4K → 2K → 1K → 512px)
-  - 6009/6010 error auto-correction
-  - Up to 3 automatic retries with detailed failure suggestions
+- Task types: text_to_image | image_to_image
+- --input-images: accepts HTTPS URLs or local file paths (local files auto-uploaded to IMA CDN).
 
 Usage:
-  python3 ima_image_create.py \
-    --api-key  ima_xxx \
-    --task-type text_to_image \
-    --model-id  doubao-seedream-4.5 \
-    --prompt   "a cute puppy running on grass"
-
-Supports image generation only:
-  text_to_image | image_to_image
-
-Production Models (as of 2026-03-05):
-  - SeeDream 4.5 (doubao-seedream-4.5) — 5 pts, default recommended
-  - Nano Banana Pro (gemini-3-pro-image) — 10/10/18 pts for 1K/2K/4K
+  python3 ima_image_create.py --api-key ima_xxx --task-type text_to_image \\
+    --model-id doubao-seedream-4.5 --prompt "a cute puppy"
 
 Logs: ~/.openclaw/logs/ima_skills/ima_create_YYYYMMDD.log
 """
