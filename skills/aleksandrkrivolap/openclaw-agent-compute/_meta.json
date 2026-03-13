@@ -3,11 +3,16 @@
   "slug": "openclaw-agent-compute",
   "displayName": "OpenClaw Agent Compute",
   "latest": {
-    "version": "0.1.1",
-    "publishedAt": 1772686818998,
-    "commit": "https://github.com/openclaw/skills/commit/a48c352e2f1acbb2ecb281e7f9608688415ca384"
+    "version": "0.1.7",
+    "publishedAt": 1773072069247,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.1",
+      "publishedAt": 1772686818998,
+      "commit": "https://github.com/openclaw/skills/commit/a48c352e2f1acbb2ecb281e7f9608688415ca384"
+    },
     {
       "version": "0.1.0",
       "publishedAt": 1772079427142,

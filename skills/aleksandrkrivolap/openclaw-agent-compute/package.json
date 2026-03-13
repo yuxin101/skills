@@ -1,6 +1,6 @@
 {
   "name": "openclaw-agent-compute",
-  "version": "0.1.1",
+  "version": "0.1.7",
   "private": true,
   "type": "module",
   "description": "Clawdbot skill: openclaw-agent-compute (public HTTP client + starter kit).",
