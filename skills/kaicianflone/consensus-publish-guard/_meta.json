@@ -1,13 +1,18 @@
 {
   "owner": "kaicianflone",
   "slug": "consensus-publish-guard",
-  "displayName": "consensus-publish-guard",
+  "displayName": "Consensus Publish Guard",
   "latest": {
-    "version": "1.1.11",
-    "publishedAt": 1772375471008,
-    "commit": "https://github.com/openclaw/skills/commit/b620616289ed15e25222d10850c1b93cfaff5a78"
+    "version": "1.1.17",
+    "publishedAt": 1773178012479,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.1.11",
+      "publishedAt": 1772375471008,
+      "commit": "https://github.com/openclaw/skills/commit/b620616289ed15e25222d10850c1b93cfaff5a78"
+    },
     {
       "version": "1.1.10",
       "publishedAt": 1772343211011,
