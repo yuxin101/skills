@@ -5,6 +5,7 @@ import logging
 import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import quote
 
 import requests
 
@@ -197,7 +198,7 @@ class VolcanoDocCrawler:
             }
             headers = {
                 "accept": "application/json",
-                "referer": f"https://www.volcengine.com/docs/search?q={query_text}",
+                "referer": f"https://www.volcengine.com/docs/search?q={quote(query_text, safe='')}",
                 "x-use-bff-version": "1",
             }
             try:
@@ -239,14 +240,33 @@ class VolcanoDocCrawler:
         return unique_docs[:limit] if limit > 0 else unique_docs
 
     def discover_product_docs(self, product_name: str, limit: int = 0) -> List[Dict[str, str]]:
+        """发现产品文档
+        
+        Args:
+            product_name: 产品名称或功能关键词（如 私有网络、安全组）
+            limit: 返回文档数量限制，0 表示不限制
+            
+        Returns:
+            文档列表，每个文档包含 lib_id、doc_id、name、url 等字段
+            
+        Note:
+            - 如果 product_name 是具体产品名（如 私有网络），会过滤只返回该产品的文档
+            - 如果 product_name 是功能关键词（如 安全组），会返回所有相关产品的文档
+        """
         result = self._find_lib_id_by_name(product_name)
-        if not result:
-            return []
-        lib_id, actual_name = result
-        search_query = actual_name or product_name
-        logging.info(f"[火山云] searchAll 搜索「{search_query}」，LibID={lib_id}")
-        docs = self.search_docs(query=search_query, limit=limit, lib_id=lib_id)
-        logging.info(f"发现火山云产品 {lib_id} 文档 {len(docs)} 篇")
+        if result:
+            lib_id, actual_name = result
+            search_query = actual_name or product_name
+            logging.info(f"[火山云] searchAll 搜索「{search_query}」，LibID={lib_id}")
+            docs = self.search_docs(query=search_query, limit=limit, lib_id=lib_id)
+            logging.info(f"发现火山云产品 {lib_id} 文档 {len(docs)} 篇")
+            if docs:
+                return docs
+        
+        # 如果没找到结果，可能是功能关键词而非产品名，尝试不过滤 lib_id
+        logging.info(f"未找到产品 {product_name} 的文档，尝试作为功能关键词搜索")
+        docs = self.search_docs(query=product_name, limit=limit, lib_id="")
+        logging.info(f"发现火山云 {product_name} 相关文档 {len(docs)} 篇")
         return docs
 
     def fetch_doc(self, lib_id: str, doc_id: str) -> Optional[Dict]:
@@ -296,6 +316,16 @@ class VolcanoDocCrawler:
             return None
 
     def _extract_text_from_content(self, content_json: str) -> str:
+        """从 Content 字段提取文本
+        
+        Content 字段可能是：
+        1. JSON 格式的富文本（私有网络等产品）
+        2. 纯 HTML/Markdown 文本（边缘计算节点等产品）
+        """
+        if not content_json:
+            return ""
+            
+        # 尝试作为 JSON 解析
         try:
             data = json.loads(content_json)
             texts = []
@@ -307,7 +337,11 @@ class VolcanoDocCrawler:
                         insert = op.get("insert", "")
                         if isinstance(insert, str) and insert and insert != "*":
                             texts.append(insert)
-            return "".join(texts)
-        except Exception as e:
-            logging.debug(f"解析富文本失败: {e}")
-            return ""
+            result = "".join(texts)
+            if result:
+                return result
+        except (json.JSONDecodeError, Exception) as e:
+            logging.debug(f"Content 不是 JSON 格式，尝试作为纯文本处理: {e}")
+        
+        # 如果不是 JSON 或解析失败，直接返回原文本（可能是 HTML/Markdown）
+        return content_json.strip()

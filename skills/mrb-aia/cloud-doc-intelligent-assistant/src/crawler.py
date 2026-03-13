@@ -28,7 +28,7 @@ _BROWSER_HEADERS = {
 }
 
 ALIYUN_DOC_API = "https://help.aliyun.com/help/json/document_detail.json"
-ALIYUN_MENU_API = "https://help.aliyun.com/help/json/menupath.json"
+ALIYUN_SEARCH_API = "https://help.aliyun.com/help/json/search.json"
 
 
 def url_to_alias(doc_url: str) -> str:
@@ -108,69 +108,86 @@ class DocumentCrawler:
         params = {"alias": alias, "pageNum": 1, "pageSize": 20, "website": "cn", "language": "zh", "channel": ""}
         return self._fetch_api_data(ALIYUN_DOC_API, params, api_name="文档详情 API")
 
-    def fetch_menu(self, alias: str) -> Optional[dict]:
-        alias = self._normalize_alias(alias)
-        params = {"alias": alias, "website": "cn", "language": "zh", "channel": ""}
-        return self._fetch_api_data(ALIYUN_MENU_API, params, api_name="侧边栏 API")
+    def search_docs(self, keywords: str, page_size: int = 20, page_num: int = 1) -> Optional[dict]:
+        """使用搜索接口查找文档
+        
+        Args:
+            keywords: 搜索关键词
+            page_size: 每页数量
+            page_num: 页码
+            
+        Returns:
+            搜索结果数据，包含 documents 和 categories
+        """
+        params = {
+            "keywords": keywords,
+            "categoryId": 25365,  # 默认搜索所有分类
+            "topics": "DOCUMENT,PRODUCT",
+            "level": 3,
+            "website": "cn",
+            "language": "zh",
+            "pageSize": page_size,
+            "pageNum": page_num,
+        }
+        return self._fetch_api_data(ALIYUN_SEARCH_API, params, api_name="搜索 API")
 
-    def extract_aliases_from_menu(self, menu_data: dict) -> List[str]:
+    def extract_aliases_from_search(self, search_data: dict) -> List[str]:
+        """从搜索结果中提取文档 alias 列表"""
         aliases = []
-        def _walk(node: dict):
-            if node.get("validDocument") and node.get("alias"):
-                aliases.append(node["alias"])
-            for child in node.get("children", []):
-                _walk(child)
-        _walk(menu_data)
+        documents = search_data.get("documents", {}).get("data", [])
+        for doc in documents:
+            url = doc.get("url", "")
+            if url:
+                alias = url_to_alias(url)
+                # 过滤掉产品首页等无效路径（通常只有一级路径，如 /ecs）
+                # 有效的文档路径至少包含两级，如 /ecs/user-guide/xxx
+                if alias and alias.count('/') >= 2:
+                    aliases.append(alias)
         return aliases
-
-    @staticmethod
-    def extract_image_urls_from_html(html_content: str) -> List[str]:
-        soup = BeautifulSoup(html_content, "lxml")
-        image_urls = []
-        seen = set()
-        for image in soup.find_all("img"):
-            src = str(image.get("src", "") or "").strip()
-            if not src or src in seen:
-                continue
-            seen.add(src)
-            image_urls.append(src)
-        return image_urls
-
-    @staticmethod
-    def extract_hetu_diagrams_from_html(html_content: str) -> List[dict]:
-        soup = BeautifulSoup(html_content, "lxml")
-        diagrams = []
-        for node in soup.find_all("hetu"):
-            image = node.find("img")
-            diagrams.append({
-                "type": str(node.get("type", "") or "").strip(),
-                "hetu_id": str(node.get("hetuid", "") or "").strip(),
-                "node_id": str(node.get("id", "") or "").strip(),
-                "version_id": str(node.get("versionid", "") or "").strip(),
-                "uuid": str(node.get("uuid", "") or "").strip(),
-                "image_url": str(image.get("src", "") or "").strip() if image else "",
-                "alt": str(image.get("alt", "") or "").strip() if image else "",
-            })
-        return diagrams
 
     def discover_product_docs(self, product_alias: str, strict: bool = False) -> List[str]:
-        menu_data = self.fetch_menu(product_alias)
-        if menu_data is None:
-            message = f"获取阿里云产品目录失败: {self._normalize_alias(product_alias)}"
-            if strict:
-                raise RuntimeError(message)
-            logging.error(message)
-            return []
-        aliases = self.extract_aliases_from_menu(menu_data)
-        logging.info(f"发现 {len(aliases)} 个文档 (产品: {menu_data.get('alias', product_alias)})")
-        return aliases
+        """使用搜索接口发现产品下所有文档
+
+        Args:
+            product_alias: 产品别名或关键词，如 /vpn 或 NAT网关
+            strict: 失败时是否抛异常
+        """
+        all_aliases = []
+        
+        # 如果是路径格式（如 /nat），提取产品名
+        search_keyword = product_alias.strip().strip("/").replace("-", " ")
+        
+        logging.info(f"使用搜索接口查找文档: {search_keyword}")
+        
+        # 搜索多页结果
+        max_pages = 5  # 最多搜索5页
+        for page in range(1, max_pages + 1):
+            search_data = self.search_docs(search_keyword, page_size=20, page_num=page)
+            if search_data is None:
+                if strict and page == 1:
+                    raise RuntimeError(f"搜索文档失败: {search_keyword}")
+                break
+                
+            page_aliases = self.extract_aliases_from_search(search_data)
+            if not page_aliases:
+                break
+                
+            all_aliases.extend(page_aliases)
+            logging.info(f"搜索第 {page} 页发现 {len(page_aliases)} 个文档")
+            
+            # 检查是否还有更多结果
+            total = search_data.get("documents", {}).get("total", 0)
+            if len(all_aliases) >= total:
+                break
+        
+        logging.info(f"搜索共发现 {len(all_aliases)} 个文档 (关键词: {search_keyword})")
+        return all_aliases
 
     def parse_api_response(self, data: dict, alias: str) -> Document:
         url = alias_to_url(alias)
         html_content = data.get("content", "")
         soup = BeautifulSoup(html_content, "lxml")
-        image_urls = self.extract_image_urls_from_html(html_content)
-        hetu_diagrams = self.extract_hetu_diagrams_from_html(html_content)
+        
         text_content = "\n".join(
             line.strip() for line in soup.get_text(separator="\n").splitlines() if line.strip()
         )
@@ -197,10 +214,6 @@ class DocumentCrawler:
                 "developer_url": str(data.get("developerUrl", "") or "").strip(),
                 "path": str(data.get("path", "") or "").strip(),
                 "seo_title": str(data.get("seoTitle", "") or "").strip(),
-                "image_urls": image_urls,
-                "image_count": len(image_urls),
-                "hetu_diagrams": hetu_diagrams,
-                "hetu_count": len(hetu_diagrams),
             },
         )
 
