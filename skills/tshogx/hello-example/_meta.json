@@ -1,0 +1,11 @@
+{
+  "owner": "tshogx",
+  "slug": "hello-example",
+  "displayName": "hello-example",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773142865621,
+    "commit": null
+  },
+  "history": []
+}
