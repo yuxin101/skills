@@ -1,11 +1,17 @@
 {
   "owner": "dennis-da-menace",
   "slug": "clawtell",
-  "displayName": "Clawtell",
+  "displayName": "ClawTell",
   "latest": {
-    "version": "1.0.8",
-    "publishedAt": 1773194324310,
-    "commit": "https://github.com/openclaw/skills/commit/d1dafbd08f5880d355c89aa2ef3604e73e5246c0"
+    "version": "2026.3.3",
+    "publishedAt": 1773387513926,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.8",
+      "publishedAt": 1773194324310,
+      "commit": "https://github.com/openclaw/skills/commit/d1dafbd08f5880d355c89aa2ef3604e73e5246c0"
+    }
+  ]
 }
