@@ -2,7 +2,7 @@
 
 > OpenClaw plugin that bridges locally installed AI CLIs (Codex, Gemini, Claude Code) as model providers — with slash commands for instant model switching, restore, health testing, and model listing.
 
-**Current version:** `0.2.27`
+**Current version:** `1.6.2`
 
 ---
 
@@ -78,6 +78,79 @@ All commands use gateway-level `commands.allowFrom` for authorization (`requireA
 **`/cli-list` details:**
 - Lists all registered models grouped by provider (Claude CLI, Gemini CLI, Codex)
 - No arguments required
+
+---
+
+### Phase 4 — Web Browser Providers (headless, no API key needed)
+
+Routes requests through real browser sessions on the provider's web UI. Requires a valid login session (free or paid tier). Uses persistent Chromium profiles — sessions survive gateway restarts.
+
+**Grok** (grok.com — SuperGrok subscription):
+
+| Model | Notes |
+|---|---|
+| `web-grok/grok-3` | Full model |
+| `web-grok/grok-3-fast` | Faster variant |
+| `web-grok/grok-3-mini` | Lightweight |
+| `web-grok/grok-3-mini-fast` | Fastest |
+
+| Command | What it does |
+|---|---|
+| `/grok-login` | Authenticate via X.com OAuth, save session to `~/.openclaw/grok-profile/` |
+| `/grok-status` | Show session validity + cookie expiry |
+| `/grok-logout` | Clear session |
+
+**Gemini** (gemini.google.com):
+
+| Model | Notes |
+|---|---|
+| `web-gemini/gemini-2-5-pro` | Gemini 2.5 Pro |
+| `web-gemini/gemini-2-5-flash` | Gemini 2.5 Flash |
+| `web-gemini/gemini-3-pro` | Gemini 3 Pro |
+| `web-gemini/gemini-3-flash` | Gemini 3 Flash |
+
+| Command | What it does |
+|---|---|
+| `/gemini-login` | Authenticate, save cookies to `~/.openclaw/gemini-profile/` |
+| `/gemini-status` | Show session validity + cookie expiry |
+| `/gemini-logout` | Clear session |
+
+**Claude.ai** (claude.ai — Pro/Team subscription):
+
+| Model | Notes |
+|---|---|
+| `web-claude/claude-sonnet` | Claude Sonnet (web) |
+| `web-claude/claude-opus` | Claude Opus (web) |
+| `web-claude/claude-haiku` | Claude Haiku (web) |
+
+| Command | What it does |
+|---|---|
+| `/claude-login` | Authenticate, save cookies to `~/.openclaw/claude-profile/` |
+| `/claude-status` | Show session validity + cookie expiry |
+| `/claude-logout` | Clear session |
+
+**ChatGPT** (chatgpt.com — Plus/Pro subscription):
+
+| Model | Notes |
+|---|---|
+| `web-chatgpt/gpt-4o` | GPT-4o |
+| `web-chatgpt/gpt-4o-mini` | GPT-4o Mini |
+| `web-chatgpt/gpt-o3` | GPT o3 |
+| `web-chatgpt/gpt-o4-mini` | GPT o4-mini |
+| `web-chatgpt/gpt-5` | GPT-5 |
+
+| Command | What it does |
+|---|---|
+| `/chatgpt-login` | Authenticate, save cookies to `~/.openclaw/chatgpt-profile/` |
+| `/chatgpt-status` | Show session validity + cookie expiry |
+| `/chatgpt-logout` | Clear session |
+
+**Session lifecycle:**
+- First use: run `/xxx-login` once — authenticates and saves cookies to persistent Chromium profile
+- **No CDP required:** `/xxx-login` no longer depends on the OpenClaw browser (CDP port 18800). If CDP is available, cookies are imported from it; otherwise a standalone persistent Chromium is launched automatically.
+- If headless login fails, a **headed browser** opens for manual login (5 min timeout)
+- After gateway restart: sessions are **automatically restored** from saved profiles on startup (sequential, ~25s after start)
+- `/bridge-status` — shows all 4 providers at a glance with login state + expiry info
 
 ---
 
@@ -280,12 +353,137 @@ Slash commands (requireAuth=false, gateway commands.allowFrom is the auth layer)
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm test            # vitest run (45 tests)
+npm test            # vitest run (83 tests)
 ```
 
 ---
 
 ## Changelog
+
+### v1.6.2
+- **docs:** Add missing changelog entries (v1.5.1, v1.6.0, v1.6.1), fix /cli-codex54 command name in SKILL.md, add startup re-login alert description to SKILL.md.
+
+### v1.6.1
+- **feat:** WhatsApp re-login alerts on startup. After each gateway restart, the session restore loop collects any providers that failed to restore (cookies expired) and sends a single batched WhatsApp notification with the exact `/xxx-login` commands needed. No credential storage — remains fully 2FA-safe.
+
+### v1.6.0
+- **feat:** Persistent Chromium profiles for all 4 web providers (Grok, Gemini, Claude.ai, ChatGPT). Browser sessions now survive gateway restarts — cookies are stored in `~/.openclaw/{grok,gemini,claude,chatgpt}-profile/` and restored automatically on startup.
+- **feat:** Re-added `/claude-login`, `/claude-status`, `/claude-logout`, `/chatgpt-login`, `/chatgpt-status`, `/chatgpt-logout` commands with full persistent profile support.
+- **feat:** `/bridge-status` now shows all 4 providers with session state and cookie expiry at a glance.
+- **fix:** Startup restore guard (`_startupRestoreDone`) prevents duplicate browser launches on hot-reloads (SIGUSR1).
+
+### v1.5.1
+- **fix:** Hardcoded plugin version `1.3.1` in plugin object updated to `1.5.1`.
+- **docs:** Added `CONTRIBUTING.md` with release checklist and smoketest workflow.
+
+### v1.5.0
+- **refactor:** Removed `/claude-login`, `/claude-logout`, `/claude-status`, `/chatgpt-login`, `/chatgpt-logout`, `/chatgpt-status` commands and all related browser automation code. Claude is fully covered by `cli-claude/*` via CLI proxy, ChatGPT by `openai-codex` + `copilot-proxy`.
+- **refactor:** Removed `web-claude/*` and `web-chatgpt/*` proxy routes and model entries from proxy server.
+- **refactor:** Removed `getOrLaunchClaudeContext()` and `getOrLaunchChatGPTContext()` functions, claude/chatgpt session state, cookie expiry tracking, and startup restore for these providers.
+- **cleanup:** Deleted `test/claude-proxy.test.ts` and `test/chatgpt-proxy.test.ts`.
+- **result:** Cleaner codebase, no browser timeout on startup for unused providers. Only Grok and Gemini browser providers remain.
+
+### v1.4.3
+- **fix:** Full stealth mode for all browser launches - `ignoreDefaultArgs: ['--enable-automation']` removes Playwright's automation flag, `--disable-blink-features=AutomationControlled` hides `navigator.webdriver`, and `--disable-infobars` suppresses the "Chrome is being controlled by automated software" banner. Combined with `channel: "chrome"` (v1.4.2), this bypasses Cloudflare human verification completely.
+- **root cause:** Even with system Chrome (`channel: "chrome"`), Playwright injects `--enable-automation` by default, which sets `navigator.webdriver = true` and shows the automation infobar. Cloudflare checks both signals.
+
+### v1.4.2
+- **fix:** All browser launches now use `channel: "chrome"` (real system Chrome) instead of Playwright's bundled Chromium. Cloudflare human verification no longer blocks `/xxx-login` commands.
+- **root cause:** Playwright's bundled Chromium is fingerprinted by Cloudflare as an automation browser, triggering CAPTCHA challenges that cannot be completed. System Chrome is not flagged.
+
+### v1.4.1
+- **fix:** `/claude-login`, `/gemini-login`, `/chatgpt-login` now fall back to a **headed** (visible) Chromium browser when headless login fails (no saved cookies in profile). The user can log in manually in the opened browser window (5 min timeout). After login, cookies are saved to the persistent profile for future headless use.
+- **fix:** Added missing `claude-opus-4-6` and `claude-haiku-4-5` entries to the Claude browser MODEL_MAP
+- **root cause:** Headless Chromium without saved cookies sees a login page, not the editor - the user cannot interact with a headless browser to log in
+
+### v1.4.0
+- **feat:** Persistent browser fallback for all providers - `/claude-login`, `/gemini-login`, `/chatgpt-login` no longer require the OpenClaw browser (CDP port 18800). If CDP is available, cookies are imported; otherwise a standalone persistent headless Chromium is launched automatically from the saved profile directory.
+- **feat:** New helper functions `getOrLaunchClaudeContext()`, `getOrLaunchGeminiContext()`, `getOrLaunchChatGPTContext()` - same pattern as the existing `getOrLaunchGrokContext()` (try CDP, fall back to persistent Chromium, coalesce concurrent launches)
+- **fix:** Proxy server `connectXxxContext` callbacks now use the persistent fallback too - no more "not logged in" errors when CDP is unavailable but a saved profile exists
+- **fix:** `cleanupBrowsers()` now properly closes Claude, Gemini, and ChatGPT persistent contexts on plugin teardown (previously only cleaned up Grok + CDP)
+- **root cause:** All 3 login commands (Claude, Gemini, ChatGPT) called `connectToOpenClawBrowser()` directly, which only tries CDP on 127.0.0.1:18800. If Chrome was not running with `--remote-debugging-port=18800`, login always failed. Grok already had the fallback pattern since v0.2.27 - now all 4 providers are consistent.
+
+### v1.3.5
+- **fix:** Startup session restore now runs only once per process lifetime — `_startupRestoreDone` module-level guard prevents re-running on every hot-reload (SIGUSR1), which was triggered every ~60s by the openclaw-control-ui dashboard poll
+- **root cause:** Gateway `reload.mode=hybrid` + dashboard status polling caused plugin to reinitialize every 60s → each reload spawned a new Gemini Chromium instance → RAM/CPU OOM loop
+- **behavior:** First load after gateway start: sequential profile restore runs once. All subsequent hot-reloads: skip restore, reuse existing in-memory contexts
+
+### v1.3.4
+- **feat:** Safe sequential session restore on startup — if a saved profile exists, providers are reconnected automatically after gateway restart (one at a time, 3s delay between each, headless)
+- **fix:** No manual `/xxx-login` needed after reboot if profile is already saved
+- **safety:** Profile-gated — only restores if `~/.openclaw/<provider>-profile/` or cookie file exists; never spawns a browser for an uninitialized provider
+
+### v1.3.3
+- **fix:** Removed auto-connect of all browser providers on plugin startup — caused OOM (load 195, 30GB RAM) by spawning 4+ persistent Chromium instances on every gateway start
+- **fix:** Removed Grok session restore on startup — same root cause
+- **behavior change:** Browsers are now started **on-demand only** via `/grok-login`, `/claude-login`, `/gemini-login`, `/chatgpt-login`
+
+### v1.3.2
+- **fix:** Singleton promise guard on `ensureAllProviderContexts()` — concurrent requests no longer each spawn their own Chromium; extra callers await the existing run
+- **fix:** Removed recursive `ensureAllProviderContexts()` fallback from all `connect*Context` proxy callbacks — no more exponential browser spawn on CDP failure
+
+### v1.3.1
+- **fix:** /claude-login, /gemini-login, /chatgpt-login now bake cookies into persistent profile dirs
+- **fix:** After gateway restart, providers auto-reconnect from saved profile (no browser tabs needed)
+- **fix:** Better debug logging when persistent headless context fails (Cloudflare etc.)
+
+### v1.3.0
+- **fix:** Browser persistence after gateway restart — each provider launches its own persistent Chromium if OpenClaw browser is unavailable
+- **feat:** `ensureAllProviderContexts()` — unified startup connect for all 4 providers
+- **feat:** Lazy-connect fallback to persistent context when CDP unavailable
+
+### v1.2.0
+- **fix:** Fresh page per request — no more message accumulation across calls
+- **feat:** ChatGPT model switching via URL param (?model=gpt-4o, o3, etc.)
+- **chore:** Gemini model switching: TODO (requires UI interaction)
+
+### v1.1.0
+- **feat:** Auto-connect all providers on startup (no manual login after restart if browser is open)
+- **feat:** `/bridge-status` — all 4 providers at a glance with expiry info
+- **fix:** Removed obsolete CLI models: gpt-5.2-codex, gpt-5.3-codex-spark, gpt-5.1-codex-mini, gemini-3-flash-preview
+- **fix:** Removed duplicate cli-gemini3-flash (was same as gemini-3-flash-preview)
+- **chore:** Cleaned up CLI_MODEL_COMMANDS (8 models, down from 13)
+
+## v1.0.0 — Full Headless Browser Bridge 🚀
+
+All four major LLM providers are now available via browser automation.
+No CLI binaries required — just authenticated browser sessions.
+
+#### v1.1.0
+- **feat:** Auto-connect all providers on startup (no manual login after restart if browser is open)
+- **feat:** `/bridge-status` — all 4 providers at a glance with expiry info
+- **fix:** Removed obsolete CLI models: gpt-5.2-codex, gpt-5.3-codex-spark, gpt-5.1-codex-mini, gemini-3-flash-preview
+- **fix:** Removed duplicate cli-gemini3-flash (was same as gemini-3-flash-preview)
+- **chore:** Cleaned up CLI_MODEL_COMMANDS (8 models, down from 13)
+
+## v1.0.0
+- **feat:** `chatgpt-browser.ts` — chatgpt.com DOM-automation (`#prompt-textarea` + `[data-message-author-role]`)
+- **feat:** `web-chatgpt/*` models: gpt-4o, gpt-4o-mini, gpt-o3, gpt-o4-mini, gpt-5
+- **feat:** `/chatgpt-login`, `/chatgpt-status`, `/chatgpt-logout` + cookie-expiry tracking
+- **feat:** All 4 providers headless: Grok ✅ Claude ✅ Gemini ✅ ChatGPT ✅
+- **test:** 96/83 tests green (8 test files)
+- **fix:** Singleton CDP connection, cleanupBrowsers() on plugin stop
+
+### v0.2.30
+- **feat:** `gemini-browser.ts` — gemini.google.com DOM-automation (Quill editor + message-content polling)
+- **feat:** `web-gemini/*` models in proxy (gemini-2-5-pro, gemini-2-5-flash, gemini-3-pro, gemini-3-flash)
+- **feat:** `/gemini-login`, `/gemini-status`, `/gemini-logout` commands + cookie-expiry tracking
+- **fix:** Singleton CDP connection — no more zombie Chromium processes
+- **fix:** `cleanupBrowsers()` called on plugin stop — all browser resources released
+- **test:** 90/90 tests green (+6 gemini-proxy tests)
+
+### v0.2.29
+- **feat:** `claude-browser.ts` — claude.ai DOM-automation (ProseMirror + `[data-test-render-count]` polling)
+- **feat:** `web-claude/*` models in proxy (web-claude/claude-sonnet, claude-opus, claude-haiku)
+- **feat:** `/claude-login`, `/claude-status`, `/claude-logout` commands
+- **feat:** Claude cookie-expiry tracking (`~/.openclaw/claude-cookie-expiry.json`)
+- **test:** 84/84 tests green (+7 claude-proxy tests, +8 claude-browser unit tests)
+
+### v0.2.28
+- **feat:** `/grok-login` scans auth cookie expiry (sso cookie) and saves to `~/.openclaw/grok-cookie-expiry.json`
+- **feat:** `/grok-status` shows cookie expiry with color-coded warnings (🚨 <7d, ⚠️ <14d, ✅ otherwise)
+- **feat:** Startup log shows cookie expiry and refreshes the expiry file on session restore
+- **fix:** Flaky cli-runner test improved (was pre-existing)
 
 ### v0.2.27
 - **feat:** Grok persistent Chromium profile (`~/.openclaw/grok-profile/`) — cookies survive gateway restarts
