@@ -1,0 +1,11 @@
+{
+  "owner": "wingchiu",
+  "slug": "openai-whisper-local",
+  "displayName": "OpenAI Whisper Local",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773160729275,
+    "commit": null
+  },
+  "history": []
+}
