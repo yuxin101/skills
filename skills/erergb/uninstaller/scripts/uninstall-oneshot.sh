@@ -3,37 +3,38 @@
 # Usage: uninstall-oneshot.sh [OPTIONS]
 #   --notify-email EMAIL   Send email when done
 #   --notify-ntfy TOPIC    Send ntfy notification when done
-#   --preserve LIST        Backup before delete: skills,logs,preferences,credentials or "all"
-#   --no-backup            Skip backup (default: backup with "all" unless --no-backup)
+#   --notify-im TARGET     Push backup info to IM before uninstall (channel:target, e.g. discord:user:123456). Repeat for multiple.
+#   --no-backup            Skip backup (default: openclaw backup create unless --no-backup)
+#   --preserve-state       Keep ~/.openclaw for reinstall inheritance (skips backup and deletion)
 #   --all-profiles         Also remove ~/.openclaw-* profile dirs (default: only STATE_DIR)
+#   --dry-run              Validate only, no destructive ops (for E2E tests)
 
 set -e
 
 LOG_FILE="/tmp/openclaw-uninstall.log"
 NOTIFY_EMAIL=""
 NOTIFY_NTFY=""
-PRESERVE=""
+declare -a NOTIFY_IM=()
 NO_BACKUP=false
+PRESERVE_STATE=false
 ALL_PROFILES=false
+DRY_RUN=false
 declare -a ERRORS=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --notify-email)  NOTIFY_EMAIL="$2"; shift 2 ;;
     --notify-ntfy)   NOTIFY_NTFY="$2"; shift 2 ;;
-    --preserve)      PRESERVE="$2"; shift 2 ;;
+    --notify-im)     NOTIFY_IM+=("$2"); shift 2 ;;
     --no-backup)     NO_BACKUP=true; shift ;;
+    --preserve-state) PRESERVE_STATE=true; shift ;;
     --all-profiles)  ALL_PROFILES=true; shift ;;
+    --dry-run)       DRY_RUN=true; shift ;;
     *) shift ;;
   esac
 done
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
-
-# Default: backup all unless --no-backup
-if [[ "$NO_BACKUP" != "true" ]] && [[ -z "$PRESERVE" ]]; then
-  PRESERVE="all"
-fi
 
 log "=== OpenClaw uninstall started ==="
 
@@ -66,34 +67,66 @@ if ! validate_state_dir "$STATE_DIR_CANON"; then
   exit 1
 fi
 
-# 0. Backup selected data before removing (unless --no-backup)
-if [[ -n "$PRESERVE" ]] && [[ "$NO_BACKUP" != "true" ]] && [[ -d "$STATE_DIR" ]]; then
+if [[ "$DRY_RUN" == "true" ]]; then
+  if [[ "$PRESERVE_STATE" == "true" ]]; then
+    log "DRY_RUN: Would preserve STATE_DIR=$STATE_DIR (validation passed)"
+  else
+    log "DRY_RUN: Would remove STATE_DIR=$STATE_DIR (validation passed)"
+  fi
+  exit 0
+fi
+
+# 0. Backup via openclaw backup create (unless --no-backup or --preserve-state)
+BACKUP_ARCHIVE=""
+if [[ "$PRESERVE_STATE" != "true" ]] && [[ "$NO_BACKUP" != "true" ]] && [[ -d "$STATE_DIR" ]]; then
   BACKUP_DIR="$HOME/.openclaw-backup-$(date '+%Y%m%d-%H%M%S')"
   mkdir -p "$BACKUP_DIR" || { log "ERROR: Failed to create backup dir"; ERRORS+=("backup-dir"); }
   if [[ ${#ERRORS[@]} -eq 0 ]]; then
-    log "Backing up to $BACKUP_DIR"
-
-    preserve_all=false
-    [[ "$PRESERVE" == "all" ]] && preserve_all=true
-
-    preserve_item() { [[ "$preserve_all" == "true" ]] || [[ ",$PRESERVE," == *",$1,"* ]]; }
-
-    preserve_item "skills" && [[ -d "$STATE_DIR/skills" ]] && { cp -r "$STATE_DIR/skills" "$BACKUP_DIR/" 2>/dev/null && log "Preserved: skills" || log "Preserve skills failed"; }
-    preserve_item "logs" && [[ -d "$STATE_DIR/sessions" ]] && { cp -r "$STATE_DIR/sessions" "$BACKUP_DIR/" 2>/dev/null && log "Preserved: sessions" || log "Preserve sessions failed"; }
-    preserve_item "preferences" && [[ -f "$STATE_DIR/openclaw.json" ]] && { cp "$STATE_DIR/openclaw.json" "$BACKUP_DIR/" 2>/dev/null && log "Preserved: openclaw.json" || log "Preserve preferences failed"; }
-    if preserve_item "credentials"; then
-      [[ -d "$STATE_DIR/credentials" ]] && { cp -r "$STATE_DIR/credentials" "$BACKUP_DIR/" 2>/dev/null && log "Preserved: credentials" || log "Preserve credentials failed"; }
-      if [[ -d "$STATE_DIR/agents" ]]; then
-        for agent_dir in "$STATE_DIR/agents"/*/agent; do
-          [[ -d "$agent_dir" ]] && [[ -f "$agent_dir/auth.json" ]] || continue
-          agent_name=$(basename "$(dirname "$agent_dir")")
-          mkdir -p "$BACKUP_DIR/agents/$agent_name/agent"
-          cp "$agent_dir/auth.json" "$BACKUP_DIR/agents/$agent_name/agent/" 2>/dev/null && log "Preserved: agents/$agent_name/agent/auth.json" || true
-        done
+    if command -v openclaw &>/dev/null; then
+      log "Creating backup via openclaw backup create..."
+      if openclaw backup create --output "$BACKUP_DIR" --no-include-workspace 2>/dev/null; then
+        BACKUP_ARCHIVE=$(ls -t "$BACKUP_DIR"/*.tar.gz 2>/dev/null | head -1)
+        [[ -n "$BACKUP_ARCHIVE" ]] && log "Backup complete: $BACKUP_ARCHIVE" || log "Backup created but archive path not found"
+      else
+        log "openclaw backup create failed; falling back to manual copy"
+        cp -r "$STATE_DIR/skills" "$BACKUP_DIR/" 2>/dev/null || true
+        cp -r "$STATE_DIR/sessions" "$BACKUP_DIR/" 2>/dev/null || true
+        [[ -f "$STATE_DIR/openclaw.json" ]] && cp "$STATE_DIR/openclaw.json" "$BACKUP_DIR/" 2>/dev/null || true
+        [[ -d "$STATE_DIR/credentials" ]] && cp -r "$STATE_DIR/credentials" "$BACKUP_DIR/" 2>/dev/null || true
+        log "Backup complete (manual): $BACKUP_DIR"
       fi
+    else
+      log "openclaw not found; manual backup only"
+      cp -r "$STATE_DIR/skills" "$BACKUP_DIR/" 2>/dev/null || true
+      cp -r "$STATE_DIR/sessions" "$BACKUP_DIR/" 2>/dev/null || true
+      [[ -f "$STATE_DIR/openclaw.json" ]] && cp "$STATE_DIR/openclaw.json" "$BACKUP_DIR/" 2>/dev/null || true
+      [[ -d "$STATE_DIR/credentials" ]] && cp -r "$STATE_DIR/credentials" "$BACKUP_DIR/" 2>/dev/null || true
+      log "Backup complete (manual): $BACKUP_DIR"
     fi
-    log "Backup complete: $BACKUP_DIR"
   fi
+fi
+
+# 0b. Push backup info to IM channels (before stopping gateway; requires gateway running)
+if [[ ${#NOTIFY_IM[@]} -gt 0 ]] && command -v openclaw &>/dev/null; then
+  if [[ "$PRESERVE_STATE" == "true" ]]; then
+    BACKUP_MSG="OpenClaw uninstall: state preserved at $STATE_DIR (--preserve-state)"
+  elif [[ -n "$BACKUP_ARCHIVE" ]] || [[ -n "$BACKUP_DIR" ]]; then
+    BACKUP_MSG="OpenClaw uninstall backup: ${BACKUP_ARCHIVE:-$BACKUP_DIR}"
+  else
+    BACKUP_MSG="OpenClaw uninstall: no backup (--no-backup or backup failed)"
+  fi
+  for target in "${NOTIFY_IM[@]}"; do
+    [[ -z "$target" ]] && continue
+    channel="${target%%:*}"
+    rest="${target#*:}"
+    [[ "$channel" == "$target" ]] && continue
+    log "Pushing backup info to $target..."
+    if openclaw message send --channel "$channel" --target "$rest" --message "$BACKUP_MSG" 2>/dev/null; then
+      log "Notified IM: $target"
+    else
+      log "WARNING: Failed to notify IM $target (gateway may be stopped)"
+    fi
+  done
 fi
 
 # 1. Stop gateway (if CLI available)
@@ -120,8 +153,12 @@ case "$(uname -s)" in
     ;;
 esac
 
-# 3. Delete state dir (validated above)
-if [[ -d "$STATE_DIR" ]]; then
+# 3. Delete state dir (validated above; skip when --preserve-state)
+if [[ "$PRESERVE_STATE" == "true" ]]; then
+  if [[ -d "$STATE_DIR" ]]; then
+    log "State preserved at $STATE_DIR for reinstall inheritance"
+  fi
+elif [[ -d "$STATE_DIR" ]]; then
   log "Removing state dir: $STATE_DIR"
   rm -rf "$STATE_DIR" || { log "ERROR: Failed to remove $STATE_DIR"; ERRORS+=("state-dir"); }
 fi

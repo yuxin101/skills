@@ -36,7 +36,7 @@ cd openclaw-uninstall
 ```
 
 - **Verify residue**: `./scripts/verify-clean.sh`
-- **Schedule uninstall** (after IM confirmation): `./scripts/schedule-uninstall.sh [--notify-email EMAIL] [--notify-ntfy TOPIC]`
+- **Schedule uninstall** (after IM confirmation): `./scripts/schedule-uninstall.sh [--notify-email EMAIL] [--notify-ntfy TOPIC] [--notify-im CHANNEL:TARGET ...]`
 - **Manual uninstall**: `./scripts/uninstall-oneshot.sh` or see [Uninstall docs](https://docs.openclaw.ai/install/uninstall)
 
 ## CD

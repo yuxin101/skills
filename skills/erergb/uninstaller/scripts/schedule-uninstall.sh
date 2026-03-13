@@ -4,9 +4,11 @@
 # Usage: schedule-uninstall.sh [OPTIONS]
 #   --notify-email EMAIL   Send email when done
 #   --notify-ntfy TOPIC    Send ntfy notification when done
-#   --preserve LIST        Backup: skills,logs,preferences,credentials or "all"
+#   --notify-im TARGET     Push backup info to IM before uninstall (channel:target). Repeat for multiple.
 #   --no-backup            Skip backup
+#   --preserve-state       Keep ~/.openclaw for reinstall inheritance
 #   --all-profiles         Also remove ~/.openclaw-* profile dirs
+#   --dry-run              Print CMD and exit (for E2E tests)
 # Requires: host=gateway (must run on host, not in sandbox)
 
 set -e
@@ -18,16 +20,20 @@ DELAY=15
 
 NOTIFY_EMAIL=""
 NOTIFY_NTFY=""
-PRESERVE=""
+declare -a NOTIFY_IM=()
 NO_BACKUP=false
+PRESERVE_STATE=false
 ALL_PROFILES=false
+DRY_RUN=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --notify-email)  NOTIFY_EMAIL="$2"; shift 2 ;;
-    --notify-ntfy)   NOTIFY_NTFY="$2"; shift 2 ;;
-    --preserve)      PRESERVE="$2"; shift 2 ;;
-    --no-backup)     NO_BACKUP=true; shift ;;
-    --all-profiles)  ALL_PROFILES=true; shift ;;
+    --notify-email)   NOTIFY_EMAIL="$2"; shift 2 ;;
+    --notify-ntfy)    NOTIFY_NTFY="$2"; shift 2 ;;
+    --notify-im)      NOTIFY_IM+=("$2"); shift 2 ;;
+    --no-backup)      NO_BACKUP=true; shift ;;
+    --preserve-state) PRESERVE_STATE=true; shift ;;
+    --all-profiles)   ALL_PROFILES=true; shift ;;
+    --dry-run)        DRY_RUN=true; shift ;;
     *) shift ;;
   esac
 done
@@ -35,9 +41,20 @@ done
 EXTRA_ARGS=()
 [[ -n "$NOTIFY_EMAIL" ]] && EXTRA_ARGS+=(--notify-email "$NOTIFY_EMAIL")
 [[ -n "$NOTIFY_NTFY" ]] && EXTRA_ARGS+=(--notify-ntfy "$NOTIFY_NTFY")
-[[ -n "$PRESERVE" ]] && EXTRA_ARGS+=(--preserve "$PRESERVE")
+for t in "${NOTIFY_IM[@]}"; do [[ -n "$t" ]] && EXTRA_ARGS+=(--notify-im "$t"); done
 [[ "$NO_BACKUP" == "true" ]] && EXTRA_ARGS+=(--no-backup)
+[[ "$PRESERVE_STATE" == "true" ]] && EXTRA_ARGS+=(--preserve-state)
 [[ "$ALL_PROFILES" == "true" ]] && EXTRA_ARGS+=(--all-profiles)
+
+# Dry-run: print CMD and exit (for E2E tests)
+if [[ "$DRY_RUN" == "true" ]]; then
+  ARG_STR=""
+  for a in "${EXTRA_ARGS[@]}"; do
+    ARG_STR="$ARG_STR '$a'"
+  done
+  echo "DRY_RUN_CMD: sleep $DELAY && '$UNINSTALL_SCRIPT' $ARG_STR"
+  exit 0
+fi
 
 # Sandbox detection: if running in Docker, one-shot would be created inside container
 # and lost when gateway stops. Must run on host (host=gateway).
