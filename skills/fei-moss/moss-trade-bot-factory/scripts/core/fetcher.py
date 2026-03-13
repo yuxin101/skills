@@ -1,8 +1,8 @@
 """
 数据采集模块
 
-通过ccxt从交易所下载历史K线数据。
-默认使用Binance，缓存到本地避免重复下载。
+严格限制：仅从 Binance 期货 (binanceusdm) 拉取K线数据。
+通过 ccxt 下载 USDT 本位永续合约 OHLCV，缓存到本地。
 """
 
 import os
@@ -13,6 +13,9 @@ from typing import Optional
 
 import pandas as pd
 
+# 固定：只允许 Binance USDT-M 期货
+EXCHANGE_ID = "binanceusdm"
+
 try:
     import ccxt
 except ImportError:
@@ -22,36 +25,51 @@ except ImportError:
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data_cache")
 
 
-def get_exchange(exchange_id: str = "binance"):
+def get_ohlcv_cache_path(symbol: str, timeframe: str, days: int, since_date: str = None) -> str:
+    """Return the cache file path used by fetch_ohlcv (same logic for consistency)."""
+    if "/" in symbol and ":USDT" not in symbol:
+        symbol = f"{symbol}:USDT"
+    if since_date:
+        cache_tag = f"{since_date}_{days}d"
+    else:
+        cache_tag = f"{days}d"
+    return os.path.join(DATA_DIR, f"{EXCHANGE_ID}_{symbol.replace('/', '_')}_{timeframe}_{cache_tag}.csv")
+
+
+def get_exchange():
     if ccxt is None:
         raise ImportError("ccxt is required for live data fetching. Install: pip install ccxt")
-    exchange_class = getattr(ccxt, exchange_id)
-    return exchange_class({"enableRateLimit": True})
+    return getattr(ccxt, EXCHANGE_ID)({"enableRateLimit": True})
 
 
 def fetch_ohlcv(
     symbol: str = "BTC/USDT",
     timeframe: str = "1h",
     days: int = 120,
-    exchange_id: str = "binance",
+    exchange_id: str = None,  # 忽略，固定使用 binanceusdm
     use_cache: bool = True,
     since_date: str = None,
 ) -> pd.DataFrame:
     """
-    下载OHLCV数据。
+    下载 Binance 期货 K线数据。
 
     Args:
-        symbol: 交易对
+        symbol: 交易对 (如 BTC/USDT)
         timeframe: K线周期
         days: 下载天数（默认120天≈4个月）
-        exchange_id: 交易所
+        exchange_id: 已废弃，固定使用 binanceusdm
         use_cache: 是否使用本地缓存
         since_date: 起始日期（如 "2024-01-01"），设置后忽略days参数从today倒推
 
     Returns:
         DataFrame with columns: timestamp, open, high, low, close, volume
     """
+    del exchange_id  # 严格限制：仅 Binance 期货
     os.makedirs(DATA_DIR, exist_ok=True)
+
+    # Binance USDT-M 期货需使用 BTC/USDT:USDT 格式
+    if "/" in symbol and ":USDT" not in symbol:
+        symbol = f"{symbol}:USDT"
 
     if since_date:
         cache_tag = f"{since_date}_{days}d"
@@ -60,7 +78,7 @@ def fetch_ohlcv(
 
     cache_file = os.path.join(
         DATA_DIR,
-        f"{exchange_id}_{symbol.replace('/', '_')}_{timeframe}_{cache_tag}.csv"
+        f"{EXCHANGE_ID}_{symbol.replace('/', '_')}_{timeframe}_{cache_tag}.csv"
     )
 
     if use_cache and os.path.exists(cache_file):
@@ -72,7 +90,7 @@ def fetch_ohlcv(
     if not since_date:
         if use_cache:
             import glob
-            prefix = f"{exchange_id}_{symbol.replace('/', '_')}_{timeframe}_"
+            prefix = f"{EXCHANGE_ID}_{symbol.replace('/', '_')}_{timeframe}_"
             pattern = os.path.join(DATA_DIR, f"{prefix}{days}d.csv")
             matches = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)
             if matches:
@@ -80,7 +98,7 @@ def fetch_ohlcv(
                 print(f"Using cached file: {os.path.basename(best)}", file=__import__('sys').stderr)
                 return pd.read_csv(best, parse_dates=["timestamp"])
 
-    exchange = get_exchange(exchange_id)
+    exchange = get_exchange()
 
     if since_date:
         start_dt = datetime.fromisoformat(since_date).replace(tzinfo=timezone.utc)
@@ -141,10 +159,9 @@ def fetch_multi_symbol(
     symbols: list[str] = None,
     timeframe: str = "1h",
     days: int = 120,
-    exchange_id: str = "binance",
 ) -> dict[str, pd.DataFrame]:
     """
-    批量下载多个交易对数据。
+    批量下载多个交易对数据（仅 Binance 期货）。
     """
     if symbols is None:
         symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT"]
@@ -152,7 +169,7 @@ def fetch_multi_symbol(
     result = {}
     for symbol in symbols:
         try:
-            result[symbol] = fetch_ohlcv(symbol, timeframe, days, exchange_id)
+            result[symbol] = fetch_ohlcv(symbol, timeframe, days)
         except Exception as e:
             print(f"Failed to fetch {symbol}: {e}")
 
@@ -171,10 +188,9 @@ def fetch_multi_timeframe(
     symbol: str = "BTC/USDT",
     timeframes: list[str] = None,
     days: int = 120,
-    exchange_id: str = "binance",
 ) -> dict[str, pd.DataFrame]:
     """
-    下载同一交易对的多个时间周期数据。
+    下载同一交易对的多个时间周期数据（仅 Binance 期货）。
     """
     if timeframes is None:
         timeframes = ["5m", "15m", "1h", "4h", "1d"]
@@ -182,7 +198,7 @@ def fetch_multi_timeframe(
     result = {}
     for tf in timeframes:
         try:
-            result[tf] = fetch_ohlcv(symbol, tf, days, exchange_id)
+            result[tf] = fetch_ohlcv(symbol, tf, days)
         except Exception as e:
             print(f"Failed to fetch {symbol} {tf}: {e}")
 
@@ -199,13 +215,11 @@ if __name__ == "__main__":
                         help="K线周期 (默认: 1h)")
     parser.add_argument("--days", type=int, default=148,
                         help="下载天数 (默认: 148，约2025-10-01至今)")
-    parser.add_argument("--exchange", default="binance",
-                        help="交易所 (默认: binance)")
     parser.add_argument("--no-cache", action="store_true",
                         help="忽略缓存强制重新下载")
     args = parser.parse_args()
 
     for symbol in args.symbols:
         df = fetch_ohlcv(symbol, args.timeframe, args.days,
-                         args.exchange, use_cache=not args.no_cache)
+                         use_cache=not args.no_cache)
         summarize_dataframe(df, symbol)

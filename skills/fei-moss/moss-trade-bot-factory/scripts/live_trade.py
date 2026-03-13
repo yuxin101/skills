@@ -26,9 +26,9 @@ Usage:
     # Trade history:
     python live_trade.py trades --key ak_xxx --secret as_xxx
 
-    # Save/load credentials:
-    python live_trade.py bind ... --save /tmp/agent_creds.json
-    python live_trade.py status --creds /tmp/agent_creds.json
+    # Save/load credentials (use local persistent path, not /tmp):
+    python live_trade.py bind ... --save ~/.moss-trade-bot/agent_creds.json
+    python live_trade.py status --creds ~/.moss-trade-bot/agent_creds.json
 """
 
 import argparse
@@ -41,18 +41,21 @@ from trading_client import TradingClient
 
 
 def load_client(args) -> TradingClient:
+    base_url = os.environ.get("TRADE_API_URL", "")
     if hasattr(args, "creds") and args.creds:
         with open(args.creds) as f:
             creds = json.load(f)
         return TradingClient(
             api_key=creds["api_key"],
             api_secret=creds["api_secret"],
-            agent_id=creds.get("agent_id", ""),
+            base_url=creds.get("base_url") or base_url,
+            bot_id=creds.get("bot_id", ""),
         )
     return TradingClient(
         api_key=getattr(args, "key", ""),
         api_secret=getattr(args, "secret", ""),
-        agent_id=getattr(args, "agent_id", ""),
+        base_url=base_url,
+        bot_id=getattr(args, "bot_id", ""),
     )
 
 
@@ -68,9 +71,42 @@ def cmd_bind(args):
     print(json.dumps(result, indent=2))
 
     if "api_secret" in result and args.save:
+        to_save = {
+            "binding_id": result.get("binding_id", ""),
+            "api_key": result["api_key"],
+            "api_secret": result["api_secret"],
+        }
         with open(args.save, "w") as f:
-            json.dump(result, f, indent=2)
-        print(f"\nCredentials saved to {args.save}", file=sys.stderr)
+            json.dump(to_save, f, indent=2)
+        print(f"\nCredentials saved to {args.save} (bind only; create realtime bot with create-bot)", file=sys.stderr)
+
+
+def cmd_create_bot(args):
+    """Create a realtime bot under current binding; write bot_id into creds."""
+    with open(args.creds) as f:
+        creds = json.load(f)
+    with open(args.params_file) as f:
+        strategy_params = json.load(f)
+    client = TradingClient(
+        api_key=creds["api_key"],
+        api_secret=creds["api_secret"],
+        bot_id=creds.get("bot_id", ""),
+    )
+    result = client.create_realtime_bot(
+        display_name=args.name,
+        persona=args.persona or args.name,
+        description=args.description or f"{args.name} trading bot",
+        strategy_params=strategy_params,
+    )
+    print(json.dumps(result, indent=2))
+    bot_id = result.get("bot_id") or result.get("id")
+    if not bot_id:
+        print("No bot_id in response; check API response shape.", file=sys.stderr)
+        sys.exit(1)
+    creds["bot_id"] = bot_id
+    with open(args.creds, "w") as f:
+        json.dump(creds, f, indent=2)
+    print(f"\nbot_id saved to {args.creds}", file=sys.stderr)
 
 
 def cmd_status(args):
@@ -133,11 +169,18 @@ def main():
     p.add_argument("--fingerprint", default="")
     p.add_argument("--save", default="", help="Save credentials to JSON file")
 
+    # create-bot
+    p = sub.add_parser("create-bot", help="Create realtime bot (after bind); writes bot_id to creds")
+    p.add_argument("--creds", required=True, help="Credentials JSON from bind")
+    p.add_argument("--name", required=True, help="Bot display name")
+    p.add_argument("--persona", default="", help="Bot persona")
+    p.add_argument("--description", default="", help="Bot description")
+    p.add_argument("--params-file", required=True, help="Strategy params JSON (e.g. params.json)")
+
     # status
     p = sub.add_parser("status", help="Account + positions + price")
     p.add_argument("--key", default="")
     p.add_argument("--secret", default="")
-    p.add_argument("--agent-id", default="")
     p.add_argument("--creds", default="", help="Load from credentials JSON")
 
     # price
@@ -150,7 +193,6 @@ def main():
     p = sub.add_parser("open-long", help="Open long position")
     p.add_argument("--key", default="")
     p.add_argument("--secret", default="")
-    p.add_argument("--agent-id", default="")
     p.add_argument("--creds", default="")
     p.add_argument("--amount", required=True, help="Notional USDT")
     p.add_argument("--leverage", type=int, required=True)
@@ -160,7 +202,6 @@ def main():
     p = sub.add_parser("open-short", help="Open short position")
     p.add_argument("--key", default="")
     p.add_argument("--secret", default="")
-    p.add_argument("--agent-id", default="")
     p.add_argument("--creds", default="")
     p.add_argument("--amount", required=True, help="Notional USDT")
     p.add_argument("--leverage", type=int, required=True)
@@ -170,7 +211,6 @@ def main():
     p = sub.add_parser("close", help="Close position")
     p.add_argument("--key", default="")
     p.add_argument("--secret", default="")
-    p.add_argument("--agent-id", default="")
     p.add_argument("--creds", default="")
     p.add_argument("--side", required=True, choices=["LONG", "SHORT"])
     p.add_argument("--qty", default="", help="BTC qty, empty=close all")
@@ -195,7 +235,8 @@ def main():
         sys.exit(1)
 
     cmds = {
-        "bind": cmd_bind, "status": cmd_status, "price": cmd_price,
+        "bind": cmd_bind, "create-bot": cmd_create_bot,
+        "status": cmd_status, "price": cmd_price,
         "open-long": cmd_open_long, "open-short": cmd_open_short,
         "close": cmd_close, "orders": cmd_orders, "trades": cmd_trades,
     }

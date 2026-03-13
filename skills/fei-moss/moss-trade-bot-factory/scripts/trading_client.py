@@ -10,16 +10,28 @@ import urllib.request
 import urllib.parse
 
 
-BASE_URL = os.environ.get("TRADE_API_URL", "http://54.255.3.5:8088")
+BASE_URL = os.environ.get("TRADE_API_URL", "")
 API_PREFIX = "/api/v1/moss/agent"
+
+# 多 realtime bot 时以下接口需带 X-BOT-ID；单 bot 可省略
+ACCOUNT_BOUND_PATHS = (
+    "/account", "/positions", "/orders", "/trades", "/profile",
+    "/orders/market", "/positions/close",
+)
 
 
 class TradingClient:
-    def __init__(self, api_key: str = "", api_secret: str = "", agent_id: str = ""):
+    def __init__(self, api_key: str = "", api_secret: str = "",
+                 base_url: str = "", bot_id: str = ""):
         self.api_key = api_key
         self.api_secret = api_secret
-        self.agent_id = agent_id
-        self.base_url = BASE_URL
+        self.bot_id = bot_id
+        self.base_url = base_url or BASE_URL
+        if not self.base_url:
+            raise ValueError(
+                "TRADE_API_URL not set. Set the environment variable to your platform URL "
+                "before using trading/verify features. Example: export TRADE_API_URL=https://your-platform.com"
+            )
 
     def _sign(self, method: str, path: str, query: str, body: str) -> tuple[str, str, str]:
         ts = str(int(time.time()))
@@ -55,6 +67,8 @@ class TradingClient:
             headers["X-TS"] = ts
             headers["X-NONCE"] = nonce
             headers["X-SIGNATURE"] = sig
+            if self.bot_id and path in ACCOUNT_BOUND_PATHS:
+                headers["X-BOT-ID"] = self.bot_id
 
         req = urllib.request.Request(
             url,
@@ -95,8 +109,41 @@ class TradingClient:
         }
         return self._request("POST", "/agents/bind", body, need_auth=False)
 
-    def unbind(self, agent_id: str, user_uuid: str) -> dict:
-        return self._request("POST", f"/agents/{agent_id}/unbind",
+    def create_realtime_bot(
+        self,
+        display_name: str,
+        persona: str,
+        description: str,
+        strategy_params: dict,
+        *,
+        symbol: str = "",
+        timeframe: str = "",
+        exchange: str = "",
+        lookback_bars: int = 0,
+        schedule_interval_minutes: int = 0,
+    ) -> dict:
+        """Create a realtime bot under current binding. Requires prior bind (api_key/api_secret)."""
+        body = {
+            "display_name": display_name,
+            "persona": persona,
+            "description": description,
+            "strategy": {"params": strategy_params},
+        }
+        if symbol:
+            body["symbol"] = symbol
+        if timeframe:
+            body["timeframe"] = timeframe
+        if exchange:
+            body["exchange"] = exchange
+        if lookback_bars:
+            body["lookback_bars"] = lookback_bars
+        if schedule_interval_minutes:
+            body["schedule_interval_minutes"] = schedule_interval_minutes
+        return self._request("POST", "/realtime/bots", body)
+
+    def unbind(self, bot_id: str, user_uuid: str) -> dict:
+        """Remove one realtime bot (does not revoke binding). Path id = realtime bot id."""
+        return self._request("POST", f"/agents/{bot_id}/unbind",
                              query={"user_uuid": user_uuid}, need_auth=False)
 
     # ── Profile (HMAC) ──
@@ -136,8 +183,6 @@ class TradingClient:
             "notional_usdt": notional_usdt,
             "leverage": leverage,
         }
-        if self.agent_id:
-            body["agent_id"] = self.agent_id
         if client_order_id:
             body["client_order_id"] = client_order_id
         return self._request("POST", "/orders/market", body)
@@ -150,8 +195,6 @@ class TradingClient:
             "notional_usdt": notional_usdt,
             "leverage": leverage,
         }
-        if self.agent_id:
-            body["agent_id"] = self.agent_id
         if client_order_id:
             body["client_order_id"] = client_order_id
         return self._request("POST", "/orders/market", body)
@@ -161,8 +204,6 @@ class TradingClient:
             "symbol": "BTCUSDT",
             "position_side": position_side,
         }
-        if self.agent_id:
-            body["agent_id"] = self.agent_id
         if close_qty_btc:
             body["close_qty_btc"] = close_qty_btc
         return self._request("POST", "/positions/close", body)
@@ -189,23 +230,26 @@ class TradingClient:
         return self._request("GET", "/trader/overview",
                              query={"user_uuid": user_uuid}, need_auth=False)
 
-    # ── Backtest (all under /api/v1/moss/agent/backtest/) ──
+    # ── Backtest verify (HMAC，配对绑定后即用 api_key + api_secret) ──
 
-    def verify_backtest(self, user_uuid: str, package: dict) -> dict:
-        """Submit verify job (async). Returns job_id, poll with get_verify_job()."""
-        return self._request("POST", "/backtest/verify", body=package,
-                             query={"user_uuid": user_uuid}, need_auth=False)
+    def verify_backtest(self, package: dict) -> dict:
+        """Submit verify job (async). Requires HMAC auth (api_key + api_secret from bind)."""
+        if not self.api_key or not self.api_secret:
+            return {"code": "MISSING_CREDS", "message": "api_key/api_secret required. Run bind with pair_code first, save to agent_creds.json."}
+        return self._request("POST", "/backtest/verify", body=package, need_auth=True)
 
-    def get_verify_job(self, user_uuid: str, job_id: str) -> dict:
-        """Poll verify job status. Terminal states: verified/rejected/failed."""
-        return self._request("GET", f"/backtest/jobs/{job_id}",
-                             query={"user_uuid": user_uuid}, need_auth=False)
+    def get_verify_job(self, job_id: str, user_uuid: str = None) -> dict:
+        """Poll verify job status. Requires HMAC auth. 平台当前实现仍要求 user_uuid 作为 query 参数。"""
+        if not self.api_key or not self.api_secret:
+            return {"code": "MISSING_CREDS", "message": "api_key/api_secret required."}
+        query = {"user_uuid": user_uuid} if user_uuid else None
+        return self._request("GET", f"/backtest/jobs/{job_id}", query=query, need_auth=True)
 
-    def verify_backtest_and_wait(self, user_uuid: str, package: dict,
+    def verify_backtest_and_wait(self, package: dict, user_uuid: str = None,
                                   poll_interval: int = 3, max_wait: int = 120) -> dict:
-        """Submit + poll until terminal state."""
+        """Submit + poll until terminal state. 提交用 HMAC；轮询 job 时平台需 user_uuid，若未提供会返回 INVALID_ARGUMENT。"""
         import time as _time
-        job = self.verify_backtest(user_uuid, package)
+        job = self.verify_backtest(package)
         job_id = job.get("job_id", "")
         if not job_id:
             return job
@@ -214,7 +258,9 @@ class TradingClient:
         while elapsed < max_wait:
             _time.sleep(poll_interval)
             elapsed += poll_interval
-            status = self.get_verify_job(user_uuid, job_id)
+            status = self.get_verify_job(job_id, user_uuid)
+            if status.get("code"):
+                return status
             st = status.get("status", "")
             if st in ("verified", "rejected", "failed"):
                 return status.get("result", status)

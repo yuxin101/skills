@@ -3,7 +3,7 @@
 
 Usage:
     # Run with credentials file + bot params:
-    python live_runner.py --creds /tmp/agent_creds.json --params-file bot_params.json --interval 15
+    python live_runner.py --creds ~/.moss-trade-bot/agent_creds.json --params-file bot_params.json --interval 15
 
     # With evolution (reflect every N cycles):
     python live_runner.py --creds creds.json --params-file params.json --interval 15 --evolve-every 96
@@ -99,7 +99,7 @@ def run_cycle(client: TradingClient, params: DecisionParams, timeframe: str,
 
     _log(f"Cycle #{cycle_num}: fetching data...", log_file)
     try:
-        df = fetch_ohlcv("BTC/USDT", timeframe, days=14, exchange_id="binance", use_cache=False)
+        df = fetch_ohlcv("BTC/USDT", timeframe, days=14, use_cache=False)
     except Exception as e:
         _log(f"Data fetch failed: {e}", log_file)
         return {"action": "error", "detail": str(e)}
@@ -188,7 +188,7 @@ def main():
     client = TradingClient(
         api_key=creds["api_key"],
         api_secret=creds["api_secret"],
-        agent_id=creds.get("agent_id", ""),
+        bot_id=creds.get("bot_id", ""),
     )
 
     signal.signal(signal.SIGINT, _handle_stop)
@@ -198,7 +198,7 @@ def main():
     interval_sec = args.interval * 60
 
     _log(f"Bot started: interval={args.interval}m timeframe={timeframe} leverage={params.base_leverage}x", log_file)
-    _log(f"  agent_id={creds.get('agent_id','?')} long_bias={params.long_bias}", log_file)
+    _log(f"  bot_id={creds.get('bot_id','?')} long_bias={params.long_bias}", log_file)
 
     cycle = 0
     while RUNNING:
