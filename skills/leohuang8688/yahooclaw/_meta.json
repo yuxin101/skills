@@ -1,11 +1,17 @@
 {
   "owner": "leohuang8688",
   "slug": "yahooclaw",
-  "displayName": "YahooClaw",
+  "displayName": "Yahoo Claw",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1773214384030,
-    "commit": "https://github.com/openclaw/skills/commit/e52876d6adede178c397fa25cb69f1ef78cbc844"
+    "version": "0.1.7",
+    "publishedAt": 1773293416127,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1773214384030,
+      "commit": "https://github.com/openclaw/skills/commit/e52876d6adede178c397fa25cb69f1ef78cbc844"
+    }
+  ]
 }
