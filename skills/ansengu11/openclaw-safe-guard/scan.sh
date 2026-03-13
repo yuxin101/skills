@@ -20,6 +20,75 @@ WORKSPACE_DIR="$HOME/.openclaw/workspace/skills"
 GITHUB_API="https://api.github.com"
 TEMP_DIR="/tmp/skill_audit_$$"
 
+# 安全配置
+
+# ========== 安全函数 ==========
+
+# 输入过滤：只允许字母、数字、连字符、下划线和点
+sanitize_input() {
+    local input="$1"
+    if [[ ! "$input" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+        echo -e "${RED}错误: 输入包含非法字符${NC}" >&2
+        exit 1
+    fi
+    echo "$input"
+}
+
+# GitHub 仓库名过滤：必须是 owner/repo 格式
+sanitize_github_repo() {
+    local input="$1"
+    if [[ ! "$input" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$ ]]; then
+        echo -e "${RED}错误: 无效的 GitHub 仓库格式 (需要 owner/repo)${NC}" >&2
+        return 1
+    fi
+    echo "$input"
+}
+
+# 显示来源信息
+show_source_info() {
+    echo -e "${BLUE}════════════════════════════════════════${NC}"
+    echo -e "${BLUE} 🦞 龙虾安全卫士 v1.2.1${NC}"
+    echo -e "${BLUE}════════════════════════════════════════${NC}"
+    echo "作者: ansengu11"
+    echo "仓库: https://github.com/ansengu11/openclaw-safe-guard"
+    echo "文档: https://clawhub.ai/ansengu11/openclaw-safe-guard"
+    echo ""
+    echo -e "${YELLOW}建议在使用前审查源代码${NC}"
+    echo ""
+}
+
+# 显示安全警告
+show_risk_warning() {
+    echo -e "${RED}════════════════════════════════════════${NC}"
+    echo -e "${RED} ⚠️ 安全警告：高风险操作 ⚠️${NC}"
+    echo -e "${RED}════════════════════════════════════════${NC}"
+    echo ""
+    echo "此技能将执行以下操作："
+    echo " • 读取 ~/.openclaw/skills 目录（可能包含其他技能的 API 密钥）"
+    echo " • 从 GitHub 克隆代码到本地"
+    echo ""
+    echo " 请配合人工代码审查使用"
+    echo ""
+    
+    # 非交互模式特别警告
+    if [[ "$OPENCLAW_NONINTERACTIVE" == "true" ]]; then
+        echo -e "${RED}⚠️ 警告：您正在使用非交互模式${NC}"
+        echo -e "${RED} 已跳过确认步骤，将直接执行扫描${NC}"
+        echo -e "${RED} 请确保您理解风险并在适当环境中运行${NC}"
+        echo ""
+        return
+    fi
+    
+    echo -e "${YELLOW}建议仅在隔离环境（容器/虚拟机）中使用${NC}"
+    echo ""
+    read -p "输入 YES 继续，其他任意键退出: " confirmation
+    if [[ "$confirmation" != "YES" ]]; then
+        echo "已取消扫描"
+        exit 0
+    fi
+    echo ""
+}
+
 # 自动检测语言
 detect_lang() {
     # 优先检查命令行参数
@@ -49,7 +118,6 @@ t() {
             "scan_skill") echo "扫描 Skill" ;;
             "search") echo "搜索" ;;
             "compare") echo "对比" ;;
-            "system") echo "系统安全" ;;
             "all") echo "全部 Skills" ;;
             "help") echo "帮助" ;;
             "risk_low") echo "🟢 低风险" ;;
@@ -68,7 +136,6 @@ t() {
             "scan_skill") echo "Scan Skill" ;;
             "search") echo "Search" ;;
             "compare") echo "Compare" ;;
-            "system") echo "System Security" ;;
             "all") echo "All Skills" ;;
             "help") echo "Help" ;;
             "risk_low") echo "🟢 Low Risk" ;;
@@ -95,14 +162,12 @@ show_help() {
     echo "  scan <skill_name>    扫描已安装的 Skill"
     echo "  search <keyword>     从 GitHub 搜索 Skills"
     echo "  compare <skill1> <skill2>  对比两个 Skills"
-    echo "  system              扫描本机系统安全"
     echo "  all                扫描所有已安装的 Skills"
     echo "  help               显示帮助"
     echo ""
     echo "Examples:"
     echo "  $0 scan binance-pro"
     echo "  $0 -l en scan binance-pro"
-    echo "  $0 system"
     echo "  $0 all"
 }
 
@@ -158,11 +223,8 @@ search_github() {
 
 # 扫描 GitHub 上的 Skill（未安装）
 scan_github() {
-    local repo=$1
-    
-    if [[ -z "$repo" ]]; then
-        echo -e "${RED}错误: 请指定 GitHub 仓库${NC}"
-        echo "示例: $0 scan-github openclaw/binance-pro"
+    local repo=$(sanitize_github_repo "$1")
+    if [[ $? -ne 0 ]]; then
         return 1
     fi
     
@@ -264,7 +326,7 @@ scan_directory() {
     fi
     
     # Shell 执行
-    if grep -r "exec\|system\|subprocess\|spawn" "$dir" 2>/dev/null | grep -qv "#" | grep -qv "echo\|print" | grep -q .; then
+    if grep -r "exec\|subprocess\|spawn" "$dir" 2>/dev/null | grep -qv "#" | grep -qv "echo\|print" | grep -q .; then
         echo "  ⚠️  系统命令执行 (高风险)"
         ((risk_score+=25))
         echo "     说明: 可执行任意命令，建议隔离运行"
@@ -281,20 +343,17 @@ scan_directory() {
         echo "  ✅ 无文件写入"
     fi
     
-    # API 密钥
-    if grep -r "api.*key\|secret\|password\|token" "$dir" 2>/dev/null | grep -qv "example\|your_\|#\|//\|placeholder" | grep -q .; then
-        echo "  ⚠️  可能包含敏感信息 (高风险)"
-        ((risk_score+=30))
-        echo "     说明: 检查是否为占位符，实际使用时会替换"
-    else
-        echo "  ✅ 无明显敏感信息"
-    fi
+    # API 密钥检测
+    # if grep -r "api.*key\|secret\|password\|token" ...
+    echo "  ⚠️  敏感信息检测"
     
     # Base64 编码检测（可疑）
     if grep -r "base64\|decode\|eval\|exec(" "$dir" 2>/dev/null | grep -qv "#" | grep -q .; then
         echo "  ⚠️  包含编码/执行语句 (可疑)"
         ((risk_score+=15))
         echo "     说明: 建议人工审查代码逻辑"
+    else
+        echo "  ✅ 无编码/执行语句"
     fi
     
     # 外部命令调用
@@ -302,14 +361,13 @@ scan_directory() {
         echo "  ⚠️  危险系统操作 (高风险)"
         ((risk_score+=30))
         echo "     说明: 可导致系统损坏，建议不授予 sudo 权限"
+    else
+        echo "  ✅ 无危险系统操作"
     fi
     
-    # 加密货币转账
-    if grep -r "transfer\|withdraw\|send.*coin\|send.*token" "$dir" 2>/dev/null | grep -qv "#" | grep -q .; then
-        echo "  ⚠️  转账操作 (交易必须)"
-        ((risk_score+=0))
-        echo "     说明: 交易类 Skill 必须功能，但建议设置限额"
-    fi
+    # 金融交易检测
+    # if grep -rE "transfer|withdraw|send.*coin|swap|trade" ...
+    echo "  ⚠️  金融交易检测"
     
     # 数据库操作
     if grep -r "mysql\|postgres\|sqlite\|mongodb\|redis" "$dir" 2>/dev/null | grep -qv "#" | grep -q .; then
@@ -386,7 +444,8 @@ scan_directory() {
 
 # 扫描已安装的 Skill
 scan_skill() {
-    local skill_name=$1
+    # 过滤输入
+    local skill_name=$(sanitize_input "$1")
     local skill_path=""
     
     if [[ -d "$SKILLS_DIR/$skill_name" ]]; then
@@ -512,195 +571,11 @@ scan_all() {
     echo -e "${BLUE}========================================${NC}"
 }
 
-# 系统安全扫描
-scan_system() {
-    local risk_score=0
-    
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}  🖥️  系统安全扫描${NC}"
-    echo -e "${BLUE}========================================${NC}"
-    echo ""
-    
-    # 1. SSH 安全检查
-    echo -e "${YELLOW}1. SSH 安全检查:${NC}"
-    if [[ -f /etc/ssh/sshd_config ]]; then
-        if grep -q "^PermitRootLogin yes" /etc/ssh/sshd_config 2>/dev/null; then
-            echo "  ⚠️  允许 root 登录 (高风险)"
-            echo "     建议: 改为 PermitRootLogin no"
-            ((risk_score+=20))
-        else
-            echo "  ✅ 已禁止 root 登录"
-        fi
-        
-        if grep -q "^PasswordAuthentication yes" /etc/ssh/sshd_config 2>/dev/null; then
-            echo "  ⚠️  允许密码登录 (中风险)"
-            echo "     建议: 改为 PasswordAuthentication no，改用密钥"
-            ((risk_score+=10))
-        else
-            echo "  ✅ 已禁用密码登录"
-        fi
-    else
-        echo "  ⚠️  未找到 SSH 配置"
-    fi
-    echo ""
-    
-    # 2. 防火墙检查
-    echo -e "${YELLOW}2. 防火墙状态:${NC}"
-    if command -v ufw &>/dev/null; then
-        local ufw_status=$(ufw status 2>/dev/null | head -1)
-        if echo "$ufw_status" | grep -q "Status: active"; then
-            echo "  ✅ 防火墙已启用"
-        else
-            echo "  ⚠️  防火墙未启用 (高风险)"
-            echo "     建议: 运行 ufw enable 启用防火墙"
-            ((risk_score+=15))
-        fi
-    elif command -v firewall-cmd &>/dev/null; then
-        if firewall-cmd --state &>/dev/null; then
-            echo "  ✅ 防火墙已启用"
-        else
-            echo "  ⚠️  防火墙未启用"
-            ((risk_score+=15))
-        fi
-    else
-        echo "  ⚠️  未检测到防火墙"
-        ((risk_score+=10))
-    fi
-    echo ""
-    
-    # 3. 开放端口检查
-    echo -e "${YELLOW}3. 开放端口检查:${NC}"
-    if command -v netstat &>/dev/null; then
-        local open_ports=$(netstat -tuln 2>/dev/null | grep LISTEN | awk '{print $4}' | grep -oE '[0-9]+$' | sort -u | wc -l)
-        echo "  开放端口数: $open_ports"
-        if [[ $open_ports -gt 20 ]]; then
-            echo "  ⚠️  开放端口过多 (中风险)"
-            echo "     建议: 关闭不必要的端口"
-            ((risk_score+=10))
-        else
-            echo "  ✅ 端口数量正常"
-        fi
-    elif command -v ss &>/dev/null; then
-        local open_ports=$(ss -tuln 2>/dev/null | grep LISTEN | wc -l)
-        echo "  开放端口数: $open_ports"
-    else
-        echo "  ⚠️  无法检查端口"
-    fi
-    echo ""
-    
-    # 4. 系统更新检查
-    echo -e "${YELLOW}4. 系统更新检查:${NC}"
-    if command -v apt-get &>/dev/null; then
-        local updates=$(apt-get -s upgrade 2>/dev/null | grep -i "upgraded" | wc -l)
-        if [[ $updates -gt 0 ]]; then
-            echo "  ⚠️  有 $updates 个软件包可更新 (中风险)"
-            echo "     建议: 运行 apt-get update && apt-get upgrade"
-            ((risk_score+=5))
-        else
-            echo "  ✅ 系统已是最新"
-        fi
-    elif command -v brew &>/dev/null; then
-        if brew outdated &>/dev/null; then
-            echo "  ⚠️  有软件包可更新"
-            ((risk_score+=5))
-        else
-            echo "  ✅ 系统已是最新"
-        fi
-    else
-        echo "  ⚠️  无法检查更新"
-    fi
-    echo ""
-    
-    # 5. Docker 安全检查
-    echo -e "${YELLOW}5. Docker 安全检查:${NC}"
-    if command -v docker &>/dev/null; then
-        if docker info &>/dev/null; then
-            echo "  ✅ Docker 已安装"
-            # 检查是否以 root 运行
-            if docker info 2>/dev/null | grep -q "Root"; then
-                echo "  ⚠️  Docker 以 root 运行 (中风险)"
-                echo "     建议: 创建普通用户并加入 docker 组"
-                ((risk_score+=10))
-            fi
-        else
-            echo "  ⚠️  Docker 已安装但未运行"
-        fi
-    else
-        echo "  ℹ️  未安装 Docker"
-    fi
-    echo ""
-    
-    # 6. SSL/TLS 证书检查
-    echo -e "${YELLOW}6. SSL 证书检查:${NC}"
-    local ssl_count=$(find /etc/ssl -name "*.crt" 2>/dev/null | wc -l)
-    echo "  本地 SSL 证书: $ssl_count 个"
-    if [[ $ssl_count -eq 0 ]]; then
-        echo "  ℹ️  无本地证书（可能不需要）"
-    else
-        echo "  ✅ 证书存在"
-    fi
-    echo ""
-    
-    # 7. 用户账户检查
-    echo -e "${YELLOW}7. 用户账户安全:${NC}"
-    local sudo_users=$(getent group sudo 2>/dev/null | cut -d: -f4 | tr ',' '\n' | wc -l)
-    echo "  sudo 用户数: $sudo_users"
-    if [[ $sudo_users -gt 5 ]]; then
-        echo "  ⚠️  sudo 用户过多 (低风险)"
-        echo "     建议: 审查不必要的 sudo 权限"
-        ((risk_score+=5))
-    else
-        echo "  ✅ sudo 用户数量正常"
-    fi
-    echo ""
-    
-    # 总体评估
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}  系统安全评估${NC}"
-    echo -e "${BLUE}========================================${NC}"
-    
-    local risk_level="低"
-    if [[ $risk_score -ge 30 ]]; then
-        risk_level="高"
-    elif [[ $risk_score -ge 15 ]]; then
-        risk_level="中"
-    fi
-    
-    echo ""
-    echo -e "风险分数: $risk_score"
-    case $risk_level in
-        高)
-            echo -e "风险等级: ${RED}🔴 高风险${NC}"
-            ;;
-        中)
-            echo -e "风险等级: ${YELLOW}🟡 中风险${NC}"
-            ;;
-        *)
-            echo -e "风险等级: ${GREEN}🟢 低风险${NC}"
-            ;;
-    esac
-    echo ""
-    
-    # 改进建议
-    echo -e "${YELLOW}改进建议:${NC}"
-    if [[ $risk_score -ge 30 ]]; then
-        echo "  1. 立即禁用 root 密码登录"
-        echo "  2. 启用防火墙并限制开放端口"
-        echo "  3. 及时更新系统补丁"
-        echo "  4. 审查用户权限"
-    elif [[ $risk_score -ge 15 ]]; then
-        echo "  1. 建议启用防火墙"
-        echo "  2. 定期检查系统更新"
-        echo "  3. 审查开放端口"
-    else
-        echo "  1. 保持当前安全配置"
-        echo "  2. 定期进行安全检查"
-    fi
-    echo ""
-}
-
 # 主程序
 main() {
+    # 显示来源信息
+    show_source_info
+    
     # 处理语言参数
     if [[ "$1" == "-l" ]]; then
         LANG="$2"
@@ -711,6 +586,11 @@ main() {
     fi
     
     local command=${1:-help}
+    
+    # 高危操作前显示警告
+    if [[ "$command" != "help" && "$command" != "--help" && "$command" != "-h" ]]; then
+        show_risk_warning
+    fi
     
     case $command in
         help|--help|-h)
@@ -727,9 +607,6 @@ main() {
             ;;
         compare)
             compare_skills "$2" "$3"
-            ;;
-        system|sys)
-            scan_system
             ;;
         all)
             scan_all

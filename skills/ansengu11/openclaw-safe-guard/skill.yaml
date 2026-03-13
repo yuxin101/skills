@@ -1,8 +1,8 @@
 # skill.yaml - 龙虾安全卫士 平台注册元数据
 name: "龙虾安全卫士"
 id: "openclaw-safe-guard"
-version: "1.1.4"
-description: "提供对已安装 Skills 的静态安全扫描，检测权限风险、恶意代码和依赖风险并生成中文风险评估报告"
+version: "1.2.3"
+description: "提供对 OpenClaw 系统安全检查设置及已安装和你想要安装的 Skills 进行静态安全扫描，检测权限风险、恶意代码和依赖风险并生成中文风险评估报告"
 author: "ansengu11"
 license: "MIT-0"
 
@@ -55,7 +55,10 @@ network_access:
     reason: "克隆公开仓库进行源码分析"
 
 # 环境变量
-environment_variables: []
+environment_variables:
+  - name: "OPENCLAW_NONINTERACTIVE"
+    default: "false"
+    description: "设为 true 跳过运行确认提示"
 
 # 安全声明
 security:
