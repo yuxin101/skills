@@ -4,7 +4,7 @@ description: >
   Query the local OpenClaw docs index for accurate answers about configuration,
   features, CLI commands, channels, providers, plugins, cron, sessions, agents,
   protocol, and troubleshooting. Faster and more accurate than relying on training
-  data for OpenClaw specifics. Zero API calls, sub-10ms queries. Useful for:
+  data for OpenClaw specifics. No external API calls, sub-10ms queries. Useful for:
   openclaw, configure, gateway, channel, cron, provider, plugin, session,
   heartbeat, protocol, skill, model, agent questions.
 metadata: {
@@ -12,7 +12,7 @@ metadata: {
     "emoji": "📚",
     "skillKey": "skilled-openclaw-advisor",
     "requires": {
-      "bins": ["python3"]
+      "bins": ["python3", "openclaw"]
     },
     "install": [
       {
@@ -29,7 +29,7 @@ metadata: {
 
 # OpenClaw Docs Intelligence
 
-Local FTS5 index of all OpenClaw documentation. Zero API calls. Sub-10ms queries.
+Local FTS5 index of all OpenClaw documentation. No external API calls. Sub-10ms queries.
 
 ## What This Skill Does
 
@@ -37,7 +37,7 @@ This skill bundles three Python scripts and queries a local SQLite FTS5 index
 built from the OpenClaw docs installed on this machine
 (`~/.npm-global/lib/node_modules/openclaw/docs` or equivalent). It reads only
 the local docs directory and writes only to `~/.openclaw/skills-data/skilled-openclaw-advisor/`.
-It does not make network requests, does not access credentials or config secrets,
+The query and build scripts make no network requests. The update script optionally sends a local notification via the `openclaw message` CLI when doc changes are detected (no direct network calls). The scripts do not access credentials or config secrets,
 and does not read `openclaw.json` at runtime (config keys listed below are optional
 overrides that the user may set — they are not required).
 

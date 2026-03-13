@@ -3,11 +3,16 @@
   "slug": "skilled-openclaw-advisor",
   "displayName": "Skilled OpenClaw Advisor",
   "latest": {
-    "version": "1.4.0",
-    "publishedAt": 1773262870397,
-    "commit": "https://github.com/openclaw/skills/commit/4cbd06bb3f640dc8fc438cd3917f9753d32bfb46"
+    "version": "1.4.2",
+    "publishedAt": 1773263719079,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.0",
+      "publishedAt": 1773262870397,
+      "commit": "https://github.com/openclaw/skills/commit/4cbd06bb3f640dc8fc438cd3917f9753d32bfb46"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1772749690440,
