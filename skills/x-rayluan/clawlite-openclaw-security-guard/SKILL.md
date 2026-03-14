@@ -1,6 +1,6 @@
 ---
 name: openclaw-security-guard
-description: Lightweight OpenClaw security guard for auditing prompts, commands, URLs, file paths, outbound content, and skill folders for prompt injection, command injection, SSRF, path traversal, hardcoded secrets, exfiltration patterns, and unsafe installer/publish scripts. Use when hardening agent workflows, reviewing third-party skills, scanning a skill before ClawHub publish/install, checking user-provided content for dangerous patterns, or adding a minimal local security layer without a heavy external security suite.
+description: This skill should be used when the user asks to harden agent workflows, audit prompts/commands/URLs/paths, scan a third-party skill before install or publish, review a skill folder for secrets or unsafe scripts, or add a lightweight local security guard before OpenClaw publishing and automation.
 ---
 
 # OpenClaw Security Guard
