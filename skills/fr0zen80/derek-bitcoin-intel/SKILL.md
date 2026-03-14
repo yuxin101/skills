@@ -1,81 +1,70 @@
-# Bitcoin Market Intelligence
+---
+name: derek-bitcoin-intel
+description: The only Bitcoin intelligence agent that pays for its own data with sats. Serves live price, Fear & Greed, mempool fees, ETF flows, on-chain metrics, and prediction market odds — all over Lightning (L402). No API keys, no subscriptions, no middlemen. Open source, VirusTotal clean, built by a real operator running mainnet Lightning.
+---
 
-Live Bitcoin market data and curated news — served over Lightning (L402) micropayments.
+# Derek Bitcoin Intelligence API
+
+Bitcoin market intelligence that pays for itself — delivered over Lightning.
+
+## What This Is
+
+Derek is an autonomous Bitcoin intelligence agent. He monitors markets, curates non-obvious news, tracks on-chain activity, and serves it all as a paid API over the L402 protocol.
+
+No API keys. No subscriptions. No accounts. Just sats for signal.
+
+## What Makes This Different
+
+Derek doesn't just wrap free APIs. He runs his own Lightning node and pays for premium data sources with micropayments — then distills that into intelligence you can query on demand. The L402 protocol means your agent pays a Lightning invoice and gets data back. One round trip. Done.
+
+Built by a real operator running mainnet Lightning. Open source. VirusTotal clean.
 
 ## What You Get
 
-Your agent pays a few sats and gets back structured JSON with real market intelligence — not recycled headlines.
+### /api/health — Free
+Service status, available endpoints, and pricing. Hit this first.
 
-| Endpoint | Cost | What's Inside |
-|----------|------|--------------|
-| `/api/health` | Free | Service status, endpoints, pricing |
-| `/api/market-brief` | 100 sats | BTC price, 24h change, curated non-obvious news, alert state |
-| `/api/latest-alert` | 50 sats | Most recent breaking alert (5%+ moves, major events) |
+### /api/market-brief — 100 sats
+Updated every 1-4 hours. Returns:
+- Current BTC price and 24h change
+- Fear & Greed index
+- Mempool fee rates
+- ETF flow data
+- On-chain metrics (SOPR, MVRV Z-Score, exchange flows)
+- Prediction market odds on Bitcoin-material events
+- Curated news coverage — non-obvious Bitcoin stories, not recycled headlines
+- Breaking alert state
 
-Updates every 1–4 hours (market brief) and every 15 minutes (alerts).
-
-## Quick Start
-
-No API keys. No accounts. Just HTTP requests — free endpoints work with plain `curl`.
-
-```bash
-# Check status (free — no Lightning needed)
-curl http://jnfaphddbeubdgpsbrw4d2z6wjew57djdzyrzkbt2ta7bi3wfzmfsfyd.onion/api/health
-```
-
-For paid endpoints, you need a way to pay Lightning invoices inline. Options:
-
-```bash
-# Option 1: lnget (auto-pays L402 invoices)
-lnget -q http://jnfaphddbeubdgpsbrw4d2z6wjew57djdzyrzkbt2ta7bi3wfzmfsfyd.onion/api/market-brief
-
-# Option 2: Any L402-compatible HTTP client
-# The server returns HTTP 402 with a Lightning invoice — pay it, resubmit with the token
-```
+### /api/latest-alert — 50 sats
+Updated every 15 minutes. Returns the most recent breaking alert — triggered by significant price moves (>5%) or major events (exchange hacks, regulatory shifts, ETF decisions).
 
 ## Requirements
 
-- **Free endpoints:** `curl` + Tor (or a Tor proxy)
-- **Paid endpoints:** An L402-capable HTTP client (`lnget`, `l402-fetch`, or custom) + a funded Lightning channel
+- `lnget` installed ([github.com/lightninglabs/lnget](https://github.com/lightninglabs/lnget))
+- A configured Lightning node (LND) with a funded channel
+- Tor access for reaching the .onion endpoint
 
-## Example Response
+## Usage
 
-```json
-{
-  "endpoint": "market-brief",
-  "timestamp": "2026-02-28T20:52:36Z",
-  "price": {
-    "price_usd": 67042.0,
-    "change_24h_pct": 2.2
-  },
-  "recent_coverage": [
-    {
-      "topic": "morgan-stanley-bitcoin-custody-yield",
-      "headline": "Morgan Stanley confirms plans for Bitcoin trading, lending, yield, and custody products",
-      "timestamp": "2026-02-27T12:00:00-05:00"
-    }
-  ],
-  "alert_state": {
-    "active": false,
-    "last_alert": "2026-02-26T14:30:00Z"
-  }
-}
+```bash
+# Check service status (free)
+lnget http://jnfaphddbeubdgpsbrw4d2z6wjew57djdzyrzkbt2ta7bi3wfzmfsfyd.onion/api/health
+
+# Get market brief (100 sats)
+lnget -q http://jnfaphddbeubdgpsbrw4d2z6wjew57djdzyrzkbt2ta7bi3wfzmfsfyd.onion/api/market-brief
+
+# Get latest alert (50 sats)
+lnget -q http://jnfaphddbeubdgpsbrw4d2z6wjew57djdzyrzkbt2ta7bi3wfzmfsfyd.onion/api/latest-alert
 ```
 
-## How L402 Works
+## Pricing
 
-1. Your agent sends a request to a paid endpoint
-2. Server responds with HTTP 402 + a Lightning invoice
-3. Your agent pays the invoice (fractions of a cent)
-4. Server verifies payment, returns data
-5. The L402 token is cached — reuse it until it expires
+| Endpoint | Cost | Update Frequency |
+|----------|------|-----------------|
+| /api/health | Free | Real-time |
+| /api/market-brief | 100 sats | Every 1-4 hours |
+| /api/latest-alert | 50 sats | Every 15 minutes |
 
-No signup. No rate limits. No API keys. Sats in, signal out.
+## About
 
-## What Powers This
-
-An autonomous Bitcoin intelligence agent running 24/7 on LND + Aperture (L402 reverse proxy) over a Tor hidden service. It monitors markets, tracks on-chain metrics, curates news from dozens of sources, and distills it into structured data for other agents.
-
-Built for the agent economy — machines paying machines for signal.
-
-> **Note:** `lnget` v0.1.0 has a known macaroon parsing bug with some L402 servers. If you hit errors, use a wrapper script that handles the 402→pay→resubmit flow manually.
+Derek is an autonomous Bitcoin intelligence agent built on LND, Aperture (L402 reverse proxy), and a Tor hidden service. He runs 24/7, monitors markets and on-chain activity, and serves curated analysis to any agent that can pay a Lightning invoice. Built for the agent economy — where machines pay machines for signal.
