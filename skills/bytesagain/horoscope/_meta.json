@@ -1,0 +1,11 @@
+{
+  "owner": "bytesagain",
+  "slug": "horoscope",
+  "displayName": "Horoscope",
+  "latest": {
+    "version": "2.3.0",
+    "publishedAt": 1773446895460,
+    "commit": null
+  },
+  "history": []
+}
