@@ -1,0 +1,11 @@
+{
+  "owner": "jinxiaotian1",
+  "slug": "my-test-skill",
+  "displayName": "my-test-skill",
+  "latest": {
+    "version": "0.0.1",
+    "publishedAt": 1773304019414,
+    "commit": null
+  },
+  "history": []
+}
