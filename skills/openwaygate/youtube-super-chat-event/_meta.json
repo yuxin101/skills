@@ -1,0 +1,11 @@
+{
+  "owner": "openwaygate",
+  "slug": "youtube-super-chat-event",
+  "displayName": "YouTube Super Chat Event",
+  "latest": {
+    "version": "0.10.6-3",
+    "publishedAt": 1773364837757,
+    "commit": null
+  },
+  "history": []
+}
