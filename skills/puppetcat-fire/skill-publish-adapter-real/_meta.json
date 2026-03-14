@@ -1,0 +1,11 @@
+{
+  "owner": "puppetcat-fire",
+  "slug": "skill-publish-adapter-real",
+  "displayName": "Skill Publish Adapter Real",
+  "latest": {
+    "version": "2.0.0",
+    "publishedAt": 1773369139901,
+    "commit": null
+  },
+  "history": []
+}
