@@ -1,0 +1,11 @@
+{
+  "owner": "komelt",
+  "slug": "clawhub-thunderbird-skill",
+  "displayName": "Thunderbird",
+  "latest": {
+    "version": "0.1.1",
+    "publishedAt": 1773310313024,
+    "commit": null
+  },
+  "history": []
+}
