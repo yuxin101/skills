@@ -1,13 +1,18 @@
 {
   "owner": "sunrisesillneversee",
   "slug": "lineage-claws",
-  "displayName": "Lineage Clause by MO§ES™",
+  "displayName": "Lineage Claws",
   "latest": {
-    "version": "0.1.5",
-    "publishedAt": 1773347866834,
-    "commit": "https://github.com/openclaw/skills/commit/a0507612db6f2c2185a554628be42fb012eb492d"
+    "version": "0.4.3",
+    "publishedAt": 1773428146062,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.5",
+      "publishedAt": 1773347866834,
+      "commit": "https://github.com/openclaw/skills/commit/a0507612db6f2c2185a554628be42fb012eb492d"
+    },
     {
       "version": "0.1.4",
       "publishedAt": 1773347797184,

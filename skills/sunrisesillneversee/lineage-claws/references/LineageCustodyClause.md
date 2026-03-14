@@ -19,7 +19,7 @@ The Lineage Custody Clause is enforced cryptographically, not merely as policy.
 
 ```
 LINEAGE_ANCHOR = SHA-256(
-  "MO§ES™|Serial:63/877,177|DOI:https://zenodo.org/records/18792459|Ello Cello LLC|McHenry Conservation Law"
+  "MO§ES™|Serial:63/877,177|DOI:https://zenodo.org/records/18792459|Ello Cello LLC|Commitment Conservation Law"
 )
 ```
 

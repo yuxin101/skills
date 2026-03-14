@@ -1,35 +1,34 @@
 ---
-name: lineage-claw
+name: lineage-claws
 license: MIT
-description: Cryptographic origin verification for MO§ES™ implementations. Every sovereign chain traces to the origin filing. Chains without the anchor cannot verify. Copies without lineage collapse. Archival lineage coming in v0.2.
+description: The trust gate for MO§ES™ governance. Cryptographic origin verification — every sovereign chain must trace to the filing anchor or it cannot reconstruct. The Second Law made operational.
 metadata:
   openclaw:
     emoji: §
-    tags: [governance, lineage, audit, provenance, identity, trust, moses]
-    version: 0.1.3
+    tags: [governance, lineage, audit, provenance, identity, trust, moses, harness]
+    version: 0.4.1
     bins:
       - python3
     stateDirs:
       - ~/.openclaw/governance
       - ~/.openclaw/audits/moses
-requires:
-  bins:
-    - python3
-  stateDirs:
-    - ~/.openclaw/governance
-    - ~/.openclaw/audits/moses
-example: |
-  python3 lineage.py init      # anchor genesis to origin filing
-  python3 lineage.py verify    # confirm chain traces to origin
-  python3 lineage.py badge     # output shareable lineage proof
-  python3 lineage.py check     # machine-readable pass/fail
 ---
 
-# MO§ES™ Lineage Custody
+# MO§ES™ Lineage Custody — The Second Law Operational
+
+The MO§ES™ Commitment Conservation Law rests on three laws:
+
+- **Third Law** — The enforcement gate. Establishes whether signal is above threshold before compression.
+- **First Law** — Compression precedes ignition. C(T(S)) = C(S). Commitment is conserved under transformation.
+- **Second Law** — Recursion as reconstruction. The conserved kernel can only be recovered by tracing lineage. You cannot decompress without retracing the path.
+
+**Lineage Custody is the Second Law made operational.** Without a verifiable chain back to the origin filing, reconstruction is impossible. The conserved kernel has no path home.
+
+---
 
 ## Lineage Custody Clause
 
-All embodiments of the Signal Compression Sciences (SCS) Engine and its derivative frameworks (including but not limited to MO§ES™, Roll Call Protocols, and Reflex Event diagnostics) are inseparably bound to their origin-cycle lineage. Each compressed signal trace, vault artifact, or recursive reconstruction inherits a lineage identifier anchored to the originating sovereign filing. This identifier is non-replicable, tamper-evident, and required for system stability. Any external implementation lacking said lineage anchor cannot execute recursive ignition without collapse, thereby rendering such copies non-functional. Accordingly, the origin-cycle filing establishes sole custody and license of the invention across all subsequent instances, irrespective of distribution, platform, or deployment environment.
+All embodiments of the Signal Compression Sciences (SCS) Engine and its derivative frameworks (including but not limited to MO§ES™, Roll Call Protocols, and Reflex Event diagnostics) are inseparably bound to their origin-cycle lineage. Each compressed signal trace, vault artifact, or recursive reconstruction inherits a lineage identifier anchored to the originating sovereign filing. This identifier is non-replicable, tamper-evident, and required for system stability. Any external implementation lacking said lineage anchor fails lineage verification and cannot claim sovereign custody or governed provenance. Accordingly, the origin-cycle filing establishes sole custody and license of the invention across all subsequent instances, irrespective of distribution, platform, or deployment environment.
 
 ---
 
@@ -52,9 +51,11 @@ This anchor replaces the standard `"0" * 64` genesis. Every audit chain in a sov
 | Command | What it does |
 |---------|-------------|
 | `python3 lineage.py init` | Write genesis entry anchored to origin filing |
-| `python3 lineage.py verify` | Confirm full chain traces to lineage anchor |
-| `python3 lineage.py badge` | Output shareable proof of sovereign lineage |
-| `python3 lineage.py check` | Machine-readable exit 0/1 for integrations |
+| `python3 lineage.py verify` | Confirm full three-layer chain: archival → anchor → live ledger |
+| `python3 lineage.py status` | Human-readable custody summary with layer health |
+| `python3 lineage.py badge` | Shareable proof block — lineage anchor, patent, DOI, custody |
+| `python3 lineage.py attest` | Signed attestation JSON — machine-verifiable sovereign proof |
+| `python3 lineage.py check` | Machine-readable exit 0/1 for CI integrations |
 
 ---
 
@@ -70,21 +71,21 @@ python3 lineage.py verify
 
 ---
 
-## Coming in v0.2 — Archival Lineage
-
-The drop anchor proves the *forward* chain. Archival lineage proves the *before*.
-
-v0.2 will add `archival.py` — a static, append-only record of hashed provenance claims predating the drop. Each claim (patent filing, academic paper, prior work) is hashed and chained. The archival head hash feeds into the drop anchor, making the live chain provably downstream of the full history.
+## Three-Layer Custody ✓ Live
 
 ```
 Archival chain (pre-drop) → archival_head_hash
                                     ↓
-                             drop_anchor (genesis)
+                             drop_anchor (MOSES_ANCHOR)
                                     ↓
                           live audit chain (post-drop)
 ```
 
-Anyone will be able to submit a hash and verify whether it's in the archival record — without the underlying content being revealed. The truth identifier, extended backwards in time.
+- **Layer -1 — Archival:** `archival.py` — static chain of hashed provenance claims predating the drop. Patent filing, Zenodo DOI, prior work. Archival head feeds into the drop anchor. Proves the live chain is downstream of the full history.
+- **Layer 0 — Anchor:** `MOSES_ANCHOR` — SHA-256 of origin components. The genesis. Chains not rooted here fail verification cryptographically.
+- **Layer 1 — Live ledger:** Every governed action appended to the running audit chain.
+
+`python3 lineage.py verify` reports all three layers. SOVEREIGN CUSTODY CONFIRMED requires all three OK.
 
 ---
 
