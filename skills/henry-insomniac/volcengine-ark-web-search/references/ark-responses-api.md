@@ -44,6 +44,13 @@ Request shape used by the bundled script:
 }
 ```
 
+Compatibility behavior in the script:
+
+- If `search_context_size` is supplied and ARK responds with HTTP `400` indicating that field is unsupported, the script drops the field and retries automatically.
+- Transient HTTP failures and network errors can be retried with `--retries` and `--retry-delay`.
+- `--timeout` applies per attempt, not across the whole run.
+- Default markdown output is script-controlled and normalized into title, summary, and sources.
+
 ## Why The Script Uses Standard Library HTTP
 
 - No extra dependency is required beyond `python3`.
@@ -87,6 +94,34 @@ The Responses API is OpenAI-like but can evolve. The script therefore uses toler
 - Collect source links by recursively scanning for `url` or `href` fields.
 
 If Volcengine changes the event schema, fix `find_stream_delta()` and `extract_output_text()` first.
+
+## Known Compatibility Issue
+
+Some ARK environments accept:
+
+- `max_keyword`
+- `timeout`
+
+but reject:
+
+- `search_context_size`
+
+Current skill behavior:
+
+- keep `--search-context-size` available because some environments may support it
+- if the current environment rejects it, automatically retry once without it
+
+## Output Contract
+
+For the default `markdown` format, the script aims to produce:
+
+1. `# <query as title>`
+2. `## 摘要`
+3. concise answer body
+4. `## 来源`
+5. parsed source links when available
+
+The default system prompt explicitly asks the model not to emit its own title or sources section, which reduces layout drift.
 
 ## ClawHub Publishing Notes
 

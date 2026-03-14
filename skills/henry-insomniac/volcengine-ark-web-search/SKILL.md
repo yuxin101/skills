@@ -18,6 +18,12 @@ metadata:
 
 Use this skill when the task needs up-to-date public web information and the runtime should go through Volcengine ARK Responses API instead of the model's built-in browsing. The bundled script wraps ARK `responses` with the `web_search` tool, defaults to Chinese-friendly output, and is suitable for repeatable automation or local agent workflows.
 
+Default markdown output is stabilized into three sections:
+
+- title
+- summary
+- sources
+
 ## When to Use
 
 - The user asks for today's news, recent updates, current public coverage, or live fact checks.
@@ -65,6 +71,14 @@ python3 scripts/ark_web_search.py "latest semiconductor policy news" \
   --format json
 ```
 
+Longer timeout with quick retries:
+
+```bash
+python3 scripts/ark_web_search.py "OpenAI latest news" \
+  --timeout 90 \
+  --retries 2
+```
+
 Dry run without network:
 
 ```bash
@@ -83,6 +97,7 @@ python3 scripts/ark_web_search.py "today's EV market news" \
 ## Output Requirements
 
 - Prefer concise summaries with links.
+- Default markdown output should be stable and easy to scan: title, summary, then sources.
 - Preserve uncertainty when the search result is thin or conflicting.
 - If sources are present, include them.
 - Convert relative date language into explicit dates whenever possible.
@@ -96,5 +111,8 @@ python3 scripts/ark_web_search.py "today's EV market news" \
 ## Maintenance Notes
 
 - Prefer overriding the model with `--model` or `ARK_MODEL`. ARK model availability changes over time.
+- `--timeout` is per attempt. Use `--retries` for quick retry behavior on transient failures.
+- Some ARK environments reject `search_context_size` with HTTP `400`. This script now retries automatically without that field if the server reports it as unsupported.
+- The default system prompt asks the model to return summary body only. Title and source sections are added by the script to keep output stable.
 - The Volcengine docs have shown both `web_search` and `web_search_preview` historically. This skill defaults to `web_search` and should only change if official docs for the target environment require it.
 - If response parsing breaks after an upstream API change, update the normalization logic in `scripts/ark_web_search.py` and keep `references/ark-responses-api.md` in sync.

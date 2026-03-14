@@ -12,9 +12,11 @@ Defaults:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from typing import Any
@@ -24,7 +26,8 @@ DEFAULT_MODEL = "doubao-seed-1-6-250615"
 DEFAULT_SYSTEM_PROMPT = (
     "You are a web research assistant. Answer in Chinese by default. "
     "When the user asks about today, recently, or the latest updates, prefer explicit dates. "
-    "Keep source links when available."
+    "Return a concise summary body only. Do not add markdown headings, titles, or a sources section. "
+    "Source links are handled by the caller."
 )
 
 
@@ -57,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--search-context-size",
         choices=("low", "medium", "high"),
-        help="Optional web_search search_context_size value.",
+        help="Optional web_search search_context_size value. If ARK rejects it, the script retries without it.",
     )
     parser.add_argument(
         "--stream",
@@ -84,7 +87,19 @@ def parse_args() -> argparse.Namespace:
         "--timeout",
         type=int,
         default=60,
-        help="HTTP timeout in seconds. Defaults to %(default)s.",
+        help="HTTP timeout per attempt in seconds. Defaults to %(default)s.",
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=2,
+        help="Retry transient failures this many times after the initial attempt. Defaults to %(default)s.",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=1.0,
+        help="Seconds to wait between retries. Defaults to %(default)s.",
     )
     parser.add_argument(
         "--dry-run",
@@ -149,6 +164,53 @@ def create_request(url: str, api_key: str, payload: dict[str, Any], stream: bool
         headers=headers,
         method="POST",
     )
+
+
+def payload_has_search_context_size(payload: dict[str, Any]) -> bool:
+    tools = payload.get("tools")
+    if not isinstance(tools, list):
+        return False
+    for tool in tools:
+        if isinstance(tool, dict) and "search_context_size" in tool:
+            return True
+    return False
+
+
+def strip_search_context_size(payload: dict[str, Any]) -> None:
+    tools = payload.get("tools")
+    if not isinstance(tools, list):
+        return
+    for tool in tools:
+        if isinstance(tool, dict):
+            tool.pop("search_context_size", None)
+
+
+def looks_like_unsupported_search_context_size(code: int, body: str) -> bool:
+    if code != 400:
+        return False
+    normalized = body.lower()
+    if "search_context_size" not in normalized:
+        return False
+    keywords = (
+        "unsupported",
+        "not support",
+        "not supported",
+        "unknown",
+        "unexpected",
+        "unrecognized",
+        "invalid",
+        "not allowed",
+        "does not support",
+        "参数",
+        "不支持",
+        "未知",
+        "非法",
+    )
+    return any(keyword in normalized for keyword in keywords)
+
+
+def is_retryable_http_status(code: int) -> bool:
+    return code in (408, 409, 425, 429, 500, 502, 503, 504)
 
 
 def recursive_walk(node: Any):
@@ -240,10 +302,28 @@ def extract_sources(response_obj: dict[str, Any]) -> list[dict[str, str]]:
 
 
 def normalize_response(response_obj: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    query = ""
+    input_items = payload.get("input")
+    if isinstance(input_items, list):
+        for item in input_items:
+            if not isinstance(item, dict) or item.get("role") != "user":
+                continue
+            content = item.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if isinstance(block, dict) and isinstance(block.get("text"), str):
+                    query = block["text"].strip()
+                    break
+            if query:
+                break
+
     return {
         "id": response_obj.get("id"),
         "model": response_obj.get("model") or payload.get("model"),
         "status": response_obj.get("status"),
+        "query": query,
+        "title": query or "ARK Web Search Result",
         "answer": extract_output_text(response_obj),
         "sources": extract_sources(response_obj),
         "raw": response_obj,
@@ -356,23 +436,36 @@ def non_stream_response(request: urllib.request.Request, timeout: int) -> dict[s
     return json.loads(raw_body)
 
 
+def execute_request(args: argparse.Namespace, payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    endpoint = args.base_url.rstrip("/") + "/responses"
+    request = create_request(endpoint, args.api_key, payload, args.stream)
+    if args.stream:
+        return stream_response(request, args.timeout, args.format)
+    return non_stream_response(request, args.timeout), False
+
+
 def print_markdown(normalized: dict[str, Any]) -> None:
+    title = normalized.get("title") or normalized.get("query") or "ARK Web Search Result"
     answer = normalized.get("answer") or ""
     sources = normalized.get("sources") or []
 
+    print(f"# {title}\n")
+    print("## 摘要\n")
     if answer:
         print(answer.strip())
     else:
-        print("No answer text was returned by the ARK response.")
+        print("未返回可解析的正文结果。")
 
+    print("\n## 来源\n")
     if sources:
-        print("\nSources:")
         for index, source in enumerate(sources, start=1):
-            title = source.get("title") or source.get("url") or "Untitled source"
+            source_title = source.get("title") or source.get("url") or "Untitled source"
             url = source.get("url") or ""
-            print(f"{index}. {title}")
+            print(f"{index}. {source_title}")
             if url:
                 print(url)
+    else:
+        print("未返回可解析来源链接。")
 
 
 def print_sources_only(normalized: dict[str, Any]) -> None:
@@ -400,30 +493,61 @@ def main() -> int:
         print("ARK_API_KEY is required. Set ARK_API_KEY or pass --api-key.", file=sys.stderr)
         return 2
 
-    endpoint = args.base_url.rstrip("/") + "/responses"
-    request = create_request(endpoint, args.api_key, payload, args.stream)
-
+    active_payload = copy.deepcopy(payload)
+    retries_left = max(args.retries, 0)
+    used_search_context_fallback = False
     streamed_answer = False
 
-    try:
-        if args.stream:
-            response_obj, streamed_answer = stream_response(request, args.timeout, args.format)
-            if args.format == "markdown":
+    while True:
+        try:
+            response_obj, streamed_answer = execute_request(args, active_payload)
+            if args.stream and args.format == "markdown":
                 print()
-        else:
-            response_obj = non_stream_response(request, args.timeout)
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        print(f"HTTP {exc.code}: {body}", file=sys.stderr)
-        return 1
-    except urllib.error.URLError as exc:
-        print(f"Network error: {exc}", file=sys.stderr)
-        return 1
-    except json.JSONDecodeError as exc:
-        print(f"Invalid JSON response: {exc}", file=sys.stderr)
-        return 1
+            break
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            if (
+                not used_search_context_fallback
+                and payload_has_search_context_size(active_payload)
+                and looks_like_unsupported_search_context_size(exc.code, body)
+            ):
+                used_search_context_fallback = True
+                strip_search_context_size(active_payload)
+                print(
+                    "ARK rejected search_context_size; retrying without it.",
+                    file=sys.stderr,
+                )
+                continue
 
-    normalized = normalize_response(response_obj, payload)
+            if retries_left > 0 and is_retryable_http_status(exc.code):
+                print(
+                    f"HTTP {exc.code}; retrying in {args.retry_delay:g}s "
+                    f"({retries_left} retries left before this retry).",
+                    file=sys.stderr,
+                )
+                retries_left -= 1
+                time.sleep(max(args.retry_delay, 0))
+                continue
+
+            print(f"HTTP {exc.code}: {body}", file=sys.stderr)
+            return 1
+        except urllib.error.URLError as exc:
+            if retries_left > 0:
+                print(
+                    f"Network error: {exc}. Retrying in {args.retry_delay:g}s "
+                    f"({retries_left} retries left before this retry).",
+                    file=sys.stderr,
+                )
+                retries_left -= 1
+                time.sleep(max(args.retry_delay, 0))
+                continue
+            print(f"Network error: {exc}", file=sys.stderr)
+            return 1
+        except json.JSONDecodeError as exc:
+            print(f"Invalid JSON response: {exc}", file=sys.stderr)
+            return 1
+
+    normalized = normalize_response(response_obj, active_payload)
 
     if args.format == "raw":
         print(json.dumps(response_obj, ensure_ascii=False, indent=2))

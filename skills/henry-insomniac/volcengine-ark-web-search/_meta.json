@@ -3,9 +3,15 @@
   "slug": "volcengine-ark-web-search",
   "displayName": "Volcengine ARK Web Search",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1773454775823,
-    "commit": "https://github.com/openclaw/skills/commit/14d91e54a83fb1186fab88de8303b3cfe95e154e"
+    "version": "0.1.2",
+    "publishedAt": 1773455737510,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1773454775823,
+      "commit": "https://github.com/openclaw/skills/commit/14d91e54a83fb1186fab88de8303b3cfe95e154e"
+    }
+  ]
 }
