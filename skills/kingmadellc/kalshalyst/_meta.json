@@ -3,9 +3,15 @@
   "slug": "kalshalyst",
   "displayName": "Kalshalyst",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773439636997,
-    "commit": "https://github.com/openclaw/skills/commit/972b82a40bec4c187b0d454c89040dd22ccf0b41"
+    "version": "1.1.0",
+    "publishedAt": 1773451657284,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773439636997,
+      "commit": "https://github.com/openclaw/skills/commit/972b82a40bec4c187b0d454c89040dd22ccf0b41"
+    }
+  ]
 }
