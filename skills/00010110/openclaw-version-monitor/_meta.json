@@ -1,0 +1,11 @@
+{
+  "owner": "00010110",
+  "slug": "openclaw-version-monitor",
+  "displayName": "openclaw-version-monitor",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773499810821,
+    "commit": null
+  },
+  "history": []
+}
