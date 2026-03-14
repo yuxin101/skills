@@ -1,14 +1,13 @@
 {
-  "name": "openclaw-11-in-1-visual-automation-suite",
+  "id": "computer-vision-automation",
+  "name": "通用电脑视觉自动化 Skill 体系",
+  "description": "基于图像识别+OCR的电脑自动化技能框架，包含多个可独立调用的最小执行单元，支持自由组合成复杂自动化任务，可拆分使用。",
   "version": "1.0.0",
   "author": "Nick",
-  "description": "Professional visual automation skill package, includes full features like full-screen screenshot, OCR recognition, mouse clicking, etc.",
-  "compatibility": ">=1.0.0",
-  "type": "skill-package",
-  "main": "skills/all_skills.py",
-  "keywords": ["visual automation", "OCR", "template matching", "keyboard mouse simulation"],
-  "commercial": {
-    "type": "paid",
-    "price": 2.99
-  }
+  "license": "MIT",
+  "type": "automation",
+  "tags": ["automation", "vision", "ocr", "computer-control", "desktop-automation"],
+  "dependencies": ["opencv-python", "pyautogui", "pytesseract", "pillow"],
+  "main": "all_skills.py",
+  "readme": "SKILL.md"
 }
