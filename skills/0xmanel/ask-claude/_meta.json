@@ -1,0 +1,11 @@
+{
+  "owner": "0xmanel",
+  "slug": "ask-claude",
+  "displayName": "Ask Claude",
+  "latest": {
+    "version": "1.1.1",
+    "publishedAt": 1773497538912,
+    "commit": null
+  },
+  "history": []
+}
