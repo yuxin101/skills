@@ -1,0 +1,11 @@
+{
+  "owner": "gate-exchange",
+  "slug": "gate-info-coin-compare",
+  "displayName": "Gate Info Coin Compare",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773388308222,
+    "commit": null
+  },
+  "history": []
+}
