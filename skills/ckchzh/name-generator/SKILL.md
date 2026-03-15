@@ -41,3 +41,6 @@ bash scripts/name.sh pen "文艺"
 ---
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
+
+- Run `name-generator help` for all commands
+
