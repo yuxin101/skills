@@ -23,7 +23,6 @@ description: "漏斗分析工具。创建转化漏斗、诊断流失环节、行
 | `2` | 2 |
 | `3` | 3 |
 
-
 ## 专业建议
 
 - 定义清晰步骤** — 每步必须是可量化的用户行为
@@ -37,7 +36,6 @@ description: "漏斗分析工具。创建转化漏斗、诊断流失环节、行
 ---
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
-
 
 ## Examples
 
