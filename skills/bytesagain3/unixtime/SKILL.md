@@ -29,3 +29,7 @@ Powered by BytesAgain | bytesagain.com
 ## Output
 
 Results go to stdout. Save with `unixtime run > output.txt`.
+
+---
+*Powered by BytesAgain | bytesagain.com*
+*Feedback & Feature Requests: https://bytesagain.com/feedback*
