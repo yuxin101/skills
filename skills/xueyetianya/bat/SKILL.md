@@ -23,7 +23,6 @@ Run any command: `bat <command> [args]`
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
 
-
 ## Examples
 
 ```bash
@@ -34,13 +33,25 @@ bat help
 bat run
 ```
 
-## How It Works
-
-Reads input, processes with built-in logic, outputs structured results.
-
-## Tips
-
 - Run `bat help` for all commands
-- No API keys required
-- Works offline
 
+## When to Use
+
+- to automate bat tasks in your workflow
+- for batch processing bat operations
+
+## Output
+
+Returns results to stdout. Redirect to a file with `bat run > output.txt`.
+
+## Configuration
+
+Set `BAT_DIR` environment variable to change the data directory. Default: `~/.local/share/bat/`
+
+## Output
+
+Results go to stdout. Save with `bat run > output.txt`.
+
+## Output
+
+Results go to stdout. Save with `bat run > output.txt`.

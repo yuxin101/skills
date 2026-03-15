@@ -3,11 +3,16 @@
   "slug": "bat",
   "displayName": "Bat",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773538616787,
-    "commit": "https://github.com/openclaw/skills/commit/af8b670ac2b39d7b5b7a5889e288c142ac38c8ec"
+    "version": "1.0.3",
+    "publishedAt": 1773610522401,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773538616787,
+      "commit": "https://github.com/openclaw/skills/commit/af8b670ac2b39d7b5b7a5889e288c142ac38c8ec"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773447337618,
