@@ -3,11 +3,16 @@
   "slug": "webpack-config",
   "displayName": "Webpack Config",
   "latest": {
-    "version": "2.2.0",
-    "publishedAt": 1773444834959,
-    "commit": "https://github.com/openclaw/skills/commit/a573945e384d513826e2309447ff0c500d10fde1"
+    "version": "1.0.4",
+    "publishedAt": 1773615024115,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.2.0",
+      "publishedAt": 1773444834959,
+      "commit": "https://github.com/openclaw/skills/commit/a573945e384d513826e2309447ff0c500d10fde1"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773249486101,
