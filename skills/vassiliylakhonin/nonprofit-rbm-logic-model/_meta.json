@@ -3,11 +3,16 @@
   "slug": "nonprofit-rbm-logic-model",
   "displayName": "Nonprofit RBM Logic Model",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773331390520,
-    "commit": "https://github.com/openclaw/skills/commit/9df438edae1cb3f5c7b499c571cd8cc659be9316"
+    "version": "1.0.6",
+    "publishedAt": 1773377040869,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773331390520,
+      "commit": "https://github.com/openclaw/skills/commit/9df438edae1cb3f5c7b499c571cd8cc659be9316"
+    },
     {
       "version": "1.0.4",
       "publishedAt": 1771994835298,
