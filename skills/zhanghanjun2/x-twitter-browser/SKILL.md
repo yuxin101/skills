@@ -1,7 +1,7 @@
 ---
 name: x-twitter-browser
-description: Use a real browser session's cookie header to verify login and perform browser actions on X/Twitter via headless Playwright. Supports posting, replying, reposting, liking, and bookmarking tweets.
-version: 1.0.0
+description: Log in to X/Twitter via a real browser session and perform actions — posting, replying, reposting, liking, and bookmarking tweets via headless Playwright.
+version: 2.0.0
 user-invocable: true
 metadata:
   openclaw:
@@ -10,14 +10,14 @@ metadata:
     requires:
       bins:
         - python3
-allowed-tools: Bash(python3:*), browser
+allowed-tools: Bash(python3:*)
 ---
 
 # x-twitter-browser
 
-Execute browser actions on X using your real browser login state, without the official X API.
+Execute browser actions on X using a saved login session, without the official X API.
 
-Users only need to provide a single `cookie header` string.
+Users log in once via a visible browser window. The session is saved and reused for all subsequent headless operations.
 
 After installing into OpenClaw, the skill lives at:
 
@@ -33,10 +33,9 @@ cd ~/.openclaw/workspace/skills/x-twitter-browser
 
 ## Use cases
 
-- You want to reuse browser login state instead of the official API
+- You want to automate X actions without the official API
 - Running headless on a VM or Linux server
 - Building a long-term extensible browser skill for X automation
-- You can provide a single `cookie header` string
 
 ## Architecture
 
@@ -44,14 +43,14 @@ This skill has two layers:
 
 ### 1. Session layer
 
-Persists the user-provided cookie locally (outside the skill directory so it survives skill updates):
+Manages login and cookie persistence (stored in the centralised OpenClaw auth directory):
 
-- `scripts/save_cookie_header.py`
-- `~/.x-twitter-browser/config.json`
+- `scripts/setup_session.py` — log in via visible browser, save cookies
+- `~/.openclaw/auth/x-twitter/cookies.json` — Playwright storage state
 
 ### 2. Action layer
 
-Performs actions using the verified browser session. Currently implemented:
+Performs actions using the saved session:
 
 - Post tweet: `scripts/post_tweet.py`
 - Reply to tweet: `scripts/reply_post.py`
@@ -59,86 +58,34 @@ Performs actions using the verified browser session. Currently implemented:
 - Like / Unlike tweet: `scripts/like_post.py`
 - Bookmark / Remove bookmark: `scripts/bookmark_post.py`
 
-## Implemented features
-
-- Save user-provided cookie header
-- Verify that the session is still logged in
-- Post plain-text tweets via the browser session
-- Reply to a tweet by URL or ID
-- Repost (retweet) or Quote tweet (repost with comment) by URL or ID
-- Like or Unlike a tweet by URL or ID
-- Bookmark or remove bookmark from a tweet by URL or ID
-
 ## Dependencies
 
-**Note:** First-time setup can take several minutes (Chromium is ~150MB). Each step may take 1–5 minutes depending on your network. If a package or browser is already installed, that step will finish quickly.
-
-**OpenClaw:** When running `setup.sh` via OpenClaw, it executes in the background and the user cannot see the `echo` output. Forward each progress message (e.g. "Installing playwright...", "✓ Playwright package installed.", "Installing Chromium...") to the user as it appears so they know the setup is progressing.
-
-First-time setup (recommended):
+First-time setup (installs Playwright + Chromium):
 
 ```bash
 ./scripts/setup.sh
 ```
 
-## Authentication input
+**Note:** Chromium download is ~150MB and may take several minutes on first run.
 
-Paste the full browser `Cookie` request header, e.g.:
+**OpenClaw:** When running `setup.sh` via OpenClaw, it executes in the background and the user cannot see the `echo` output. Forward each progress message to the user so they know the setup is progressing.
 
-```text
-guest_id=...; auth_token=...; ct0=...; twid=...; ...
-```
+## Session management
 
-Important cookies:
+Session cookies are stored in `~/.openclaw/auth/x-twitter/cookies.json` (centralised auth directory shared by all OpenClaw skills, survives skill updates). Do not commit or share this file.
 
-- `auth_token`
-- `ct0`
-- `twid`
-- `kdt`
-- `att`
-- `_twitter_sess`
-
-## Config
-
-Cookie and other config are stored in `~/.x-twitter-browser/config.json` (outside the skill directory, so they survive ClawHub skill updates). Do not commit or share this file.
-
-```json
-{
-  "cookie_header": "guest_id=...; auth_token=...; ..."
-}
-```
-
-Future parameters may be added to the same config file.
-
-## Workflow
-
-### 1. Save the user-provided cookie
-
-If the user pastes a cookie header, save it to `~/.x-twitter-browser/config.json`:
+### Log in (first time or when session expires)
 
 ```bash
-python3 scripts/save_cookie_header.py \
-  --cookie-header 'guest_id=...; auth_token=...; ct0=...; twid=...'
+python3 scripts/setup_session.py
 ```
 
-Or save the cookie to a file first, then import:
+This opens a visible browser window with the X login page. Log in with your account (username, password, 2FA if needed). Once you see the home timeline, go back to the terminal and press Enter. Cookies are saved automatically.
+
+### Verify session
 
 ```bash
-cat > /tmp/cookie.txt <<'EOF'
-guest_id=...; auth_token=...; ct0=...; twid=...; ...
-EOF
-
-python3 scripts/save_cookie_header.py \
-  --cookie-file /tmp/cookie.txt
-```
-
-### 2. Verify login state
-
-Before any browser action, run:
-
-```bash
-python3 scripts/post_tweet.py \
-  --verify-only
+python3 scripts/setup_session.py --verify-only
 ```
 
 Success looks like:
@@ -147,18 +94,32 @@ Success looks like:
 Session looks valid: https://x.com/home
 ```
 
-If verification fails, the cookie may be expired. Ask the user to provide a fresh cookie.
+If verification fails, re-run `setup_session.py` to log in again.
 
-### 3. Post a tweet
+### OpenClaw / headless-only environments
 
-After verification succeeds:
+If running on a headless VM, set up the session on a local machine first, then copy:
+
+```bash
+scp ~/.openclaw/auth/x-twitter/cookies.json user@server:~/.openclaw/auth/x-twitter/cookies.json
+```
+
+## Workflow
+
+### 1. Set up session (once)
+
+```bash
+python3 scripts/setup_session.py
+```
+
+### 2. Post a tweet
 
 ```bash
 python3 scripts/post_tweet.py \
   --text "hello"
 ```
 
-### 4. Reply to a tweet
+### 3. Reply to a tweet
 
 ```bash
 python3 scripts/reply_post.py \
@@ -166,7 +127,7 @@ python3 scripts/reply_post.py \
   --text "My reply"
 ```
 
-### 5. Repost (retweet) a tweet
+### 4. Repost (retweet) a tweet
 
 Plain repost (no comment):
 
@@ -185,7 +146,7 @@ python3 scripts/repost_post.py \
 
 For both reply and repost, `--tweet` accepts a full URL or just the tweet ID.
 
-### 6. Like a tweet
+### 5. Like a tweet
 
 ```bash
 python3 scripts/like_post.py \
@@ -200,7 +161,7 @@ python3 scripts/like_post.py \
   --undo
 ```
 
-### 7. Bookmark a tweet
+### 6. Bookmark a tweet
 
 ```bash
 python3 scripts/bookmark_post.py \
@@ -220,23 +181,30 @@ For like and bookmark, `--tweet` accepts a full URL or just the tweet ID.
 ## Rules
 
 - `--verify-only` success means the session is likely usable
-- If the page behaves oddly, buttons are disabled, or extra dialogs appear, re-run verification first
-- If Chromium fails to start, install Playwright browsers or system deps before blaming the cookie
+- If the page behaves oddly, buttons are disabled, or extra dialogs appear, re-run `setup_session.py`
+- If Chromium fails to start, run `./scripts/setup.sh` to install browser deps
 
 ## Operational requirements
 
+- Before the first action, check if session exists; if not, tell the user to run `setup_session.py`
 - Run `--verify-only` before any write operation
 - Confirm the action and content before executing
-- Do not commit cookies or headers to the repo
-- Prefer the full cookie header over partial cookies
-- Cookie is stored in `~/.x-twitter-browser/config.json`
+- Do not commit cookies to the repo (`~/.openclaw/auth/`)
 - Call `scripts/*.py` directly
 
+## Troubleshooting
 
-### `Imported session is not authenticated`
+### `No saved session. Run setup_session.py first to log in to X.`
 
-- Cookie expired
-- Incomplete header from user
+No cookies found at `~/.openclaw/auth/x-twitter/cookies.json`. Run:
+
+```bash
+python3 scripts/setup_session.py
+```
+
+### `Session is not authenticated`
+
+- Session cookies expired (typically lasts days to weeks)
 - Account triggered extra verification
 
-Ask the user to provide a fresh, complete cookie header.
+Re-run `setup_session.py` to log in again.
