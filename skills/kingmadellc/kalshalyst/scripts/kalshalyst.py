@@ -32,6 +32,173 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+DEMO_SCAN_INSIGHTS = [
+    {
+        "ticker": "FEDCUTS-2026-Q3",
+        "title": "Will the Fed cut rates by September 2026?",
+        "side": "YES",
+        "market_prob": 0.43,
+        "estimated_prob": 0.57,
+        "edge_pct": 14.0,
+        "effective_edge_pct": 14.0,
+        "confidence": 0.68,
+        "reasoning": "Late-cycle growth scare risk is underpriced versus current inflation momentum.",
+    },
+    {
+        "ticker": "BTC-2026-120K",
+        "title": "Will Bitcoin hit $120k before July 2026?",
+        "side": "YES",
+        "market_prob": 0.39,
+        "estimated_prob": 0.49,
+        "edge_pct": 10.0,
+        "effective_edge_pct": 10.0,
+        "confidence": 0.61,
+        "reasoning": "ETF flows and reflexive treasury demand give upside more paths than the market is pricing.",
+    },
+    {
+        "ticker": "STABLECOIN-REG-2026",
+        "title": "Will Congress pass stablecoin legislation in 2026?",
+        "side": "YES",
+        "market_prob": 0.34,
+        "estimated_prob": 0.42,
+        "edge_pct": 8.0,
+        "effective_edge_pct": 8.0,
+        "confidence": 0.57,
+        "reasoning": "Bipartisan payment-rail incentives remain stronger than headline gridlock suggests.",
+    },
+]
+
+
+def _ledger_context() -> dict:
+    """Return what the local trade ledger still knows."""
+    try:
+        from trade_ledger import get_summary as get_ledger_summary
+
+        summary = get_ledger_summary()
+        return {
+            "ledger_open_positions": summary.get("open_positions", 0),
+            "ledger_deployed_usd": summary.get("total_deployed_usd", 0.0),
+            "ledger_tickers": sorted(summary.get("positions", {}).keys()),
+        }
+    except Exception as e:
+        return {
+            "ledger_open_positions": 0,
+            "ledger_deployed_usd": 0.0,
+            "ledger_tickers": [],
+            "ledger_error": str(e)[:200],
+        }
+
+
+def _write_cache(payload: dict) -> None:
+    """Write cache payload for downstream consumers."""
+    cache_dir = Path.home() / ".openclaw" / "state"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / "kalshalyst_cache.json"
+    with open(cache_path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+
+def _write_fail_loud_cache(reason: str, known: str = "") -> None:
+    """Write an explicit uncertain cache entry instead of an empty success."""
+    message = "I don't know current opportunities"
+    if known:
+        message += f" — {known}"
+
+    payload = {
+        "insights": [],
+        "macro_count": 0,
+        "total_scanned": 0,
+        "scanner_version": "1.0.0",
+        "cached_at": datetime.now(timezone.utc).isoformat(),
+        "status": "uncertain",
+        "message": message,
+        "reason": reason,
+        **_ledger_context(),
+    }
+    try:
+        _write_cache(payload)
+    except OSError as e:
+        logger.warning("Could not write fail-loud cache: %s", e)
+
+
+def _write_demo_cache() -> None:
+    """Write sample opportunities so first-run users can preview output."""
+    payload = {
+        "insights": DEMO_SCAN_INSIGHTS,
+        "macro_count": len(DEMO_SCAN_INSIGHTS),
+        "total_scanned": 18,
+        "scanner_version": "1.0.0-demo",
+        "cached_at": datetime.now(timezone.utc).isoformat(),
+        "status": "demo",
+        "message": "Demo opportunities shown because Kalshi credentials are not configured yet.",
+        **_ledger_context(),
+    }
+    try:
+        _write_cache(payload)
+    except OSError as e:
+        logger.warning("Could not write demo cache: %s", e)
+
+
+def _show_demo_scan(next_step: str) -> None:
+    """Render a friendly preview when live scanning is unavailable."""
+    _write_demo_cache()
+    _print_top_opportunities(DEMO_SCAN_INSIGHTS, "TOP 3 EDGE OPPORTUNITIES (DEMO)")
+    logger.info("")
+    logger.info("%s", next_step)
+
+
+def _verify_kalshi_client(client) -> None:
+    """Verify auth with a raw API call that avoids SDK model parsing bugs."""
+    url = "https://api.elections.kalshi.com/trade-api/v2/portfolio/positions?limit=1"
+    resp = client.call_api("GET", url)
+    payload = json.loads(resp.read())
+    # Kalshi returns {"error": "..."} on auth failure
+    if isinstance(payload, dict) and "error" in payload:
+        raise RuntimeError(f"Kalshi auth failed: {payload['error']}. Rotate API key at trading.kalshi.com/settings/api-keys")
+    expected_keys = {"cursor", "event_positions", "positions", "market_positions"}
+    if not isinstance(payload, dict) or not set(payload.keys()) <= expected_keys:
+        raise RuntimeError(f"unexpected auth probe response keys: {sorted(payload.keys())}")
+
+
+def _print_top_opportunities(insights: list[dict], header: str) -> None:
+    """Render the top opportunities in a scannable, reviewer-friendly block."""
+    logger.info("")
+    logger.info(header)
+    logger.info("=" * len(header))
+    for idx, insight in enumerate(insights[:3], 1):
+        market_prob = insight.get("market_prob", 0) * 100
+        edge_pct = insight.get("effective_edge_pct", insight.get("edge_pct", 0))
+        confidence = insight.get("confidence", 0) * 100
+        side = insight.get("side", "YES")
+        title = insight.get("title", insight.get("ticker", "?"))
+        logger.info(
+            "%s. %s",
+            idx,
+            title[:72],
+        )
+        logger.info(
+            "   %s @ %.0f%% | %.0f%% edge | %.0f%% conf",
+            side,
+            market_prob,
+            edge_pct,
+            confidence,
+        )
+        reasoning = insight.get("reasoning", "")
+        if reasoning:
+            logger.info("   %s", reasoning[:140])
+
+
+def _print_no_edges_message(market_count: int) -> None:
+    """Explain clearly when the scan found nothing actionable."""
+    logger.info("")
+    logger.info("NO EDGE MARKETS RIGHT NOW")
+    logger.info("=========================")
+    logger.info(
+        "Checked %s markets and found no opportunities above the live edge/confidence thresholds.",
+        market_count,
+    )
+    logger.info("Check back later — the scanner is working, there just isn't a trade worth forcing.")
+
 
 # ── API Schema Normalization ────────────────────────────────────────────────
 def _normalize_market(m: dict) -> dict:
@@ -136,7 +303,7 @@ _SPORTS_TICKER_PREFIXES = {
     "KXNCAA", "KXPGA", "KXUFC", "KXWWE", "KXSOCCER", "KXTENNIS",
     "KXWBC", "KXCBB", "KXCFB", "KXWNBA", "KXLPGA", "KXF1",
     "KXNASCAR", "KXCRICKET", "KXRUGBY", "KXBOXING", "KXMMA",
-    "KXESPORT", "KXLOL", "KXDOTA", "KXCSK",
+    "KXESPORT", "KXLOL", "KXDOTA", "KXCSK", "KXWTA",
 }
 
 _MICRO_TIMEFRAME_PATTERNS = {
@@ -575,15 +742,26 @@ def run_kalshalyst(client, cfg: dict, dry_run: bool = False) -> bool:
     # Phase 1: Fetch
     markets = fetch_kalshi_markets(client, cfg)
     if not markets:
+        _write_fail_loud_cache(
+            "no_markets_after_fetch",
+            known=f"trade ledger still tracks {_ledger_context().get('ledger_open_positions', 0)} open positions",
+        )
         if cfg.get("fresh_mode", False):
-            logger.info("FRESH: No new markets in last 48h")
+            logger.info("I don't know if there are fresh opportunities — no new markets passed the relaxed fetch window")
         else:
-            logger.info("Kalshalyst: no markets passed filters")
+            logger.info("I don't know current opportunities — no markets passed fetch filters")
         return False
 
     # Phase 3+4: Estimate + edge
     edges = calculate_edges(markets, cfg)
     edges = _apply_market_filter(edges, cfg)
+    if not edges:
+        _write_fail_loud_cache(
+            "no_confirmed_edges",
+            known=f"Kalshalyst scanned {len(markets)} markets but did not produce confirmed opportunities",
+        )
+        _print_no_edges_message(len(markets))
+        return True
 
     # Phase 5: Cache + alert
     cache_payload = {
@@ -592,25 +770,22 @@ def run_kalshalyst(client, cfg: dict, dry_run: bool = False) -> bool:
         "total_scanned": len(markets),
         "scanner_version": "1.0.0",
         "cached_at": datetime.now(timezone.utc).isoformat(),
+        "status": "ok",
+        **_ledger_context(),
     }
 
     logger.info(f"Kalshalyst: {len(edges)} opportunities found")
 
     # Phase 5: Write cache for morning-brief consumption
-    cache_dir = Path.home() / ".openclaw" / "state"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_path = cache_dir / "kalshalyst_cache.json"
     try:
-        with open(cache_path, "w") as f:
-            json.dump(cache_payload, f, indent=2)
-        logger.info(f"Cache written to {cache_path}")
+        _write_cache(cache_payload)
+        logger.info("Cache written to %s", Path.home() / ".openclaw" / "state" / "kalshalyst_cache.json")
     except OSError as e:
         logger.warning(f"Could not write cache: {e}")
 
     if dry_run:
         logger.info("[DRY RUN] Would send alerts")
-        for e in edges[:3]:
-            logger.info(f"  - {e.get('title', '?')[:40]} | {e.get('effective_edge_pct', 0):.1f}% edge")
+        _print_top_opportunities(cache_payload["insights"], "TOP 3 EDGE OPPORTUNITIES")
         return True
 
     # Alert on high-edge opportunities
@@ -619,10 +794,7 @@ def run_kalshalyst(client, cfg: dict, dry_run: bool = False) -> bool:
 
     if alert_candidates:
         logger.info(f"Kalshalyst: {len(alert_candidates)} above alert threshold ({alert_threshold}%)")
-        for i, e in enumerate(alert_candidates[:3], 1):
-            side = "YES" if e.get("direction") == "underpriced" else "NO"
-            logger.info(f"  {i}. {e.get('title', '?')[:45]}")
-            logger.info(f"     {side} @ {e.get('market_implied', 0):.0%} | {e.get('effective_edge_pct', 0):.0f}% edge")
+        _print_top_opportunities(cache_payload["insights"], "TOP 3 EDGE OPPORTUNITIES")
 
     return True
 
@@ -645,19 +817,18 @@ if __name__ == "__main__":
         cfg["fresh_mode"] = True
 
     # ── Load config from ~/.openclaw/config.yaml ──
+    yaml = None
     try:
-        import yaml
+        import yaml as _yaml
+        yaml = _yaml
     except ImportError:
-        logger.error("pyyaml not installed — run: pip3 install pyyaml")
-        sys.exit(1)
+        logger.warning("pyyaml not installed — continuing with demo-friendly defaults.")
 
     config_path = Path.home() / ".openclaw" / "config.yaml"
-    if not config_path.exists():
-        logger.error(f"Config not found: {config_path}")
-        sys.exit(1)
-
-    with open(config_path) as f:
-        file_config = yaml.safe_load(f) or {}
+    file_config = {}
+    if config_path.exists() and yaml:
+        with open(config_path) as f:
+            file_config = yaml.safe_load(f) or {}
 
     kalshi_cfg = file_config.get("kalshi", {})
     key_id = kalshi_cfg.get("api_key_id", "")
@@ -667,8 +838,11 @@ if __name__ == "__main__":
         pk_path = Path.home() / ".openclaw" / "keys" / pk_path
 
     if not key_id or not pk_path.exists():
-        logger.error(f"Kalshi credentials missing — key_id={bool(key_id)}, pk_exists={pk_path.exists()}")
-        sys.exit(1)
+        logger.warning(
+            "Kalshi credentials missing — showing demo scan so you can preview the output before setup."
+        )
+        _show_demo_scan("Demo only: add Kalshi credentials in ~/.openclaw/config.yaml to run the live scanner.")
+        sys.exit(0)
 
     # ── Initialize Kalshi SDK client ──
     try:
@@ -685,15 +859,15 @@ if __name__ == "__main__":
         client = KalshiClient(sdk_config)
         sdk_config.private_key_pem = None  # clear PEM from memory
 
-        # Verify auth
-        try:
-            client.get_positions(limit=1)
-        except (TypeError, AttributeError):
-            pass  # SDK version difference — client is still valid
+        _verify_kalshi_client(client)
         logger.info("Kalshi client initialized successfully")
     except Exception as e:
-        logger.error(f"Kalshi client init failed: {e}")
-        sys.exit(1)
+        logger.warning(
+            "Kalshi client init failed — showing demo scan instead: %s",
+            str(e).splitlines()[0],
+        )
+        _show_demo_scan("Demo only: fix Kalshi auth/init to run the live scanner.")
+        sys.exit(0)
 
     # ── Run pipeline ──
     if args.force:

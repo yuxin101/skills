@@ -21,8 +21,12 @@ import logging
 import os
 import sys
 import time
+import urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+from trade_ledger import get_summary as get_ledger_summary
+from trade_ledger import record_trade, update_trade_confirmation
 
 # ── Logging ───────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -30,6 +34,30 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] AutoTrader: %(message)s",
 )
 logger = logging.getLogger("auto_trader")
+
+
+# ── Slack Notifications ────────────────────────────────────────────────────────
+def _notify_slack(message: str) -> None:
+    """Send notification via Slack webhook. Silent on failure."""
+    import yaml as _yaml
+    webhook_url = os.environ.get("OPENCLAW_SLACK_WEBHOOK", "")
+    if not webhook_url:
+        try:
+            cfg_path = Path.home() / ".openclaw" / "config.yaml"
+            if cfg_path.exists():
+                with open(cfg_path) as f:
+                    cfg = _yaml.safe_load(f) or {}
+                webhook_url = cfg.get("slack_webhook_url", "")
+        except Exception:
+            pass
+    if not webhook_url:
+        return
+    try:
+        data = json.dumps({"text": message}).encode("utf-8")
+        req = urllib.request.Request(webhook_url, data=data, headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        pass
 
 
 # ── API Schema Normalization ────────────────────────────────────────────────
@@ -109,6 +137,32 @@ def load_config() -> dict:
     return {}
 
 
+def _load_exit_rules() -> dict:
+    """Load exit strategy rules from prompt-lab. Returns empty dict if not found."""
+    for path in [Path.home() / "prompt-lab" / "exit_rules.md", Path.home() / ".openclaw" / "exit_rules.md"]:
+        if path.exists():
+            try:
+                text = path.read_text()
+                rules = {}
+                for line in text.split("\n"):
+                    line = line.strip()
+                    if ":" in line and not line.startswith("#") and not line.startswith("-"):
+                        key, _, val = line.partition(":")
+                        key = key.strip().lower().replace(" ", "_")
+                        val = val.strip()
+                        try:
+                            rules[key] = float(val)
+                        except ValueError:
+                            rules[key] = val
+                if rules:
+                    logger.info(f"Exit rules loaded from {path} ({len(rules)} params)")
+                    return rules
+            except Exception as e:
+                logger.warning(f"Failed to load exit rules from {path}: {e}")
+    logger.info("No exit rules found — position lifecycle management disabled")
+    return {}
+
+
 # ── State Logging ─────────────────────────────────────────────────────────
 
 def _log_state(event: str, data: dict):
@@ -130,6 +184,73 @@ def _log_state(event: str, data: dict):
                 fcntl.flock(f, fcntl.LOCK_UN)
     except Exception as e:
         logger.warning(f"Failed to write state log: {e}")
+
+
+def _ledger_context() -> dict:
+    """Return what the local ledger still knows when APIs are uncertain."""
+    try:
+        summary = get_ledger_summary()
+    except Exception as e:
+        return {
+            "ledger_known_positions": 0,
+            "ledger_deployed_usd": 0.0,
+            "ledger_tickers": [],
+            "ledger_error": str(e)[:200],
+        }
+
+    return {
+        "ledger_known_positions": summary.get("open_positions", 0),
+        "ledger_deployed_usd": summary.get("total_deployed_usd", 0.0),
+        "ledger_tickers": sorted(summary.get("positions", {}).keys()),
+    }
+
+
+def _fail_loud_result(reason: str, edges: list, *, known: str = "") -> dict:
+    """Return an explicit unknown-state summary instead of fabricated certainty."""
+    message = "I don't know"
+    if known:
+        message += f" — {known}"
+    return {
+        "trades_executed": 0,
+        "trades_skipped": len(edges),
+        "reason": reason,
+        "message": message,
+        **_ledger_context(),
+    }
+
+
+def _reconcile_trade_with_portfolio(
+    client,
+    ticker: str,
+    side: str,
+    contracts: int,
+    before_positions: dict,
+    wait_seconds: float,
+) -> tuple[bool, str, dict]:
+    """Wait, re-query the portfolio API, and verify the position exists."""
+    if wait_seconds > 0:
+        time.sleep(wait_seconds)
+
+    try:
+        after_positions = get_current_positions(client)
+    except RuntimeError as e:
+        return False, f"I don't know — could not re-fetch positions after execution: {e}", {}
+
+    before_qty = before_positions.get(ticker, {}).get("position", 0)
+    after = after_positions.get(ticker)
+    after_qty = after.get("position", 0) if after else 0
+    expected_delta = contracts if side == "yes" else -contracts
+    observed_delta = after_qty - before_qty
+
+    if side == "yes" and observed_delta >= contracts:
+        return True, f"confirmed via portfolio API ({before_qty} -> {after_qty})", after_positions
+    if side == "no" and observed_delta <= -contracts:
+        return True, f"confirmed via portfolio API ({before_qty} -> {after_qty})", after_positions
+
+    return False, (
+        "I don't know — order was submitted but the expected position delta "
+        f"never appeared ({before_qty} -> {after_qty})"
+    ), after_positions
 
 
 # ── Safety Checks ─────────────────────────────────────────────────────────
@@ -336,6 +457,7 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
     max_positions = auto_cfg.get("max_concurrent_positions", 8)
     max_exposure = auto_cfg.get("max_portfolio_exposure_usd", 200.0)
     bankroll = auto_cfg.get("bankroll_usd", 100.0)
+    reconcile_wait = float(auto_cfg.get("reconciliation_wait_seconds", 30))
 
     # ── Pre-flight checks ─────────────────────────────────────────────
     # Balance check — must succeed or abort
@@ -344,7 +466,7 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
     except RuntimeError as e:
         _log_state("abort", {"reason": f"Cannot fetch balance: {e}"})
         logger.error(f"Aborting: cannot verify balance — {e}")
-        return {"trades_executed": 0, "trades_skipped": len(edges), "reason": "balance_fetch_failed"}
+        return _fail_loud_result("balance_fetch_failed", edges, known=f"ledger still tracks {_ledger_context().get('ledger_known_positions', 0)} open positions")
     if balance < 5.0:
         _log_state("abort", {"reason": f"Insufficient balance: ${balance:.2f}"})
         logger.warning(f"Aborting: balance ${balance:.2f} < $5 minimum")
@@ -363,7 +485,7 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
     except RuntimeError as e:
         _log_state("abort", {"reason": f"Cannot fetch positions: {e}"})
         logger.error(f"Aborting: cannot verify current positions — {e}")
-        return {"trades_executed": 0, "trades_skipped": len(edges), "reason": "positions_fetch_failed"}
+        return _fail_loud_result("positions_fetch_failed", edges, known=f"trade ledger has {get_ledger_summary().get('open_positions', 0)} open positions")
     num_positions = len(positions)
     exposure = get_portfolio_exposure(positions)
 
@@ -398,6 +520,13 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
         if edge.get("is_sports", False):
             _log_state("edge_skipped", {"ticker": ticker, "reason": "sports_blocked"})
             logger.info(f"  BLOCKED: sports market — skipping")
+            skipped += 1
+            continue
+
+        # Market filter check (defense-in-depth — kalshalyst applies upstream too)
+        if edge.get("market_filter_action") == "skip":
+            _log_state("edge_skipped", {"ticker": ticker, "reason": "market_filter_skip"})
+            logger.info(f"  FILTERED: market filter skip — {edge.get('market_filter_reason', 'unknown')}")
             skipped += 1
             continue
 
@@ -502,6 +631,7 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
         # Live execution
         try:
             from kalshi_commands import _place_order, _trade_audit
+            before_trade_positions = dict(positions)
 
             order_result = _place_order("buy", ticker, side, result.contracts, exec_price)
 
@@ -514,10 +644,43 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
                 "order_result": order_result[:200],
             })
 
-            if "✅" in order_result and "UNVERIFIED" not in order_result:
-                logger.info(f"EXECUTED: {side.upper()} {result.contracts}x {ticker} @ {exec_price}¢ "
-                            f"(${result.cost_usd:.2f}, edge={effective_edge:.1f}%)")
-                logger.info(f"  Verification: {order_result.split(chr(10))[-1] if chr(10) in order_result else 'n/a'}")
+            submitted = order_result.startswith("✅") or order_result.startswith("❓")
+            if submitted:
+                logger.info(
+                    f"SUBMITTED: {side.upper()} {result.contracts}x {ticker} @ {exec_price}¢ "
+                    f"(${result.cost_usd:.2f}, edge={effective_edge:.1f}%)"
+                )
+                trade_record = record_trade(
+                    ticker=ticker, side=side, contracts=result.contracts,
+                    price_cents=exec_price, cost_usd=result.cost_usd,
+                    edge_pct=effective_edge, confidence=confidence,
+                    order_id="", order_result=order_result[:200], title=title, dry_run=False,
+                )
+
+                confirmed, confirmation_details, refreshed_positions = _reconcile_trade_with_portfolio(
+                    client,
+                    ticker=ticker,
+                    side=side,
+                    contracts=result.contracts,
+                    before_positions=before_trade_positions,
+                    wait_seconds=reconcile_wait,
+                )
+                update_trade_confirmation(
+                    trade_record["id"],
+                    confirmation_status="confirmed" if confirmed else "unconfirmed",
+                    details=confirmation_details,
+                )
+                _log_state(
+                    "trade_reconciled",
+                    {
+                        "ticker": ticker,
+                        "trade_id": trade_record["id"],
+                        "confirmed": confirmed,
+                        "details": confirmation_details[:200],
+                    },
+                )
+                logger.info("  Reconciliation: %s", confirmation_details)
+
                 executed_trades.append({
                     "ticker": ticker,
                     "side": side,
@@ -526,14 +689,19 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
                     "edge_pct": effective_edge,
                     "cost_usd": result.cost_usd,
                     "dry_run": False,
+                    "confirmed": confirmed,
+                    "confirmation_details": confirmation_details,
                 })
-                executed += 1
-                remaining_balance -= result.cost_usd
-                exposure += result.cost_usd
-            elif "✅" in order_result and "UNVERIFIED" in order_result:
-                logger.warning(f"Order placed but UNVERIFIED for {ticker}: {order_result[:200]}")
-                errors.append(f"unverified:{ticker}")
-                skipped += 1
+                if confirmed:
+                    executed += 1
+                    remaining_balance -= result.cost_usd
+                    exposure += result.cost_usd
+                    positions = refreshed_positions or positions
+                    _notify_slack(f"TRADE EXECUTED: {side.upper()} {result.contracts}x {ticker} @ {exec_price}c (${result.cost_usd:.2f}, edge={effective_edge:.1f}%)\nTitle: {title}")
+                else:
+                    errors.append(f"unconfirmed:{ticker}")
+                    skipped += 1
+                    _notify_slack(f"TRADE UNCONFIRMED: {side.upper()} {result.contracts}x {ticker} @ {exec_price}c — {confirmation_details[:100]}")
             else:
                 logger.warning(f"Order FAILED for {ticker}: {order_result[:200]}")
                 errors.append(f"order_failed:{ticker}")
@@ -554,6 +722,7 @@ def auto_execute_edges(client, edges: list, cfg: dict, auto_cfg: dict, dry_run: 
         "balance_remaining": round(remaining_balance, 2),
         "errors": errors,
         "executed_trades": executed_trades,
+        **_ledger_context(),
     }
     return summary
 
@@ -687,6 +856,12 @@ def run_auto_trader(dry_run: bool = False) -> dict:
 
     logger.info("=" * 60)
 
+    if summary.get("trades_executed", 0) > 0:
+        trade_lines = []
+        for t in summary.get("executed_trades", []):
+            trade_lines.append(f"  {t['side'].upper()} {t['contracts']}x {t['ticker']} @ {t['price_cents']}c (${t['cost_usd']:.2f})")
+        _notify_slack(f"AUTO-TRADER SCAN COMPLETE\nEdges found: {len(edges)}\nTrades executed: {summary['trades_executed']}\nTrades skipped: {summary['trades_skipped']}\n" + "\n".join(trade_lines))
+
     return summary
 
 
@@ -696,7 +871,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OpenClaw Auto-Trader")
     parser.add_argument("--dry-run", action="store_true", help="Log but don't place orders")
     parser.add_argument("--force", action="store_true", help="Run even if recently ran")
+    parser.add_argument("--test-slack", action="store_true", help="Send a test Slack notification and exit")
     args = parser.parse_args()
+
+    if args.test_slack:
+        _notify_slack("AUTO-TRADER TEST: Slack notification is working.")
+        print(json.dumps({"status": "test_slack_sent"}, indent=2))
+        sys.exit(0)
 
     result = run_auto_trader(dry_run=args.dry_run)
     print(json.dumps(result, indent=2))
