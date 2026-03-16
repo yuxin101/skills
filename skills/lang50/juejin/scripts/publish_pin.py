@@ -11,7 +11,7 @@ import urllib.request
 import urllib.error
 
 
-def publish_pin(cookie: str, content: str, topic_id: str = None) -> dict:
+def publish_pin(cookie: str, content: str, topic_id: str = None, theme_id: str = None) -> dict:
     """
     发布沸点到掘金
     
@@ -19,15 +19,23 @@ def publish_pin(cookie: str, content: str, topic_id: str = None) -> dict:
         cookie: 掘金登录cookie
         content: 沸点内容
         topic_id: 话题ID（可选）
+        theme_id: 主题ID（可选，用于关联话题活动）
     
     Returns:
         API响应字典
     """
     url = "https://api.juejin.cn/content_api/v1/short_msg/publish"
     
-    payload = {"content": content}
+    # 如果传了 theme_id，内容中需要包含话题标签格式: [topic_id#话题名#]
+    payload = {
+        "content": content,
+        "mentions": [],
+        "sync_to_org": False
+    }
     if topic_id:
         payload["topic_id"] = topic_id
+    if theme_id:
+        payload["theme_id"] = theme_id
     
     data = json.dumps(payload).encode("utf-8")
     
@@ -74,6 +82,7 @@ def main():
     parser.add_argument("--cookie", required=True, help="掘金登录cookie")
     parser.add_argument("--content", help="沸点内容")
     parser.add_argument("--topic-id", help="话题ID（可选）")
+    parser.add_argument("--theme-id", help="主题ID（可选，用于话题活动）")
     parser.add_argument("--check-user", action="store_true", help="仅检查用户信息")
     
     args = parser.parse_args()
@@ -98,7 +107,7 @@ def main():
         print("⚠️  警告: 内容可能太短，掘金沸点有最低字数要求")
     
     # 发布沸点
-    result = publish_pin(args.cookie, args.content, args.topic_id)
+    result = publish_pin(args.cookie, args.content, args.topic_id, args.theme_id)
     
     if result.get("err_no") == 0:
         data = result["data"]
