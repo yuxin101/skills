@@ -7,6 +7,9 @@ import shutil
 import socket
 import sys
 import time
+import subprocess
+import tempfile
+import shlex
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -63,6 +66,109 @@ def backup_store(path):
     backup_path = p.with_name(f"{p.name}.bak.delete-{stamp}")
     shutil.copy2(p, backup_path)
     return str(backup_path)
+
+
+def write_json_atomic(path, obj):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=str(p.parent), encoding="utf-8") as tf:
+        json.dump(obj, tf, indent=2)
+        tf.write("\n")
+        tmp = tf.name
+    os.replace(tmp, p)
+
+
+def launch_offhost_script(script_path, unit_name):
+    try:
+        sd = subprocess.run(
+            ["systemd-run", "--user", "--unit", unit_name, "--collect", "/bin/bash", script_path],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if sd.returncode == 0:
+            return "systemd-run", (sd.stdout or "").strip()
+    except Exception:
+        pass
+
+    subprocess.Popen(["nohup", "bash", script_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+    return "nohup", ""
+
+
+def schedule_offhost_delete_apply(auth_path, mutated_store, targets, mode):
+    os.makedirs("/tmp/openclaw", exist_ok=True)
+    ts = int(time.time())
+    safe = "-".join([t.replace(":", "_") for t in sorted(set(targets))])[:120] or "none"
+    staged_auth_path = f"/tmp/openclaw/codex-delete-auth-staged-{safe}-{ts}.json"
+    script_path = f"/tmp/openclaw/codex-delete-apply-{safe}-{ts}.sh"
+    log_path = f"/tmp/openclaw/codex-delete-apply-{safe}-{ts}.log"
+    status_path = f"/tmp/openclaw/codex-delete-apply-{safe}-{ts}.status.json"
+
+    write_json_atomic(staged_auth_path, mutated_store)
+
+    auth_q = shlex.quote(auth_path)
+    staged_q = shlex.quote(staged_auth_path)
+    log_q = shlex.quote(log_path)
+    status_q = shlex.quote(status_path)
+    mode_q = shlex.quote(mode)
+    targets_json_q = shlex.quote(json.dumps(sorted(set(targets))))
+    auth_py = json.dumps(auth_path)
+    status_py = json.dumps(status_path)
+
+    script = f"""#!/usr/bin/env bash
+set -euo pipefail
+exec >>{log_q} 2>&1
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] codex-delete apply start mode={mode} targets={','.join(sorted(set(targets)))}"
+cp {auth_q} {auth_q}.bak.offhost-delete.$(date -u +%Y%m%dT%H%M%SZ)
+
+pkill -TERM -f '^openclaw-gateway$' || true
+sleep 3
+pkill -KILL -f '^openclaw-gateway$' || true
+sleep 1
+
+cp {staged_q} {auth_q}
+nohup openclaw-gateway >/tmp/openclaw/openclaw-gateway-offhost-delete-start.log 2>&1 < /dev/null &
+sleep 5
+
+python3 - <<'PY'
+import json, time, urllib.request
+from pathlib import Path
+status = {{
+  'ok': False,
+  'step': 'post_restart_check',
+  'ts': int(time.time()*1000),
+  'mode': {mode_q},
+  'targets': json.loads({targets_json_q}),
+}}
+auth = json.loads(Path({auth_py}).read_text(encoding='utf-8'))
+profiles = auth.get('profiles') or {{}}
+status['present_after'] = [t for t in status['targets'] if t in profiles]
+try:
+  with urllib.request.urlopen('http://127.0.0.1:18789/health', timeout=4) as r:
+    status['gateway_health'] = r.read().decode('utf-8', errors='replace')[:200]
+except Exception as e:
+  status['gateway_health'] = f'error:{{e}}'
+# Success here means gateway returned and target mutation should be in place.
+status['ok'] = True
+Path({status_py}).write_text(json.dumps(status, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(status))
+PY
+
+echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] codex-delete apply end"
+"""
+    Path(script_path).write_text(script, encoding="utf-8")
+    os.chmod(script_path, 0o700)
+
+    launcher, launch_note = launch_offhost_script(script_path, f"codex-delete-apply-{ts}")
+    return {
+        "staged_auth_path": staged_auth_path,
+        "script_path": script_path,
+        "log_path": log_path,
+        "status_path": status_path,
+        "launcher": launcher,
+        "launcher_note": launch_note,
+    }
 
 
 def list_codex_profiles(store):
@@ -568,6 +674,8 @@ def main():
         help="Permanently delete profile+usage entries. Default is safer detach-only (keeps token/profile entry).",
     )
     ap.add_argument("--dry-run", action="store_true", help="Show delete result without writing auth file")
+    ap.add_argument("--ack-gateway-restart", action="store_true", help="Required confirmation: mutation will stop gateway, write auth store, and restart gateway")
+    ap.add_argument("--allow-unsafe-direct", action="store_true", help="Allow direct in-process auth write for delete mutation (not recommended)")
     ap.add_argument("--format", choices=["json", "text"], default="json", help="Output format for usage checks")
     args = ap.parse_args()
 
@@ -610,7 +718,7 @@ def main():
                         "auth_path": args.auth_path,
                         "safety_note": "Default mode is detach-only (removes from order/lastGood, keeps token/profile).",
                         "backup_note": "A timestamped backup will be created automatically before mutation.",
-                        "how_to_confirm": "Re-run with --confirm-delete (optionally add --dry-run first; use --hard-delete for permanent removal).",
+                        "how_to_confirm": "Re-run with --confirm-delete --ack-gateway-restart (optionally add --dry-run first; use --hard-delete for permanent removal).",
                     },
                     indent=2,
                 )
@@ -624,21 +732,72 @@ def main():
             mutate_result = detach_targets(store, delete_targets_list)
             action = "detach_profiles"
 
-        backup_path = None
-        if not args.dry_run:
+        if args.dry_run:
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "action": action,
+                        "mode": mode,
+                        "dry_run": True,
+                        "auth_path": args.auth_path,
+                        **mutate_result,
+                    },
+                    indent=2,
+                )
+            )
+            return
+
+        if not args.ack_gateway_restart:
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "error": "gateway_restart_ack_required",
+                        "action": action,
+                        "mode": mode,
+                        "targets": delete_targets_list,
+                        "warning": "This operation will stop the gateway, write auth profile changes, then restart the gateway.",
+                        "how_to_confirm": "Re-run with --confirm-delete --ack-gateway-restart (optionally add --hard-delete).",
+                    },
+                    indent=2,
+                )
+            )
+            sys.exit(5)
+
+        if args.allow_unsafe_direct:
             backup_path = backup_store(args.auth_path)
             save_store(args.auth_path, store)
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "action": action,
+                        "mode": mode,
+                        "dry_run": False,
+                        "unsafe_direct": True,
+                        "auth_path": args.auth_path,
+                        "backup_path": backup_path,
+                        **mutate_result,
+                    },
+                    indent=2,
+                )
+            )
+            return
 
+        queue_meta = schedule_offhost_delete_apply(args.auth_path, store, delete_targets_list, mode)
         print(
             json.dumps(
                 {
                     "ok": True,
                     "action": action,
                     "mode": mode,
-                    "dry_run": bool(args.dry_run),
+                    "dry_run": False,
+                    "queued": True,
+                    "warning": "Gateway stop/write/start apply has been queued off-host.",
                     "auth_path": args.auth_path,
-                    "backup_path": backup_path,
                     **mutate_result,
+                    **queue_meta,
                 },
                 indent=2,
             )
