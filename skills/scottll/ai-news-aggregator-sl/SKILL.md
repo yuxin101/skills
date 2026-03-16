@@ -3,36 +3,41 @@ name: ai-news-aggregator-sl
 description: >
   Fetches AI & tech news (default) or any custom topic (crypto, geopolitics, etc.)
   from RSS feeds, Tavily search, Twitter/X, and YouTube. Writes an English editorial
-  digest using DeepSeek AI and posts it to Discord. Supports any time range (today,
-  last 3 days, last week). Trigger when user asks for news, a digest, trending topics,
-  or YouTube updates on any subject.
-version: 1.4.2
+  digest using OpenAI by default (or DeepSeek / Claude), then posts it to Discord.
+  Supports any time range (today, last 3 days, last week). Trigger when user asks for
+  news, a digest, trending topics, or YouTube updates on any subject.
+version: 1.5.2
 
 metadata:
   openclaw:
     emoji: 🦞
     os: [linux, mac, windows]
-    primaryEnv: DEEPSEEK_API_KEY
+    primaryEnv: OPENAI_API_KEY
     requires:
       env:
-        - DEEPSEEK_API_KEY
-        - DISCORD_WEBHOOK_URL
+        - DISCORD_WEBHOOK_URL     # Required: Discord channel webhook to post results
       optionalEnv:
-        - TAVILY_API_KEY
-        - TWITTERAPI_IO_KEY
-        - YOUTUBE_API_KEY
+        - OPENAI_API_KEY          # Required if using OpenAI provider (default)
+        - DEEPSEEK_API_KEY        # Required if using DeepSeek provider
+        - ANTHROPIC_API_KEY       # Required if using Claude provider
+        - AI_PROVIDER             # Optional: deepseek | openai | claude (default: openai)
+        - AI_MODEL                # Optional: override model name
+        - TAVILY_API_KEY          # Optional: enables custom topic search
+        - TWITTERAPI_IO_KEY       # Optional: enables Twitter/X trending
+        - YOUTUBE_API_KEY         # Optional: enables YouTube results
       anyBins:
         - uv
-    # Python dependencies are declared inline in news_aggregator.py (PEP 723).
-    # `uv run news_aggregator.py` installs them automatically — no install spec needed.
+    # Python dependencies declared inline in news_aggregator.py (PEP 723).
+    # `uv run news_aggregator.py` installs them automatically — no manual setup needed.
 ---
 
 # 🦞 AI News Aggregator
 
-Collects news on any topic, writes an English editorial digest via DeepSeek AI, and posts it to Discord.
+Collects news on any topic, writes an English editorial digest using your choice of AI provider, and posts it to Discord.
 
 **Default (AI topic):** TechCrunch · The Verge · NYT Tech (RSS) + curated AI YouTube channels
 **Custom topics:** Tavily news search + YouTube topic search (no Shorts, sorted by views)
+**AI providers:** OpenAI (default) · DeepSeek · Anthropic Claude — switchable per request
 
 ---
 
@@ -40,7 +45,9 @@ Collects news on any topic, writes an English editorial digest via DeepSeek AI, 
 
 | Endpoint | Purpose | Condition |
 |----------|---------|-----------|
-| `https://api.deepseek.com/chat/completions` | AI editorial summarisation | Always (required) |
+| `https://api.openai.com/v1/chat/completions` | AI editorial summarisation | Only if `provider=openai` (default) |
+| `https://api.deepseek.com/chat/completions` | AI editorial summarisation | Only if `provider=deepseek` |
+| `https://api.anthropic.com/v1/messages` | AI editorial summarisation | Only if `provider=claude` |
 | `https://discord.com/api/webhooks/...` | Post digest to Discord | Always (required) |
 | `https://techcrunch.com/.../feed/` | RSS news (AI topic) | Default AI topic only |
 | `https://www.theverge.com/rss/...` | RSS news (AI topic) | Default AI topic only |
@@ -49,7 +56,7 @@ Collects news on any topic, writes an English editorial digest via DeepSeek AI, 
 | `https://api.twitterapi.io/twitter/tweet/advanced_search` | Twitter search | Only if `TWITTERAPI_IO_KEY` set |
 | `https://www.googleapis.com/youtube/v3/...` | YouTube search | Only if `YOUTUBE_API_KEY` set |
 
-The script does **not** contact OpenAI endpoints. The `openai` package is used solely as an HTTP client pointed at `https://api.deepseek.com`. `OPENAI_API_KEY` is explicitly removed from the environment at startup.
+Exactly one AI endpoint is contacted per run, determined by the active provider. The default provider is OpenAI (`OPENAI_API_KEY` required). Switch providers with `--provider deepseek` or `--provider claude`.
 
 ---
 
@@ -59,22 +66,36 @@ The script does **not** contact OpenAI endpoints. The `openai` package is used s
 - "Collect news about crypto"
 - "Last week's news about climate change"
 - "What's trending in AI today?"
-- "Get crypto news from the last 3 days"
+- "Get crypto news from the last 3 days using OpenAI"
 - "Show me recent Bitcoin YouTube videos"
+- "Summarise WWIII news with Claude"
+- "AI news using GPT-4o"
 - "AI news dry run" *(preview without posting to Discord)*
 - "Test my Discord webhook"
 
 ---
 
-## Required API Keys
+## API Keys
 
 | Key | Required | Where to get it |
 |-----|----------|----------------|
-| `DEEPSEEK_API_KEY` | ✅ | [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
-| `DISCORD_WEBHOOK_URL` | ✅ | Discord → Channel Settings → Integrations → Webhooks → Copy URL |
+| `DISCORD_WEBHOOK_URL` | ✅ Always | Discord → Channel Settings → Integrations → Webhooks → Copy URL |
+| `OPENAI_API_KEY` | If using OpenAI (default) | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| `DEEPSEEK_API_KEY` | If using DeepSeek | [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
+| `ANTHROPIC_API_KEY` | If using Claude | [console.anthropic.com](https://console.anthropic.com) → API Keys |
 | `TAVILY_API_KEY` | For custom topics | [app.tavily.com](https://app.tavily.com) |
 | `TWITTERAPI_IO_KEY` | Optional | [twitterapi.io](https://twitterapi.io) |
 | `YOUTUBE_API_KEY` | Optional | [console.cloud.google.com](https://console.cloud.google.com) → YouTube Data API v3 |
+
+## AI Providers & Models
+
+| Provider | `--provider` value | Default model | Best for |
+|----------|--------------------|---------------|---------|
+| OpenAI | `openai` **(default)** | `gpt-4o-mini` | Quality, reliability |
+| DeepSeek | `deepseek` | `deepseek-chat` | Cost-effective, fast |
+| Claude | `claude` | `claude-3-5-haiku-20241022` | Nuanced writing |
+
+Override per request using the `--provider` flag. Set a permanent non-default with `openclaw config set env.AI_PROVIDER '"deepseek"'`. Override the model with `--model` (e.g. `--model gpt-4o` or `--model claude-3-5-sonnet-20241022`).
 
 ---
 
@@ -103,22 +124,38 @@ If `uv` is not found, ask the user to install it from their system package manag
 
 ### Step 3 — API keys
 
-The env vars `DEEPSEEK_API_KEY` and `DISCORD_WEBHOOK_URL` are passed automatically by OpenClaw from its config. No `.env` file is needed.
+Env vars are passed automatically by OpenClaw from its config. No `.env` file is needed.
 
-Verify they are set (without revealing values):
+Verify the required keys are set (without revealing values):
 
 ```bash
-[[ -n "$DEEPSEEK_API_KEY" ]] && echo "DEEPSEEK_API_KEY: set" || echo "DEEPSEEK_API_KEY: MISSING"
+[[ -n "$OPENAI_API_KEY" ]]      && echo "OPENAI_API_KEY: set"      || echo "OPENAI_API_KEY: MISSING (required for default provider)"
 [[ -n "$DISCORD_WEBHOOK_URL" ]] && echo "DISCORD_WEBHOOK_URL: set" || echo "DISCORD_WEBHOOK_URL: MISSING"
 ```
 
-If either is missing, ask the user to run:
+If any are missing, ask the user to register them:
 ```
-openclaw config set env.DEEPSEEK_API_KEY '<key>'
+openclaw config set env.OPENAI_API_KEY '<key>'
 openclaw config set env.DISCORD_WEBHOOK_URL '<url>'
+# Optional alternatives:
+openclaw config set env.DEEPSEEK_API_KEY '<key>'
+openclaw config set env.ANTHROPIC_API_KEY '<key>'
 ```
 
 ### Step 4 — Parse the request
+
+Extract **topic**, **days**, and **provider** from what the user said:
+
+For AI provider:
+
+| User said | --provider | --model |
+|-----------|-----------|---------|
+| "use OpenAI" / "with GPT" / "using ChatGPT" / nothing specified | *(omit — default)* | *(omit)* |
+| "use Claude" / "with Anthropic" | `--provider claude` | *(omit)* |
+| "use DeepSeek" | `--provider deepseek` | *(omit)* |
+| "use GPT-4o" / "with gpt-4o" | `--provider openai` | `--model gpt-4o` |
+| "use claude sonnet" | `--provider claude` | `--model claude-3-5-sonnet-20241022` |
+| "use deepseek reasoner" | `--provider deepseek` | `--model deepseek-reasoner` |
 
 Extract **topic** and **days** from what the user said:
 
@@ -147,17 +184,23 @@ For report type:
 `uv run` automatically installs all dependencies from the script's inline metadata — no venv setup needed.
 
 ```bash
-uv run "$SCRIPT" [--topic "TOPIC"] [--days N] [--report TYPE] [--dry-run]
+uv run "$SCRIPT" [--topic "TOPIC"] [--days N] [--report TYPE] [--provider PROVIDER] [--model MODEL] [--dry-run]
 ```
 
 Examples:
 
 ```bash
-# AI news today (default)
+# AI news today — OpenAI (default)
 uv run "$SCRIPT"
 
-# Crypto news, last 7 days
-uv run "$SCRIPT" --topic "crypto" --days 7
+# Crypto news using OpenAI
+uv run "$SCRIPT" --topic "crypto" --provider openai
+
+# Last week's climate news using Claude
+uv run "$SCRIPT" --topic "climate change" --days 7 --provider claude
+
+# Use a specific model
+uv run "$SCRIPT" --topic "Bitcoin" --provider openai --model gpt-4o
 
 # Trending AI on Twitter and YouTube
 uv run "$SCRIPT" --report trending

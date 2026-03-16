@@ -5,6 +5,7 @@
 #   "feedparser",
 #   "requests",
 #   "openai",
+#   "anthropic",
 #   "tavily-python",
 # ]
 # ///
@@ -12,14 +13,26 @@
 AI News Aggregator — OpenClaw Skill Script
 ==========================================
 Sources : TechCrunch, The Verge, NYT Tech (RSS) + Tavily search + Twitter/X + YouTube
-AI      : DeepSeek at https://api.deepseek.com (OpenAI-compatible SDK, NOT OpenAI)
+AI      : OpenAI (default) · DeepSeek · Anthropic Claude — user's choice
 Output  : Discord channel via webhook (formatted markdown)
 
 Credentials: read from environment variables only (no .env file loaded).
 OpenClaw passes env vars declared in SKILL.md requires.env automatically.
 
+AI provider selection (pick one):
+  Provider   Env var needed          Default model
+  ─────────  ──────────────────────  ─────────────────────────
+  deepseek   DEEPSEEK_API_KEY        deepseek-chat
+  openai     OPENAI_API_KEY          gpt-4o-mini
+  claude     ANTHROPIC_API_KEY       claude-3-5-haiku-20241022
+
+  Set AI_PROVIDER=<provider> env var, or pass --provider flag at runtime.
+  Override model with AI_MODEL=<model> env var or --model flag.
+
 External endpoints contacted:
-  - https://api.deepseek.com/chat/completions     (always, required)
+  - https://api.deepseek.com/chat/completions     (provider=deepseek)
+  - https://api.openai.com/v1/chat/completions    (provider=openai)
+  - https://api.anthropic.com/v1/messages         (provider=claude)
   - https://discord.com/api/webhooks/...           (always, required)
   - https://techcrunch.com/.../feed/              (default AI topic only)
   - https://www.theverge.com/rss/...              (default AI topic only)
@@ -32,6 +45,8 @@ CLI flags:
     --topic TEXT      Topic to search (default: AI via RSS)
     --days  N         How many days back (default: 1)
     --report TYPE     news | trending | all (default: all)
+    --provider TEXT   AI provider: openai | deepseek | claude (default: openai)
+    --model TEXT      Override AI model (e.g. gpt-4o, claude-3-5-sonnet-20241022)
     --dry-run         Print to stdout instead of posting to Discord
     --test-discord    Send a test message to Discord and exit
 """
@@ -46,12 +61,18 @@ import feedparser
 from datetime import datetime, timezone, timedelta
 from openai import OpenAI
 
-# Safety: prevent the openai package from accidentally using an OPENAI_API_KEY
-# from the environment. This script targets DeepSeek only (base_url is always set).
-os.environ.pop("OPENAI_API_KEY", None)
+# ── AI provider config ────────────────────────────────────────
+# Reads AI_PROVIDER from env; can be overridden at runtime via --provider flag.
+# Only clear OPENAI_BASE_URL to prevent accidental endpoint redirection.
+# OPENAI_API_KEY is preserved so provider=openai works correctly.
 os.environ.pop("OPENAI_BASE_URL", None)
 
-DEEPSEEK_API_KEY             = os.getenv("DEEPSEEK_API_KEY", "")
+AI_PROVIDER_DEFAULT = os.getenv("AI_PROVIDER", "openai").lower()
+
+DEEPSEEK_API_KEY   = os.getenv("DEEPSEEK_API_KEY", "")
+OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY", "")
+ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
+
 TAVILY_API_KEY               = os.getenv("TAVILY_API_KEY", "")
 TWITTER_API_KEY              = os.getenv("TWITTERAPI_IO_KEY", "")
 YOUTUBE_API_KEY              = os.getenv("YOUTUBE_API_KEY", "")
@@ -109,12 +130,51 @@ def _parse_duration_seconds(duration: str) -> int:
     s  = int(m.group(1)) if (m := re.search(r'(\d+)S', duration)) else 0
     return h * 3600 + mn * 60 + s
 
-# ── DeepSeek editorial ────────────────────────────────────────
+# ── AI provider: call_ai() ────────────────────────────────────
 
-def deepseek_client():
-    return OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+PROVIDER_DEFAULTS = {
+    "deepseek": "deepseek-chat",
+    "openai":   "gpt-4o-mini",
+    "claude":   "claude-3-5-haiku-20241022",
+}
 
-def build_english_editorial(items: list, topic: str, days: int) -> str:
+def call_ai(prompt: str, provider: str, model_override: str = "") -> str:
+    """Send prompt to the chosen AI provider and return the response text."""
+    provider = provider.lower()
+    model = model_override or os.getenv("AI_MODEL", "") or PROVIDER_DEFAULTS.get(provider, "")
+
+    if provider == "claude":
+        import anthropic
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        msg = client.messages.create(
+            model=model,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text.strip()
+
+    elif provider == "openai":
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1024,
+            temperature=0.6,
+        )
+        return resp.choices[0].message.content.strip()
+
+    else:  # deepseek (default)
+        client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1024,
+            temperature=0.6,
+        )
+        return resp.choices[0].message.content.strip()
+
+def build_english_editorial(items: list, topic: str, days: int,
+                             provider: str = "deepseek", model: str = "") -> str:
     if not items:
         return ""
     today  = datetime.now().strftime("%Y-%m-%d")
@@ -139,15 +199,10 @@ def build_english_editorial(items: list, topic: str, days: int) -> str:
         "Output only these two sections."
     )
     try:
-        response = deepseek_client().chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1024,
-            temperature=0.6,
-        )
-        editorial = response.choices[0].message.content.strip()
+        print(f"  [AI] Using provider={provider} model={model or PROVIDER_DEFAULTS.get(provider, '')}")
+        editorial = call_ai(prompt, provider, model)
     except Exception as exc:
-        print(f"  [DeepSeek] Editorial failed: {exc}")
+        print(f"  [AI:{provider}] Editorial failed: {exc}")
         editorial = "\n".join(
             f"• [{it.get('title','')}]({it.get('url','')})" for it in items[:10]
         )
@@ -490,16 +545,25 @@ def build_youtube_section(yt_items: list, topic: str, days: int) -> str:
 
 # ── Config validation ─────────────────────────────────────────
 
-def validate_config():
-    if not DEEPSEEK_API_KEY:
-        print("\n❌ DEEPSEEK_API_KEY not set. Add it to ~/ai-news/.env")
+def validate_config(provider: str):
+    key_map = {
+        "deepseek": ("DEEPSEEK_API_KEY", DEEPSEEK_API_KEY),
+        "openai":   ("OPENAI_API_KEY",   OPENAI_API_KEY),
+        "claude":   ("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY),
+    }
+    if provider not in key_map:
+        print(f"\n❌ Unknown provider '{provider}'. Choose: deepseek | openai | claude")
+        sys.exit(1)
+    var_name, key_val = key_map[provider]
+    if not key_val:
+        print(f"\n❌ {var_name} not set. Register it with: openclaw config set env.{var_name} '<key>'")
         sys.exit(1)
     if not DISCORD_WEBHOOK_URL:
         print("  ⚠️  DISCORD_WEBHOOK_URL not set — output will print to stdout only.")
 
 # ── Report runners ────────────────────────────────────────────
 
-def run_news_report(topic: str, days: int, dry_run: bool = False):
+def run_news_report(topic: str, days: int, provider: str, model: str, dry_run: bool = False):
     cutoff = cutoff_from_days(days)
     print(f"\n📰 === News: '{topic}' | last {days}d ===")
     if is_default_topic(topic):
@@ -513,7 +577,7 @@ def run_news_report(topic: str, days: int, dry_run: bool = False):
         print(f"  No news found for '{topic}' in last {days}d.")
         return
     print(f"\n  Building editorial for {len(items)} items...")
-    digest = build_english_editorial(items, topic, days)
+    digest = build_english_editorial(items, topic, days, provider=provider, model=model)
     if dry_run:
         print("\n--- DRY RUN ---\n" + digest)
     else:
@@ -521,7 +585,7 @@ def run_news_report(topic: str, days: int, dry_run: bool = False):
         ok = post_to_discord(DISCORD_WEBHOOK_URL, digest)
         print("  ✅ Posted." if ok else "  ❌ Failed.")
 
-def run_trending_report(topic: str, days: int, dry_run: bool = False):
+def run_trending_report(topic: str, days: int, provider: str, model: str, dry_run: bool = False):
     cutoff = cutoff_from_days(days)
     print(f"\n🔥 === Trending: '{topic}' | last {days}d ===")
     twitter_items = fetch_twitter(topic, cutoff)
@@ -533,7 +597,9 @@ def run_trending_report(topic: str, days: int, dry_run: bool = False):
     twitter_digest = ""
     if twitter_items:
         print(f"\n  Building Twitter editorial for {len(twitter_items)} tweets...")
-        twitter_digest = build_english_editorial(twitter_items, f"{topic} on Twitter", days)
+        twitter_digest = build_english_editorial(
+            twitter_items, f"{topic} on Twitter", days, provider=provider, model=model
+        )
     yt_section = build_youtube_section(yt_items, topic, days) if yt_items else ""
     if not twitter_digest and not yt_section:
         print("  No trending content found.")
@@ -566,13 +632,20 @@ def main():
                         help="How many days back to search (default: 1)")
     parser.add_argument("--report",       choices=["all", "news", "trending"], default="all",
                         help="Which report to run (default: all)")
+    parser.add_argument("--provider",     type=str, default=AI_PROVIDER_DEFAULT,
+                        help="AI provider: deepseek | openai | claude (default: deepseek or AI_PROVIDER env)")
+    parser.add_argument("--model",        type=str, default="",
+                        help="Override AI model (e.g. gpt-4o, claude-3-5-sonnet-20241022, deepseek-reasoner)")
     parser.add_argument("--dry-run",      action="store_true",
                         help="Print output to stdout instead of posting to Discord")
     parser.add_argument("--test-discord", action="store_true",
                         help="Send a test message to Discord and exit")
     args = parser.parse_args()
 
-    validate_config()
+    provider = args.provider.lower()
+    model    = args.model.strip()
+
+    validate_config(provider)
 
     if args.test_discord:
         test_discord_webhook()
@@ -582,12 +655,12 @@ def main():
 
     start = time.time()
     print(f"\n🦞 AI News Aggregator — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print(f"   Topic: {topic} | Last {days} day(s) | Dry-run: {args.dry_run}")
+    print(f"   Topic: {topic} | Last {days} day(s) | Provider: {provider} | Dry-run: {args.dry_run}")
 
     if args.report in ("all", "news"):
-        run_news_report(topic, days, dry_run=args.dry_run)
+        run_news_report(topic, days, provider=provider, model=model, dry_run=args.dry_run)
     if args.report in ("all", "trending"):
-        run_trending_report(topic, days, dry_run=args.dry_run)
+        run_trending_report(topic, days, provider=provider, model=model, dry_run=args.dry_run)
 
     print(f"\n✅ Done in {time.time() - start:.1f}s")
 
