@@ -3,9 +3,15 @@
   "slug": "orbcafe-layout-navigation",
   "displayName": "orbcafe-layout-navigation",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773188106455,
-    "commit": "https://github.com/openclaw/skills/commit/d9bbf85ae3700783e001686c9cc5da451c6c2074"
+    "version": "1.0.1",
+    "publishedAt": 1773581862704,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773188106455,
+      "commit": "https://github.com/openclaw/skills/commit/d9bbf85ae3700783e001686c9cc5da451c6c2074"
+    }
+  ]
 }
