@@ -3,9 +3,15 @@
   "slug": "poe-connector",
   "displayName": "Poe Connector",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1772897357731,
-    "commit": "https://github.com/openclaw/skills/commit/18b0776828934499290bf12309f860bc679d0b48"
+    "version": "1.1.0",
+    "publishedAt": 1773652906529,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1772897357731,
+      "commit": "https://github.com/openclaw/skills/commit/18b0776828934499290bf12309f860bc679d0b48"
+    }
+  ]
 }

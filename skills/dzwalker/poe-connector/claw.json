@@ -1,6 +1,6 @@
 {
   "name": "poe-connector",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Connect OpenClaw to Poe.com — access 100+ AI models (Claude, GPT, Gemini, Grok, Llama), generate images/video/audio, and list available models, all through a single API key.",
   "author": "dzwalker",
   "category": "ai-ml",

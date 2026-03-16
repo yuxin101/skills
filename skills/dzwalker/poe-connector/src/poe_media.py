@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Poe Connector — Image, video, and audio generation via Poe media models."""
+from __future__ import annotations
 
 import argparse
 import base64
@@ -27,8 +28,25 @@ DEFAULT_EXTENSIONS = {
 }
 
 
+def _auto_download(url: str, output_path: str, media_type: str) -> bool:
+    """Download *url* to *output_path*. Returns True on success."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 poe-connector/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            Path(output_path).write_bytes(resp.read())
+        return True
+    except Exception as e:
+        print(f"Warning: auto-download failed — {e}", file=sys.stderr)
+        return False
+
+
 def extract_and_save_media(content: str, output_path: str | None, media_type: str) -> str | None:
-    """Try to find a base64 data URL or a regular URL in the response content and save/report it."""
+    """Try to find a base64 data URL or a regular URL in the response content and save/report it.
+
+    When no explicit *output_path* is given, the file is auto-downloaded to
+    the working directory so that the caller (typically an OpenClaw agent) has
+    a local path to hand off to the ``message`` tool for Telegram delivery.
+    """
     data_url_match = re.search(r"data:([^;]+);base64,([A-Za-z0-9+/=]+)", content)
     if data_url_match:
         mime, b64_data = data_url_match.group(1), data_url_match.group(2)
@@ -38,26 +56,39 @@ def extract_and_save_media(content: str, output_path: str | None, media_type: st
             output_path = f"poe_generated_{media_type}{ext}"
         Path(output_path).write_bytes(raw)
         print(f"Saved {media_type} to: {output_path}")
+        _print_media_hint(output_path, None, media_type)
         return output_path
 
     url_match = re.search(r"https?://\S+", content)
     if url_match:
         url = url_match.group(0).rstrip(")")
-        if output_path:
-            try:
-                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 poe-connector/1.0"})
-                with urllib.request.urlopen(req) as resp:
-                    Path(output_path).write_bytes(resp.read())
-                print(f"Saved {media_type} to: {output_path}")
-                print(f"Source URL: {url}")
-            except Exception as e:
-                print(f"Generated {media_type} URL: {url}")
-                print(f"Warning: failed to download — {e}", file=sys.stderr)
+        if not output_path:
+            ext = DEFAULT_EXTENSIONS.get(media_type, ".bin")
+            output_path = str(Path.cwd() / f"poe_generated_{media_type}{ext}")
+
+        if _auto_download(url, output_path, media_type):
+            local_path = str(Path(output_path).resolve())
+            print(f"Saved {media_type} to: {local_path}")
+            print(f"Source URL: {url}")
+            _print_media_hint(local_path, url, media_type)
+            return local_path
         else:
             print(f"Generated {media_type} URL: {url}")
-        return output_path or url
+            _print_media_hint(None, url, media_type)
+            return url
 
     return None
+
+
+def _print_media_hint(local_path: str | None, url: str | None, media_type: str) -> None:
+    """Print a structured hint so the agent knows how to deliver media on Telegram."""
+    target = local_path or url
+    if not target:
+        return
+    print(
+        f"\n[MEDIA_SEND_HINT] Use the message tool to send this {media_type} to the user:\n"
+        f'  message send --media "{target}"'
+    )
 
 
 def generate_media(

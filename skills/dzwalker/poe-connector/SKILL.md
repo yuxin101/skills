@@ -1,6 +1,6 @@
 ---
 name: poe-connector
-version: 1.0.5
+version: 1.1.0
 author: dzwalker
 description: >
   Access Poe.com AI models by running bash commands. Use when user mentions Poe, wants to use Poe models, or generate media via Poe.
@@ -63,8 +63,22 @@ Search models:
 bash ~/.openclaw/workspace/skills/poe-connector/poe.sh search claude
 ```
 
+## Sending generated media (images/video/audio) to the user
+
+After generating an image/video/audio, the script prints a `[MEDIA_SEND_HINT]` line with the local file path.
+**You MUST use the `message` tool to deliver the file** — do NOT just paste the URL or embed it in markdown.
+Telegram cannot render markdown images (`![alt](url)`); it requires `sendPhoto` / `sendDocument` which the `message` tool handles automatically.
+
+```
+message send --media "/path/to/poe_generated_image.png"
+```
+
+If `message send` is not available, you can also use the `--to last` flag or specify the channel explicitly.
+Always include a short text caption so the user knows what the media is about.
+
 ## DO NOT
 
+- Do NOT embed image/media URLs in markdown like `![image](url)` — Telegram will NOT display them
 - Do NOT use `sessions_spawn` — it will fail
 - Do NOT use browser to visit poe.com — it will fail
 - Do NOT set poe as a model provider — it will fail
