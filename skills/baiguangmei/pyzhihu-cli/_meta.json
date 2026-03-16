@@ -3,11 +3,16 @@
   "slug": "pyzhihu-cli",
   "displayName": "Zhihu Cli",
   "latest": {
-    "version": "0.2.4",
-    "publishedAt": 1773369650800,
-    "commit": "https://github.com/openclaw/skills/commit/6d1de2da3efdd56c945b492b152dee63d32e1638"
+    "version": "0.2.5",
+    "publishedAt": 1773643397945,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.2.4",
+      "publishedAt": 1773369650800,
+      "commit": "https://github.com/openclaw/skills/commit/6d1de2da3efdd56c945b492b152dee63d32e1638"
+    },
     {
       "version": "0.2.0",
       "publishedAt": 1773248432822,
