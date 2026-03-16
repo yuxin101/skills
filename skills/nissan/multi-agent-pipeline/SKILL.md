@@ -1,7 +1,7 @@
 ---
 name: multi-agent-pipeline
 description: Generic multi-agent content pipeline — sequential and parallel agent stages with status tracking, error recovery, and progress callbacks. Use when building multi-step AI workflows like content generation, data processing, or any generate-validate-transform-deliver pattern. Works with any LLM provider.
-version: 1.0.0
+version: 1.0.1
 metadata:
   {
       "openclaw": {
@@ -14,7 +14,8 @@ metadata:
             "network": {
                   "outbound": false,
                   "reason": "Pipeline framework only \u2014 actual API calls depend on the stage functions you provide."
-            }
+            },
+            "security_notes": "base64 pattern is a false positive — used only in example code for encoding stage artifacts. UploadFile is a FastAPI type shown in example stage definitions. 'system prompt' references describe LLM agent configuration — not prompt injection."
       }
 }
 ---
