@@ -3,9 +3,15 @@
   "slug": "brook",
   "displayName": "Brook",
   "latest": {
-    "version": "2.3.0",
-    "publishedAt": 1773446720133,
-    "commit": "https://github.com/openclaw/skills/commit/b61b11550520a2506c8d77699e302b0730adaf51"
+    "version": "2.3.7",
+    "publishedAt": 1773664920994,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.0",
+      "publishedAt": 1773446720133,
+      "commit": "https://github.com/openclaw/skills/commit/b61b11550520a2506c8d77699e302b0730adaf51"
+    }
+  ]
 }
