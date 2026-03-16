@@ -23,28 +23,30 @@ A high-performance, stateless Color API and toolset optimized for AI Agents (Ope
 
 ## 🛠 Capabilities
 
-### 1. SVG Gradient Placeholders
-Generate dynamic, lightweight placeholders for UI mockups with linear gradients.
+### 1. SVG Placeholders with Animation Effects
+Generate dynamic, lightweight placeholders for UI mockups with various gradient and animation effects.
 - **Endpoint**: `https://api.colors-cc.top/placeholder`
 - **Params**: 
   - `w`: Width in pixels (default: 800, range: 50-4000)
   - `h`: Height in pixels (default: 400, range: 50-4000)
   - `text`: Center text, URL-encoded (default: "{width} x {height}", max: 100 chars)
-  - `start`: Start gradient color as hex (default: random, must be valid 6-digit hex)
-  - `end`: End gradient color as hex (default: random, must be valid 6-digit hex)
-- **Example**: `<img src="https://api.colors-cc.top/placeholder?w=1200&h=630&text=Hero+Banner&start=%23F06292&end=%2364B5F6" alt="Hero">`
+  - `effect`: Visual effect. Options: `static` (default), `fluid`, `breathe`, `holographic`, `mesh`
+  - `palette`: Comma-separated colors — HEX, RGB, or HSL (default: 2 random colors, range: 2-10 colors). e.g., `%23FFD6A5,%23FFADAD`
+  - `speed`: Animation duration in seconds for non-static effects (default: 10, range: 1-30)
+  - `attribution`: Include branding watermark (default: true). Set to `false` or `0` to disable. When enabled, adds a subtle "colors-cc.top" watermark (15% opacity) in bottom-right corner and HTML comment for viral sharing.
+- **Examples**: 
+  - **Static**: `<img src="https://api.colors-cc.top/placeholder?w=1200&h=630&text=Hero+Banner&palette=%23F06292,%2364B5F6" alt="Hero">`
+  - **Holographic**: `<img src="https://api.colors-cc.top/placeholder?w=800&h=400&effect=holographic&palette=%2300FF41,%2300B8FF&speed=5" alt="Holo">`
+  - **Mesh**: `<img src="https://api.colors-cc.top/placeholder?w=800&h=400&effect=mesh&palette=%23FFD6A5,%23FFADAD,%23E2A0FF&speed=8" alt="Mesh">`
 - **Response**: SVG image with `Cache-Control: public, max-age=31536000, immutable`
 
-### 2. Fluid Animated Placeholders
+### 2. Fluid Animated Placeholders (Alias)
 Generate dynamic SVG gradients with smooth color transitions and animations.
 - **Endpoint**: `https://api.colors-cc.top/fluid-placeholder`
 - **Params**: 
-  - `w`: Width in pixels (default: 800, range: 50-4000)
-  - `h`: Height in pixels (default: 400, range: 50-4000)
-  - `stops`: Comma-separated HEX colors for gradient (default: warm pastel theme, range: 2-10 colors)
-  - `speed`: Animation duration in seconds (default: 10, range: 1-30)
-  - `text`: Optional center text (max 100 chars)
-- **Example**: `<img src="https://api.colors-cc.top/fluid-placeholder?w=1200&h=400&stops=%23FFD6A5,%23FFADAD,%23E2A0FF&speed=8&text=Animated+Hero" alt="Warm Gradient">`
+  - `w`, `h`, `text`, `speed`, `attribution` (same as above)
+  - `palette`: Comma-separated colors — HEX, RGB, or HSL (default: random, range: 2-10 colors)
+- **Example**: `<img src="https://api.colors-cc.top/fluid-placeholder?w=1200&h=400&palette=%23FFD6A5,%23FFADAD,%23E2A0FF&speed=8&text=Animated+Hero" alt="Warm Gradient">`
 - **Response**: Animated SVG with smooth color transitions and `Cache-Control: public, max-age=31536000, immutable`
 
 ### 3. Random Colors
@@ -80,12 +82,12 @@ Get all standard CSS color names mapped to their HEX values (~140 colors).
 ```html
 <section class="hero">
   <!-- Animated hero banner with text -->
-  <img src="https://api.colors-cc.top/fluid-placeholder?w=1200&h=600&text=Hero+Section&stops=%23FFD6A5,%23FFADAD,%23E2A0FF&speed=10" alt="Hero">
+  <img src="https://api.colors-cc.top/placeholder?w=1200&h=600&text=Hero+Section&effect=mesh&palette=%23FFD6A5,%23FFADAD,%23E2A0FF&speed=10" alt="Hero">
 </section>
 <div class="features">
   <!-- Static placeholder images -->
-  <img src="https://api.colors-cc.top/placeholder?w=400&h=300&text=Feature+1" alt="Feature 1">
-  <img src="https://api.colors-cc.top/placeholder?w=400&h=300&text=Feature+2" alt="Feature 2">
+  <img src="https://api.colors-cc.top/placeholder?w=400&h=300&text=Feature+1&palette=%23F06292,%2364B5F6" alt="Feature 1">
+  <img src="https://api.colors-cc.top/placeholder?w=400&h=300&text=Feature+2&palette=%234DB6AC,%2381C784" alt="Feature 2">
 </div>
 ```
 
@@ -98,7 +100,7 @@ const mockData = palette.colors.map((color, i) => ({
   id: i,
   name: `Item ${i+1}`,
   color: color,
-  thumbnail: `https://api.colors-cc.top/placeholder?w=200&h=200&start=${color.slice(1)}`
+  thumbnail: `https://api.colors-cc.top/placeholder?w=200&h=200&palette=${color.replace('#', '%23')},%23000000`
 }))
 ```
 
@@ -123,8 +125,18 @@ console.log(result.hex) // #4099BF
 
 ### ❌ Mistake 1: Unencoded Hash Symbol
 ```
-BAD:  start=#FF0000
-GOOD: start=%23FF0000
+BAD:  palette=#FF0000,%230000FF
+GOOD: palette=%23FF0000,%230000FF
+```
+
+### ✅ Tip: Disable Attribution for Internal Tools
+By default, all SVG placeholders include a subtle branding watermark for viral sharing. Disable it for internal tools:
+```
+// With attribution (default - recommended for public-facing content)
+https://api.colors-cc.top/placeholder?w=800&h=400
+
+// Without attribution (for internal use)
+https://api.colors-cc.top/placeholder?w=800&h=400&attribution=false
 ```
 
 ### ❌ Mistake 2: Fetching SVG and Re-processing
@@ -150,18 +162,18 @@ BAD:  /api/convert?hex=%23FF0000&rgb=rgb(255,0,0)
 GOOD: /api/convert?hex=%23FF0000
 ```
 
-### ❌ Mistake 5: Invalid Number of Color Stops in Fluid Placeholder
+### ❌ Mistake 5: Invalid Number of Colors in Palette
 ```
-BAD:  stops=%23FF0000 (only 1 color, minimum is 2)
-BAD:  stops=%23FF0000,%23... (more than 10 colors, will be ignored)
-GOOD: stops=%23FF0000,%230000FF,%2300FF00 (2-10 colors)
+BAD:  palette=%23FF0000 (only 1 color, minimum is 2)
+BAD:  palette=%23FF0000,%23... (more than 10 colors, will be ignored)
+GOOD: palette=%23FF0000,%230000FF,%2300FF00 (2-10 colors)
 ```
 
 ## 🌐 Web Tools (For Users)
+- Placeholder Generator: https://colors-cc.top/
 - Universal Color Converter: https://colors-cc.top/tools/converter
 - Random Palette Generator: https://colors-cc.top/tools/random-palette
 - CSS Color Names Reference: https://colors-cc.top/tools/color-names
-- Fluid Gradient Placeholder: https://colors-cc.top/tools/fluid-placeholder
 
 ## 📚 Full Documentation
 For complete API documentation, reference:

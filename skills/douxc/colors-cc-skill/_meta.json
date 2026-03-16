@@ -3,11 +3,16 @@
   "slug": "colors-cc-skill",
   "displayName": "Colors CC",
   "latest": {
-    "version": "0.2.1",
-    "publishedAt": 1773371021412,
-    "commit": "https://github.com/openclaw/skills/commit/d332d07092ef44d779a20d53bfce73eb8a527881"
+    "version": "0.4.0",
+    "publishedAt": 1773674487469,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.2.1",
+      "publishedAt": 1773371021412,
+      "commit": "https://github.com/openclaw/skills/commit/d332d07092ef44d779a20d53bfce73eb8a527881"
+    },
     {
       "version": "0.1.0",
       "publishedAt": 1773124279191,
