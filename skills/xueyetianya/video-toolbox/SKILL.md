@@ -1,6 +1,8 @@
 ---
+version: "2.0.0"
 name: video-toolbox
 description: "╔══════════════════════════════════════════════════════════╗. Use when you need video toolbox capabilities. Triggers on: video toolbox, input, output, start, end, duration."
+author: BytesAgain
 ---
 
 # Video Toolbox
@@ -11,7 +13,7 @@ Complete video processing toolkit for AI agents. One script, 14 commands, zero h
 
 ## Description
 
-Video Toolbox is a comprehensive, production-ready video processing skill that wraps ffmpeg/ffprobe into a single, agent-friendly bash script. Unlike simpler tools that only extract frames, Video Toolbox covers the entire video processing workflow — from inspection to trimming, conversion, compression, watermarking, GIF creation, audio extraction, and beyond.
+Video Toolbox is a complete, production-ready video processing skill that wraps ffmpeg/ffprobe into a single, agent-friendly bash script. Unlike simpler tools that only extract frames, Video Toolbox covers the entire video processing workflow — from inspection to trimming, conversion, compression, watermarking, GIF creation, audio extraction, and beyond.
 
 Every command includes input validation, meaningful error messages, and sensible defaults. Designed so an AI agent can confidently process any video file without memorizing ffmpeg's sprawling option syntax.
 
