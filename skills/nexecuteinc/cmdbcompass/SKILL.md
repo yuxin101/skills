@@ -1,7 +1,16 @@
 ---
 name: cmdbcompass
-description: "The first CMDB governance skill for ServiceNow. Audit, remediate, and govern your CMDB from any AI agent. Health scoring, duplicate detection, relationship analysis, stale CI cleanup, and governed remediation with full rollback and audit trail on every write."
-metadata: {"openclaw":{"requires":{"bins":["python3","pip"],"env":["SERVICENOW_INSTANCE_URL","SERVICENOW_USERNAME","SERVICENOW_PASSWORD"]},"install":[{"id":"mcp-install","kind":"exec","command":"bash scripts/install-mcp.sh","label":"Install CMDB Compass MCP server"}]}}
+description: The first CMDB governance skill for ServiceNow. Audit, remediate, and govern your CMDB from any AI agent. Health scoring, duplicate detection, relationship analysis, stale CI cleanup, and governed remediation with full rollback and audit trail on every write.
+metadata:
+  openclaw:
+    requires:
+      bins: [python3, pip]
+      env: [SERVICENOW_INSTANCE_URL, SERVICENOW_USERNAME, SERVICENOW_PASSWORD]
+    install:
+      - id: mcp-install
+        kind: exec
+        command: bash scripts/install-mcp.sh
+        label: Install CMDB Compass MCP server
 ---
 
 # CMDB Compass
@@ -59,3 +68,7 @@ Python 3.10+ and a ServiceNow instance with REST API access.
 ## License
 
 MIT. See LICENSE for details.
+
+## Contact
+
+[hello@cmdbcompass.com](mailto:hello@cmdbcompass.com) · [Issues](https://github.com/cmdbcompass/cmdbcompass/issues)
