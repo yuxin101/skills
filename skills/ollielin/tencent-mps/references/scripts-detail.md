@@ -38,7 +38,7 @@ python scripts/mps_get_video_task.py --task-id <TaskId>
 # 默认增强（预设模板 321002）
 python scripts/mps_enhance.py --url https://example.com/video.mp4
 
-# ===== 大模型增强专用模板（327001~327020，推荐优先使用） =====
+# ===== 大模型增强专用模板（327001 至 327020，推荐优先使用） =====
 
 # 真人场景 - 升至 720P（适合真人实拍，保护人脸与文字区域）
 python scripts/mps_enhance.py --url https://example.com/video.mp4 --template 327001
@@ -184,7 +184,7 @@ python scripts/mps_erase.py --url https://example.com/video.mp4 --position botto
 # 使用区域预设 — 全屏幕
 python scripts/mps_erase.py --url https://example.com/video.mp4 --position fullscreen
 
-# 自定义区域（画面顶部0~25%区域）
+# 自定义区域（画面顶部0 至 25%区域）
 python scripts/mps_erase.py --url https://example.com/video.mp4 --area 0,0,1,0.25
 
 # 多区域擦除（顶部 + 底部都有字幕）
@@ -204,18 +204,18 @@ python scripts/mps_get_video_task.py --task-id <TaskId>
 
 | 预设值 | 说明 | 坐标范围 |
 |--------|------|----------|
-| `fullscreen` | 全屏幕 | (0,0)~(0.9999,0.9999) |
-| `top-half` | 上半屏幕 | (0,0)~(0.9999,0.5) |
-| `bottom-half` | 下半屏幕 | (0,0.5)~(0.9999,0.9999) |
-| `center` | 屏幕中间 | (0.1,0.3)~(0.9,0.7) |
-| `left` | 屏幕左边 | (0,0)~(0.5,0.9999) |
-| `right` | 屏幕右边 | (0.5,0)~(0.9999,0.9999) |
-| `top` | 屏幕顶部 | (0,0)~(0.9999,0.25) |
-| `bottom` | 屏幕底部 | (0,0.75)~(0.9999,0.9999) |
-| `top-left` | 屏幕左上方 | (0,0)~(0.5,0.5) |
-| `top-right` | 屏幕右上方 | (0.5,0)~(0.9999,0.5) |
-| `bottom-left` | 屏幕左下方 | (0,0.5)~(0.5,0.9999) |
-| `bottom-right` | 屏幕右下方 | (0.5,0.5)~(0.9999,0.9999) |
+| `fullscreen` | 全屏幕 | (0,0) 至 (0.9999,0.9999) |
+| `top-half` | 上半屏幕 | (0,0) 至 (0.9999,0.5) |
+| `bottom-half` | 下半屏幕 | (0,0.5) 至 (0.9999,0.9999) |
+| `center` | 屏幕中间 | (0.1,0.3) 至 (0.9,0.7) |
+| `left` | 屏幕左边 | (0,0) 至 (0.5,0.9999) |
+| `right` | 屏幕右边 | (0.5,0) 至 (0.9999,0.9999) |
+| `top` | 屏幕顶部 | (0,0) 至 (0.9999,0.25) |
+| `bottom` | 屏幕底部 | (0,0.75) 至 (0.9999,0.9999) |
+| `top-left` | 屏幕左上方 | (0,0) 至 (0.5,0.5) |
+| `top-right` | 屏幕右上方 | (0.5,0) 至 (0.9999,0.5) |
+| `bottom-left` | 屏幕左下方 | (0,0.5) 至 (0.5,0.9999) |
+| `bottom-right` | 屏幕右下方 | (0.5,0.5) 至 (0.9999,0.9999) |
 
 ## 5. 图片处理 — `mps_imageprocess.py`
 

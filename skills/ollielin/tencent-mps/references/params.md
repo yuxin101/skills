@@ -78,7 +78,7 @@
 
 | 参数 | 说明 |
 |------|------|
-| `--template` | **大模型增强专用模板 ID（327001~327020），优先级最高，指定后忽略 --preset 等增强参数**。按场景和分辨率细分，内置降噪+超分+综合增强，开箱即用：<br>• **真人场景（Real）**：适合真人实拍，保护人脸与文字区域 → `327001`(720P) `327003`(1080P) `327005`(2K) `327007`(4K)<br>• **漫剧场景（Anime）**：适合动漫风格，增强线条色块特征 → `327002`(720P) `327004`(1080P) `327006`(2K) `327008`(4K)<br>• **抖动优化（JitterOpt）**：减少帧间抖动与纹理跳变 → `327009`(720P) `327010`(1080P) `327011`(2K) `327012`(4K)<br>• **细节最强（DetailMax）**：最大化纹理细节还原 → `327013`(720P) `327014`(1080P) `327015`(2K) `327016`(4K)<br>• **人脸保真（FaceFidelity）**：最大程度保留人脸五官细节 → `327017`(720P) `327018`(1080P) `327019`(2K) `327020`(4K) |
+| `--template` | **大模型增强专用模板 ID（327001 至 327020），优先级最高，指定后忽略 --preset 等增强参数**。按场景和分辨率细分，内置降噪+超分+综合增强，开箱即用：<br>• **真人场景（Real）**：适合真人实拍，保护人脸与文字区域 → `327001`(720P) `327003`(1080P) `327005`(2K) `327007`(4K)<br>• **漫剧场景（Anime）**：适合动漫风格，增强线条色块特征 → `327002`(720P) `327004`(1080P) `327006`(2K) `327008`(4K)<br>• **抖动优化（JitterOpt）**：减少帧间抖动与纹理跳变 → `327009`(720P) `327010`(1080P) `327011`(2K) `327012`(4K)<br>• **细节最强（DetailMax）**：最大化纹理细节还原 → `327013`(720P) `327014`(1080P) `327015`(2K) `327016`(4K)<br>• **人脸保真（FaceFidelity）**：最大程度保留人脸五官细节 → `327017`(720P) `327018`(1080P) `327019`(2K) `327020`(4K) |
 | `--preset` | 预设模式（自定义参数模式，与 `--template` 互斥）：`diffusion`（大模型）、`comprehensive`（综合）、`artifact`（去毛刺/去伪影） |
 | `--diffusion-type` | 大模型增强强度：`strong`、`normal`（默认）、`weak` |
 | `--comprehensive-type` | 综合增强强度：`strong`、`normal`、`weak`（默认） |
@@ -91,7 +91,7 @@
 | `--denoise-type` | 降噪强度：`weak`（默认）、`strong` |
 | `--color-enhance` | 启用色彩增强 |
 | `--color-enhance-type` | 色彩增强强度：`weak`（默认）、`normal`、`strong` |
-| `--scratch-repair` | 划痕修复强度（浮点数 0.0~1.0，如 `0.5`、`0.8`），适合老片修复 |
+| `--scratch-repair` | 划痕修复强度（浮点数 0.0 至 1.0，如 `0.5`、`0.8`），适合老片修复 |
 | `--low-light-enhance` | 启用低光照增强 |
 | `--hdr` | HDR 模式：`HDR10`、`HLG` |
 | `--frame-rate` | 目标帧率（插帧），如 `60` |
@@ -119,10 +119,12 @@
 | `--subtitle-type` | 字幕语言类型：`0`=源语言、`1`=翻译语言、`2`=双语（有翻译时默认） |
 | `--subtitle-format` | 字幕文件格式：`vtt`（默认）、`srt`、`original` |
 | `--hotwords-id` | ASR 热词库 ID，提高专业术语识别准确率，如 `hwd-xxxxx` |
-| `--ocr-area` | OCR 识别区域（百分比坐标 0~1），格式 `x1,y1,x2,y2`，可多次指定 |
+| `--ocr-area` | OCR 识别区域（百分比坐标 0 至 1），格式 `x1,y1,x2,y2`，可多次指定 |
 | `--sample-width` | 示例视频/图片的宽度（像素），配合 `--ocr-area` 使用，帮助 OCR 精确定位区域 |
 | `--sample-height` | 示例视频/图片的高度（像素），配合 `--ocr-area` 使用 |
 | `--template` | 智能字幕预设模板 ID（如 `110167`），不指定则使用自定义参数模式 |
+| `--user-ext-para` | 用户扩展字段，一般场景不用填 |
+| `--ext-info` | 自定义扩展参数（JSON 字符串） |
 
 ## 智能去字幕与擦除参数（mps_erase.py）
 
@@ -132,7 +134,7 @@
 | `--method` | 擦除方式：`auto`（AI自动识别，默认）、`custom`（指定区域直接擦除） |
 | `--model` | 擦除模型：`standard`（默认）、`area`（区域模型，适合花体/阴影字幕） |
 | `--position` | 区域预设（仅模板 101/102 支持）：`top`、`bottom`、`left`、`right`、`center`、`top-left`、`top-right`、`bottom-left`、`bottom-right`、`top-half`、`bottom-half`、`fullscreen`，共 12 种；不传则默认识别视频**中下部**区域 |
-| `--area` | 自动擦除自定义区域，格式 `x1,y1,x2,y2`（0~1 相对坐标），可多次指定 |
+| `--area` | 自动擦除自定义区域，格式 `x1,y1,x2,y2`（0 至 1 相对坐标），可多次指定 |
 | `--custom-area` | 指定区域+时间段擦除，格式 `beginMs,endMs,x1,y1,x2,y2`，可多次指定 |
 | `--ocr` | 同时 OCR 提取字幕内容 |
 | `--subtitle-lang` | 字幕语言：`zh_en`（中英，默认）、`multi`（多语种） |
@@ -155,14 +157,14 @@
 | `--denoise` | 降噪强度：`weak`（轻度）、`strong`（强力） |
 | `--quality-enhance` | 综合增强强度：`weak`（轻度）、`normal`（中度）、`strong`（强力） |
 | `--color-enhance` | 色彩增强：`weak`、`normal`、`strong` |
-| `--sharp-enhance` | 细节增强（0.0~1.0） |
-| `--face-enhance` | 人脸增强强度（0.0~1.0） |
+| `--sharp-enhance` | 细节增强（0.0 至 1.0） |
+| `--face-enhance` | 人脸增强强度（0.0 至 1.0） |
 | `--lowlight-enhance` | 启用低光照增强 |
-| `--beauty` | 美颜效果，格式 `类型:强度`（强度 0~100），可多次指定。口红可附加颜色值：`FaceFeatureLipsLut:50:#ff0000`。类型：`Whiten`（美白）、`BlackAlpha1`（美黑）、`BlackAlpha2`（较强美黑）、`FoundationAlpha2`（粉白）、`Clear`（清晰度）、`Sharpen`（锐化）、`Smooth`（磨皮）、`BeautyThinFace`（瘦脸）、`NatureFace`（自然脸型）、`VFace`（V脸）、`EnlargeEye`（大眼）、`EyeLighten`（亮眼）、`RemoveEyeBags`（祛眼袋）、`ThinNose`（瘦鼻）、`RemoveLawLine`（祛法令纹）、`CheekboneThin`（瘦颧骨）、`FaceFeatureLipsLut`（口红）、`ToothWhiten`（牙齿美白）、`FaceFeatureSoftlight`（柔光）、`Makeup`（美妆），共 20 种 |
+| `--beauty` | 美颜效果，格式 `类型:强度`（强度 0 至 100），可多次指定。口红可附加颜色值：`FaceFeatureLipsLut:50:#ff0000`。类型：`Whiten`（美白）、`BlackAlpha1`（美黑）、`BlackAlpha2`（较强美黑）、`FoundationAlpha2`（粉白）、`Clear`（清晰度）、`Sharpen`（锐化）、`Smooth`（磨皮）、`BeautyThinFace`（瘦脸）、`NatureFace`（自然脸型）、`VFace`（V脸）、`EnlargeEye`（大眼）、`EyeLighten`（亮眼）、`RemoveEyeBags`（祛眼袋）、`ThinNose`（瘦鼻）、`RemoveLawLine`（祛法令纹）、`CheekboneThin`（瘦颧骨）、`FaceFeatureLipsLut`（口红）、`ToothWhiten`（牙齿美白）、`FaceFeatureSoftlight`（柔光）、`Makeup`（美妆），共 20 种 |
 | `--filter` | 滤镜效果，格式 `类型:强度`，如 `Qingjiaopian:70`。类型：`Dongjing`（东京）、`Qingjiaopian`（轻胶片）、`Meiwei`（美味） |
 | `--erase-detect` | 自动擦除类型（可多选）：`logo`（图标）、`text`（文字）、`watermark`（水印） |
 | `--erase-area` | 指定擦除区域（像素坐标），格式 `x1,y1,x2,y2`，可多次指定 |
-| `--erase-box` | 指定擦除区域（百分比坐标 0~1），格式 `x1,y1,x2,y2`，可多次指定 |
+| `--erase-box` | 指定擦除区域（百分比坐标 0 至 1），格式 `x1,y1,x2,y2`，可多次指定 |
 | `--erase-area-type` | 指定区域擦除的类型：`logo`（图标，默认）、`text`（文字） |
 | `--add-watermark` | 添加盲水印，指定水印文字（最多 4 字节，约 1 个中文字或 4 个 ASCII 字符，超出会被截断） |
 | `--extract-watermark` | 提取盲水印 |
@@ -173,7 +175,7 @@
 | `--resize-long-side` | 目标长边（像素），未指定宽高时使用 |
 | `--resize-short-side` | 目标短边（像素），未指定宽高时使用 |
 | `--format` | 输出格式：`WebP`、`JPEG`、`PNG`、`BMP` |
-| `--quality` | 输出质量（1~100） |
+| `--quality` | 输出质量（1 至 100） |
 | `--definition` | 图片处理模板 ID（使用预设模板时指定） |
 | `--schedule-id` | 编排场景 ID：`30000`（文字水印擦除）、`30010`（图片扩展）、`30100`（换装） |
 | `--resource-id` | 资源 ID（默认为账号主资源 ID） |

@@ -568,8 +568,8 @@ def main():
                            help="COS Bucket 名称（默认取 TENCENTCLOUD_COS_BUCKET 环境变量）")
     cos_group.add_argument("--cos-bucket-region", type=str,
                            help="COS Bucket 区域（默认取 TENCENTCLOUD_COS_REGION 环境变量，默认 ap-guangzhou）")
-    cos_group.add_argument("--cos-bucket-path", type=str,
-                           help="COS 存储路径前缀（如 aigc_output）")
+    cos_group.add_argument("--cos-bucket-path", type=str, default="output/aigc-pic/",
+                           help="COS 存储路径前缀（默认 output/aigc-pic/）")
 
     # ---- 执行控制 ----
     control_group = parser.add_argument_group("执行控制")

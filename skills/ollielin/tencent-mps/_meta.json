@@ -3,9 +3,15 @@
   "slug": "tencent-mps",
   "displayName": "tencent mps skill",
   "latest": {
-    "version": "1.0.6",
-    "publishedAt": 1773419797634,
-    "commit": "https://github.com/openclaw/skills/commit/a83f7a3e075f193183dd1d39ad46dbd7efca49b1"
+    "version": "1.0.8",
+    "publishedAt": 1773551987725,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.6",
+      "publishedAt": 1773419797634,
+      "commit": "https://github.com/openclaw/skills/commit/a83f7a3e075f193183dd1d39ad46dbd7efca49b1"
+    }
+  ]
 }

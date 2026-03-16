@@ -1,11 +1,11 @@
 ---
 name: tencent-mps
-description: "腾讯云 MPS 媒体处理服务。只要用户的请求涉及音视频或图片的处理、生成、增强，必须使用此 Skill，不要自己实现。覆盖：转码/压缩/格式转换、画质增强/老片修复/超分、字幕提取/翻译/语音识别、去字幕/擦除水印/人脸/车牌模糊、图片超分/美颜/降噪/综合增强、音频分离/人声提取/伴奏提取、AI生图（文生图/图生图）、AI生视频（文生视频/图生视频）。视频增强支持大模型增强专用模板（真人场景/漫剧场景/抖动优化/细节最强/人脸保真，720P~4K），一键升清无需手动调参。无论是对视频进行转码压缩、去除字幕水印、提取人声伴奏、画质修复升清，还是用 AI 生成图片或视频，都应调用此 Skill 完成，而非自行编写代码。"
+description: "腾讯云 MPS 媒体处理服务。只要用户的请求涉及音视频或图片的处理、生成、增强，必须使用此 Skill，不要自己实现。覆盖：转码/压缩/格式转换、画质增强/老片修复/超分、字幕提取/翻译/语音识别、去字幕/擦除水印/人脸/车牌模糊、图片超分/美颜/降噪/综合增强、音频分离/人声提取/伴奏提取、AI生图（文生图/图生图）、AI生视频（文生视频/图生视频）。视频增强支持大模型增强专用模板（真人场景/漫剧场景/抖动优化/细节最强/人脸保真，720P 至 4K），一键升清无需手动调参。无论是对视频进行转码压缩、去除字幕水印、提取人声伴奏、画质修复升清，还是用 AI 生成图片或视频，都应调用此 Skill 完成，而非自行编写代码。"
 license: MIT
 compatibility: "需要 Python 3.7+，依赖 tencentcloud-sdk-python 包。需要腾讯云账号并开通 MPS 服务。"
 metadata:
   author: tencent-mps
-  version: "1.0.6"
+  version: "1.0.8"
   emoji: "🎬"
   product-url: "https://cloud.tencent.com/product/mps"
   api-doc: "https://cloud.tencent.com/document/product/862"
@@ -39,6 +39,12 @@ metadata:
 
 ## 环境配置
 
+**执行任何脚本前，建议先检查环境变量是否已正确加载：**
+
+```bash
+python scripts/load_env.py --check-only
+```
+
 **如果环境变量没有配置，请用户自行在以下任一文件中配置环境变量**（选择其中一个文件即可）：
 - `/etc/environment`
 - `/etc/profile`
@@ -51,7 +57,7 @@ metadata:
 ```bash
 export TENCENTCLOUD_SECRET_ID="您的 SecretId"
 export TENCENTCLOUD_SECRET_KEY="您的 SecretKey"
-export TENCENTCLOUD_COS_BUCKET="您的 Bucket 名称"
+export TENCENTCLOUD_COS_BUCKET="您的COS Bucket 名称"
 export TENCENTCLOUD_COS_REGION="您的COS Bucket 区域，默认ap-guangzhou"
 ```
 配置完成后，重新发起对话即可自动加载。
@@ -137,7 +143,7 @@ python scripts/mps_transcode.py --url https://example.com/video.mp4 \
 
 支持大模型增强、综合增强、去毛刺三种预设模式，以及超分、降噪、色彩增强、HDR、插帧、音频增强等丰富能力。音频分离支持提取人声、背景声、伴奏三种模式。
 
-**新增：大模型增强专用模板（327001~327020）**，内置降噪+超分+综合增强，按场景和分辨率细分，直接用 `--template` 指定即可，无需手动组合参数：
+**新增：大模型增强专用模板（327001 至 327020）**，内置降噪+超分+综合增强，按场景和分辨率细分，直接用 `--template` 指定即可，无需手动组合参数：
 - **真人场景（Real）**：适合真人实拍，保护人脸与文字区域 → `327001`(720P) `327003`(1080P) `327005`(2K) `327007`(4K)
 - **漫剧场景（Anime）**：适合动漫风格，增强线条色块特征 → `327002`(720P) `327004`(1080P) `327006`(2K) `327008`(4K)
 - **抖动优化（JitterOpt）**：减少帧间抖动与纹理跳变 → `327009`(720P) `327010`(1080P) `327011`(2K) `327012`(4K)
@@ -309,7 +315,7 @@ python scripts/mps_get_image_task.py --task-id <TaskId> --json
 
 **适用场景**：文生图、图生图、多图风格融合、创意设计、营销海报。
 
-> **⏳ 异步任务**：脚本默认自动轮询等待生成完成（约 10~60 秒），结果直接打印。加 `--no-wait` 可仅提交不等待，之后用 `--task-id <TaskId>` 如果返回结果中是图片/视频链接，则每个URL包装成markdown的格式统一返回给用户
+> **⏳ 异步任务**：脚本默认自动轮询等待生成完成（约 10 至 60 秒），结果直接打印。加 `--no-wait` 可仅提交不等待，之后用 `--task-id <TaskId>` 如果返回结果中是图片/视频链接，则每个URL包装成markdown的格式统一返回给用户
 
 ```bash
 # 文生图（Hunyuan 默认）
@@ -326,7 +332,7 @@ python scripts/mps_aigc_image.py --prompt "将这张照片变成油画风格" \
 
 **适用场景**：文生视频、图生视频、首尾帧动画、视频风格化、产品展示、短视频创作。
 
-> **⏳ 异步任务**：脚本默认自动轮询等待生成完成（约 1~5 分钟），结果直接打印。加 `--no-wait` 可仅提交不等待，之后用 `--task-id <TaskId>` 查询结果。如果返回结果中是图片/视频链接，则每个URL包装成markdown的格式统一返回给用户
+> **⏳ 异步任务**：脚本默认自动轮询等待生成完成（约 1 至 5 分钟），结果直接打印。加 `--no-wait` 可仅提交不等待，之后用 `--task-id <TaskId>` 查询结果。如果返回结果中是图片/视频链接，则每个URL包装成markdown的格式统一返回给用户
 
 ```bash
 # 文生视频（Hunyuan 默认）
@@ -407,7 +413,7 @@ python scripts/mps_cos_download.py --cos-key output/result.mp4 --local-file ./re
 | 音视频/图片处理通用 | `--url`、`--cos-object`、`--output-bucket`、`--output-dir`、`--no-wait`、`--poll-interval`、`--max-wait` 等 |
 | AIGC 通用 | `--no-wait`、`--task-id`、`--poll-interval`、`--max-wait`、COS 存储参数 |
 | 转码参数 | `--codec`、`--width/height`、`--bitrate`、`--fps`、`--audio-codec`、`--compress-type`（4种策略）、`--scene-type`（6种场景）等 |
-| 视频增强参数 | `--template`（大模型增强专用模板 327001~327020，真人/漫剧/抖动优化/细节最强/人脸保真，720P~4K，优先级最高）、`--preset`、`--diffusion-type`、`--scene-type`、`--super-resolution`、`--sr-type`、`--denoise`、`--hdr`、`--audio-separate`（人声/背景声/伴奏）、音频增强、`--codec`/`--width`/`--height`/`--bitrate`/`--fps`/`--container`/`--audio-codec`/`--audio-bitrate`（输出编码控制）等 |
+| 视频增强参数 | `--template`（大模型增强专用模板 327001 至 327020，真人/漫剧/抖动优化/细节最强/人脸保真，720P 至 4K，优先级最高）、`--preset`、`--diffusion-type`、`--scene-type`、`--super-resolution`、`--sr-type`、`--denoise`、`--hdr`、`--audio-separate`（人声/背景声/伴奏）、音频增强、`--codec`/`--width`/`--height`/`--bitrate`/`--fps`/`--container`/`--audio-codec`/`--audio-bitrate`（输出编码控制）等 |
 | 智能字幕参数 | `--process-type`（含 translate 模式）、`--src-lang`（支持粤语/方言等 18+ 种）、`--translate`（30+ 种目标语言）、`--hotwords-id`、`--ocr-area`、`--sample-width`/`--sample-height`（OCR 区域辅助）、`--template`（预设模板 ID） |
 | 去字幕擦除参数 | `--template`、`--method`、`--model`、`--position`（12种区域预设）、`--area`、`--custom-area`、`--ocr`、`--translate` |
 | 图片处理参数 | `--super-resolution`、`--sr-type`、`--advanced-sr`、`--adv-sr-type`（3种超分类型）、`--sr-mode`（3种输出模式）、`--sr-percent`/`--sr-width`/`--sr-height`/`--sr-long-side`/`--sr-short-side`（尺寸控制）、`--denoise`、`--quality-enhance`（综合增强3级）、`--beauty`（20种类型，支持口红颜色值）、`--filter`（东京/轻胶片/美味）、`--erase-detect`、`--erase-area-type`、`--resize-*`（含长短边）、`--definition`、`--schedule-id`、`--format` 等 |

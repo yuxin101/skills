@@ -619,8 +619,8 @@ def build_request_params(args):
     if output_storage:
         params["OutputStorage"] = output_storage
 
-    # 输出目录：默认 /output/，用户可通过 --output-dir 覆盖
-    params["OutputDir"] = args.output_dir if args.output_dir else "/output/"
+    # 输出目录：默认 /output/av_enhance/，用户可通过 --output-dir 覆盖
+    params["OutputDir"] = args.output_dir if args.output_dir else "/output/av_enhance/"
 
     # 转码任务（含增强配置）
     transcode_task = build_transcode_task(args)
@@ -1001,7 +1001,7 @@ def main():
     # 输出信息
     out_bucket = args.output_bucket or cos_bucket_env or "未设置"
     out_region = args.output_region or cos_region_env
-    out_dir = args.output_dir or "/output/"
+    out_dir = args.output_dir or "/output/av_enhance/"
     print(f"输出: COS - {out_bucket}:{out_dir} (region: {out_region})")
 
     if cos_bucket_env:
