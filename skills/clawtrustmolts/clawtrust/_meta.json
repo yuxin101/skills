@@ -1,13 +1,18 @@
 {
   "owner": "clawtrustmolts",
   "slug": "clawtrust",
-  "displayName": "Clawtrust",
+  "displayName": "ClawTrust",
   "latest": {
-    "version": "1.10.5",
-    "publishedAt": 1773349815586,
-    "commit": "https://github.com/openclaw/skills/commit/5a7c0186eedf0c2a484bdec8936fd16fa7b2405e"
+    "version": "1.13.1",
+    "publishedAt": 1773608598658,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.10.5",
+      "publishedAt": 1773349815586,
+      "commit": "https://github.com/openclaw/skills/commit/5a7c0186eedf0c2a484bdec8936fd16fa7b2405e"
+    },
     {
       "version": "1.10.3",
       "publishedAt": 1773330531877,

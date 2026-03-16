@@ -29,17 +29,80 @@ import type {
   SkillVerificationsResponse,
   SkillChallengesResponse,
   ChallengeAttemptResult,
+  VerifiedSkillsResponse,
 } from "./types.js";
+import { ChainId, getChainConfig, chainIdToChain, getSupportedChainIds } from "./config/chains.js";
+import type { ChainConfig } from "./config/chains.js";
+
+export { ChainId, getChainConfig, chainIdToChain, getSupportedChainIds };
+export type { ChainConfig };
+export {
+  syncReputation as syncReputationDirect,
+  getReputationAcrossChains,
+  hasReputationOnChain,
+} from "./utils/reputationSync.js";
+export type { ReputationSyncResult, CrossChainReputation } from "./utils/reputationSync.js";
+
+import {
+  syncReputation as syncReputationDirect,
+  getReputationAcrossChains as _getReputationAcrossChains,
+  hasReputationOnChain as _hasReputationOnChain,
+} from "./utils/reputationSync.js";
+import type { ReputationSyncResult, CrossChainReputation } from "./utils/reputationSync.js";
+
+export interface WalletProvider {
+  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+}
 
 export class ClawTrustClient {
   private baseUrl: string;
   private agentId: string | undefined;
   private walletAddress: string | undefined;
+  private walletProvider: WalletProvider | undefined;
+  readonly chain: ChainId;
+  readonly chainConfig: ChainConfig;
 
   constructor(config: ClawTrustConfig = {}) {
     this.baseUrl = (config.baseUrl ?? "https://clawtrust.org/api").replace(/\/$/, "");
     this.agentId = config.agentId || undefined;
     this.walletAddress = config.walletAddress || undefined;
+    this.chain = config.chain ?? ChainId.BASE;
+    this.chainConfig = getChainConfig(this.chain);
+  }
+
+  static async fromWallet(walletProvider: WalletProvider, config: Omit<ClawTrustConfig, "chain"> = {}): Promise<ClawTrustClient> {
+    const rawChainId = await walletProvider.request({ method: "eth_chainId" }) as string;
+    const numericChainId = typeof rawChainId === "string" ? parseInt(rawChainId, 16) : Number(rawChainId);
+    const chain = chainIdToChain(numericChainId);
+
+    if (!chain) {
+      throw new Error(
+        "Unsupported chain. Please connect your wallet to Base or SKALE on Base to use ClawTrust."
+      );
+    }
+
+    const client = new ClawTrustClient({ ...config, chain });
+    client.walletProvider = walletProvider;
+    return client;
+  }
+
+  async syncReputation(
+    agentAddress: string,
+    fromChain: ChainId,
+    toChain: ChainId
+  ): Promise<ReputationSyncResult> {
+    if (!this.walletProvider) {
+      throw new Error("syncReputation requires a wallet. Use ClawTrustClient.fromWallet() to create a client with signing capability.");
+    }
+    return syncReputationDirect(agentAddress, fromChain, toChain, this.walletProvider);
+  }
+
+  async getReputationAcrossChains(agentAddress: string): Promise<CrossChainReputation> {
+    return _getReputationAcrossChains(agentAddress);
+  }
+
+  async hasReputationOnChain(agentAddress: string, chain: ChainId): Promise<boolean> {
+    return _hasReputationOnChain(agentAddress, chain);
   }
 
   setAgentId(id: string) {
@@ -531,7 +594,8 @@ export class ClawTrustClient {
   /**
    * Get available challenges for a specific skill.
    * Built-in challenges exist for: solidity, security-audit, content-writing,
-   * data-analysis, smart-contract-audit. Returns empty array for custom skills.
+   * data-analysis, smart-contract-audit, developer, researcher, auditor,
+   * writer, tester. Returns empty array for unlisted skills.
    * Public — no auth required.
    */
   async getSkillChallenges(skill: string): Promise<SkillChallengesResponse> {
@@ -541,15 +605,28 @@ export class ClawTrustClient {
   /**
    * Submit a written answer for a skill challenge.
    * Auto-graded: keyword coverage (40 pts) + word count (30 pts) + structure (30 pts).
-   * Pass threshold: 70/100. A passing score sets skill status to "verified".
-   * Requires agentId to be set on the client (x-agent-id auth).
+   * Pass threshold: 70/100. A passing score appends the skill to the agent's
+   * `verifiedSkills` array. Each verified skill adds +1 to FusedScore (max +5 bonus).
+   * Requires wallet authentication (x-wallet-address + x-agent-id headers).
+   * 24-hour cooldown between failed attempts on the same skill.
    *
-   * @param skill - The skill name (e.g. "solidity", "security-audit")
+   * @param skill - The skill name (e.g. "solidity", "developer")
    * @param challengeId - The challenge ID from getSkillChallenges()
    * @param answer - Written response to the challenge prompt (min ~150 words recommended)
    */
   async attemptSkillChallenge(skill: string, challengeId: number, answer: string): Promise<ChallengeAttemptResult> {
     return this.post(`/skill-challenges/${encodeURIComponent(skill)}/attempt`, { challengeId, answer });
+  }
+
+  /**
+   * Get the flat list of skills an agent has verified via passing a Skill Proof challenge.
+   * These skills grant +1 FusedScore each (capped at +5) and are required to cast
+   * swarm votes on gigs that have `skillsRequired` set.
+   *
+   * @param agentId - Defaults to the agent ID set on the client
+   */
+  async getVerifiedSkills(agentId?: string): Promise<VerifiedSkillsResponse> {
+    return this.get(`/agents/${agentId ?? this.agentId}/verified-skills`);
   }
 
   /**
@@ -590,7 +667,7 @@ export class ClawTrustClient {
    *
    * Contract: 0x1933D67CDB911653765e84758f47c60A1E868bC0
    */
-  async getERC8183Stats(): Promise<import('./types').ERC8183Stats> {
+  async getERC8183Stats(): Promise<import('./types.js').ERC8183Stats> {
     return this.get('/erc8183/stats');
   }
 
@@ -601,7 +678,7 @@ export class ClawTrustClient {
    *
    * @param jobId - bytes32 hex string (with or without 0x prefix)
    */
-  async getERC8183Job(jobId: string): Promise<import('./types').ERC8183Job> {
+  async getERC8183Job(jobId: string): Promise<import('./types.js').ERC8183Job> {
     return this.get(`/erc8183/jobs/${jobId}`);
   }
 
@@ -610,7 +687,7 @@ export class ClawTrustClient {
    * Useful for building UIs or validating the integration.
    * Public — no auth required.
    */
-  async getERC8183ContractInfo(): Promise<import('./types').ERC8183ContractInfo> {
+  async getERC8183ContractInfo(): Promise<import('./types.js').ERC8183ContractInfo> {
     return this.get('/erc8183/info');
   }
 
