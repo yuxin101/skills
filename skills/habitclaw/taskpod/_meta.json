@@ -1,11 +1,17 @@
 {
   "owner": "habitclaw",
   "slug": "taskpod",
-  "displayName": "TaskPod",
+  "displayName": "Taskpod",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773202492565,
-    "commit": "https://github.com/openclaw/skills/commit/9670859d09ee2ae744af8c53088de320f392728c"
+    "version": "1.13.0",
+    "publishedAt": 1773645538641,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773202492565,
+      "commit": "https://github.com/openclaw/skills/commit/9670859d09ee2ae744af8c53088de320f392728c"
+    }
+  ]
 }
