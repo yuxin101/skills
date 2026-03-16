@@ -3,9 +3,15 @@
   "slug": "pulsemon",
   "displayName": "PulseMon",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1772585355711,
-    "commit": "https://github.com/openclaw/skills/commit/2c20de1a715f338837ddbf7a3fe4aa17eb2319ba"
+    "version": "1.0.2",
+    "publishedAt": 1773602294682,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1772585355711,
+      "commit": "https://github.com/openclaw/skills/commit/2c20de1a715f338837ddbf7a3fe4aa17eb2319ba"
+    }
+  ]
 }
