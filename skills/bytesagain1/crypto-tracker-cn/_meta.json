@@ -3,11 +3,16 @@
   "slug": "crypto-tracker-cn",
   "displayName": "Crypto Tracker Cn",
   "latest": {
-    "version": "2.3.2",
-    "publishedAt": 1773578649371,
-    "commit": "https://github.com/openclaw/skills/commit/c3ae4ee7539f50c2e72a767fe896342b312a5747"
+    "version": "2.3.6",
+    "publishedAt": 1773665572902,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.2",
+      "publishedAt": 1773578649371,
+      "commit": "https://github.com/openclaw/skills/commit/c3ae4ee7539f50c2e72a767fe896342b312a5747"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421135912,
