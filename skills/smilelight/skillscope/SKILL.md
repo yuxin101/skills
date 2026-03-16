@@ -1,25 +1,19 @@
 ---
 name: skillscope
-description: Search and discover AI Agent skills via the SkillScope public API. Use when a user wants to find skills by keyword, browse categories, check leaderboards, view skill details, or explore starter kits.
+description: AI Agent Skill decision engine. Use when users need to find, evaluate, or install skills — recommends the best skill for any task with quality/safety scoring, personalized to platform/region/budget. Covers 26,000+ skills across ClawHub and GitHub.
 homepage: https://skillscope.cn
-version: 1.0.0
+version: 2.0.0
 ---
 
-# SkillScope
+# SkillScope — Skill Decision Engine
 
-Search, discover, and explore 18,000+ AI Agent skills via the SkillScope public API. Covers skill search, category browsing, leaderboards, author profiles, similar skill recommendations, starter kits, and guide articles.
+When a user needs a skill, don't just search — **get a personalized recommendation** with quality and safety scoring.
 
-## Setup
+## Core Workflow
 
-No API key required for basic usage (20 req/min, 200 req/day).
-
-For higher limits, request a free API key and pass it via header:
-
-```bash
-curl -H "X-API-Key: sk-your-key-here" https://skillscope.cn/api/v1/skills
-```
-
-API key limits: 60 req/min, 5,000 req/day.
+1. User describes a task → call **recommend** → get best skill + alternatives with reasons
+2. User wants to install → provide the `install` command from the response
+3. User wants details → call **detail** for full analysis
 
 ## Base URL
 
@@ -27,155 +21,85 @@ API key limits: 60 req/min, 5,000 req/day.
 https://skillscope.cn/api/v1
 ```
 
-## Search Skills
+No API key required (20 req/min, 200 req/day).
 
-Find skills by keyword or natural language description. Uses hybrid search (full-text + semantic + reranker).
+## Recommend (Primary Tool)
+
+**When to use**: User asks "find me a skill for X", "is there a tool that can Y", "what's the best skill for Z", or describes any task that a skill could help with.
 
 ```bash
-curl "https://skillscope.cn/api/v1/search?q=web+search"
+curl -X POST "https://skillscope.cn/api/v1/recommend" \
+  -H "Content-Type: application/json" \
+  -d '{"task": "translate a PDF document to Chinese", "explain": true}'
 ```
 
-Response includes `results[]` with `id`, `name`, `author`, `description`, `description_zh`, `description_en`, `categories`, `security_grade`, `quality_score`, `downloads`, `stars`.
-
-## List Skills
-
-Paginated skill listing sorted by quality score.
+With context for better results:
 
 ```bash
-curl "https://skillscope.cn/api/v1/skills?page=1&page_size=20"
+curl -X POST "https://skillscope.cn/api/v1/recommend" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task": "translate a PDF document to Chinese",
+    "context": {"platform": "macos", "region": "cn", "budget": "free"},
+    "explain": true
+  }'
 ```
 
-Parameters:
-- `page`: page number (default 1)
-- `page_size`: items per page (1-50, default 50)
+**Parameters**:
+- `task` (required): natural language task description
+- `context.platform`: `macos` / `linux` / `windows`
+- `context.region`: `cn` / `us` (auto-inferred if omitted)
+- `context.budget`: `free` / `paid` / `any` (default `any`)
+- `context.skill_level`: `beginner` / `intermediate` / `advanced`
+- `explain`: include LLM-generated reasons (default true, set false for ~250ms response)
 
-## Featured Skills
+**Response**: `recommendation` (top pick) + `alternatives[]`, each with `skill_id`, `name`, `quality`, `safety`, `score`, `reason`, `install` command.
 
-Daily-rotating featured skills selected from top-rated popular skills.
+## Install
+
+Users can install skills via:
+- `clawhub install <slug>` (official ClawHub CLI)
+- `skillscope install <slug>` (China mirror, `pip install skillscope`)
+
+To get installable files via API:
 
 ```bash
-curl "https://skillscope.cn/api/v1/skills/featured?limit=6"
+curl "https://skillscope.cn/api/v1/install/weather/files"
+```
+
+## Search
+
+For keyword-based search (when recommend is not appropriate):
+
+```bash
+curl "https://skillscope.cn/api/v1/search?q=web+scraping"
 ```
 
 ## Skill Detail
 
-Get full details for a specific skill by its ID (`author/name` format).
+Full analysis including security profile, quality scores, dependencies:
 
 ```bash
 curl "https://skillscope.cn/api/v1/skills/steipete/weather"
 ```
 
-Response includes full analysis, security scan results, community stats, and ClawHub data.
+## Other Endpoints
 
-## Categories
-
-List all categories with skill counts.
-
-```bash
-curl "https://skillscope.cn/api/v1/categories"
-```
-
-Get skills in a specific category:
-
-```bash
-curl "https://skillscope.cn/api/v1/categories/security?page=1&page_size=20"
-```
-
-## Leaderboard
-
-Rank skills by downloads, stars, or installs. Optionally filter by category.
-
-```bash
-curl "https://skillscope.cn/api/v1/leaderboard?sort=downloads&page=1&page_size=30"
-curl "https://skillscope.cn/api/v1/leaderboard?sort=stars&c=coding-ide"
-```
-
-Parameters:
-- `sort`: `downloads` (default), `stars`, or `installs`
-- `c`: category filter (optional)
-- `page`, `page_size`: pagination
-
-## Author Profile
-
-Get author info and all their published skills.
-
-```bash
-curl "https://skillscope.cn/api/v1/authors/steipete"
-```
-
-## Similar Skills
-
-Find skills similar to a given skill (vector similarity).
-
-```bash
-curl "https://skillscope.cn/api/v1/similar/steipete/weather?top_k=5"
-```
-
-## Starter Kits
-
-Curated skill bundles for common scenarios (30 kits across 6 categories).
-
-List all kits:
-
-```bash
-curl "https://skillscope.cn/api/v1/starter-kits"
-```
-
-Get a specific kit with full skill details:
-
-```bash
-curl "https://skillscope.cn/api/v1/starter-kits/essential"
-```
-
-Available kits include: `essential`, `daily-efficiency`, `meeting-notes`, `email-master`, `fullstack-dev`, `security-audit`, and more.
-
-## Guide Articles
-
-Browse curated guide articles and category top-lists.
-
-```bash
-curl "https://skillscope.cn/api/v1/articles?category=top-list&page=1"
-curl "https://skillscope.cn/api/v1/articles/top-security"
-```
-
-## Response Format
-
-All endpoints return JSON. Example search response:
-
-```json
-{
-  "query": "web search",
-  "results": [
-    {
-      "id": "arun-8687/tavily-search",
-      "name": "tavily",
-      "author": "arun-8687",
-      "description_zh": "AI优化的网络搜索，返回精准摘要结果。",
-      "description_en": "AI-optimized web search via Tavily API.",
-      "categories": ["search-research", "ai-llm"],
-      "security_grade": "B",
-      "quality_score": 8.5,
-      "downloads": 12580,
-      "stars": 45
-    }
-  ],
-  "total": 1
-}
-```
-
-## Rate Limits
-
-| Tier | Per Minute | Per Day |
-|------|-----------|---------|
-| Anonymous (no key) | 20 | 200 |
-| Free API Key | 60 | 5,000 |
-
-Rate limit info is included in the `X-RateLimit-Policy` response header. When limited, the API returns HTTP 429 with a `Retry-After` header.
+| Endpoint | Description |
+|----------|-------------|
+| `GET /categories` | List all 30 categories with counts |
+| `GET /categories/{name}` | Skills in a category (paginated) |
+| `GET /leaderboard?sort=downloads` | Rankings (downloads/stars/installs) |
+| `GET /authors/{handle}` | Author profile + their skills |
+| `GET /similar/{skill_id}` | Similar skills (vector similarity) |
+| `GET /starter-kits` | Curated skill bundles (30 kits) |
+| `GET /articles` | Guide articles and top-lists |
 
 ## Notes
 
-- All data is read-only; there are no write endpoints
-- Security grades: A (safe) / B (limited external access) / C (review needed) / D (risky)
-- Quality scores range from 0 to 10
-- Skill IDs use `author/name` format (e.g. `steipete/weather`)
-- Chat and deep-research endpoints are not available via the public API
+- Security grades: A (safe) / B (limited access) / C (review needed) / D (risky)
+- Quality scores: 0-10
+- Skill IDs: `author/slug` format (e.g. `steipete/weather`)
+- Slugs work too: `weather` resolves to `steipete/weather`
+- Rate limits: anonymous 20/min + 200/day, API key 60/min + 5000/day
+- Recommend has separate limits: 5/min, 10/day (anonymous) or 100/day (API key)
