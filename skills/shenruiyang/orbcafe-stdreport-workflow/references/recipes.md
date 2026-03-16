@@ -40,7 +40,7 @@ export default function OrdersPage() {
 
   return (
     <OrbcafeI18nProvider locale="en">
-      <CStandardPage {...pageProps} mode="integrated" />
+      <CStandardPage {...pageProps} />
     </OrbcafeI18nProvider>
   );
 }
