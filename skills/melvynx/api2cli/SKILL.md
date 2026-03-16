@@ -1,6 +1,6 @@
 ---
 name: api2cli
-description: "Generate a CLI + AgentSkill from any REST API. Use when: user says 'create a CLI for X', 'wrap this API', 'make a skill for X', 'publish my CLI', 'publish to npm', 'push to github'. Handles discovery, scaffolding, resource implementation, building, linking, skill generation, npm publishing, and GitHub publishing."
+description: "Generate or discover a CLI + AgentSkill for any REST API. Use when: user says 'create a CLI for X', 'wrap this API', 'search if a CLI exists', 'install an existing CLI', 'make a skill for X', 'publish my CLI', 'publish to npm', 'push to github'. Handles registry search, install, discovery, scaffolding, resource implementation, building, linking, skill generation, npm publishing, and GitHub publishing."
 ---
 
 # api2cli
@@ -19,11 +19,27 @@ bun --version || curl -fsSL https://bun.sh/install | bash
 
 Follow all steps in order — do not skip any.
 
-### 1. Discover the API
+### 1. Search the registry first
+
+Before generating anything, check if a CLI already exists:
+
+```bash
+npx api2cli search <query>
+```
+
+If the registry already has the CLI you need, install it instead of rebuilding it:
+
+```bash
+npx api2cli install <name>
+```
+
+See [references/commands.md](references/commands.md) for filters like `--type`, `--category`, and `--json`.
+
+### 2. Discover the API
 
 Find the API docs or OpenAPI spec. Identify: base URL, auth type, auth header, all resources and endpoints.
 
-### 2. Create the scaffold
+### 3. Create the scaffold
 
 ```bash
 npx api2cli create <app> --base-url <url> --auth-type bearer
@@ -31,13 +47,13 @@ npx api2cli create <app> --base-url <url> --auth-type bearer
 
 See [references/create.md](references/create.md) for all flags and what gets generated.
 
-### 3. Implement resources
+### 4. Implement resources
 
 Create `~/.cli/<app>-cli/src/resources/<resource>.ts` for each API resource. Register in `src/index.ts`.
 
 See [references/resource-patterns.md](references/resource-patterns.md) for the CRUD template and library API.
 
-### 4. Build, link, and test
+### 5. Build, link, and test
 
 ```bash
 npx api2cli bundle <app>
@@ -48,11 +64,20 @@ npx api2cli link <app>
 
 `api2cli link` adds `~/.local/bin` to PATH automatically. No `export PATH` needed.
 
-### 5. Finalize skill and README
+### 6. Finalize skill and README
 
-Replace all `{{...}}` placeholders in `skills/<app>-cli/SKILL.md` and `README.md` with actual values, then symlink skill to agent directories.
+**This step is mandatory.** The skill must become a real operating guide for another agent, not just a command list — no placeholders, no TODOs.
 
-See [references/skill-generation.md](references/skill-generation.md) for the template, format, and symlink instructions.
+1. **Introspect the CLI**: run `<app>-cli --help`, then `<resource> --help` and `<resource> <action> --help` for every resource and action
+2. **Update the description**: list all resource names and add domain-specific trigger phrases
+3. **Set the category**: replace `{{CATEGORY}}` with the correct value (e.g. `social-media`, `email`, `devtools`)
+4. **Write the task-oriented sections**: replace `{{WHEN_TO_USE_HELP}}`, `{{CAPABILITIES_HELP}}`, and `{{USE_CASES_HELP}}` with domain-specific guidance
+5. **Build resource tables**: for each resource, create a command table with every action and its real flags (from `--help` output)
+6. **Add Quick Reference + Output Format**: include `--help` commands and document the JSON envelope
+7. **Remove all placeholders**: no `{{...}}` or `<!-- TODO -->` should remain
+8. **Validate**: run at least one command to confirm the skill's examples are accurate
+
+See [references/skill-generation.md](references/skill-generation.md) for the full introspection workflow, format, quality checklist, and symlink instructions.
 
 To also link skills for OpenClaw:
 
@@ -64,7 +89,7 @@ See [references/openclaw.md](references/openclaw.md) for the one-prompt setup, C
 
 Also available on ClawHub: `npx clawhub install api2cli`
 
-### 6. Publish (when user asks)
+### 7. Publish (when user asks)
 
 Before any publish target, run these pre-flight checks:
 
