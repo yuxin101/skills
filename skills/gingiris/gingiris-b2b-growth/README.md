@@ -1,20 +1,79 @@
----
-name: gingiris-b2b-growth
-description: |
-  🇺🇸 B2B SaaS Full-Lifecycle Growth Playbook — From PMF validation to ecosystem growth. Real cases from HeyGen, Deel, Vercel, Supabase, AWS. PLG/SLG strategies, affiliate marketing, channel partnerships.
-  
-  🇨🇳 AI 全球 B2B 产品增长指南 — 从 PMF 验证到生态化增长的完整操作手册。整合 HeyGen、Deel、Vercel、Supabase、AWS 等标杆案例。PLG/SLG 策略、联盟营销、渠道合作。
-  
-  🇯🇵 B2B SaaS成長プレイブック — PMF検証からエコシステム成長まで。HeyGen、Deel、Vercel、Supabase、AWSの実例。PLG/SLG戦略、アフィリエイト、チャネルパートナーシップ。
-  
-  🇰🇷 B2B SaaS 성장 플레이북 — PMF 검증부터 생태계 성장까지. HeyGen, Deel, Vercel, Supabase, AWS 실제 사례. PLG/SLG 전략, 제휴 마케팅, 채널 파트너십.
-  
-  Triggers: "B2B growth" | "PMF" | "product-market fit" | "PLG" | "SLG" | "affiliate marketing" | "channel partners" | "customer case study" | "B2B 增长" | "用户调研"
+<div align="center">
+
+<img src="assets/logo.png" alt="Gingiris Logo" width="120" />
+
+# B2B SaaS Growth Playbook
+
+### Full-lifecycle growth strategies — PMF validation, PLG/SLG, affiliate marketing, channel partnerships
+
+[![GitHub stars](https://img.shields.io/github/stars/Gingiris/gingiris-b2b-growth?style=social)](https://github.com/Gingiris/gingiris-b2b-growth/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
+**[English](#english) | [中文](#中文版) | [日本語](references/ja/README.md) | [한국어](references/ko/README.md)**
+
+</div>
+
 ---
 
-# AI 全球 2B 产品全生命周期增长指南
+## ⭐ Star This Repo
 
-> 🌍 **Language / 语言**: [中文](#中文版) | [English](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/README.md) | [日本語](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/README.md) | [한국어](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/README.md)
+<img width="100%" src="assets/star.png" alt="Star this repo" />
+
+If you find this playbook useful, a GitHub Star ⭐ helps others discover it!
+
+---
+
+## Why This Playbook?
+
+Real case studies from top B2B SaaS companies, distilled into actionable strategies:
+
+| Company | Key Insight |
+|---------|-------------|
+| **HeyGen** | 1,800 user interviews to find PMF, 20% recurring commission model |
+| **Deel** | Partner program contributing $90M ARR, tiered certification system |
+| **Vercel** | "The Frontend Cloud" — category creation masterclass |
+| **Supabase** | "Build in a weekend, scale to millions" |
+| **AWS** | Partner ecosystem best practices |
+
+---
+
+## English
+
+> Version: v4.0 (Ultimate Edition) | Integrates best practices from HeyGen, Deel, Vercel, Supabase, AWS
+
+### Core Framework: Growth Flywheel
+
+```
+     ┌─────────────┐
+     │  Product    │ ← PLG Core
+     │  Experience │
+     └──────┬──────┘
+            │
+     ┌──────▼──────┐
+     │  Community  │ ← CLG Amplifier
+     │  Operations │
+     └──────┬──────┘
+            │
+     ┌──────▼──────┐
+     │  Channel    │ ← Scale
+     │  Ecosystem  │
+     └──────┬──────┘
+            │
+     ┌──────▼──────┐
+     │  Direct     │ ← SLG Monetize
+     │  Sales      │
+     └─────────────┘
+```
+
+### Detailed Guides (English)
+
+| Topic | File |
+|:---|:---|
+| Foundation (PMF, User Research, Community) | [references/en/foundation.md](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/foundation.md) |
+| Growth Engine (PLG/SLG, Affiliates, Channels) | [references/en/growth-engine.md](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/growth-engine.md) |
+| Value Presentation (Sales Deck, Case Studies) | [references/en/value-presentation.md](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/value-presentation.md) |
+| Contract Templates | [references/en/contracts.md](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/contracts.md) |
+| Data-Driven Growth | [references/en/metrics.md](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/metrics.md) |
 
 ---
 
@@ -56,22 +115,39 @@ description: |
 
 ## Quick Navigation (All Languages)
 
-| 🇨🇳 中文 | 🇺🇸 English | 🇯🇵 日本語 | 🇰🇷 한국어 |
+| 🇺🇸 English | 🇨🇳 中文 | 🇯🇵 日本語 | 🇰🇷 한국어 |
 |:---|:---|:---|:---|
-| [奠定基石](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/foundation.md) | [Foundation](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/foundation.md) | [基盤構築](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/foundation.md) | [기반 구축](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/foundation.md) |
-| [增长引擎](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/growth-engine.md) | [Growth Engine](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/growth-engine.md) | [成長エンジン](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/growth-engine.md) | [성장 엔진](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/growth-engine.md) |
-| [价值呈现](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/value-presentation.md) | [Value Presentation](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/value-presentation.md) | [価値提示](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/value-presentation.md) | [가치 제시](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/value-presentation.md) |
-| [合同模板](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/contracts.md) | [Contracts](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/contracts.md) | [契約テンプレート](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/contracts.md) | [계약 템플릿](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/contracts.md) |
-| [数据指标](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/metrics.md) | [Metrics](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/metrics.md) | [指標体系](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/metrics.md) | [지표 체계](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/metrics.md) |
+| [Foundation](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/foundation.md) | [奠定基石](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/foundation.md) | [基盤構築](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/foundation.md) | [기반 구축](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/foundation.md) |
+| [Growth Engine](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/growth-engine.md) | [增长引擎](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/growth-engine.md) | [成長エンジン](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/growth-engine.md) | [성장 엔진](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/growth-engine.md) |
+| [Value Presentation](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/value-presentation.md) | [价值呈现](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/value-presentation.md) | [価値提示](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/value-presentation.md) | [가치 제시](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/value-presentation.md) |
+| [Contracts](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/contracts.md) | [合同模板](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/contracts.md) | [契約テンプレート](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/contracts.md) | [계약 템플릿](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/contracts.md) |
+| [Metrics](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/en/metrics.md) | [数据指标](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/metrics.md) | [指標体系](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ja/metrics.md) | [지표 체계](https://github.com/Gingiris/gingiris-b2b-growth/blob/main/references/ko/metrics.md) |
 
 ---
 
-## 关键案例索引
+## Key Case Studies
 
-| 公司 | 亮点 |
+| Company | Highlight |
 |:---|:---|
-| **HeyGen** | 1800次用户访谈找到PMF，20%持续佣金模型 |
-| **Deel** | 伙伴计划贡献$90M ARR，分级认证体系 |
-| **Vercel** | "The Frontend Cloud"品类定义，v0赋能伙伴100倍效率 |
+| **HeyGen** | 1,800 user interviews to find PMF, 20% recurring commission |
+| **Deel** | Partner program contributing $90M ARR, tiered certification |
+| **Vercel** | "The Frontend Cloud" category creation, v0 empowers partners 100x |
 | **Supabase** | "Build in a weekend, scale to millions" |
-| **InVideo** | 50%首单高额返佣 |
+| **InVideo** | 50% first-order high commission |
+
+---
+
+## About the Author
+
+**Iris (生姜iris)** — Former cofounder & COO of AFFiNE ($10M raised), led B2B growth from 0 to global scale.
+
+- 🐦 Twitter: [@Gingiris_](https://twitter.com/Gingiris_)
+- 💼 LinkedIn: [Yipei Wei](https://www.linkedin.com/in/yipei-wei-550825105/)
+- 💬 Telegram: [@Iris_carrot](https://t.me/Iris_carrot)
+- 📧 Email: iris103195@gmail.com
+
+---
+
+## License
+
+MIT License - Use and adapt for your own B2B growth!
