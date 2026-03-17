@@ -1,115 +1,158 @@
 ---
 name: aicloset-outfit
-description: AI智能搭配推荐 - 根据日期、城市和风格偏好，调用AI衣橱API生成4套穿搭方案并以画布形式展示。触发词：搭配推荐、穿搭、今天穿什么、outfit、穿什么好看、AI搭配、衣橱搭配。
+description: |
+  AI 智能搭配推荐 - 个人穿搭方案生成工具。
+
+  当用户提到以下意图时使用此技能：
+  「今天穿什么」「搭配推荐」「穿搭」「outfit」「穿什么好看」
+  「AI搭配」「衣橱搭配」「帮我搭配一套」「明天穿什么」
+  「商务风穿搭」「约会穿什么」「休闲搭配」
+
+  支持：根据日期、城市、天气和风格偏好，调用 AI 衣橱 API 生成 4 套穿搭方案，以图片画布形式展示。
+  支持渠道：CLI 终端、飞书、钉钉、Discord、Slack 等 IM 聊天工具。
+metadata:
+  openclaw:
+    primaryEnv: AICLOSET_API_KEY
+    baseUrl: https://aicloset-dev-h5.wxbjq.top
 ---
 
 # AI 衣橱搭配推荐
 
-根据用户的日期、城市和风格偏好，调用 AI 衣橱 API 生成 4 套穿搭方案，并以图文画布形式展示。
+## ⚠️ 必读约束
 
-## 配置说明
+### 🔑 首次安装配置
 
-首次使用前，需要配置 API 认证信息。支持两种方式：
+在 `~/.openclaw/openclaw.json` 中添加：
 
-### 方式一：环境变量（推荐）
+```json
+{
+  "skills": {
+    "entries": {
+      "aicloset-outfit": {
+        "enabled": true,
+        "apiKey": "你的 x-api-key",
+        "env": {
+          "AICLOSET_API_KEY": "你的 x-api-key"
+        }
+      }
+    }
+  }
+}
+```
 
-在 shell 配置文件（如 `~/.zshrc` 或 `~/.bashrc`）中添加：
+或使用环境变量：
 
 ```bash
 export AICLOSET_API_KEY="你的 x-api-key"
-export AICLOSET_TOKEN="你的 Bearer Token"
 ```
 
-### 方式二：对话中直接提供（临时使用）
+如果用户未配置，**必须先引导用户完成配置**，再继续执行。
 
-在对话中告知 API Key 和 Token，仅当次会话有效。
+---
 
-如果用户未配置，**必须先引导用户完成配置**，再继续执行搭配推荐。
+### 🔒 强制规则
+
+1. **必须执行 `scripts/generate_outfit.py` 脚本**，不可跳过、不可用其他方式替代
+2. **禁止自行编造搭配内容**，所有搭配数据必须来自 API 真实返回
+3. **必须生成图片**，不可只输出文字描述
+4. 脚本执行失败时输出错误信息，不要自己编造结果兜底
+5. **不要删除或修改脚本输出中的 `MEDIA:` 行**（IM 渠道需要它来发送图片）
+
+---
+
+### 📦 依赖
+
+| 依赖 | 说明 | 安装方式 |
+|------|------|---------|
+| Python 3 | 脚本运行环境 | macOS/Linux 自带，Windows 从 python.org 安装 |
+| ImageMagick | 图片合成 | `brew install imagemagick` / `choco install imagemagick` / `apt install imagemagick` |
+
+无需 pip install 任何包，所有 Python 代码仅使用标准库。
+
+---
+
+## 快速决策
+
+| 用户意图 | 参数处理 | 执行命令 |
+|---------|---------|---------|
+| 「给我搭配一套」 | 全部默认值，直接执行 | `python3 scripts/generate_outfit.py` |
+| 「明天穿什么」 | date 改为明天 | `python3 scripts/generate_outfit.py --date=2026-03-14` |
+| 「上海商务风」 | city+province+style | `python3 scripts/generate_outfit.py --city=上海 --province=上海 --style=商务` |
+| 「北京约会穿搭」 | city+province+style | `python3 scripts/generate_outfit.py --city=北京 --province=北京 --style=约会` |
+
+**原则：能从用户输入推断出值就不要追问。所有参数都有默认值，用户什么都不说也能直接出结果。**
+
+---
+
+## 参数说明
+
+| 参数 | CLI 参数 | 说明 | 默认值 |
+|------|---------|------|--------|
+| `date` | `--date=` | 日期，格式 `YYYY-MM-DD` | 当天日期 |
+| `city_name` | `--city=` | 城市名称 | `杭州` |
+| `province_name` | `--province=` | 省份名称 | `浙江` |
+| `style_text` | `--style=` | 风格偏好（休闲、商务、运动、约会等） | `休闲` |
+
+---
 
 ## 执行流程
 
-当用户请求搭配推荐时，按以下步骤执行：
+一共 2 步，严格按顺序执行：
 
-### 1. 提取参数
+### 第 1 步：提取参数
 
-从用户输入中智能提取以下参数：
+从用户输入中智能提取参数，未提及的使用默认值。
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `date` | 日期，格式 `YYYY-MM-DD` | 当天日期 |
-| `city_name` | 城市名称 | 如未提供则询问用户 |
-| `province_name` | 省份名称 | 根据城市自动推断 |
-| `style_text` | 风格偏好（休闲、商务、运动、约会等） | 如未提供则询问用户 |
+### 第 2 步：执行脚本
 
-### 2. 检查认证配置
-
-确认环境变量 `AICLOSET_API_KEY` 和 `AICLOSET_TOKEN` 已配置：
+用 Bash 工具直接执行 `scripts/generate_outfit.py`，传入对应参数：
 
 ```bash
-echo "API_KEY: ${AICLOSET_API_KEY:+已配置}" && echo "TOKEN: ${AICLOSET_TOKEN:+已配置}"
+python3 scripts/generate_outfit.py --date=2026-03-13 --city=杭州 --province=浙江 --style=休闲
 ```
 
-如果任一变量为空，停止执行并引导用户按「配置说明」完成设置。
+脚本会自动完成：API 调用 → 图片下载 → 画布合成 → 边框标题 → 总览拼接 → MEDIA 输出 → 系统预览。
 
-### 3. 调用 API
+### 展示结果
 
-使用 curl 调用搭配推荐接口：
+将脚本的终端输出**原样**展示给用户（含 `MEDIA:` 行）。
 
-```bash
-curl -s --request POST \
-  --url https://aicloset-dev-h5.wxbjq.top/algorithm/open/system_outfit/create_task \
-  --header 'Content-Type: application/json' \
-  --header "Authorization: Bearer $AICLOSET_TOKEN" \
-  --header "x-api-key: $AICLOSET_API_KEY" \
-  --data '{
-    "date": "{{date}}",
-    "city_name": "{{city_name}}",
-    "province_name": "{{province_name}}",
-    "style_text": "{{style_text}}"
-  }'
-```
+- **IM 渠道（飞书/钉钉等）**：OpenClaw 自动识别 `MEDIA:` 行，上传并发送图片到聊天
+- **CLI 终端**：脚本已内置系统预览命令自动打开图片
 
-将 `{{date}}`、`{{city_name}}`、`{{province_name}}`、`{{style_text}}` 替换为实际参数值。
+**禁止：**
+- 不要删除或修改 `MEDIA:` 行
+- 不要用 Markdown 图片语法 `![]()`
+- 不要用 Read 工具读取图片
+- 不要自己编写搭配描述来替代脚本输出
 
-### 4. 解析响应并展示
+---
 
-API 返回 JSON 结构，关键字段路径为 `data.system_outfit_json`，包含 4 套搭配方案。
+## 图片发送（IM 渠道）
 
-每套搭配的 `product_list` 中包含单品信息：
-- `class_name`：单品分类（上衣、裤子、外套等）
-- `cutout_image`：单品抠图 URL
+脚本输出中包含 `MEDIA:<路径>` 行，OpenClaw 回复管道会自动处理：
 
-### 5. 输出格式
+1. 识别并提取 `MEDIA:` 后的图片路径
+2. 从回复文本中移除 `MEDIA:` 行（用户看不到）
+3. 上传图片到对应 IM 平台（飞书/钉钉/Discord/Slack 等）
+4. 以图片消息形式发送到聊天会话
 
-将解析结果按以下格式展示给用户：
+### MEDIA 标记格式
 
-```
-👗 AI 搭配推荐 | {city_name} · {date} · {style_text}风
+- 必须独占一行，以 `MEDIA:` 开头
+- 绝对路径：`MEDIA:/tmp/aicloset_xxx/all_outfits.png`
+- HTTP URL：`MEDIA:https://example.com/image.png`
+- 支持多张图片（多行 `MEDIA:`）
+- 路径含空格时用反引号包裹：`` MEDIA:`/path/with spaces/file.png` ``
 
-━━━ 搭配 1 ━━━
-🔹 {class_name}: ![{class_name}]({cutout_image})
-🔹 {class_name}: ![{class_name}]({cutout_image})
-
-━━━ 搭配 2 ━━━
-🔹 {class_name}: ![{class_name}]({cutout_image})
-🔹 {class_name}: ![{class_name}]({cutout_image})
-
-━━━ 搭配 3 ━━━
-🔹 {class_name}: ![{class_name}]({cutout_image})
-🔹 {class_name}: ![{class_name}]({cutout_image})
-
-━━━ 搭配 4 ━━━
-🔹 {class_name}: ![{class_name}]({cutout_image})
-🔹 {class_name}: ![{class_name}]({cutout_image})
-```
-
-遍历每套搭配的 `product_list`，使用 Markdown 图片语法 `![class_name](cutout_image)` 展示单品图片。
+---
 
 ## 错误处理
 
-| 场景 | 处理方式 |
-|------|---------|
-| API Key / Token 未配置 | 停止执行，引导用户按配置说明设置环境变量 |
-| API 返回 `code` 非 0 | 展示 `msg` 字段内容，提示用户具体错误原因 |
-| 网络超时或请求失败 | 自动重试一次，仍失败则提示用户检查网络 |
-| 城市或风格未提供 | 主动询问用户补充信息后再调用 |
+| 错误场景 | 处理方式 |
+|---------|---------|
+| API Key 未配置 | 脚本停止执行，引导用户按配置说明设置 |
+| API 返回 `code` 非 0 | 展示 `msg` 字段内容，提示具体错误原因 |
+| 网络超时或请求失败 | 自动重试一次，仍失败则提示检查网络 |
+| ImageMagick 未安装 | 提示安装命令 |
+| 单品图片下载失败 | 跳过该单品，继续合成其余部分 |

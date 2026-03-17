@@ -3,9 +3,15 @@
   "slug": "aicloset-outfit",
   "displayName": "AI 衣橱搭配",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1773301950496,
-    "commit": "https://github.com/openclaw/skills/commit/16d59ab3b44e5c1f906a5c0c6c3e63a3644621eb"
+    "version": "0.9.1",
+    "publishedAt": 1773377155772,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1773301950496,
+      "commit": "https://github.com/openclaw/skills/commit/16d59ab3b44e5c1f906a5c0c6c3e63a3644621eb"
+    }
+  ]
 }
