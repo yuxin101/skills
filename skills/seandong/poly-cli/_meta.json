@@ -1,0 +1,11 @@
+{
+  "owner": "seandong",
+  "slug": "poly-cli",
+  "displayName": "Polymarket CLI",
+  "latest": {
+    "version": "0.1.5",
+    "publishedAt": 1773545183970,
+    "commit": null
+  },
+  "history": []
+}
