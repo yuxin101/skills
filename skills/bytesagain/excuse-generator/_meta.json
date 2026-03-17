@@ -3,9 +3,15 @@
   "slug": "excuse-generator",
   "displayName": "Excuse Generator",
   "latest": {
-    "version": "2.3.0",
-    "publishedAt": 1773446882688,
-    "commit": "https://github.com/openclaw/skills/commit/94fb23379b5c36e071a1e144e843d7a3b109f4de"
+    "version": "2.3.5",
+    "publishedAt": 1773665930766,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.0",
+      "publishedAt": 1773446882688,
+      "commit": "https://github.com/openclaw/skills/commit/94fb23379b5c36e071a1e144e843d7a3b109f4de"
+    }
+  ]
 }
