@@ -1,7 +1,7 @@
 ---
 name: UUIDGen
 description: "UUID and unique identifier generator. Generate UUID v4 (random), UUID v1 (time-based), short IDs, nano IDs, and custom-length random strings. Validate UUID format, parse UUID components, and generate batches of unique identifiers. Essential developer utility."
-version: "1.0.0"
+version: "2.0.0"
 author: "BytesAgain"
 tags: ["uuid","generator","random","id","unique","developer","utility"]
 categories: ["Developer Tools", "Utility"]
@@ -30,3 +30,7 @@ Powered by BytesAgain | bytesagain.com
 
 - Quick uuidgen tasks from terminal
 - Automation pipelines
+
+---
+*Powered by BytesAgain | bytesagain.com*
+*Feedback & Feature Requests: https://bytesagain.com/feedback*
