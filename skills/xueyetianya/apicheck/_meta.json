@@ -3,9 +3,15 @@
   "slug": "apicheck",
   "displayName": "Apicheck",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773661916097,
-    "commit": "https://github.com/openclaw/skills/commit/1df31aa47d0956f9f8e712493e072cc64568b815"
+    "version": "1.0.6",
+    "publishedAt": 1773664586433,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773661916097,
+      "commit": "https://github.com/openclaw/skills/commit/1df31aa47d0956f9f8e712493e072cc64568b815"
+    }
+  ]
 }
