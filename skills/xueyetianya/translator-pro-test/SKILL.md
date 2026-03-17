@@ -1,8 +1,10 @@
 ---
 version: "2.0.0"
 name: translator-pro
-description: "专业翻译(中英日韩)、多译本对比、术语表、本地化、校对、批量翻译。Professional translation (CN/EN/JP/KR), multi-version comparison, glossary, localization, proofreading, batch translation. Use when you need translator pro capabilities. Triggers on: translator pro."
+description: "专业翻译(中英日韩)、多译本对比、术语表、本地化、校对、批量翻译。Professional translation (CN/EN/JP/KR). Use when you need translator pro test."
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # translator-pro
 
@@ -50,3 +52,7 @@ translator-pro run
 ## Commands
 
 Run `translator-pro help` to see all available commands.
+
+## Requirements
+- bash 4+
+- python3 (standard library only)

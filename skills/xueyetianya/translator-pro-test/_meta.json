@@ -3,11 +3,16 @@
   "slug": "translator-pro-test",
   "displayName": "Translator Pro Test",
   "latest": {
-    "version": "2.3.5",
-    "publishedAt": 1773674098485,
-    "commit": "https://github.com/openclaw/skills/commit/4f1e6d30f7e2f3d6837d2055f2b4cd72b0bccf0d"
+    "version": "2.0.0",
+    "publishedAt": 1773774223817,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.5",
+      "publishedAt": 1773674098485,
+      "commit": "https://github.com/openclaw/skills/commit/4f1e6d30f7e2f3d6837d2055f2b4cd72b0bccf0d"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421953893,

@@ -122,7 +122,11 @@ cmd_i18n_check() {
         local lang=$(basename "$lang_dir")
         local file="$lang_dir/messages.json"
         if [ -f "$file" ]; then
-            local keys=$(python3 -c "import json; print(len(json.load(open('$file'))))" 2>/dev/null || echo 0)
+            local keys=$(JSON_FILE="$file" python3 << 'PYEOF'
+import json, os
+print(len(json.load(open(os.environ['JSON_FILE']))))
+PYEOF
+            ) 2>/dev/null || keys=0
             echo "    $lang: $keys keys"
         fi
     done
