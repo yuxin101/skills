@@ -1,0 +1,11 @@
+{
+  "owner": "sbauch",
+  "slug": "brackets-bot",
+  "displayName": "Bracketsbot Skill",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773676779624,
+    "commit": null
+  },
+  "history": []
+}
