@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "google-my-business",
+  "displayName": "Google My Business",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773536532661,
+    "commit": null
+  },
+  "history": []
+}
