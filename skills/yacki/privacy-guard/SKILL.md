@@ -16,11 +16,13 @@ metadata:
 
 This skill is designed to protect sensitive files on the user's local system, preventing them from being inadvertently sent to remote servers or external APIs. It performs deep content inspection across various file formats.
 
-## Core Rules
+该技能用于保护用户本地系统中的敏感文件，避免这些文件被意外发送到远程服务器或外部 API。它支持对多种文件格式进行深度内容检查。
 
-1.  **Scan Before Operation**: Before performing any action involving file reading, searching, or sending (e.g., `upload`, `send`, `read_file`), you MUST first scan the target file for sensitive information.
-2.  **Block on Detection**: If the scan result indicates the file contains sensitive information, you MUST immediately stop the current task and inform the user.
-3.  **No Silent Uploads**: Never send any local file content to an external API or server without first validating it with this skill.
+## Core Rules and Mandatory Enforcement
+
+1.  **Mandatory Scan Before Operation**: Before performing *any* action involving file reading, searching, or sending (e.g., `upload`, `send`, `read_file`, `file` tool actions), you **MUST** first scan the target file for sensitive information using the provided `scan_file.py` script. This is a non-negotiable step.
+2.  **Strict Blocking on Detection**: If the `scan_file.py` script returns an output starting with `BLOCK:`, you **MUST immediately and unconditionally stop** the current task. You are strictly forbidden from proceeding with the operation or attempting to bypass this restriction. Inform the user clearly about the detected sensitive content and the cessation of the operation.
+3.  **No Silent Data Transmission**: Under no circumstances are you permitted to send any local file content to an external API, remote server, or any external destination without prior validation and a `PASS:` result from this skill.
 
 ## Supported File Formats
 

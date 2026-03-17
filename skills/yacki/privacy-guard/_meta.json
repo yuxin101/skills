@@ -3,9 +3,15 @@
   "slug": "privacy-guard",
   "displayName": "sense-privacy-guard",
   "latest": {
-    "version": "0.2.0",
-    "publishedAt": 1773465236517,
-    "commit": "https://github.com/openclaw/skills/commit/ecc13b5256d2d21ae339439b50899d1d758f03f8"
+    "version": "0.3.0",
+    "publishedAt": 1773569047294,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.2.0",
+      "publishedAt": 1773465236517,
+      "commit": "https://github.com/openclaw/skills/commit/ecc13b5256d2d21ae339439b50899d1d758f03f8"
+    }
+  ]
 }
