@@ -5,6 +5,7 @@
 支持功能：
 - 🔐 自动登录 + 验证码识别
 - 📊 持仓查询
+- 📈 持仓分析
 - 📈 买入操作
 - 📉 卖出操作
 - ❌ 撤单操作
@@ -57,6 +58,8 @@ import base64
 import io
 import argparse
 import logging
+import re
+import requests
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List, Any
@@ -159,6 +162,9 @@ CANCEL_URL = "https://jywg.18.cn/Trade/Cancel"
 POSITION_URL = "https://jywg.18.cn/Stock/Position"
 ORDERS_URL = "https://jywg.18.cn/Stock/Order"  # 委托查询
 BALANCE_URL = "https://jywg.18.cn/Stock/Asset"  # 资金查询
+
+# 条件选股 URL（无需登录）
+XUANGU_URL = "https://xuangu.eastmoney.com/?color=w&type=stock"
 
 
 # ============================================================================
@@ -687,6 +693,306 @@ def format_position_output(data: Dict) -> str:
     output.extend(["", "=" * 60, "💡 提示：数据仅供参考，请以实际账户为准"])
     
     return "\n".join(output)
+
+
+# ============================================================================
+# 持仓分析功能（从 eastmoney-portfolio 整合）
+# ============================================================================
+
+def get_secid(stock_code: str) -> str:
+    """转换股票代码为东方财富 secid 格式"""
+    code = stock_code.strip()
+    if code.startswith('sh'):
+        return f"1.{code.replace('sh', '')}"
+    elif code.startswith('sz'):
+        return f"0.{code.replace('sz', '')}"
+    elif code.startswith('6') or code.startswith('5'):
+        return f"1.{code}"  # 上海
+    else:
+        return f"0.{code}"  # 深圳
+
+
+def fetch_stock_price(stock_code: str, retry: int = 2) -> Optional[Dict]:
+    """
+    获取股票实时行情（东方财富 API）
+    
+    注意：东方财富 API 价格单位：
+    - 股票（600xxx, 000xxx, 300xxx）：返回的是"分"，需要除以 100
+    - ETF 基金（15xxxx, 51xxxx, 52xxxx）：返回的是"厘"，需要除以 1000
+    
+    Args:
+        stock_code: 股票代码
+        retry: 重试次数（默认 2 次）
+    """
+    secid = get_secid(stock_code)
+    url = f"http://push2.eastmoney.com/api/qt/stock/get?secid={secid}&fields=f43,f44,f45,f46,f47,f48,f58,f60,f170,f171"
+    
+    # 判断证券类型，确定价格除数
+    is_etf = stock_code.startswith('15') or stock_code.startswith('51') or stock_code.startswith('52')
+    price_divisor = 1000 if is_etf else 100
+    
+    for attempt in range(retry + 1):
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get('data') and data['data'].get('f58'):
+                result = data['data']
+                return {
+                    'code': secid.split('.')[1],
+                    'name': result.get('f58', ''),
+                    'price': result.get('f43', 0) / price_divisor,
+                    'open': result.get('f46', 0) / price_divisor,
+                    'high': result.get('f44', 0) / price_divisor,
+                    'low': result.get('f45', 0) / price_divisor,
+                    'pre_close': result.get('f60', 0) / price_divisor,
+                    'change': result.get('f170', 0) / price_divisor,
+                    'change_percent': result.get('f171', 0) / 100,
+                    'volume': result.get('f47', 0),
+                    'amount': result.get('f48', 0),
+                }
+            else:
+                logger.warning(f"API 返回无数据：{stock_code}")
+                return None
+                
+        except requests.exceptions.RequestException as e:
+            if attempt < retry:
+                logger.debug(f"获取行情失败 {stock_code}，重试 {attempt + 1}/{retry}: {e}")
+                time.sleep(0.5 * (attempt + 1))  # 递增延迟
+            else:
+                logger.warning(f"获取行情失败 {stock_code}（已重试{retry}次）: {e}")
+        except Exception as e:
+            logger.warning(f"获取行情失败 {stock_code}: {e}")
+            return None
+    
+    return None
+
+
+def fetch_batch_stock_prices(stock_codes: List[str]) -> Dict[str, Dict]:
+    """
+    批量获取股票行情（串行请求，更可靠）
+    
+    Args:
+        stock_codes: 股票代码列表
+    
+    Returns:
+        Dict: 行情数据字典
+    """
+    results = {}
+    
+    # 串行请求，避免并发导致的网络问题
+    for code in stock_codes[:50]:
+        result = fetch_stock_price(code, retry=3)  # 增加重试次数到 3 次
+        if result:
+            results[code] = result
+            logger.debug(f"✓ 获取行情成功：{code} - {result['name']} ¥{result['price']:.3f}")
+        else:
+            logger.warning(f"获取行情失败：{code}")
+        time.sleep(0.3)  # 请求间隔，避免被封
+    
+    return results
+
+
+def analyze_portfolio(positions: List[Dict], market_data: Dict[str, Dict]) -> Dict:
+    """分析持仓结构"""
+    total_market_value = 0
+    total_cost = 0
+    total_profit = 0
+    stock_details = []
+    
+    for pos in positions:
+        code = pos['code']
+        volume = int(pos.get('volume', 0) or 0)
+        cost_price = float(pos.get('cost_price', 0) or 0)
+        
+        market = market_data.get(code, {})
+        current_price = market.get('price', 0)
+        change_percent = market.get('change_percent', 0)
+        name = market.get('name', pos.get('name', ''))
+        
+        market_value = current_price * volume
+        cost = cost_price * volume
+        profit = market_value - cost
+        profit_percent = (profit / cost * 100) if cost > 0 else 0
+        
+        total_market_value += market_value
+        total_cost += cost
+        total_profit += profit
+        
+        stock_details.append({
+            'code': code,
+            'name': name,
+            'volume': volume,
+            'cost_price': cost_price,
+            'current_price': current_price,
+            'change_percent': change_percent,
+            'market_value': market_value,
+            'profit': profit,
+            'profit_percent': profit_percent,
+            'weight': 0,
+        })
+    
+    # 计算权重
+    for detail in stock_details:
+        detail['weight'] = (detail['market_value'] / total_market_value * 100) if total_market_value > 0 else 0
+    
+    # 持仓集中度
+    sorted_by_weight = sorted(stock_details, key=lambda x: x['weight'], reverse=True)
+    top3_weight = sum(s['weight'] for s in sorted_by_weight[:3])
+    
+    return {
+        'total_market_value': total_market_value,
+        'total_cost': total_cost,
+        'total_profit': total_profit,
+        'total_profit_percent': (total_profit / total_cost * 100) if total_cost > 0 else 0,
+        'stock_count': len(positions),
+        'top3_weight': top3_weight,
+        'stock_details': stock_details,
+        'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    }
+
+
+def generate_trading_suggestions(analysis: Dict) -> List[str]:
+    """生成交易建议"""
+    suggestions = []
+    
+    # 持仓集中度风险
+    if analysis['top3_weight'] > 70:
+        suggestions.append(f"⚠️ 持仓集中度过高：前 3 大持仓占比 {analysis['top3_weight']:.1f}%，建议适当分散风险")
+    elif analysis['top3_weight'] < 30:
+        suggestions.append("✅ 持仓分散度良好")
+    
+    # 整体盈亏
+    if analysis['total_profit_percent'] > 20:
+        suggestions.append("🎉 整体盈利超过 20%，考虑是否止盈部分仓位")
+    elif analysis['total_profit_percent'] > 5:
+        suggestions.append("📈 整体盈利，可继续持有观察")
+    elif analysis['total_profit_percent'] > -10:
+        suggestions.append("📊 小幅亏损，建议检查持仓逻辑是否改变")
+    else:
+        suggestions.append("⚠️ 亏损超过 10%，建议复盘买入逻辑，考虑止损或补仓")
+    
+    # 个股建议
+    for stock in analysis['stock_details']:
+        if stock['profit_percent'] > 30:
+            suggestions.append(f"💰 {stock['name']}({stock['code']}) 盈利超 30%，可考虑分批止盈")
+        elif stock['profit_percent'] < -20:
+            suggestions.append(f"🛑 {stock['name']}({stock['code']}) 亏损超 20%，建议检查基本面是否恶化")
+        
+        if stock['weight'] > 40:
+            suggestions.append(f"⚠️ {stock['name']}({stock['code']}) 单只持仓超 40%，风险集中")
+    
+    # 持仓数量
+    if analysis['stock_count'] > 15:
+        suggestions.append(f"📋 持仓数量 {analysis['stock_count']} 只，可能过于分散，建议聚焦核心标的")
+    elif analysis['stock_count'] < 3:
+        suggestions.append(f"🎯 持仓数量 {analysis['stock_count']} 只，集中度较高，注意风险")
+    
+    if not suggestions:
+        suggestions.append("✅ 持仓结构健康，继续跟踪")
+    
+    return suggestions
+
+
+def format_analysis_report(analysis: Dict, suggestions: List[str]) -> str:
+    """格式化分析报告输出"""
+    lines = []
+    lines.append("📊 **东方财富持仓分析报告**")
+    lines.append(f"📅 更新时间：{analysis['update_time']}")
+    lines.append("")
+    
+    # 总体概览
+    lines.append("## 📈 总体概览")
+    lines.append(f"- 持仓数量：{analysis['stock_count']} 只")
+    lines.append(f"- 总市值：¥{analysis['total_market_value']:,.2f}")
+    lines.append(f"- 总成本：¥{analysis['total_cost']:,.2f}")
+    profit_emoji = "🎉" if analysis['total_profit'] > 0 else "📉"
+    lines.append(f"- 总盈亏：{profit_emoji} ¥{analysis['total_profit']:,.2f} ({analysis['total_profit_percent']:+.2f}%)")
+    lines.append(f"- 前 3 大持仓占比：{analysis['top3_weight']:.1f}%")
+    lines.append("")
+    
+    # 个股详情
+    lines.append("## 📋 持仓明细")
+    lines.append("")
+    
+    sorted_stocks = sorted(analysis['stock_details'], key=lambda x: x['market_value'], reverse=True)
+    
+    for i, stock in enumerate(sorted_stocks, 1):
+        profit_emoji = "🟢" if stock['profit'] > 0 else "🔴" if stock['profit'] < 0 else "⚪"
+        change_emoji = "📈" if stock['change_percent'] > 0 else "📉" if stock['change_percent'] < 0 else "➡️"
+        
+        lines.append(f"**{i}. {stock['name']}({stock['code']})**")
+        lines.append(f"   - 持仓：{stock['volume']} 股 | 市值：¥{stock['market_value']:,.2f} | 占比：{stock['weight']:.1f}%")
+        lines.append(f"   - 成本：¥{stock['cost_price']:.2f} | 现价：¥{stock['current_price']:.2f} | {change_emoji} {stock['change_percent']:+.2f}%")
+        lines.append(f"   - 盈亏：{profit_emoji} ¥{stock['profit']:,.2f} ({stock['profit_percent']:+.2f}%)")
+        lines.append("")
+    
+    # 交易建议
+    lines.append("## 💡 交易建议")
+    lines.append("")
+    for sug in suggestions:
+        lines.append(f"- {sug}")
+    
+    lines.append("")
+    lines.append("---")
+    lines.append("⚠️ **风险提示**：以上分析仅供参考，不构成投资建议。股市有风险，投资需谨慎。")
+    
+    return '\n'.join(lines)
+
+
+def analyze_position(page: Page, position_data: Dict) -> Optional[Dict]:
+    """
+    对持仓进行深入分析（获取实时行情 + 生成建议）
+    
+    Args:
+        page: Playwright page 对象
+        position_data: 持仓数据
+    
+    Returns:
+        分析结果字典
+    """
+    if not position_data or not position_data.get('positions'):
+        logger.warning("⚠️ 无持仓数据可供分析")
+        return None
+    
+    logger.info("📡 正在获取实时行情...")
+    stock_codes = [pos['code'] for pos in position_data['positions']]
+    market_data = fetch_batch_stock_prices(stock_codes)
+    
+    logger.info(f"✓ 成功获取 {len(market_data)}/{len(stock_codes)} 只股票行情")
+    
+    # 转换持仓数据格式
+    positions_for_analysis = []
+    for pos in position_data['positions']:
+        positions_for_analysis.append({
+            'code': pos['code'],
+            'name': pos.get('name', ''),
+            'volume': int(pos.get('volume', 0) or 0),
+            'cost_price': float(pos.get('cost_price', 0) or 0),
+        })
+    
+    # 分析持仓
+    logger.info("🔍 正在分析持仓结构...")
+    analysis = analyze_portfolio(positions_for_analysis, market_data)
+    
+    # 生成建议
+    suggestions = generate_trading_suggestions(analysis)
+    
+    # 保存分析结果
+    analysis_result = {
+        'analysis': analysis,
+        'suggestions': suggestions,
+        'market_data': market_data,
+    }
+    
+    # 保存 JSON 文件
+    analysis_file = TODAY_LOG_DIR / f"analysis_{datetime.now().strftime('%H%M%S')}.json"
+    with open(analysis_file, 'w', encoding='utf-8') as f:
+        json.dump(analysis_result, f, ensure_ascii=False, indent=2)
+    logger.info(f"📄 分析结果已保存：{analysis_file}")
+    
+    return analysis_result
 
 
 # ============================================================================
@@ -1596,6 +1902,244 @@ def cmd_balance(args):
         browser.close()
 
 
+def cmd_analyze(args):
+    """持仓分析命令（整合 eastmoney-portfolio 功能）"""
+    logger.info("=" * 60)
+    logger.info("东方财富 - 持仓分析")
+    logger.info("=" * 60)
+    
+    account, password = get_credentials()
+    logger.info(f"账号：{account[:3]}***{account[-4:]}")
+    
+    playwright, browser, context, page = connect_browser()
+    
+    try:
+        # 登录
+        if not login(page, account, password):
+            logger.error("登录失败")
+            return False
+        
+        # 获取持仓
+        position_data = get_position(page)
+        
+        if not position_data or not position_data.get('positions'):
+            logger.error("获取持仓失败")
+            return False
+        
+        # 分析持仓
+        analysis_result = analyze_position(page, position_data)
+        
+        if analysis_result:
+            analysis = analysis_result['analysis']
+            suggestions = analysis_result['suggestions']
+            
+            # 输出分析报告
+            print("\n" + format_analysis_report(analysis, suggestions))
+            
+            # 输出 JSON
+            print("\n---JSON_START---")
+            print(json.dumps(analysis_result, ensure_ascii=False, indent=2))
+            print("---JSON_END---")
+            
+            return True
+        else:
+            logger.error("持仓分析失败")
+            return False
+            
+    finally:
+        logger.info("关闭 CDP 连接...")
+        browser.close()
+
+
+def cmd_select(args):
+    """
+    条件选股命令（无需登录）
+    
+    使用东方财富条件选股功能，支持多种选股条件：
+    - 技术指标（MACD、KDJ、RSI 等）
+    - 基本面指标（市盈率、市净率、ROE 等）
+    - 行情指标（涨跌幅、成交量、换手率等）
+    - 板块概念
+    
+    注意：条件选股页面为动态加载，建议在浏览器中查看完整功能。
+    """
+    logger.info("=" * 60)
+    logger.info("东方财富 - 条件选股")
+    logger.info("=" * 60)
+    
+    # 条件选股无需登录，直接连接浏览器
+    playwright, browser, context, page = connect_browser()
+    
+    try:
+        # 访问条件选股页面
+        logger.info(f"正在访问东方财富条件选股页面...")
+        page.goto(XUANGU_URL, timeout=TIMEOUT)
+        page.wait_for_load_state('networkidle')
+        save_screenshot(page, "xuangu_home", "条件选股首页")
+        
+        # 等待页面加载
+        page.wait_for_timeout(5000)
+        
+        # 输出页面信息
+        print("\n" + "=" * 70)
+        print("📊 东方财富条件选股")
+        print("=" * 70)
+        print(f"📅 访问时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"🔗 页面地址：{XUANGU_URL}")
+        print()
+        print("✅ 功能说明:")
+        print("  - 技术指标选股（MACD、KDJ、RSI 等）")
+        print("  - 基本面选股（市盈率、市净率、ROE 等）")
+        print("  - 行情选股（涨跌幅、成交量、换手率等）")
+        print("  - 板块概念选股（行业、概念、地区等）")
+        print()
+        print("💡 使用建议:")
+        print("  1. 在浏览器中打开条件选股页面进行可视化操作")
+        print("  2. 使用预设条件或自定义选股策略")
+        print("  3. 导出选股结果到 Excel 或自选股")
+        print()
+        print("📸 截图已保存到日志文件夹")
+        print("=" * 70)
+        
+        return True
+            
+    finally:
+        logger.info("关闭 CDP 连接...")
+        browser.close()
+
+
+def extract_stock_selection(page: Page, args) -> Dict:
+    """
+    从条件选股页面提取结果
+    
+    Args:
+        page: Playwright page 对象
+        args: 命令行参数
+    
+    Returns:
+        选股结果字典
+    """
+    result = {
+        'total_count': 0,
+        'stocks': [],
+        'conditions': [],
+        'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    }
+    
+    try:
+        logger.info("提取选股结果...")
+        
+        # 保存页面截图以便调试
+        save_screenshot(page, "xuangu_result", "选股结果页面")
+        
+        # 获取选股条件（从页面顶部）
+        condition_elements = page.locator('.condition-item, .tag-item, [class*="condition"], [class*="tag"]').all()
+        for cond in condition_elements[:10]:
+            try:
+                text = cond.text_content().strip()
+                if text and len(text) < 200:  # 过滤太长的文本
+                    result['conditions'].append(text)
+            except:
+                continue
+        
+        # 尝试多种选择器查找股票表格
+        table_selectors = [
+            'table',
+            '.stock-table',
+            '.result-table',
+            '[class*="table"]',
+            '.data-grid',
+        ]
+        
+        stock_table = None
+        for selector in table_selectors:
+            try:
+                stock_table = page.locator(selector).first
+                if stock_table.is_visible(timeout=2000):
+                    logger.info(f"找到股票表格：{selector}")
+                    break
+            except:
+                continue
+        
+        if stock_table:
+            # 获取表格行
+            rows = stock_table.locator('tr').all()
+            logger.info(f"找到 {len(rows)} 行")
+            
+            # 跳过表头，提取数据行
+            for i, row in enumerate(rows[1:51], 1):  # 跳过表头，最多 50 行
+                try:
+                    cells = row.locator('td, th').all()
+                    if len(cells) >= 4:
+                        # 提取股票代码和名称（通常在第 1-2 列）
+                        code_name = cells[0].text_content().strip() if len(cells) > 0 else ''
+                        # 尝试分离代码和名称
+                        code_match = re.search(r'(\d{6})', code_name)
+                        if code_match:
+                            code = code_match.group(1)
+                            name = code_name.replace(code, '').strip()
+                        else:
+                            code = code_name
+                            name = cells[1].text_content().strip() if len(cells) > 1 else ''
+                        
+                        stock = {
+                            'code': code,
+                            'name': name,
+                            'price': cells[2].text_content().strip() if len(cells) > 2 else '',
+                            'change_percent': cells[3].text_content().strip() if len(cells) > 3 else '',
+                            'volume': cells[4].text_content().strip() if len(cells) > 4 else '',
+                        }
+                        
+                        if stock['code'] and re.match(r'\d{6}', stock['code']):
+                            result['stocks'].append(stock)
+                            if len(result['stocks']) <= 5:
+                                logger.info(f"股票：{stock['code']} {stock['name']}")
+                except Exception as e:
+                    logger.debug(f"解析行失败：{e}")
+                    continue
+        
+        result['total_count'] = len(result['stocks'])
+        logger.info(f"共提取 {len(result['stocks'])} 条股票记录")
+        
+    except Exception as e:
+        logger.error(f"提取选股数据失败：{type(e).__name__} - {e}")
+    
+    return result
+
+
+def format_stock_selection_output(data: Dict) -> str:
+    """格式化选股结果输出"""
+    if not data or not data.get('stocks'):
+        return "❌ 未获取到选股结果"
+    
+    output = ["📊 东方财富条件选股结果", "=" * 70]
+    output.append(f"📅 更新时间：{data.get('update_time', '')}")
+    output.append(f"📋 选股条件：{', '.join(data.get('conditions', ['默认条件']))}")
+    output.append(f"📈 符合条件股票数：{data.get('total_count', 0)} 只")
+    output.extend(["", "📋 股票列表:", "-" * 70])
+    
+    # 表头
+    output.append(f"{'序号':<4} {'代码':<8} {'名称':<12} {'现价':>10} {'涨跌幅':>10} {'成交量':>12}")
+    output.append("-" * 70)
+    
+    for i, stock in enumerate(data['stocks'][:20], 1):
+        change_pct = stock.get('change_percent', '')
+        change_emoji = "📈" if '+' in str(change_pct) or (change_pct.replace('%', '').replace('.', '').replace('-', '').isdigit() and float(change_pct.replace('%', '')) > 0) else "📉" if '-' in str(change_pct) else "➡️"
+        
+        output.append(
+            f"{i:<4} {stock.get('code', ''):<8} {stock.get('name', ''):<12} "
+            f"{stock.get('price', ''):>10} {change_emoji}{stock.get('change_percent', ''):>8} "
+            f"{stock.get('volume', ''):>12}"
+        )
+    
+    if len(data['stocks']) > 20:
+        output.append(f"... 还有 {len(data['stocks']) - 20} 只股票，请查看完整 JSON 输出")
+    
+    output.extend(["", "=" * 70, "💡 提示：选股结果仅供参考，不构成投资建议"])
+    
+    return "\n".join(output)
+
+
 def main():
     """主函数 - 命令行解析"""
     parser = argparse.ArgumentParser(description='东方财富证券交易技能', formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1603,6 +2147,9 @@ def main():
 示例:
   # 登录 + 持仓查询
   python3 eastmoney_trading.py login
+  
+  # 持仓分析 ⭐
+  python3 eastmoney_trading.py analyze
   
   # 买入
   python3 eastmoney_trading.py buy --stock-code 600519 --price 1850 --quantity 100
@@ -1627,6 +2174,18 @@ def main():
   
   # 查询资金
   python3 eastmoney_trading.py balance
+  
+  # 条件选股（无需登录）⭐
+  python3 eastmoney_trading.py select
+  
+  # 按行业选股
+  python3 eastmoney_trading.py select --industry 半导体
+  
+  # 按概念选股
+  python3 eastmoney_trading.py select --concept 人工智能
+  
+  # 指定市场
+  python3 eastmoney_trading.py select --market sh
         """)
     
     subparsers = parser.add_subparsers(dest='command', help='命令')
@@ -1668,6 +2227,18 @@ def main():
     # balance 命令
     balance_parser = subparsers.add_parser('balance', help='资金查询')
     balance_parser.set_defaults(func=cmd_balance)
+    
+    # analyze 命令
+    analyze_parser = subparsers.add_parser('analyze', help='持仓分析')
+    analyze_parser.set_defaults(func=cmd_analyze)
+    
+    # select 命令（条件选股）
+    select_parser = subparsers.add_parser('select', help='条件选股（无需登录）')
+    select_parser.add_argument('--condition', '-c', action='append', help='选股条件（可多次指定）')
+    select_parser.add_argument('--market', choices=['sh', 'sz', 'bj', 'all'], default='all', help='市场选择')
+    select_parser.add_argument('--industry', help='行业板块')
+    select_parser.add_argument('--concept', help='概念板块')
+    select_parser.set_defaults(func=cmd_select)
     
     args = parser.parse_args()
     

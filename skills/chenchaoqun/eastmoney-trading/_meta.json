@@ -1,11 +1,17 @@
 {
   "owner": "chenchaoqun",
   "slug": "eastmoney-trading",
-  "displayName": "东方财富证券交易",
+  "displayName": "Eastmoney Trading",
   "latest": {
-    "version": "3.0.0",
-    "publishedAt": 1773427823874,
-    "commit": "https://github.com/openclaw/skills/commit/bdec98c7237c32918159f4462b05d0b28d7a790a"
+    "version": "3.2.0",
+    "publishedAt": 1773505155826,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "3.0.0",
+      "publishedAt": 1773427823874,
+      "commit": "https://github.com/openclaw/skills/commit/bdec98c7237c32918159f4462b05d0b28d7a790a"
+    }
+  ]
 }
