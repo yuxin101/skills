@@ -3,9 +3,15 @@
   "slug": "antlr4",
   "displayName": "Antlr4",
   "latest": {
-    "version": "2.3.0",
-    "publishedAt": 1773447021751,
-    "commit": "https://github.com/openclaw/skills/commit/3af0309ccc60566b50b85c10b1a04c482301a33a"
+    "version": "2.3.5",
+    "publishedAt": 1773664534566,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.0",
+      "publishedAt": 1773447021751,
+      "commit": "https://github.com/openclaw/skills/commit/3af0309ccc60566b50b85c10b1a04c482301a33a"
+    }
+  ]
 }
