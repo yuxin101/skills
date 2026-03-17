@@ -1,0 +1,11 @@
+{
+  "owner": "jolestar",
+  "slug": "chainbase-openapi-skill",
+  "displayName": "Chainbase OpenAPI Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773626239033,
+    "commit": null
+  },
+  "history": []
+}
