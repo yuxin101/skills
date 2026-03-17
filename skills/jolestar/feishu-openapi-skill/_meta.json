@@ -1,0 +1,11 @@
+{
+  "owner": "jolestar",
+  "slug": "feishu-openapi-skill",
+  "displayName": "Feishu OpenAPI Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773587242663,
+    "commit": null
+  },
+  "history": []
+}
