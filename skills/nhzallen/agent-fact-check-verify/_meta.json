@@ -1,0 +1,11 @@
+{
+  "owner": "nhzallen",
+  "slug": "agent-fact-check-verify",
+  "displayName": "Agent Fact Check Verify",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1773746232959,
+    "commit": null
+  },
+  "history": []
+}
