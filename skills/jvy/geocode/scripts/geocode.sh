@@ -5,12 +5,11 @@ usage() {
   local exit_code="${1:-2}"
   cat >&2 <<'EOF'
 Usage:
-  geocode.sh search <query> [--lang <code>] [--limit <n>] [--countrycodes <codes>] [--user-agent <ua>]
-  geocode.sh reverse <latitude> <longitude> [--lang <code>] [--zoom <n>] [--user-agent <ua>]
+  geocode.sh hint
+  geocode.sh reverse <latitude> <longitude> [--lang <code>] [--user-agent <ua>]
 
 Examples:
-  geocode.sh search "1600 Amphitheatre Parkway, Mountain View, CA" --lang en --limit 3
-  geocode.sh search "上海迪士尼乐园" --lang zh-CN
+  geocode.sh hint
   geocode.sh reverse 37.819929 -122.478255 --lang en
 
 Environment:
@@ -24,13 +23,29 @@ is_decimal() {
   [[ "${1:-}" =~ ^-?[0-9]+([.][0-9]+)?$ ]]
 }
 
-is_uint() {
-  [[ "${1:-}" =~ ^[0-9]+$ ]]
-}
-
 curl_json() {
   curl -fsSL "$@"
   printf '\n'
+}
+
+curl_hint() {
+  local response
+  response="$(
+    curl -sSL \
+      -A "$user_agent" \
+      -w $'\n%{http_code}' \
+      "${base_url%/}/"
+  )"
+  local http_code="${response##*$'\n'}"
+  local body="${response%$'\n'*}"
+  if [[ "$http_code" != "400" && "$http_code" != "200" ]]; then
+    echo "Unexpected HTTP status from geocode provider root: $http_code" >&2
+    if [[ "$body" != "" ]]; then
+      printf '%s\n' "$body" >&2
+    fi
+    exit 1
+  fi
+  printf '%s\n' "$body"
 }
 
 if [[ "${1:-}" == "" || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -40,69 +55,21 @@ fi
 command="${1:-}"
 shift || true
 
-base_url="${GEOCODE_BASE_URL:-http://geocode.com.cn}"
+base_url="${GEOCODE_BASE_URL:-https://geocode.com.cn}"
 user_agent="${GEOCODE_USER_AGENT:-openclaw-geocode-skill/1.0 (interactive use)}"
 
 case "$command" in
-  search)
-    query="${1:-}"
-    if [[ "$query" == "" ]]; then
-      echo "Missing search query" >&2
+  hint)
+    if [[ $# -gt 0 ]]; then
+      echo "hint does not accept extra arguments" >&2
       usage
     fi
-    shift || true
-
-    lang=""
-    limit="5"
-    countrycodes=""
-
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-        --lang)
-          lang="${2:-}"
-          shift 2
-          ;;
-        --limit)
-          limit="${2:-}"
-          shift 2
-          ;;
-        --countrycodes)
-          countrycodes="${2:-}"
-          shift 2
-          ;;
-        --user-agent)
-          user_agent="${2:-}"
-          shift 2
-          ;;
-        *)
-          echo "Unknown arg: $1" >&2
-          usage
-          ;;
-      esac
-    done
-
-    if ! is_uint "$limit"; then
-      echo "Invalid --limit: $limit" >&2
-      exit 1
-    fi
-
-    args=(
-      --get
-      "${base_url%/}/search"
-      -A "$user_agent"
-      --data-urlencode "q=$query"
-      --data "format=jsonv2"
-      --data "limit=$limit"
-    )
-
-    if [[ "$lang" != "" ]]; then
-      args+=(--data-urlencode "accept-language=$lang")
-    fi
-    if [[ "$countrycodes" != "" ]]; then
-      args+=(--data "countrycodes=$countrycodes")
-    fi
-
-    curl_json "${args[@]}"
+    curl_hint
+    ;;
+  search)
+    echo "Unsupported command: search" >&2
+    echo "geocode.com.cn currently supports reverse geocoding only (lat/lon query)." >&2
+    exit 1
     ;;
   reverse)
     latitude="${1:-}"
@@ -114,16 +81,10 @@ case "$command" in
     shift 2 || true
 
     lang=""
-    zoom=""
-
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --lang)
           lang="${2:-}"
-          shift 2
-          ;;
-        --zoom)
-          zoom="${2:-}"
           shift 2
           ;;
         --user-agent)
@@ -145,11 +106,6 @@ case "$command" in
       echo "Invalid longitude: $longitude" >&2
       exit 1
     fi
-    if [[ "$zoom" != "" ]] && ! is_uint "$zoom"; then
-      echo "Invalid --zoom: $zoom" >&2
-      exit 1
-    fi
-
     args=(
       --get
       "${base_url%/}/"
@@ -161,10 +117,6 @@ case "$command" in
     if [[ "$lang" != "" ]]; then
       args+=(--data-urlencode "accept-language=$lang")
     fi
-    if [[ "$zoom" != "" ]]; then
-      args+=(--data "zoom=$zoom")
-    fi
-
     curl_json "${args[@]}"
     ;;
   *)

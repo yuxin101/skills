@@ -3,11 +3,16 @@
   "slug": "geocode",
   "displayName": "geocode",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773565343850,
-    "commit": "https://github.com/openclaw/skills/commit/5c028624e1b5b37110fd4d4872a8e9cdd5e6a6f9"
+    "version": "1.0.3",
+    "publishedAt": 1773669077255,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773565343850,
+      "commit": "https://github.com/openclaw/skills/commit/5c028624e1b5b37110fd4d4872a8e9cdd5e6a6f9"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773489078880,
