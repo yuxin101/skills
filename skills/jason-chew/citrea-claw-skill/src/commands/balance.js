@@ -18,12 +18,13 @@ const citrea = {
 
 // ─── Token Registry ───────────────────────────────────────────────────────────
 const TOKENS = [
-  { symbol: 'ctUSD',  address: '0x8D82c4E3c936C7B5724A382a9c5a4E6Eb7aB6d5D', decimals: 18 },
+  { symbol: 'ctUSD',  address: '0x8D82c4E3c936C7B5724A382a9c5a4E6Eb7aB6d5D', decimals: 6 },
   { symbol: 'wcBTC',  address: '0x3100000000000000000000000000000000000006', decimals: 18 },
   { symbol: 'USDC.e', address: '0xE045e6c36cF77FAA2CfB54466D71A3aEF7bbE839', decimals: 6  },
   { symbol: 'USDT.e', address: '0x9f3096Bac87e7F03DC09b0B416eB0DF837304dc4', decimals: 6  },
   { symbol: 'WBTC.e', address: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d', decimals: 8  },
   { symbol: 'JUSD',   address: '0x0987D3720D38847ac6dBB9D025B9dE892a3CA35C', decimals: 18 },
+  { symbol: 'GUSD',   address: '0xAC8c1AEB584765DB16ac3e08D4736CFcE198589B', decimals: 18 },
 ]
 
 const ERC20_ABI = [

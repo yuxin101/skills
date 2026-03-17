@@ -5,7 +5,7 @@ import { sendTelegram } from '../lib/telegram.js'
 
 // ─── Env Config ───────────────────────────────────────────────────────────────
 const ARB_ALERT_THRESHOLD_BPS = parseInt(process.env.ARB_ALERT_THRESHOLD_BPS || '50', 10)
-const ARB_MONITOR_INTERVAL_MS = parseInt(process.env.ARB_MONITOR_INTERVAL_SEC || '15', 10) * 1000
+const ARB_MONITOR_INTERVAL_MS = parseInt(process.env.ARB_MONITOR_INTERVAL_SEC || '30', 10) * 1000
 
 // ─── Gas Estimate ─────────────────────────────────────────────────────────────
 const ESTIMATED_GAS_UNITS = 120000
@@ -42,7 +42,7 @@ function getPoolQueryAddress(address) {
 
 // ─── Token Registry ───────────────────────────────────────────────────────────
 const TOKEN_REGISTRY = {
-  'ctusd':  { symbol: 'ctUSD',  address: '0x8D82c4E3c936C7B5724A382a9c5a4E6Eb7aB6d5D', decimals: 18 },
+  'ctusd':  { symbol: 'ctUSD',  address: '0x8D82c4E3c936C7B5724A382a9c5a4E6Eb7aB6d5D', decimals: 6 },
   'wcbtc':  { symbol: 'wcBTC',  address: '0x3100000000000000000000000000000000000006', decimals: 18 },
   'usdc.e': { symbol: 'USDC.e', address: '0xE045e6c36cF77FAA2CfB54466D71A3aEF7bbE839', decimals: 6  },
   'usdc':   { symbol: 'USDC.e', address: '0xE045e6c36cF77FAA2CfB54466D71A3aEF7bbE839', decimals: 6  },
@@ -51,15 +51,17 @@ const TOKEN_REGISTRY = {
   'wbtc.e': { symbol: 'WBTC.e', address: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d', decimals: 8  },
   'wbtc':   { symbol: 'WBTC.e', address: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d', decimals: 8  },
   'jusd':   { symbol: 'JUSD',   address: '0x0987D3720D38847ac6dBB9D025B9dE892a3CA35C', decimals: 18 },
+  'gusd':   { symbol: 'GUSD',   address: '0xAC8c1AEB584765DB16ac3e08D4736CFcE198589B', decimals: 18 },
 }
 
 const ALL_TOKENS = [
-  { symbol: 'ctUSD',  address: '0x8D82c4E3c936C7B5724A382a9c5a4E6Eb7aB6d5D', decimals: 18 },
+  { symbol: 'ctUSD',  address: '0x8D82c4E3c936C7B5724A382a9c5a4E6Eb7aB6d5D', decimals: 6 },
   { symbol: 'wcBTC',  address: '0x3100000000000000000000000000000000000006', decimals: 18 },
   { symbol: 'USDC.e', address: '0xE045e6c36cF77FAA2CfB54466D71A3aEF7bbE839', decimals: 6  },
   { symbol: 'USDT.e', address: '0x9f3096Bac87e7F03DC09b0B416eB0DF837304dc4', decimals: 6  },
   { symbol: 'WBTC.e', address: '0xDF240DC08B0FdaD1d93b74d5048871232f6BEA3d', decimals: 8  },
   { symbol: 'JUSD',   address: '0x0987D3720D38847ac6dBB9D025B9dE892a3CA35C', decimals: 18 },
+  { symbol: 'GUSD',   address: '0xAC8c1AEB584765DB16ac3e08D4736CFcE198589B', decimals: 18 },
 ]
 
 const TOKEN_PAIRS = [
@@ -423,7 +425,7 @@ async function checkPairArb(symbolA, symbolB, cachedPrices = null) {
 // ─── Debounce State ───────────────────────────────────────────────────────────
 
 const lastAlerted = new Map()
-const DEBOUNCE_MS = 10 * 60 * 1000
+const DEBOUNCE_MS = parseInt(process.env.ARB_DEBOUNCE_MIN || '30', 10) * 60 * 1000
 
 function shouldAlert(pairKey, netProfitBps) {
   if (netProfitBps < ARB_ALERT_THRESHOLD_BPS) return false

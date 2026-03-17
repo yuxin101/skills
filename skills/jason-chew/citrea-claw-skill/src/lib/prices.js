@@ -1,4 +1,4 @@
-import { createPublicClient, http } from 'viem'
+import { createPublicClient, http, formatUnits } from 'viem'
 
 // ─── Citrea Mainnet Config ────────────────────────────────────────────────────
 const citrea = {
@@ -6,15 +6,14 @@ const citrea = {
   name: 'Citrea Mainnet',
   nativeCurrency: { name: 'Citrea Bitcoin', symbol: 'cBTC', decimals: 18 },
   rpcUrls: { default: { http: ['https://rpc.mainnet.citrea.xyz'] } },
-  blockExplorers: {
-    default: {
-      name: 'Citrea Explorer',
-      url: 'https://explorer.mainnet.citrea.xyz'
-    }
-  }
 }
 
-// ─── RedStone Push Feed Contracts on Citrea ───────────────────────────────────
+const client = createPublicClient({
+  chain: citrea,
+  transport: http(),
+})
+
+// ─── RedStone Oracle Addresses ───────────────────────────────────────────────
 const PRICE_FEEDS = {
   BTC:  '0xc555c100DB24dF36D406243642C169CC5A937f09',
   USDC: '0xf0DEbDAE819b354D076b0D162e399BE013A856d3',
@@ -44,27 +43,38 @@ const AGGREGATOR_ABI = [
   },
 ]
 
-// Token → feed mapping
-// null  = stablecoin, hardcoded to $1
-// false = no feed available
-const TOKEN_PRICE_FEED = {
-  'cBTC':   'BTC',
-  'wcBTC':  'BTC',
+// ─── Token price mapping ──────────────────────────────────────────────────────
+const TOKEN_PRICE_MAP = {
+  wcBTC:    'BTC',
   'WBTC.e': 'BTC',
-  'ctUSD':  null,    // stablecoin
-  'USDC.e': null,    // stablecoin
-  'USDT.e': null,    // stablecoin
-  'JUSD':   null,    // BTC-backed stablecoin, USD peg
+  cBTC:     'BTC',
+  'USDC.e': 'USDC',
+  'USDT.e': 'USDT',
+  ctUSD:    'USDC',
+  JUSD:     'USDC',
+  GUSD:     'USDC',
 }
 
-const STABLECOIN_PRICE_USD = 1.0
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatUSD(amount) {
+  if (amount === 0) return '$0.00'
+  if (amount < 0.01) return '<$0.01'
+  if (amount < 1000) return '$' + amount.toFixed(2)
+  if (amount < 1000000) return '$' + (amount / 1000).toFixed(2) + 'K'
+  return '$' + (amount / 1000000).toFixed(2) + 'M'
+}
 
-const client = createPublicClient({
-  chain: citrea,
-  transport: http()
-})
+function tokenAmountToUSD(amount, symbol, prices) {
+  if (!prices) return 0
+  const feedKey = TOKEN_PRICE_MAP[symbol]
+  if (!feedKey) return 0
+  const price = prices[feedKey]
+  if (!price) return 0
+  return amount * price
+}
 
-// ─── Fetch Prices from RedStone On-Chain Feeds ────────────────────────────────
+// ─── Stale warning deduplication ─────────────────────────────────────────────
+const warnedStale = new Set()
 
 async function fetchRedStonePrices() {
   try {
@@ -87,55 +97,19 @@ async function fetchRedStonePrices() {
         const updatedAt = Number(roundData[3])
         const age       = Math.floor(Date.now() / 1000) - updatedAt
 
-        if (age > 7200) {
+        if (age > 7200 && !warnedStale.has(symbol)) {
           console.warn(`⚠️  ${symbol} price is ${Math.floor(age / 60)} minutes old`)
+          warnedStale.add(symbol)
         }
 
         return [symbol, price]
       })
     )
-
     return Object.fromEntries(results)
-
   } catch (error) {
     console.error(`⚠️  Could not fetch RedStone prices: ${error.message}`)
     return null
   }
 }
 
-// ─── Get USD price for a token symbol ────────────────────────────────────────
-
-async function getTokenUSDPrice(symbol, cachedPrices = null) {
-  const feedId = TOKEN_PRICE_FEED[symbol]
-
-  // Stablecoin — hardcoded $1
-  if (feedId === null) return STABLECOIN_PRICE_USD
-
-  // No feed available for this token
-  if (!feedId) return null
-
-  const prices = cachedPrices || await fetchRedStonePrices()
-  if (!prices) return null
-
-  return prices[feedId] || null
-}
-
-// ─── Convert token amount to USD ─────────────────────────────────────────────
-
-async function tokenAmountToUSD(amount, symbol, cachedPrices = null) {
-  const price = await getTokenUSDPrice(symbol, cachedPrices)
-  if (price === null) return null
-  return amount * price
-}
-
-// ─── Format USD value ─────────────────────────────────────────────────────────
-
-function formatUSD(amount) {
-  if (amount === null || amount === undefined) return 'N/A'
-  if (amount < 0.01)      return '<$0.01'
-  if (amount < 1000)      return `$${amount.toFixed(2)}`
-  if (amount < 1_000_000) return `$${(amount / 1000).toFixed(2)}K`
-  return `$${(amount / 1_000_000).toFixed(2)}M`
-}
-
-export { fetchRedStonePrices, getTokenUSDPrice, tokenAmountToUSD, formatUSD }
+export { fetchRedStonePrices, formatUSD, tokenAmountToUSD }

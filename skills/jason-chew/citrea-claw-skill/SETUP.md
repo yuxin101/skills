@@ -1,7 +1,6 @@
 # citrea-claw-skill — Setup Guide
 
-A CLI tool for monitoring the [Citrea](https://citrea.xyz) Bitcoin L2 ecosystem.
-Tracks DEX pools, liquidity, arbitrage opportunities, and sends Telegram alerts.
+A CLI tool and [OpenClaw](https://openclaw.ai) skill for monitoring the [Citrea](https://citrea.xyz) Bitcoin L2 ecosystem. Tracks DEX pools, liquidity, arbitrage opportunities, token prices, wallet balances, and sends Telegram alerts.
 
 ## Requirements
 
@@ -9,21 +8,49 @@ Tracks DEX pools, liquidity, arbitrage opportunities, and sends Telegram alerts.
 - A Telegram account (optional, for alerts)
 
 ## Installation
+
+### For OpenClaw users
+
+Clone directly into your OpenClaw skills directory so your agent can find and execute commands immediately:
 ```bash
-git clone https://github.com/yourname/citrea-claw-skill.git
+git clone https://github.com/jason-chew/citrea-claw-skill.git ~/.openclaw/skills/citrea-claw-skill
+cd ~/.openclaw/skills/citrea-claw-skill
+npm install
+cp .env.example .env
+```
+
+> **Important:** The repo must be cloned into `~/.openclaw/skills/citrea-claw-skill/` for your OpenClaw agent to find and execute commands. Cloning anywhere else will result in the skill not working.
+
+After installation, restart your OpenClaw gateway to pick up the new skill:
+```bash
+openclaw gateway restart
+```
+
+> On Linux servers running OpenClaw as a systemd service, use:
+> `systemctl --user restart openclaw-gateway.service`
+
+Then start a **new session** with your agent — skills are picked up at session start, not mid-conversation.
+
+Verify the skill is loaded:
+```bash
+openclaw skills list | grep citrea
+```
+
+You should see `citrea-claw-skill` with status `ready`.
+
+### For CLI-only use
+
+If you just want to use it as a standalone CLI tool without OpenClaw:
+```bash
+git clone https://github.com/jason-chew/citrea-claw-skill.git
 cd citrea-claw-skill
 npm install
+cp .env.example .env
 ```
 
 ## Configuration
 
-Copy the example env file:
-```bash
-cp .env.example .env
-```
-
-Then edit `.env` with your own values. All fields are optional — the tool works
-without Telegram configured, alerts will just be skipped.
+Edit `.env` with your own values. All fields are optional — the tool works without Telegram configured, alerts will just be skipped.
 
 ### Getting your Telegram bot token
 
@@ -39,8 +66,7 @@ without Telegram configured, alerts will just be skipped.
 3. It will instantly reply with your numeric ID, e.g. `Your Telegram ID: 123456789`
 4. Paste that number into `TELEGRAM_CHAT_ID` in your `.env`
 
-> Note: do NOT use `getUpdates` to find your chat ID if your bot is connected
-> to OpenClaw — OpenClaw consumes incoming messages before `getUpdates` can see them.
+> Note: do NOT use `getUpdates` to find your chat ID if your bot is connected to OpenClaw — OpenClaw consumes incoming messages before `getUpdates` can see them.
 
 ### Test your Telegram setup
 ```bash
@@ -91,14 +117,15 @@ In your `.env`, set `ARB_ALERT_THRESHOLD_BPS` to control sensitivity:
 
 ## Supported tokens
 
-| Symbol  | Description                          |
-|---------|--------------------------------------|
-| wcBTC   | Wrapped Citrea Bitcoin               |
-| ctUSD   | Citrea USD stablecoin                |
-| USDC.e  | Bridged USDC (LayerZero)             |
-| USDT.e  | Bridged USDT (LayerZero)             |
-| WBTC.e  | Bridged Wrapped Bitcoin (LayerZero)  |
-| JUSD    | BTC-backed stablecoin (JuiceDollar)  |
+| Symbol  | Description                         |
+|---------|-------------------------------------|
+| wcBTC   | Wrapped Citrea Bitcoin              |
+| ctUSD   | Citrea USD stablecoin               |
+| USDC.e  | Bridged USDC (LayerZero)            |
+| USDT.e  | Bridged USDT (LayerZero)            |
+| WBTC.e  | Bridged Wrapped Bitcoin (LayerZero) |
+| JUSD    | BTC-backed stablecoin (JuiceDollar) |
+| GUSD    | Generic USD (generic.money)         |
 
 ## Supported DEXes
 
@@ -107,43 +134,36 @@ In your `.env`, set `ARB_ALERT_THRESHOLD_BPS` to control sensitivity:
 
 ## Running 24/7 (Deployment)
 
-The CLI tools work fine locally, but `arb:monitor` and `pools:monitor` need to
-run continuously to be useful. For this you need a server.
+The CLI tools work fine locally, but `arb:monitor` and `pools:monitor` need to run continuously to be useful. For this you need a server.
 
 ### Recommended: VPS with PM2
 
-Any cheap VPS works — DigitalOcean, Hetzner, Linode, etc. A $6/month droplet
-is more than enough.
+Any cheap VPS works — DigitalOcean, Hetzner, Linode, etc. A $6/month droplet is more than enough.
 
-**1. Copy your project to the server**
+**1. Clone directly into the skills directory on your server**
 ```bash
-rsync -avz --exclude node_modules /path/to/citrea-claw-skill/ user@YOUR_SERVER_IP:/root/citrea-claw-skill/
-```
-
-**2. SSH in and install dependencies**
-```bash
-ssh user@YOUR_SERVER_IP
-cd /root/citrea-claw-skill
+git clone https://github.com/jason-chew/citrea-claw-skill.git ~/.openclaw/skills/citrea-claw-skill
+cd ~/.openclaw/skills/citrea-claw-skill
 npm install
 ```
 
-**3. Create your `.env` on the server**
+**2. Create your `.env` on the server**
 ```bash
 nano .env
 ```
 
-Paste in your values — same as your local `.env`. At minimum:
+Paste in your values. At minimum:
 ```bash
 TELEGRAM_BOT_TOKEN=your_token_here
 TELEGRAM_CHAT_ID=your_chat_id_here
 ARB_ALERT_THRESHOLD_BPS=50
-ARB_MONITOR_INTERVAL_SEC=15
+ARB_MONITOR_INTERVAL_SEC=60
+ARB_DEBOUNCE_MIN=30
 ```
 
-**4. Install PM2 and start the monitors**
+**3. Install PM2 and start the monitors**
 
-[PM2](https://pm2.keymetrics.io/) is a process manager that keeps your scripts
-running forever and restarts them automatically if they crash.
+[PM2](https://pm2.keymetrics.io/) is a process manager that keeps your scripts running forever and restarts them automatically if they crash.
 ```bash
 npm install -g pm2
 
@@ -158,7 +178,7 @@ pm2 save
 pm2 startup
 ```
 
-**5. Verify everything is running**
+**4. Verify everything is running**
 ```bash
 pm2 status
 ```
@@ -169,10 +189,12 @@ pm2 logs arb-monitor
 pm2 logs pool-monitor
 ```
 
-**6. Updating after code changes**
+**5. Updating after code changes**
 ```bash
-rsync -avz --exclude node_modules /path/to/citrea-claw-skill/ user@YOUR_SERVER_IP:/root/citrea-claw-skill/
-ssh user@YOUR_SERVER_IP "cd /root/citrea-claw-skill && npm install && pm2 restart all"
+cd ~/.openclaw/skills/citrea-claw-skill
+git pull
+npm install
+pm2 restart all
 ```
 
 ### PM2 cheatsheet
@@ -186,8 +208,7 @@ ssh user@YOUR_SERVER_IP "cd /root/citrea-claw-skill && npm install && pm2 restar
 | `pm2 delete <name>` | Remove a process from PM2 |
 | `pm2 monit` | Live dashboard with CPU/memory |
 
-> **Note:** Never commit your `.env` file to git. The `.gitignore` already
-> excludes it — double check with `git status` before pushing.
+> **Note:** Never commit your `.env` file to git. The `.gitignore` already excludes it — double check with `git status` before pushing.
 
 ## Notes
 

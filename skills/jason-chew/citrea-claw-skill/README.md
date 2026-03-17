@@ -23,6 +23,7 @@ Built for traders, liquidity providers, and developers active on Citrea.
 | USDT.e  | Bridged USDT (LayerZero)            |
 | WBTC.e  | Bridged Wrapped Bitcoin (LayerZero) |
 | JUSD    | BTC-backed stablecoin (JuiceDollar) |
+| GUSD    | Generic USD (generic.money)         |
 
 ## Supported DEXes
 
@@ -32,6 +33,24 @@ Built for traders, liquidity providers, and developers active on Citrea.
 | Satsuma   | Algebra    | Dynamic per pool    |
 
 ## Quick Start
+
+### OpenClaw users
+
+Clone into your OpenClaw skills directory so your agent can execute commands directly:
+```bash
+git clone https://github.com/jason-chew/citrea-claw-skill.git ~/.openclaw/skills/citrea-claw-skill
+cd ~/.openclaw/skills/citrea-claw-skill
+npm install
+cp .env.example .env
+# edit .env with your Telegram bot token and chat ID
+```
+
+Restart your OpenClaw gateway and start a new session with your agent. Then ask:
+```
+any arb on citrea right now?
+```
+
+### CLI-only users
 ```bash
 git clone https://github.com/jason-chew/citrea-claw-skill.git
 cd citrea-claw-skill
@@ -71,9 +90,21 @@ node index.js arb:monitor                        # live monitor with Telegram al
 node index.js txns <address> [hours]             # recent swap activity
 ```
 
+## OpenClaw Agent Commands
+
+Once installed in your OpenClaw skills directory, ask your agent in natural language:
+
+- `any arb on citrea right now?`
+- `what's the wcBTC price?`
+- `any new pools today?`
+- `check balance for 0x...`
+- `how much liquidity in wcBTC USDC.e?`
+- `recent txns for 0x...`
+
 ## Telegram Alerts
 
 Set up a Telegram bot to receive alerts for:
+
 - **Arb opportunities** — when a profitable spread is detected above your threshold
 - **New pools** — whenever a new pool is created on any supported DEX
 
