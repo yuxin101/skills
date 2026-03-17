@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "eden-ai",
+  "displayName": "Eden Ai",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773525741624,
+    "commit": null
+  },
+  "history": []
+}
