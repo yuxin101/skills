@@ -1,0 +1,11 @@
+{
+  "owner": "rtaylorgraham",
+  "slug": "version-drift",
+  "displayName": "Version Drift Publish",
+  "latest": {
+    "version": "1.2.1",
+    "publishedAt": 1773655244279,
+    "commit": null
+  },
+  "history": []
+}
