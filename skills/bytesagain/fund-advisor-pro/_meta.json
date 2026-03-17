@@ -3,9 +3,15 @@
   "slug": "fund-advisor-pro",
   "displayName": "Fund Advisor Pro",
   "latest": {
-    "version": "2.3.0",
-    "publishedAt": 1773446887165,
-    "commit": "https://github.com/openclaw/skills/commit/3abd62c15241878db510d26e59afefd8f7ca0f9a"
+    "version": "2.3.3",
+    "publishedAt": 1773666068612,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.0",
+      "publishedAt": 1773446887165,
+      "commit": "https://github.com/openclaw/skills/commit/3abd62c15241878db510d26e59afefd8f7ca0f9a"
+    }
+  ]
 }
