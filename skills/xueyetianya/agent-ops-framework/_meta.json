@@ -3,11 +3,16 @@
   "slug": "agent-ops-framework",
   "displayName": "Agent Ops Framework",
   "latest": {
-    "version": "2.4.4",
-    "publishedAt": 1773661239507,
-    "commit": "https://github.com/openclaw/skills/commit/0bd2ea5a129f54b0dea304112373d4fe4a551a42"
+    "version": "2.4.5",
+    "publishedAt": 1773663345275,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.4.4",
+      "publishedAt": 1773661239507,
+      "commit": "https://github.com/openclaw/skills/commit/0bd2ea5a129f54b0dea304112373d4fe4a551a42"
+    },
     {
       "version": "0.0.1",
       "publishedAt": 1773316807946,
