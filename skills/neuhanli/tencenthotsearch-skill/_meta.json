@@ -1,0 +1,11 @@
+{
+  "owner": "neuhanli",
+  "slug": "tencenthotsearch-skill",
+  "displayName": "Tencent Web Search API",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773556819650,
+    "commit": null
+  },
+  "history": []
+}
