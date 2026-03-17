@@ -1,0 +1,11 @@
+{
+  "owner": "jason141123-sys",
+  "slug": "openclaw-mobile-gateway-installer",
+  "displayName": "OpenClaw Mobile Gateway Installer",
+  "latest": {
+    "version": "1.0.4",
+    "publishedAt": 1773719444303,
+    "commit": null
+  },
+  "history": []
+}
