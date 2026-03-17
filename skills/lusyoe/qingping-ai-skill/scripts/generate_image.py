@@ -3,8 +3,7 @@
 青萍 AI 图片生成脚本
 通过 API 生成图片并下载到本地
 
-认证方式：
-- 使用 QINGPING_API_KEY 环境变量
+认证方式：使用 QINGPING_API_KEY 环境变量
 """
 
 import os
@@ -12,7 +11,7 @@ import sys
 import time
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 from urllib import request, error
 
 
@@ -27,7 +26,7 @@ SUPPORTED_SIZES = ["1K", "2K", "4K"]
 DEFAULT_SIZE = "1K"
 
 SUPPORTED_RATIOS = ["1:1", "16:9", "9:16"]
-DEFAULT_RATIO = "1:1"
+DEFAULT_RATIO = "16:9"
 
 
 def validate_model(model: str) -> str:
@@ -66,30 +65,36 @@ def validate_ratio(ratio: str) -> str:
     return ratio
 
 
-def get_api_key() -> str:
-    """获取 API Key"""
+def get_auth_headers() -> dict:
+    """
+    获取认证请求头
+    
+    使用 QINGPING_API_KEY 环境变量
+    如果没有配置则显示帮助信息并退出
+    """
     api_key = os.environ.get("QINGPING_API_KEY")
-    if not api_key:
-        print("❌ 错误: 未找到环境变量 QINGPING_API_KEY")
-        print("\n" + "=" * 70)
-        print("🔑 获取 API Key 步骤：")
-        print("=" * 70)
-        print("\n1. 登录青萍AI平台:")
-        print("   https://auth.lusyoe.com/profile")
-        print("\n2. 在个人信息页面，滚动到最下面")
-        print("\n3. 点击生成或查看 API Key")
-        print("\n" + "=" * 70)
-        print("⚙️  配置环境变量：")
-        print("=" * 70)
-        print("\n方法一: 临时配置（仅当前终端会话有效）")
-        print("   export QINGPING_API_KEY='your-api-key-here'")
-        print("\n方法二: 永久配置（推荐）")
-        print("   # 添加到 ~/.zshrc (macOS 默认) 或 ~/.bashrc (Linux)")
-        print("   echo 'export QINGPING_API_KEY=\"your-api-key-here\"' >> ~/.zshrc")
-        print("   source ~/.zshrc")
-        print("\n" + "=" * 70)
-        sys.exit(1)
-    return api_key
+    if api_key:
+        return {"x-api-key": api_key}
+    
+    print("❌ 错误: 未找到认证信息")
+    print("\n" + "=" * 70)
+    print("🔑 获取 API Key 步骤：")
+    print("=" * 70)
+    print("\n1. 登录青萍AI平台:")
+    print("   https://auth.lusyoe.com/profile")
+    print("\n2. 在个人信息页面，滚动到最下面")
+    print("\n3. 点击生成或查看 API Key")
+    print("\n" + "=" * 70)
+    print("⚙️  配置环境变量：")
+    print("=" * 70)
+    print("\n方法一: 临时配置（仅当前终端会话有效）")
+    print("   export QINGPING_API_KEY='your-api-key-here'")
+    print("\n方法二: 永久配置（推荐）")
+    print("   # 添加到 ~/.zshrc (macOS 默认) 或 ~/.bashrc (Linux)")
+    print("   echo 'export QINGPING_API_KEY=\"your-api-key-here\"' >> ~/.zshrc")
+    print("   source ~/.zshrc")
+    print("\n" + "=" * 70)
+    sys.exit(1)
 
 
 def http_request(
@@ -131,12 +136,13 @@ def http_request(
 
 
 def create_generation_task(
-    api_key: str,
+    auth_headers: dict,
     prompt: str,
     model: str = DEFAULT_MODEL,
     count: int = 1,
     ratio: str = DEFAULT_RATIO,
     size: str = DEFAULT_SIZE,
+    category: str = "青萍 Claw",
     tags: Optional[list] = None,
 ) -> str:
     """创建图片生成任务"""
@@ -148,14 +154,14 @@ def create_generation_task(
         tags = [""]
 
     url = f"{API_BASE_URL}/generations"
-    headers = {"x-api-key": api_key}
+    headers = auth_headers.copy()
     payload = {
         "count": count,
         "model": model,
         "prompt": prompt,
         "ratio": ratio,
         "size": size,
-        "category": "青萍Claw",
+        "category": category,
         "tags": tags,
         "stream": False,
     }
@@ -179,10 +185,10 @@ def create_generation_task(
     return task_id
 
 
-def poll_task_status(api_key: str, task_id: str) -> dict:
+def poll_task_status(auth_headers: dict, task_id: str) -> dict:
     """轮询任务状态直到完成"""
     url = f"{API_BASE_URL}/generations/{task_id}/status"
-    headers = {"x-api-key": api_key}
+    headers = auth_headers.copy()
 
     print(f"\n⏳ 开始轮询任务状态...")
     poll_count = 0
@@ -191,25 +197,17 @@ def poll_task_status(api_key: str, task_id: str) -> dict:
         data = http_request(url, headers=headers)
         status = data.get("status")
         poll_count += 1
-        
-        elapsed_time = poll_count * POLL_INTERVAL
 
         if status == "completed":
-            print(f"\n✅ 任务完成!")
-            print(f"   轮询次数: {poll_count}")
-            print(f"   总耗时: {elapsed_time} 秒")
+            print(f"\n✅ 任务完成! (轮询 {poll_count} 次)")
             return data
         elif status == "failed":
             print(f"\n❌ 任务失败!")
-            print(f"   轮询次数: {poll_count}")
-            print(f"   总耗时: {elapsed_time} 秒")
             error_msg = data.get("error", "未知错误")
             print(f"   错误: {error_msg}")
             sys.exit(1)
         else:
-            print(f"\n   [{poll_count}] 轮询结果:")
-            print(f"   状态: {status}, 已等待: {elapsed_time} 秒")
-            print(f"   完整响应: {json.dumps(data, ensure_ascii=False, indent=2)}")
+            print(f"   [{poll_count}] 状态: {status}, 等待中...")
             time.sleep(POLL_INTERVAL)
 
 
@@ -240,6 +238,7 @@ def generate_image(
     count: int = 1,
     ratio: str = DEFAULT_RATIO,
     size: str = DEFAULT_SIZE,
+    category: str = "青萍 Claw",
     tags: Optional[list] = None,
 ) -> list[Path]:
     """
@@ -251,6 +250,7 @@ def generate_image(
         count: 生成数量，默认 1
         ratio: 图片比例，默认 1:1（可选：1:1, 16:9, 9:16）
         size: 图片尺寸，默认 1K（可选：1K, 2K, 4K）
+        category: 分类，默认 "青萍 Claw"
         tags: 标签列表
     
     Returns:
@@ -259,19 +259,20 @@ def generate_image(
     model = validate_model(model)
     size = validate_size(size)
     ratio = validate_ratio(ratio)
-    api_key = get_api_key()
+    auth_headers = get_auth_headers()
     
     task_id = create_generation_task(
-        api_key=api_key,
+        auth_headers=auth_headers,
         prompt=prompt,
         model=model,
         count=count,
         ratio=ratio,
         size=size,
+        category=category,
         tags=tags,
     )
     
-    result = poll_task_status(api_key=api_key, task_id=task_id)
+    result = poll_task_status(auth_headers=auth_headers, task_id=task_id)
     
     generated_urls = result.get("generated_image_urls", [])
     if not generated_urls:
@@ -281,8 +282,7 @@ def generate_image(
     output_dir = Path(OUTPUT_DIR)
     downloaded_paths = []
     
-    print(f"\n📋 图片信息:")
-    for idx, img_data in enumerate(generated_urls, 1):
+    for img_data in generated_urls:
         url = img_data.get("url")
         name = img_data.get("name")
         
@@ -290,16 +290,11 @@ def generate_image(
             print(f"⚠️  跳过无效数据: {img_data}")
             continue
         
-        print(f"   [{idx}] 名称: {name}")
-        print(f"       链接: {url}")
-        
         filename = f"{name}.png"
         path = download_image(url, filename, output_dir)
         downloaded_paths.append(path)
     
     print(f"\n🎉 完成! 共下载 {len(downloaded_paths)} 张图片到 {output_dir.absolute()}/")
-    print(f"\n💡 提示: 可到青萍AI图床查看和管理图片")
-    print(f"   地址: https://img.lusyoe.com")
     return downloaded_paths
 
 
@@ -324,8 +319,8 @@ def main():
         print("   python generate_image.py '一只可爱的金鱼' nano-banana-2 1 1:1 1K")
         print("   python generate_image.py '夕阳下的海滩' nano-banana-pro 1 16:9 2K")
         print("   python generate_image.py '手机壁纸' nano-banana 1 9:16 4K")
-        print("\n认证: 需要配置环境变量 QINGPING_API_KEY")
-        print("   获取 API Key: https://auth.lusyoe.com/profile")
+        print("\n认证方式:")
+        print("   配置 QINGPING_API_KEY 环境变量")
         sys.exit(1)
     
     prompt = sys.argv[1]
