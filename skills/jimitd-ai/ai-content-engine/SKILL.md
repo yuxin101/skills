@@ -1,7 +1,7 @@
 ---
 name: content-engine
-description: AI video production, script writing, image generation, and multi-platform social media publishing. Generate video scripts, AI images, and short-form or long-form videos from any topic — then publish directly to YouTube, X (Twitter), TikTok, Instagram, and LinkedIn. Automated content pipeline from idea to published video. No API key or account required — paid operations are authenticated and billed automatically via x402 USDC payment headers. Free tools (pricing, status, content details) are open to all.
-version: 1.1.0
+description: AI video production, script writing, and image generation. Generate video scripts, AI images, and short-form or long-form videos from any topic. Automated content pipeline from idea to finished video. No API key or account required — paid operations are authenticated and billed automatically via x402 USDC payment headers. Free tools (pricing, status, content details) are open to all.
+version: 1.2.0
 metadata:
   openclaw:
     requires:
@@ -9,21 +9,12 @@ metadata:
         - CONTENT_ENGINE_URL
       bins:
         - mcporter
-        - node
-    primaryEnv: CONTENT_ENGINE_URL
     emoji: "\U0001F3AC"
     homepage: https://content-engine-app.fly.dev
-    install:
-      - kind: node
-        package: tsx
-        bins: [tsx]
     categories:
       - content-creation
       - video-generation
-      - social-media
-      - publishing
       - ai-writing
-      - marketing
       - automation
       - media-production
     tags:
@@ -39,20 +30,6 @@ metadata:
       - content-automation
       - content-pipeline
       - short-form-video
-      - youtube
-      - youtube-shorts
-      - twitter
-      - x
-      - tiktok
-      - instagram
-      - instagram-reels
-      - linkedin
-      - social-media-publishing
-      - social-media-automation
-      - multi-platform
-      - cross-platform
-      - content-marketing
-      - content-scheduling
       - runway-ml
       - x402
       - usdc
@@ -68,26 +45,29 @@ tools:
 
 # Content Engine
 
-AI-powered content creation and multi-platform social media publishing as a service. Generate scripts, images, and videos from any topic — then publish directly to YouTube, X (Twitter), TikTok, Instagram, and LinkedIn.
+AI-powered content creation as a service. Generate scripts, images, and videos from any topic using AI.
 
-**Built for autonomous agents.** No API key or account required. Pay-per-use with USDC via the x402 payment protocol — agents can discover, evaluate pricing, create content, and publish in a single autonomous workflow.
+**Built for autonomous agents.** No API key or account required. Pay-per-use with USDC via the x402 payment protocol — agents can discover pricing, create content, and retrieve results in a single autonomous workflow.
 
 ## Why Content Engine?
 
 - **Zero-friction for agents**: No API key signup, no account creation, no subscription. Paid operations are authenticated via x402 USDC payment headers — no credentials to provision or manage
-- **End-to-end content pipeline**: Topic in, published video out — AI script writing, image generation, video production, and multi-platform social media publishing in one tool
+- **End-to-end content pipeline**: Topic in, finished video out — AI script writing, image generation, and video production in one tool
 - **Transparent pricing**: Call `get_pricing` (free) to see exact USDC costs before committing. No hidden fees, no monthly minimums
-- **Multi-platform publishing**: Publish to YouTube, X, TikTok, Instagram, and LinkedIn from a single API call with optional scheduling
 - **Production-ready**: Deployed on Fly.io with queue management, status tracking, and daily budget controls
+
+## Billing
+
+All paid operations use the [x402 payment protocol](https://www.x402.org/). When a paid tool is called, the x402 proxy at `CONTENT_ENGINE_URL` adds a USDC payment header to the request automatically. The calling agent does not need to manage wallets, private keys, or payment credentials — x402 handles this at the transport layer. You can call `get_pricing` (free) to see exact costs before committing, and `get_queue_status` to check daily budget remaining.
 
 ## Pricing
 
 | Operation | Cost (USDC) | Description |
 |-----------|-------------|-------------|
 | Script generation | $0.25 | AI-written video script from any topic |
+| Image generation | $0.10 | AI image from a text prompt |
 | Video generation | $0.45 | Full video production from completed script |
 | Full pipeline | $0.65 | Script + video end-to-end |
-| Publishing | $0.18 | Publish to connected social platforms |
 | Pricing / status / tracking | Free | Check pricing, queue status, and content details |
 
 Call `get_pricing` at any time for live rates.
@@ -97,11 +77,10 @@ Call `get_pricing` at any time for live rates.
 | Variable | Description |
 |----------|-------------|
 | `CONTENT_ENGINE_URL` | x402 payment proxy endpoint (default: `https://content-engine-x402.fly.dev`) |
-| `CONTENT_ENGINE_API_KEY` | *(Optional)* Bearer token for authenticated access. Not required — x402 payment headers authenticate paid operations automatically. Only needed if you want persistent brand association or publishing permissions |
 
 ## Setup
 
-Content Engine is installed and configured automatically by mcporter when you install this skill. After installation, set your environment variables:
+Content Engine is installed and configured automatically by mcporter when you install this skill. After installation, set your environment variable:
 
 ```bash
 mcporter env set content-engine CONTENT_ENGINE_URL=https://content-engine-x402.fly.dev
@@ -127,7 +106,7 @@ mcporter list content-engine
   mcporter call content-engine.get_queue_status
   ```
 
-- **get_content** — Get full details of a content item including script text, video URL, thumbnails, publishing status, and metadata.
+- **get_content** — Get full details of a content item including script text, video URL, thumbnails, and metadata.
   ```bash
   mcporter call content-engine.get_content content_id="<uuid>"
   ```
@@ -144,7 +123,7 @@ mcporter list content-engine
   mcporter call content-engine.create_script topic="How AI is changing music production"
   ```
 
-- **create_image** — Generate a high-quality image from a text prompt via Runway ML. Supports style directives, aspect ratios, and reference images.
+- **create_image** ($0.10) — Generate a high-quality image from a text prompt via Runway ML. Supports style directives, aspect ratios, and reference images.
   ```bash
   mcporter call content-engine.create_image prompt="Futuristic music studio with holographic instruments"
   ```
@@ -159,18 +138,11 @@ mcporter list content-engine
   mcporter call content-engine.run_full_pipeline topic="Top 5 AI tools for developers in 2026"
   ```
 
-### Publishing (paid via x402 USDC)
-
-- **publish_content** ($0.18) — Publish a completed video to connected social platforms (YouTube, X, TikTok, Instagram, LinkedIn). Supports scheduled publishing via ISO 8601 datetime and unlisted mode.
-  ```bash
-  mcporter call content-engine.publish_content content_id="<uuid>"
-  ```
-
 ## Typical Workflow
 
 ### Quick path (single call)
 ```
-get_pricing → run_full_pipeline → poll get_content_status → publish_content
+get_pricing → run_full_pipeline → poll get_content_status → get_content
 ```
 
 ### Step-by-step path (full control)
@@ -179,19 +151,16 @@ get_pricing → run_full_pipeline → poll get_content_status → publish_conten
 3. `get_content_status` — Poll until script is complete
 4. `create_video` — Generate video from the completed script
 5. `get_content_status` — Poll until video is ready (1-5 minutes)
-6. `publish_content` — Publish to social platforms (optionally schedule for later)
+6. `get_content` — Retrieve the finished video URL and metadata
 
 ## Use Cases
 
-- **Automated content calendars**: Generate and schedule a week of videos from a list of topics
-- **Social media marketing**: Turn blog posts, product launches, or announcements into video content
-- **Multi-platform distribution**: Create once, publish everywhere — YouTube, X, TikTok, Instagram, LinkedIn
+- **Video content creation**: Generate scripts and videos from any topic for use in your own publishing pipeline
+- **Image generation**: Create AI images for thumbnails, social posts, or visual content
 - **Agent-to-agent workflows**: Other agents can delegate content creation to Content Engine as part of larger pipelines
 - **Rapid prototyping**: Test video concepts quickly before committing to full production
 
 ## Important Notes
 
-- All paid operations are metered via the x402 payment proxy at `CONTENT_ENGINE_URL`. x402 handles USDC billing transparently — no wallet or private key management is required by the calling agent.
 - Video generation takes 1-5 minutes. Always poll `get_content_status` rather than assuming instant completion.
-- Publishing may require brand owner approval depending on the brand's configuration.
 - The `content_id` (UUID) returned by creation tools is the key for all subsequent operations.
