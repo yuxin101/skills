@@ -1,19 +1,19 @@
 ---
 name: vnpy
-description: vn.py — open-source quantitative trading framework supporting CTA, spread, options strategies with 20+ broker gateways for Chinese and international markets.
-version: 1.0.0
+description: vn.py 开源量化交易框架 - 支持CTA、价差、期权策略，20+券商接口，覆盖国内外市场。
+version: 1.1.0
 homepage: https://www.vnpy.com
 metadata: {"clawdbot":{"emoji":"🐍","requires":{"bins":["python3"]}}}
 ---
 
-# vn.py (Open-Source Quantitative Trading Framework)
+# vn.py（开源量化交易框架）
 
 [vn.py](https://www.vnpy.com) is the most popular open-source quantitative trading framework in China, community-driven. Supports CTA strategies, spread trading, options volatility trading, and more. Connects to CTP, Femas, Hundsun, and 20+ broker gateways.
 
 > Docs: https://www.vnpy.com/docs/cn/
 > GitHub: https://github.com/vnpy/vnpy
 
-## Installation
+## 安装
 
 ```bash
 # Install core framework
@@ -30,7 +30,7 @@ pip install vnpy-sqlite         # SQLite database
 pip install vnpy-rqdata         # RQData data service
 ```
 
-## Architecture Overview
+## 架构概述
 
 ```
 VeighNa Trader (GUI)
@@ -52,7 +52,7 @@ VeighNa Trader (GUI)
         └── Custom Data Sources
 ```
 
-## Launch GUI
+## 启动GUI
 
 ```python
 from vnpy.event import EventEngine
@@ -88,11 +88,11 @@ qapp.exec()
 
 ---
 
-## CTA Strategy Development
+## CTA策略开发
 
 CTA (Commodity Trading Advisor) strategies are the core strategy type in vn.py, suitable for trend following, mean reversion, etc.
 
-### Strategy Template
+### 策略模板
 
 ```python
 from vnpy_ctastrategy import (
@@ -111,9 +111,9 @@ class DoubleMaStrategy(CtaTemplate):
     author = "Quant Developer"
 
     # Strategy parameters (editable in GUI)
-    fast_window = 10       # Fast MA period
-    slow_window = 20       # Slow MA period
-    fixed_size = 1         # Trade size per order
+    fast_window = 10       # 快速均线周期
+    slow_window = 20       # 慢速均线周期
+    fixed_size = 1         # 每次交易手数
 
     # Strategy variables (displayed in GUI)
     fast_ma0 = 0.0
@@ -159,8 +159,8 @@ class DoubleMaStrategy(CtaTemplate):
         slow_ma = self.am.sma(self.slow_window, array=False)
 
         # Detect golden cross / death cross
-        cross_over = fast_ma > slow_ma    # Golden cross
-        cross_below = fast_ma < slow_ma   # Death cross
+        cross_over = fast_ma > slow_ma    # 金叉
+        cross_below = fast_ma < slow_ma   # 死叉
 
         if cross_over:
             if self.pos == 0:
@@ -196,7 +196,7 @@ class DoubleMaStrategy(CtaTemplate):
 
 ---
 
-## Trading Functions Reference
+## 交易函数参考
 
 | Method | Description |
 |---|---|
@@ -210,7 +210,7 @@ class DoubleMaStrategy(CtaTemplate):
 | `self.load_bar(days)` | Load N days of historical bars |
 | `self.load_tick(days)` | Load N days of historical ticks |
 
-## ArrayManager Indicator Methods
+## ArrayManager技术指标方法
 
 The `ArrayManager` provides built-in technical indicator calculations:
 
@@ -233,10 +233,10 @@ am.macd(fast, slow, signal)     # MACD (returns dif, dea, macd)
 am.adx(n, array=False)          # Average Directional Index
 
 # Bollinger Bands
-am.boll(n, dev, array=False)    # Returns (upper, lower) bands
+am.boll(n, dev, array=False)    # 收益率 (upper, lower) bands
 
 # Donchian Channel
-am.donchian(n, array=False)     # Returns (upper, lower) channel
+am.donchian(n, array=False)     # 收益率 (upper, lower) channel
 
 # Other
 am.aroon(n, array=False)        # Aroon indicator
@@ -245,7 +245,7 @@ am.trix(n, array=False)         # Triple EMA
 
 ---
 
-## BarGenerator — Multi-Timeframe Bars
+## BarGenerator — 多周期K线
 
 ```python
 from vnpy_ctastrategy import BarGenerator
@@ -280,7 +280,7 @@ Supported intervals for BarGenerator:
 
 ---
 
-## Spread Trading
+## 价差交易
 
 ```python
 from vnpy_spreadtrading import (
@@ -331,7 +331,7 @@ class SpreadArbitrageStrategy(SpreadStrategyTemplate):
 
 ---
 
-## Live Trading Setup
+## 实盘交易配置
 
 ```python
 from vnpy.event import EventEngine
@@ -371,7 +371,7 @@ cta_engine.start_strategy("double_ma_IF")
 
 ---
 
-## Data Management
+## 数据管理
 
 ```python
 from vnpy_datamanager import DataManagerApp
@@ -390,9 +390,9 @@ dm_engine.download_bar_data(
 
 ---
 
-## Advanced Examples
+## 进阶示例
 
-### RSI Mean Reversion Strategy
+### RSI均值回归策略
 
 ```python
 from vnpy_ctastrategy import CtaTemplate, BarData, BarGenerator, ArrayManager
@@ -465,7 +465,7 @@ class RsiStrategy(CtaTemplate):
         pass
 ```
 
-### Bollinger Band Breakout Strategy
+### 布林带突破策略
 
 ```python
 from vnpy_ctastrategy import CtaTemplate, BarData, BarGenerator, ArrayManager
@@ -546,7 +546,7 @@ class BollBreakoutStrategy(CtaTemplate):
 
 ---
 
-## Supported Gateways
+## 支持的接口
 
 | Gateway | Market | Protocol |
 |---|---|---|
@@ -559,7 +559,7 @@ class BollBreakoutStrategy(CtaTemplate):
 | Alpaca | US Stocks | REST API |
 | Binance | Crypto | REST/WebSocket |
 
-## Tips
+## 使用技巧
 
 - vn.py is the go-to framework for live trading in Chinese futures and securities markets.
 - Use `BarGenerator` to synthesize multi-timeframe bars from tick data.
@@ -573,6 +573,6 @@ class BollBreakoutStrategy(CtaTemplate):
 
 ## 社区与支持
 
-由 **大佬量化 (Boss Quant)** 维护 — 量化交易教学与策略研发团队。
+由 **大佬量化 (BossQuant)** 维护 — 量化交易教学与策略研发团队。
 
-微信客服: **bossquant1** · [Bilibili](https://space.bilibili.com/48693330) · 搜索 **大佬量化** on 微信公众号 / Bilibili / 抖音
+微信客服: **bossquant1** · [Bilibili](https://space.bilibili.com/48693330) · 搜索 **大佬量化** — 微信公众号 / Bilibili / 抖音
