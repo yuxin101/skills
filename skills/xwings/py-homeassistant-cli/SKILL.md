@@ -1,13 +1,12 @@
 ---
-name: homeassistant-cli
+name: py-homeassistant-cli
 description: >
-  Control Home Assistant devices and automations via REST API. 25 entity domains
-  including lights, climate, locks, presence, weather, calendars, notifications,
-  scripts, and more. Use when the user asks about their smart home, devices, or automations.
+  Tiny and short Python CLI tool to control Home Assistant devices and automations via the REST API. 
+  No external dependencies — uses only Python 3.6+ standard library.
 license: MIT
 homepage: https://github.com/xwings/py-homeassistant-cli
 compatibility: Requires Python 3.6+. Network access to Home Assistant instance.
-metadata: {"author": "xwings", "version": "3.0.0", "openclaw": {"requires": {"env": [""], "bins": ["python3 {baseDir}/scripts/homeassistant-cli.py"]}, "primaryEnv": ""}}
+metadata: {"author": "xwings", "openclaw": { env: ["HA_URL", "HA_TOKEN"],"bins": ["python3 {baseDir}/scripts/homeassistant-cli.py"]}}
 ---
 
 # Home Assistant Skill
@@ -19,11 +18,11 @@ Control smart home devices via the Home Assistant REST API using the Python CLI 
 Configure via environment variables or command-line arguments (args take priority):
 
 ```bash
-# Environment variables
+# Optional: Environment variables
 export HA_URL="http://10.0.0.10:8123"
 export HA_TOKEN="your_long_lived_access_token"
 
-# Or pass via args (overrides env vars)
+# pass via args (overrides env vars)
 python3 {baseDir}/scripts/homeassistant-cli.py --server http://10.0.0.10:8123 --token YOUR_TOKEN check
 ```
 
