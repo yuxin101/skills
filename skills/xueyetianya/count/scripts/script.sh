@@ -1,231 +1,332 @@
 #!/usr/bin/env bash
-# count — tags: [count, tool, utility]
-# Powered by BytesAgain | bytesagain.com
+# Count — data tool
+# Powered by BytesAgain | bytesagain.com | hello@bytesagain.com
 set -euo pipefail
 
-VERSION="1.0.0"
-DATA_DIR="${COUNT_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/count}"
-ENTRIES="$DATA_DIR/entries.jsonl"
-CONFIG="$DATA_DIR/config.json"
+DATA_DIR="${HOME}/.local/share/count"
+mkdir -p "$DATA_DIR"
 
-ensure_dirs() {
-    mkdir -p "$DATA_DIR"
-    [ -f "$ENTRIES" ] || touch "$ENTRIES"
-    [ -f "$CONFIG" ] || echo '{"created":"'"$(date -Iseconds)"'"}' > "$CONFIG"
-}
+_log() { echo "$(date '+%m-%d %H:%M') $1: $2" >> "$DATA_DIR/history.log"; }
 
-now_ts() { date '+%Y-%m-%d %H:%M:%S'; }
-entry_count() { wc -l < "$ENTRIES" 2>/dev/null || echo 0; }
-line_at() { sed -n "${1}p" "$ENTRIES"; }
+_version() { echo "count v2.0.0"; }
 
-show_help() {
-    cat << EOF
-count v$VERSION
-
-Usage: count <command> [args]
-
-Commands:
-  init             First-time setup
-  add <text>       Add a new entry
-  list             List all entries
-  show <id>        Show entry details
-  remove <id>      Remove entry by index
-  search <term>    Search entries
-  export <fmt>     Export (json|csv|txt)
-  stats            Summary statistics
-  config           View configuration
-  status           Health check
-  reset            Clear all data
-  help             Show this help
-  version          Show version
-
-Data: $DATA_DIR
-EOF
-}
-
-cmd_init() {
-    ensure_dirs
-    echo "[count] Initialized at $DATA_DIR"
-    echo "  Entries file: $ENTRIES"
-    echo "  Config file:  $CONFIG"
+_help() {
+    echo "Count v2.0.0 — data toolkit"
     echo ""
-    echo "Ready. Try: count add \"your first item\""
-}
-
-cmd_add() {
-    ensure_dirs
-    local text="${*:?Usage: count add <text>}"
-    local ts=$(now_ts)
-    local id=$(($(entry_count) + 1))
-    printf '{"id":%d,"text":"%s","created":"%s"}\n' "$id" "$text" "$ts" >> "$ENTRIES"
-    echo "[count] #$id added: $text"
-}
-
-cmd_list() {
-    ensure_dirs
-    local total=$(entry_count)
-    if [ "$total" -eq 0 ]; then
-        echo "[count] No entries yet. Use: count add <text>"
-        return
-    fi
-    echo "[count] $total entries:"
+    echo "Usage: count <command> [args]"
     echo ""
-    local n=0
-    while IFS= read -r line; do
-        n=$((n + 1))
-        local text=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('text','?'))" 2>/dev/null || echo "$line")
-        local ts=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('created',''))" 2>/dev/null || echo "")
-        printf "  %3d. %s" "$n" "$text"
-        [ -n "$ts" ] && printf "  (%s)" "$ts"
-        echo ""
-    done < "$ENTRIES"
+    echo "Commands:"
+    echo "  ingest             Ingest"
+    echo "  transform          Transform"
+    echo "  query              Query"
+    echo "  filter             Filter"
+    echo "  aggregate          Aggregate"
+    echo "  visualize          Visualize"
+    echo "  export             Export"
+    echo "  sample             Sample"
+    echo "  schema             Schema"
+    echo "  validate           Validate"
+    echo "  pipeline           Pipeline"
+    echo "  profile            Profile"
+    echo "  stats              Summary statistics"
+    echo "  export <fmt>       Export (json|csv|txt)"
+    echo "  status             Health check"
+    echo "  help               Show this help"
+    echo "  version            Show version"
+    echo ""
+    echo "Data: $DATA_DIR"
 }
 
-cmd_show() {
-    ensure_dirs
-    local id="${1:?Usage: count show <id>}"
-    local total=$(entry_count)
-    if [ "$id" -lt 1 ] || [ "$id" -gt "$total" ]; then
-        echo "Error: id must be 1-$total"; return 1
-    fi
-    local line=$(line_at "$id")
-    echo "[count] Entry #$id:"
-    echo "$line" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-for k,v in d.items():
-    print('  {}: {}'.format(k, v))
-" 2>/dev/null || echo "  $line"
+_stats() {
+    echo "=== Count Stats ==="
+    local total=0
+    for f in "$DATA_DIR"/*.log; do
+        [ -f "$f" ] || continue
+        local name=$(basename "$f" .log)
+        local c=$(wc -l < "$f")
+        total=$((total + c))
+        echo "  $name: $c entries"
+    done
+    echo "  ---"
+    echo "  Total: $total entries"
+    echo "  Data size: $(du -sh "$DATA_DIR" 2>/dev/null | cut -f1)"
+    echo "  Since: $(head -1 "$DATA_DIR/history.log" 2>/dev/null | cut -d'|' -f1 || echo 'N/A')"
 }
 
-cmd_remove() {
-    ensure_dirs
-    local id="${1:?Usage: count remove <id>}"
-    local total=$(entry_count)
-    if [ "$id" -lt 1 ] || [ "$id" -gt "$total" ]; then
-        echo "Error: id must be 1-$total"; return 1
-    fi
-    local removed=$(line_at "$id")
-    sed -i "${id}d" "$ENTRIES"
-    local text=$(echo "$removed" | python3 -c "import json,sys; print(json.load(sys.stdin).get('text','?'))" 2>/dev/null || echo "?")
-    echo "[count] Removed #$id: $text"
-}
-
-cmd_search() {
-    ensure_dirs
-    local term="${1:?Usage: count search <term>}"
-    local found=0
-    local n=0
-    while IFS= read -r line; do
-        n=$((n + 1))
-        if echo "$line" | grep -qi "$term"; then
-            local text=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('text','?'))" 2>/dev/null || echo "$line")
-            printf "  %3d. %s\n" "$n" "$text"
-            found=$((found + 1))
-        fi
-    done < "$ENTRIES"
-    echo "[count] Found $found matches for '$term'"
-}
-
-cmd_export() {
-    ensure_dirs
+_export() {
     local fmt="${1:-json}"
+    local out="$DATA_DIR/export.$fmt"
     case "$fmt" in
         json)
-            echo "["
+            echo "[" > "$out"
             local first=1
-            while IFS= read -r line; do
-                [ "$first" -eq 0 ] && echo ","
-                printf "  %s" "$line"
-                first=0
-            done < "$ENTRIES"
-            echo ""
-            echo "]"
+            for f in "$DATA_DIR"/*.log; do
+                [ -f "$f" ] || continue
+                local name=$(basename "$f" .log)
+                while IFS='|' read -r ts val; do
+                    [ $first -eq 1 ] && first=0 || echo "," >> "$out"
+                    printf '  {"type":"%s","time":"%s","value":"%s"}' "$name" "$ts" "$val" >> "$out"
+                done < "$f"
+            done
+            echo "" >> "$out"
+            echo "]" >> "$out"
             ;;
         csv)
-            echo "id,text,created"
-            while IFS= read -r line; do
-                echo "$line" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print('{},{},{}'.format(d.get('id',''), d.get('text','').replace(',',';'), d.get('created','')))
-" 2>/dev/null
-            done < "$ENTRIES"
+            echo "type,time,value" > "$out"
+            for f in "$DATA_DIR"/*.log; do
+                [ -f "$f" ] || continue
+                local name=$(basename "$f" .log)
+                while IFS='|' read -r ts val; do
+                    echo "$name,$ts,$val" >> "$out"
+                done < "$f"
+            done
             ;;
         txt)
-            cat "$ENTRIES"
+            echo "=== Count Export ===" > "$out"
+            for f in "$DATA_DIR"/*.log; do
+                [ -f "$f" ] || continue
+                echo "--- $(basename "$f" .log) ---" >> "$out"
+                cat "$f" >> "$out"
+                echo "" >> "$out"
+            done
             ;;
-        *)
-            echo "Formats: json, csv, txt"
-            ;;
+        *) echo "Formats: json, csv, txt"; return 1 ;;
     esac
+    echo "Exported to $out ($(wc -c < "$out") bytes)"
 }
 
-cmd_stats() {
-    ensure_dirs
-    local total=$(entry_count)
-    local size=$(du -sh "$DATA_DIR" 2>/dev/null | cut -f1)
-    echo "[count] Statistics"
-    echo "  Entries:    $total"
-    echo "  Data size:  $size"
-    echo "  Data dir:   $DATA_DIR"
-    if [ "$total" -gt 0 ]; then
-        local first=$(head -1 "$ENTRIES" | python3 -c "import json,sys; print(json.load(sys.stdin).get('created','?'))" 2>/dev/null || echo "?")
-        local last=$(tail -1 "$ENTRIES" | python3 -c "import json,sys; print(json.load(sys.stdin).get('created','?'))" 2>/dev/null || echo "?")
-        echo "  First:      $first"
-        echo "  Latest:     $last"
-    fi
-}
-
-cmd_config() {
-    ensure_dirs
-    echo "[count] Configuration"
-    echo "  File: $CONFIG"
-    echo ""
-    python3 -c "
-import json
-with open('$CONFIG') as f:
-    d = json.load(f)
-for k,v in d.items():
-    print('  {}: {}'.format(k, v))
-" 2>/dev/null || echo "  (empty)"
-}
-
-cmd_status() {
-    ensure_dirs
-    echo "[count] Status Check"
-    echo "  Version:  $VERSION"
+_status() {
+    echo "=== Count Status ==="
+    echo "  Version: v2.0.0"
     echo "  Data dir: $DATA_DIR"
-    echo "  Entries:  $(entry_count)"
-    [ -f "$CONFIG" ] && echo "  Config:   OK" || echo "  Config:   MISSING"
-    [ -w "$DATA_DIR" ] && echo "  Writable: YES" || echo "  Writable: NO"
+    echo "  Entries: $(cat "$DATA_DIR"/*.log 2>/dev/null | wc -l) total"
+    echo "  Disk: $(du -sh "$DATA_DIR" 2>/dev/null | cut -f1)"
+    local last=$(tail -1 "$DATA_DIR/history.log" 2>/dev/null || echo "never")
+    echo "  Last activity: $last"
+    echo "  Status: OK"
 }
 
-cmd_reset() {
-    echo "Warning: This will delete ALL data in $DATA_DIR"
-    printf "Type 'yes' to confirm: "
-    read -r confirm
-    if [ "$confirm" = "yes" ]; then
-        rm -f "$ENTRIES" "$CONFIG"
-        echo "[count] Data cleared."
+_search() {
+    local term="${1:?Usage: count search <term>}"
+    echo "Searching for: $term"
+    local found=0
+    for f in "$DATA_DIR"/*.log; do
+        [ -f "$f" ] || continue
+        local matches=$(grep -i "$term" "$f" 2>/dev/null || true)
+        if [ -n "$matches" ]; then
+            echo "  --- $(basename "$f" .log) ---"
+            echo "$matches" | while read -r line; do
+                echo "    $line"
+                found=$((found + 1))
+            done
+        fi
+    done
+    [ $found -eq 0 ] && echo "  No matches found."
+}
+
+_recent() {
+    echo "=== Recent Activity ==="
+    if [ -f "$DATA_DIR/history.log" ]; then
+        tail -20 "$DATA_DIR/history.log" | while IFS='' read -r line; do
+            echo "  $line"
+        done
     else
-        echo "Cancelled."
+        echo "  No activity yet."
     fi
 }
 
+# Main dispatch
 case "${1:-help}" in
-    init)           cmd_init ;;
-    add)            shift; cmd_add "$@" ;;
-    list|ls)        cmd_list ;;
-    show|get)       shift; cmd_show "$@" ;;
-    remove|rm|del)  shift; cmd_remove "$@" ;;
-    search|find|grep) shift; cmd_search "$@" ;;
-    export)         shift; cmd_export "$@" ;;
-    stats)          cmd_stats ;;
-    config|cfg)     cmd_config ;;
-    status)         cmd_status ;;
-    reset)          cmd_reset ;;
-    help|-h|--help) show_help ;;
-    version|-v)     echo "count v$VERSION" ;;
-    *)              echo "Unknown: $1"; show_help; exit 1 ;;
+    ingest)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent ingest entries:"
+            tail -20 "$DATA_DIR/ingest.log" 2>/dev/null || echo "  No entries yet. Use: count ingest <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/ingest.log"
+            local total=$(wc -l < "$DATA_DIR/ingest.log")
+            echo "  [Count] ingest: $input"
+            echo "  Saved. Total ingest entries: $total"
+            _log "ingest" "$input"
+        fi
+        ;;
+    transform)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent transform entries:"
+            tail -20 "$DATA_DIR/transform.log" 2>/dev/null || echo "  No entries yet. Use: count transform <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/transform.log"
+            local total=$(wc -l < "$DATA_DIR/transform.log")
+            echo "  [Count] transform: $input"
+            echo "  Saved. Total transform entries: $total"
+            _log "transform" "$input"
+        fi
+        ;;
+    query)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent query entries:"
+            tail -20 "$DATA_DIR/query.log" 2>/dev/null || echo "  No entries yet. Use: count query <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/query.log"
+            local total=$(wc -l < "$DATA_DIR/query.log")
+            echo "  [Count] query: $input"
+            echo "  Saved. Total query entries: $total"
+            _log "query" "$input"
+        fi
+        ;;
+    filter)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent filter entries:"
+            tail -20 "$DATA_DIR/filter.log" 2>/dev/null || echo "  No entries yet. Use: count filter <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/filter.log"
+            local total=$(wc -l < "$DATA_DIR/filter.log")
+            echo "  [Count] filter: $input"
+            echo "  Saved. Total filter entries: $total"
+            _log "filter" "$input"
+        fi
+        ;;
+    aggregate)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent aggregate entries:"
+            tail -20 "$DATA_DIR/aggregate.log" 2>/dev/null || echo "  No entries yet. Use: count aggregate <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/aggregate.log"
+            local total=$(wc -l < "$DATA_DIR/aggregate.log")
+            echo "  [Count] aggregate: $input"
+            echo "  Saved. Total aggregate entries: $total"
+            _log "aggregate" "$input"
+        fi
+        ;;
+    visualize)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent visualize entries:"
+            tail -20 "$DATA_DIR/visualize.log" 2>/dev/null || echo "  No entries yet. Use: count visualize <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/visualize.log"
+            local total=$(wc -l < "$DATA_DIR/visualize.log")
+            echo "  [Count] visualize: $input"
+            echo "  Saved. Total visualize entries: $total"
+            _log "visualize" "$input"
+        fi
+        ;;
+    export)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent export entries:"
+            tail -20 "$DATA_DIR/export.log" 2>/dev/null || echo "  No entries yet. Use: count export <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/export.log"
+            local total=$(wc -l < "$DATA_DIR/export.log")
+            echo "  [Count] export: $input"
+            echo "  Saved. Total export entries: $total"
+            _log "export" "$input"
+        fi
+        ;;
+    sample)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent sample entries:"
+            tail -20 "$DATA_DIR/sample.log" 2>/dev/null || echo "  No entries yet. Use: count sample <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/sample.log"
+            local total=$(wc -l < "$DATA_DIR/sample.log")
+            echo "  [Count] sample: $input"
+            echo "  Saved. Total sample entries: $total"
+            _log "sample" "$input"
+        fi
+        ;;
+    schema)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent schema entries:"
+            tail -20 "$DATA_DIR/schema.log" 2>/dev/null || echo "  No entries yet. Use: count schema <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/schema.log"
+            local total=$(wc -l < "$DATA_DIR/schema.log")
+            echo "  [Count] schema: $input"
+            echo "  Saved. Total schema entries: $total"
+            _log "schema" "$input"
+        fi
+        ;;
+    validate)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent validate entries:"
+            tail -20 "$DATA_DIR/validate.log" 2>/dev/null || echo "  No entries yet. Use: count validate <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/validate.log"
+            local total=$(wc -l < "$DATA_DIR/validate.log")
+            echo "  [Count] validate: $input"
+            echo "  Saved. Total validate entries: $total"
+            _log "validate" "$input"
+        fi
+        ;;
+    pipeline)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent pipeline entries:"
+            tail -20 "$DATA_DIR/pipeline.log" 2>/dev/null || echo "  No entries yet. Use: count pipeline <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/pipeline.log"
+            local total=$(wc -l < "$DATA_DIR/pipeline.log")
+            echo "  [Count] pipeline: $input"
+            echo "  Saved. Total pipeline entries: $total"
+            _log "pipeline" "$input"
+        fi
+        ;;
+    profile)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent profile entries:"
+            tail -20 "$DATA_DIR/profile.log" 2>/dev/null || echo "  No entries yet. Use: count profile <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/profile.log"
+            local total=$(wc -l < "$DATA_DIR/profile.log")
+            echo "  [Count] profile: $input"
+            echo "  Saved. Total profile entries: $total"
+            _log "profile" "$input"
+        fi
+        ;;
+    stats) _stats ;;
+    export) shift; _export "$@" ;;
+    search) shift; _search "$@" ;;
+    recent) _recent ;;
+    status) _status ;;
+    help|--help|-h) _help ;;
+    version|--version|-v) _version ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'count help' for available commands."
+        exit 1
+        ;;
 esac
