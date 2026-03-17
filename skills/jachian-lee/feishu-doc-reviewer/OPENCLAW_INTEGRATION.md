@@ -2,7 +2,7 @@
 
 ## ✅ 安装状态
 
-- ✅ 源代码已复制到 `/Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer/`
+- ✅ 源代码已复制到 `/path/to/.openclaw/workspace/skills/feishu-doc-reviewer/`
 - ✅ 依赖已安装（requests, python-dotenv）
 - ✅ 飞书 API 测试通过（Token 获取成功）
 - ✅ 工具调用脚本已创建
@@ -12,7 +12,7 @@
 ### 方式一：直接调用工具脚本
 
 ```bash
-cd /Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer
+cd /path/to/.openclaw/workspace/skills/feishu-doc-reviewer
 
 # 获取评论列表
 ./run-tool.sh list_comments <document_token>
@@ -44,10 +44,10 @@ cd /Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer
   "mcpServers": {
     "feishu-reviewer": {
       "command": "python3",
-      "args": ["/Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer/src/mcp_server.py"],
+      "args": ["/path/to/.openclaw/workspace/skills/feishu-doc-reviewer/src/mcp_server.py"],
       "env": {
-        "FEISHU_APP_ID": "cli_a93e6be67cf85cb5",
-        "FEISHU_APP_SECRET": "IGYFlb0gSSZFAjN1fRJlQeoaVHvvWolb"
+        "FEISHU_APP_ID": "cli_xxxxxxxx",
+        "FEISHU_APP_SECRET": "xxxxxxxx"
       }
     }
   }
@@ -66,8 +66,8 @@ cd /Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer
 
 ## 🔐 配置信息
 
-- **飞书 App ID:** `cli_a93e6be67cf85cb5`
-- **配置文件:** `/Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer/.env`
+- **飞书 App ID:** `cli_xxxxxxxx`
+- **配置文件:** `/path/to/.openclaw/workspace/skills/feishu-doc-reviewer/.env`
 - **权限要求:** 文档读写、评论读写
 
 ## ⚠️ 注意事项
@@ -80,6 +80,6 @@ cd /Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer
 
 测试获取文档评论：
 ```bash
-cd /Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer
+cd /path/to/.openclaw/workspace/skills/feishu-doc-reviewer
 ./run-tool.sh list_comments <你的文档 token>
 ```

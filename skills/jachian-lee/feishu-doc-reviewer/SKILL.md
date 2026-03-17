@@ -44,7 +44,7 @@ description: "为智能体提供飞书文档读写能力：导出全文、读取
 技能提供命令行工具，可直接处理评论：
 
 ```bash
-cd /Users/jachianlee/.openclaw/workspace/skills/feishu-doc-reviewer
+cd /path/to/.openclaw/workspace/skills/feishu-doc-reviewer
 
 # ⭐ 推荐：只删除批注选中的内容（保留块中其他内容）
 python3 process_comment.py <document_token> <comment_id> --action delete_selected

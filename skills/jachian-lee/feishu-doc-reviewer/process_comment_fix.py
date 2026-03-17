@@ -109,8 +109,8 @@ def process_comment_fixed(document_token, comment_id, reply_text=None, mark_as_d
 
 # 测试
 if __name__ == "__main__":
-    doc_token = "OfNLdX9FFoPlrTxgZTzcAesTnoh"
-    comment_id = "7617154624897699022"  # 第二个评论
+    doc_token = "doxcnABC123"
+    comment_id = "YOUR_COMMENT_ID"
     
     print(f"=== 处理评论 {comment_id} ===\n")
     
