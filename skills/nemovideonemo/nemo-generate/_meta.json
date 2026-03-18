@@ -1,11 +1,17 @@
 {
   "owner": "nemovideonemo",
   "slug": "nemo-generate",
-  "displayName": "NemoVideo Generate",
+  "displayName": "NemoGenerate — AI Video Generator",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773738349388,
-    "commit": "https://github.com/openclaw/skills/commit/e6306159724d560c5422a8400d2fc02a876f6191"
+    "version": "1.1.0",
+    "publishedAt": 1773778754157,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773738349388,
+      "commit": "https://github.com/openclaw/skills/commit/e6306159724d560c5422a8400d2fc02a876f6191"
+    }
+  ]
 }
