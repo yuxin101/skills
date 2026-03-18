@@ -1,0 +1,11 @@
+{
+  "owner": "jolestar",
+  "slug": "line-openapi-skill",
+  "displayName": "LINE OpenAPI Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773717085615,
+    "commit": null
+  },
+  "history": []
+}
