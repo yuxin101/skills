@@ -1,11 +1,17 @@
 {
   "owner": "alphafactor",
   "slug": "alpha",
-  "displayName": "New Binance  Alpha Tips",
+  "displayName": "Binance  Alpha Explorer",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773117352720,
-    "commit": "https://github.com/openclaw/skills/commit/a3c51505154dc5a71381d17d75ad6f31c92bfb72"
+    "version": "1.0.6",
+    "publishedAt": 1773797133863,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773117352720,
+      "commit": "https://github.com/openclaw/skills/commit/a3c51505154dc5a71381d17d75ad6f31c92bfb72"
+    }
+  ]
 }
