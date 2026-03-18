@@ -1,7 +1,7 @@
 ---
 name: clawcap
 description: Spending cap proxy for OpenClaw. Enforce hard daily and monthly limits across all your AI models (Claude, GPT, Gemini, and more) under one cap. Stop runaway token burn, detect heartbeat loops, and kill agents remotely via Telegram. One URL, one cap, all models tracked together.
-version: 1.0.0
+version: 1.1.1
 metadata:
   openclaw:
     requires:
@@ -83,8 +83,8 @@ Your API keys stay the same — ClawCap only reads them to forward requests, nev
 | Plan | Price | Features |
 |------|-------|----------|
 | Free | $0 | $5/day cap, kill switch, heartbeat detection |
-| Solo | $5/mo | Custom caps, prepaid wallet, loop detection, Telegram alerts |
-| Pro | $15/mo | Multi-agent, savings summary, email reports |
+| Solo | $5/mo | Custom caps, heartbeat+loop protection, Telegram alerts |
+| Pro | $15/mo | Multi-agent tracking, per-model analytics, custom alert thresholds, weekly spend reports |
 
 ## Troubleshooting
 

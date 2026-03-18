@@ -2,44 +2,66 @@
 
 /**
  * ClawCap Setup Script
- * Automatically patches ~/.openclaw/openclaw.json to route all providers through ClawCap.
- * Backs up the original config before making changes.
+ *
+ * What this script does:
+ *   1. Reads your existing ~/.openclaw/openclaw.json config
+ *   2. Creates a backup at ~/.openclaw/openclaw.json.backup (if one doesn't exist)
+ *   3. Changes each provider's baseUrl to your ClawCap proxy URL
+ *   4. Saves the updated config
+ *
+ * What this script does NOT do:
+ *   - It does NOT read, store, or transmit your API keys
+ *   - It does NOT modify any files outside ~/.openclaw/
+ *   - It does NOT install any packages or download anything
+ *   - It does NOT run any network requests
+ *
+ * To undo: run the uninstall script, or copy your .backup file back manually.
  */
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const readline = require('readline');
 
 const CLAWCAP_BASE = 'https://clawcap.co/proxy';
 
+// Only allow writing within ~/.openclaw/
+const ALLOWED_DIR = path.join(os.homedir(), '.openclaw');
+
 function getConfigPath() {
-  const home = process.env.HOME || process.env.USERPROFILE;
-  if (!home) {
-    console.error('Error: Could not determine home directory.');
+  return path.join(ALLOWED_DIR, 'openclaw.json');
+}
+
+function validatePath(filePath) {
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(ALLOWED_DIR)) {
+    console.error('Error: Refusing to write outside ~/.openclaw/ directory.');
     process.exit(1);
   }
-  return path.join(home, '.openclaw', 'openclaw.json');
+  return resolved;
 }
 
 function readConfig(configPath) {
-  if (!fs.existsSync(configPath)) {
-    console.error(`Error: OpenClaw config not found at ${configPath}`);
+  const safePath = validatePath(configPath);
+  if (!fs.existsSync(safePath)) {
+    console.error(`Error: OpenClaw config not found at ${safePath}`);
     console.error('Make sure OpenClaw is installed and has been run at least once.');
     process.exit(1);
   }
   try {
-    const raw = fs.readFileSync(configPath, 'utf8');
+    const raw = fs.readFileSync(safePath, 'utf8');
     return JSON.parse(raw);
   } catch (err) {
-    console.error(`Error: Could not parse ${configPath} — ${err.message}`);
+    console.error(`Error: Could not parse ${safePath} — ${err.message}`);
     process.exit(1);
   }
 }
 
 function backupConfig(configPath) {
-  const backupPath = configPath + '.backup';
+  const safePath = validatePath(configPath);
+  const backupPath = validatePath(configPath + '.backup');
   if (!fs.existsSync(backupPath)) {
-    fs.copyFileSync(configPath, backupPath);
+    fs.copyFileSync(safePath, backupPath);
     console.log(`Backed up config to ${backupPath}`);
   } else {
     console.log('Backup already exists, skipping backup.');
@@ -47,8 +69,8 @@ function backupConfig(configPath) {
 }
 
 function getToken() {
-  const token = process.env.CLAWCAP_TOKEN;
-  if (token && token.startsWith('cc_live_')) {
+  const token = (process.env.CLAWCAP_TOKEN || '').trim();
+  if (token && /^cc_live_[a-f0-9]{32}$/.test(token)) {
     return token;
   }
   return null;
@@ -60,8 +82,9 @@ function askForToken() {
     rl.question('Enter your ClawCap token (cc_live_...): ', (answer) => {
       rl.close();
       const token = answer.trim();
-      if (!token.startsWith('cc_live_')) {
-        console.error('Error: Token must start with cc_live_. Get yours at https://clawcap.co/setup');
+      if (!/^cc_live_[a-f0-9]{32}$/.test(token)) {
+        console.error('Error: Invalid token format. Must be cc_live_ followed by 32 hex characters.');
+        console.error('Get yours at https://clawcap.co/setup');
         process.exit(1);
       }
       resolve(token);
@@ -72,12 +95,10 @@ function askForToken() {
 function patchProviders(config, proxyUrl) {
   let patched = 0;
 
-  // Handle providers as object (keyed by name)
   if (config.models && config.models.providers && typeof config.models.providers === 'object') {
     const providers = config.models.providers;
 
     if (Array.isArray(providers)) {
-      // Array format: [{ name, baseUrl, ... }]
       for (const provider of providers) {
         if (provider.baseUrl && !provider.baseUrl.includes('clawcap.co')) {
           provider._originalBaseUrl = provider.baseUrl;
@@ -87,7 +108,6 @@ function patchProviders(config, proxyUrl) {
         }
       }
     } else {
-      // Object format: { "anthropic": { baseUrl, ... } }
       for (const [name, provider] of Object.entries(providers)) {
         if (provider && typeof provider === 'object' && provider.baseUrl && !provider.baseUrl.includes('clawcap.co')) {
           provider._originalBaseUrl = provider.baseUrl;
@@ -99,7 +119,6 @@ function patchProviders(config, proxyUrl) {
     }
   }
 
-  // Also handle flat "providers" at root level (some config formats)
   if (config.providers && Array.isArray(config.providers)) {
     for (const provider of config.providers) {
       if (provider.baseUrl && !provider.baseUrl.includes('clawcap.co')) {
@@ -120,26 +139,22 @@ async function main() {
   console.log('=============');
   console.log('');
 
-  // 1. Get token
   let token = getToken();
   if (!token) {
     console.log('No CLAWCAP_TOKEN environment variable found.');
     token = await askForToken();
   } else {
-    console.log(`Using token from CLAWCAP_TOKEN environment variable.`);
+    console.log('Using token from CLAWCAP_TOKEN environment variable.');
   }
 
   const proxyUrl = `${CLAWCAP_BASE}/${token}`;
 
-  // 2. Read config
   const configPath = getConfigPath();
   console.log(`Reading config from ${configPath}`);
   const config = readConfig(configPath);
 
-  // 3. Backup
   backupConfig(configPath);
 
-  // 4. Patch providers
   console.log('');
   console.log('Patching providers...');
   const patched = patchProviders(config, proxyUrl);
@@ -156,8 +171,9 @@ async function main() {
     process.exit(0);
   }
 
-  // 5. Write config
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
+  // Write updated config (only to validated path within ~/.openclaw/)
+  const safePath = validatePath(configPath);
+  fs.writeFileSync(safePath, JSON.stringify(config, null, 2) + '\n', 'utf8');
 
   console.log('');
   console.log(`Done! ${patched} provider(s) now route through ClawCap.`);
@@ -168,8 +184,7 @@ async function main() {
   console.log('Check your spend anytime:');
   console.log(`  curl ${proxyUrl}/status`);
   console.log('');
-  console.log('To undo, restore from backup:');
-  console.log(`  cp ${configPath}.backup ${configPath}`);
+  console.log('To undo, run: node skills/clawcap/scripts/uninstall.js');
   console.log('');
 }
 

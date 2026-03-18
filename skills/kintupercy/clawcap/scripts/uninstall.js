@@ -2,19 +2,31 @@
 
 /**
  * ClawCap Uninstall Script
- * Restores the original OpenClaw config from backup.
+ *
+ * What this script does:
+ *   1. If a backup exists at ~/.openclaw/openclaw.json.backup, restores it
+ *   2. If no backup, removes ClawCap URLs from the config and restores originals
+ *
+ * What this script does NOT do:
+ *   - It does NOT delete any files (backup is renamed, not deleted)
+ *   - It does NOT modify any files outside ~/.openclaw/
+ *   - It does NOT run any network requests
  */
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-function getConfigPath() {
-  const home = process.env.HOME || process.env.USERPROFILE;
-  if (!home) {
-    console.error('Error: Could not determine home directory.');
+// Only allow writing within ~/.openclaw/
+const ALLOWED_DIR = path.join(os.homedir(), '.openclaw');
+
+function validatePath(filePath) {
+  const resolved = path.resolve(filePath);
+  if (!resolved.startsWith(ALLOWED_DIR)) {
+    console.error('Error: Refusing to write outside ~/.openclaw/ directory.');
     process.exit(1);
   }
-  return path.join(home, '.openclaw', 'openclaw.json');
+  return resolved;
 }
 
 function main() {
@@ -23,14 +35,16 @@ function main() {
   console.log('=================');
   console.log('');
 
-  const configPath = getConfigPath();
-  const backupPath = configPath + '.backup';
+  const configPath = validatePath(path.join(ALLOWED_DIR, 'openclaw.json'));
+  const backupPath = validatePath(configPath + '.backup');
 
   if (fs.existsSync(backupPath)) {
+    // Restore from backup by copying it back (backup is preserved as .backup.old)
     fs.copyFileSync(backupPath, configPath);
-    fs.unlinkSync(backupPath);
+    fs.renameSync(backupPath, backupPath + '.old');
     console.log('Restored original config from backup.');
     console.log('ClawCap proxy routing has been removed.');
+    console.log(`(Backup moved to ${backupPath}.old)`);
   } else {
     console.log('No backup found. Removing ClawCap URLs from config...');
 
