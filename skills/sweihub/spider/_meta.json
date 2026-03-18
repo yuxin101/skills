@@ -1,0 +1,11 @@
+{
+  "owner": "sweihub",
+  "slug": "spider",
+  "displayName": "Web scraping skill using Chrome + WebMCP",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773716548593,
+    "commit": null
+  },
+  "history": []
+}
