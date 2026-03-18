@@ -1,0 +1,325 @@
+#!/bin/bash
+# 百度智能云 BOS Skill 自动设置脚本
+# 用法:
+#   setup.sh --check-only                    仅检查环境状态
+#   setup.sh --ak <AK> --sk <SK> --endpoint <ENDPOINT> --bucket <BUCKET>
+
+set -e
+
+# 颜色
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+ok()   { echo -e "${GREEN}✓${NC} $1"; }
+fail() { echo -e "${RED}✗${NC} $1"; }
+warn() { echo -e "${YELLOW}!${NC} $1"; }
+
+# 获取脚本所在目录（skill baseDir）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ========== 检查函数 ==========
+
+check_node() {
+  if command -v node &>/dev/null; then
+    ok "Node.js $(node --version)"
+    return 0
+  else
+    fail "Node.js 未安装"
+    return 1
+  fi
+}
+
+check_npm() {
+  if command -v npm &>/dev/null; then
+    ok "npm $(npm --version)"
+    return 0
+  else
+    fail "npm 未安装"
+    return 1
+  fi
+}
+
+check_python() {
+  if command -v python3 &>/dev/null; then
+    ok "Python3 $(python3 --version 2>&1 | awk '{print $2}')"
+    return 0
+  else
+    fail "Python3 未安装"
+    return 1
+  fi
+}
+
+check_pip() {
+  if command -v pip3 &>/dev/null || command -v pip &>/dev/null; then
+    local pip_cmd
+    pip_cmd=$(command -v pip3 || command -v pip)
+    ok "pip $($pip_cmd --version 2>&1 | awk '{print $2}')"
+    return 0
+  else
+    fail "pip 未安装"
+    return 1
+  fi
+}
+
+check_bos_node_sdk() {
+  if command -v node &>/dev/null && node -e "require('@baiducloud/sdk')" &>/dev/null 2>&1; then
+    ok "@baiducloud/sdk (Node.js SDK) 已安装"
+    return 0
+  else
+    fail "@baiducloud/sdk (Node.js SDK) 未安装"
+    return 1
+  fi
+}
+
+check_bos_python_sdk() {
+  if command -v python3 &>/dev/null && python3 -c "import baidubce" &>/dev/null 2>&1; then
+    ok "bce-python-sdk (Python SDK) 已安装"
+    return 0
+  else
+    fail "bce-python-sdk (Python SDK) 未安装"
+    return 1
+  fi
+}
+
+check_bcecmd() {
+  if command -v bcecmd &>/dev/null; then
+    ok "bcecmd 可用"
+    return 0
+  else
+    warn "bcecmd 未安装（可选，安装参考: https://cloud.baidu.com/doc/BOS/s/Ck1rymwdi）"
+    return 1
+  fi
+}
+
+check_env_vars() {
+  local all_set=true
+  for var in BCE_ACCESS_KEY_ID BCE_SECRET_ACCESS_KEY BCE_BOS_ENDPOINT BCE_BOS_BUCKET; do
+    if [ -n "${!var}" ]; then
+      ok "$var 已设置"
+    else
+      fail "$var 未设置"
+      all_set=false
+    fi
+  done
+  $all_set
+}
+
+# ========== 检查模式 ==========
+
+do_check() {
+  echo "=== 百度智能云 BOS Skill 环境检查 ==="
+  echo ""
+  echo "--- 基础环境 ---"
+  check_node || true
+  check_npm || true
+  check_python || true
+  check_pip || true
+  echo ""
+  echo "--- 方式一: Node.js SDK ---"
+  check_bos_node_sdk || true
+  echo ""
+  echo "--- 方式二: Python SDK ---"
+  check_bos_python_sdk || true
+  echo ""
+  echo "--- 方式三: bcecmd ---"
+  check_bcecmd || true
+  echo ""
+  echo "--- 环境变量 ---"
+  check_env_vars || true
+  echo ""
+  echo "--- Skill 文件 ---"
+  [ -f "$BASE_DIR/SKILL.md" ] && ok "SKILL.md" || fail "SKILL.md 不存在"
+  [ -f "$BASE_DIR/scripts/bos_node.mjs" ] && ok "scripts/bos_node.mjs" || fail "scripts/bos_node.mjs 不存在"
+  [ -f "$BASE_DIR/scripts/bos_python.py" ] && ok "scripts/bos_python.py" || fail "scripts/bos_python.py 不存在"
+  [ -f "$BASE_DIR/references/api_reference.md" ] && ok "references/api_reference.md" || fail "references/api_reference.md 不存在"
+  echo ""
+}
+
+# ========== 设置模式 ==========
+
+do_setup() {
+  local AK=""
+  local SK=""
+  local ENDPOINT=""
+  local BUCKET=""
+  local STS_TOKEN=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --ak)        AK="$2"; shift 2;;
+      --sk)        SK="$2"; shift 2;;
+      --endpoint)  ENDPOINT="$2"; shift 2;;
+      --bucket)    BUCKET="$2"; shift 2;;
+      --sts-token) STS_TOKEN="$2"; shift 2;;
+      *) shift;;
+    esac
+  done
+
+  if [ -z "$AK" ] || [ -z "$SK" ] || [ -z "$ENDPOINT" ] || [ -z "$BUCKET" ]; then
+    echo "错误: 缺少必需参数"
+    echo "用法: setup.sh --ak <AK> --sk <SK> --endpoint <ENDPOINT> --bucket <BUCKET>"
+    exit 1
+  fi
+
+  echo "=== 百度智能云 BOS Skill 自动设置 ==="
+  echo ""
+
+  # 1. 安装 Node.js SDK
+  echo "--- 步骤 1: 安装 Node.js SDK ---"
+  if check_node; then
+    if [ ! -f "$BASE_DIR/package.json" ]; then
+      (cd "$BASE_DIR" && npm init -y &>/dev/null)
+      ok "已创建 package.json"
+    fi
+    (cd "$BASE_DIR" && npm install @baiducloud/sdk --no-progress 2>&1 | tail -3)
+    ok "@baiducloud/sdk 安装完成"
+  else
+    warn "Node.js 未安装，跳过 Node.js SDK"
+  fi
+
+  # 2. 安装 Python SDK
+  echo ""
+  echo "--- 步骤 2: 安装 Python SDK ---"
+  if check_python; then
+    local PIP_CMD
+    PIP_CMD=$(command -v pip3 2>/dev/null || command -v pip 2>/dev/null || echo "")
+    if [ -n "$PIP_CMD" ]; then
+      $PIP_CMD install bce-python-sdk -q 2>/dev/null && \
+        ok "bce-python-sdk 安装完成" || \
+        warn "bce-python-sdk 安装失败"
+    else
+      warn "pip 未安装，跳过 Python SDK"
+    fi
+  else
+    warn "Python3 未安装，跳过 Python SDK"
+  fi
+
+  # 3. 检查 bcecmd
+  echo ""
+  echo "--- 步骤 3: 检查 bcecmd ---"
+  if check_bcecmd; then
+    ok "bcecmd 已就绪"
+  else
+    echo "  bcecmd 需要手动安装，参考:"
+    echo "  https://cloud.baidu.com/doc/BOS/s/Ck1rymwdi"
+  fi
+
+  # 4. 写入环境变量到 shell 配置
+  echo ""
+  echo "--- 步骤 4: 持久化凭证 ---"
+
+  local SHELL_RC=""
+  if [ -n "$ZSH_VERSION" ] || [ "$SHELL" = "/bin/zsh" ]; then
+    SHELL_RC="$HOME/.zshrc"
+  else
+    SHELL_RC="$HOME/.bashrc"
+  fi
+
+  # 清理旧的 BOS 配置
+  if [ -f "$SHELL_RC" ]; then
+    sed -i.bak '/^# --- Baidu BOS Skill ---$/,/^# --- End Baidu BOS Skill ---$/d' "$SHELL_RC"
+    rm -f "${SHELL_RC}.bak"
+  fi
+
+  # 写入新配置
+  cat >> "$SHELL_RC" << EOF
+# --- Baidu BOS Skill ---
+export BCE_ACCESS_KEY_ID="$AK"
+export BCE_SECRET_ACCESS_KEY="$SK"
+export BCE_BOS_ENDPOINT="$ENDPOINT"
+export BCE_BOS_BUCKET="$BUCKET"
+EOF
+
+  if [ -n "$STS_TOKEN" ]; then
+    sed -i.bak '/^# --- End Baidu BOS Skill ---$/d' "$SHELL_RC"
+    rm -f "${SHELL_RC}.bak"
+    cat >> "$SHELL_RC" << EOF
+export BCE_STS_TOKEN="$STS_TOKEN"
+EOF
+  fi
+
+  echo "# --- End Baidu BOS Skill ---" >> "$SHELL_RC"
+
+  ok "凭证已写入 $SHELL_RC"
+
+  # 同时导出到当前 session
+  export BCE_ACCESS_KEY_ID="$AK"
+  export BCE_SECRET_ACCESS_KEY="$SK"
+  export BCE_BOS_ENDPOINT="$ENDPOINT"
+  export BCE_BOS_BUCKET="$BUCKET"
+  [ -n "$STS_TOKEN" ] && export BCE_STS_TOKEN="$STS_TOKEN"
+
+  # 5. 配置 bcecmd（如果已安装）
+  echo ""
+  echo "--- 步骤 5: 配置 bcecmd ---"
+  if command -v bcecmd &>/dev/null; then
+    local BCECMD_CONF="$HOME/.bcecmd"
+    mkdir -p "$BCECMD_CONF"
+
+    bcecmd --conf-path "$BCECMD_CONF" configure \
+      --access-key "$AK" \
+      --secret-key "$SK" \
+      --domain "$ENDPOINT" 2>/dev/null && \
+      ok "bcecmd 已配置" || \
+      warn "bcecmd 配置失败"
+  else
+    warn "bcecmd 未安装，跳过配置"
+  fi
+
+  # 6. 验证连接
+  echo ""
+  echo "--- 步骤 6: 验证连接 ---"
+
+  local verified=false
+
+  # 优先用 Node.js SDK 验证
+  if command -v node &>/dev/null && node -e "require('@baiducloud/sdk')" &>/dev/null 2>&1; then
+    if (cd "$BASE_DIR" && node scripts/bos_node.mjs list --max-keys 1 2>/dev/null | grep -q '"success": true'); then
+      ok "BOS 连接验证成功（Node.js SDK）"
+      verified=true
+    fi
+  fi
+
+  # 备选：Python SDK 验证
+  if [ "$verified" = false ] && command -v python3 &>/dev/null && python3 -c "import baidubce" &>/dev/null 2>&1; then
+    if (cd "$BASE_DIR" && python3 scripts/bos_python.py list --max-keys 1 2>/dev/null | grep -q '"success": true'); then
+      ok "BOS 连接验证成功（Python SDK）"
+      verified=true
+    fi
+  fi
+
+  if [ "$verified" = false ]; then
+    warn "BOS 连接验证失败，请检查凭证和网络"
+  fi
+
+  echo ""
+  echo "=== 设置完成 ==="
+  echo "现在可以使用以下方式操作 BOS："
+  echo "  方式一: node $BASE_DIR/scripts/bos_node.mjs <action>"
+  echo "  方式二: python3 $BASE_DIR/scripts/bos_python.py <action>"
+  echo "  方式三: bcecmd bos <command>"
+}
+
+# ========== 主入口 ==========
+
+case "$1" in
+  --check-only)
+    do_check
+    ;;
+  --ak|--sk|--endpoint|--bucket)
+    do_setup "$@"
+    ;;
+  *)
+    echo "百度智能云 BOS Skill 设置工具"
+    echo ""
+    echo "用法:"
+    echo "  $0 --check-only"
+    echo "    仅检查环境状态"
+    echo ""
+    echo "  $0 --ak <AK> --sk <SK> --endpoint <ENDPOINT> --bucket <BUCKET> [--sts-token <TOKEN>]"
+    echo "    自动设置环境（安装依赖 + 配置凭证 + 验证连接）"
+    ;;
+esac
