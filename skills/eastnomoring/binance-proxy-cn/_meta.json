@@ -1,0 +1,11 @@
+{
+  "owner": "eastnomoring",
+  "slug": "binance-proxy-cn",
+  "displayName": "币安代理配置（中国大陆）",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773839437412,
+    "commit": null
+  },
+  "history": []
+}
