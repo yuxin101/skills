@@ -1,0 +1,11 @@
+{
+  "owner": "chenzihao0731",
+  "slug": "weibo-hot",
+  "displayName": "微博热搜",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773822932063,
+    "commit": null
+  },
+  "history": []
+}
