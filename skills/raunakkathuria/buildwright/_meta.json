@@ -3,11 +3,16 @@
   "slug": "buildwright",
   "displayName": "buildwright",
   "latest": {
-    "version": "0.0.8",
-    "publishedAt": 1773844411801,
-    "commit": "https://github.com/openclaw/skills/commit/53313bfd812d452b2a81fd9b0bae5ff9d3e3c7bb"
+    "version": "0.0.9",
+    "publishedAt": 1773924100659,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.0.8",
+      "publishedAt": 1773844411801,
+      "commit": "https://github.com/openclaw/skills/commit/53313bfd812d452b2a81fd9b0bae5ff9d3e3c7bb"
+    },
     {
       "version": "0.0.3",
       "publishedAt": 1772708711341,

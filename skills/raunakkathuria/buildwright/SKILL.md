@@ -2,10 +2,10 @@
 name: buildwright
 description: Autonomous development workflow with multi-agent Claw Architecture. Single-agent mode for simple features; multi-agent mode decomposes cross-domain work into specialist claws (UI, API, DB). Includes TDD, security scan, code review, and quality gates. Works with Claude Code, OpenCode, OpenClaw, and Cursor.
 license: MIT
-compatibility: Requires git and gh (GitHub CLI). GITHUB_TOKEN with repo scope needed for push/PR. Optional tools for security scans (semgrep, gitleaks, trufflehog). Works with Claude Code, OpenCode, OpenClaw, and Cursor.
+compatibility: Requires git and gh (GitHub CLI). GITHUB_TOKEN with repo scope needed for push/PR. Optional tools for security scans (semgrep, gitleaks, trufflehog). Works with Claude Code, OpenCode, OpenClaw, Cursor, and Codex CLI.
 metadata:
   homepage: https://github.com/raunakkathuria/buildwright
-  version: "0.0.8"
+  version: "0.0.9"
   author: raunakkathuria
   tags:
     - development
@@ -160,6 +160,33 @@ Analyse an existing codebase and write structured docs to `.buildwright/codebase
 ```
 
 Produces: `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `CONCERNS.md` under `.buildwright/codebase/`.
+
+---
+
+### /bw-plan \<question or task file\>
+
+Research a question or topic and produce a written deliverable — no implementation, no commits.
+Use when someone asks a question or needs an analysis, plan, or report before (or instead of) writing code.
+
+```
+/bw-plan "what are the performance risks in this Flutter app?"
+/bw-plan "plan a migration from monolith to microservices"
+/bw-plan tasks/flutter-perf-review.md
+```
+
+Flow: Understand question/task → Clarify if needed → Research (read code + run read-only tools) → Synthesize findings → Write deliverable → Summarize
+
+**Accepts two invocation styles:**
+- **Inline question** — describe the question or topic directly; the agent infers scope and writes to `docs/plans/<slug>/<date>/plan.md`
+- **Task file** — a structured `.md` file with `Inputs`, `Rules`, `Research Areas`, and `Outputs` blocks; the agent parses and executes it exactly
+
+**Use `/bw-plan` when you want:** a performance review, architecture decision record, migration plan, technology evaluation, static analysis report, or any "research this and give me a written output" task.
+
+**Use `/bw-new-feature` instead** when you want the plan executed (research + spec + implement + ship).
+
+**Artifacts produced:** whatever the task specifies; at minimum `plan.md` in the output directory.
+
+**Hard constraints:** never modifies source files, never commits or creates PRs, every finding must cite evidence.
 
 ---
 
