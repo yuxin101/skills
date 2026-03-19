@@ -11,7 +11,7 @@ def now_iso() -> str:
     return datetime.now().isoformat(timespec='seconds')
 
 
-def create_version(project_root: Path, config: dict, version: str, mode: str):
+def create_version(project_root: Path, config: dict, version: str, mode: str, requirements_text: str | None = None):
     versions_dir = project_root / config['pipeline'].get('versions_dir', 'versions')
     version_dir = versions_dir / version
     docs_dir = version_dir / 'docs'
@@ -34,7 +34,10 @@ def create_version(project_root: Path, config: dict, version: str, mode: str):
 
     req_file = docs_dir / 'REQUIREMENTS.md'
     if not req_file.exists():
-        req_file.write_text('# REQUIREMENTS\n\n请补充本版本需求。\n', encoding='utf-8')
+        content = requirements_text.strip() if requirements_text and requirements_text.strip() else '# REQUIREMENTS\n\n请补充本版本需求。\n'
+        if not content.startswith('#'):
+            content = '# REQUIREMENTS\n\n' + content + '\n'
+        req_file.write_text(content, encoding='utf-8')
 
     workspace_root = find_workspace_root(project_root)
     project_name = config['project']['name']

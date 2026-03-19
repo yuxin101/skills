@@ -1,49 +1,9 @@
 from pathlib import Path
 
-from llm import OpenAICompatibleLLM
-from tasks import parse_tasks_from_plan
+from orchestrator import get_orchestrator
+from tasks import parse_tasks_from_plan, normalize_tasks
 from project import scan_project_files, get_current_version_dir
 from state import StateManager
-
-
-SYSTEM_PROMPT = """你是一个资深全栈架构师。请基于需求文档，生成详细的开发执行方案。
-
-【输出格式要求】
-必须按以下结构输出 Markdown：
-
-# 项目开发方案
-
-## 1. 需求理解
-- 业务目标
-- 核心业务流程
-- 关键技术特性
-
-## 2. 技术架构
-- 整体架构图（ASCII）
-- 技术选型表格
-- 目录结构设计
-
-## 3. 数据库设计
-- 完整的 SQL 建表语句
-- 索引设计
-- 外键约束
-
-## 4. API 接口设计
-- 每个接口的 Method/Path
-- Request/Response 格式
-- 错误码定义
-
-## 5. 任务清单（关键！必须可被解析）
-
-### 阶段一：基础设施（P0）
-| 任务ID | 任务名称 | 优先级 | 依赖 | 预估工时 | 输出文件 |
-|--------|---------|--------|------|---------|----------|
-| T001 | 项目初始化 | P0 | 无 | 2h | package.json, .gitignore |
-
-## 6. 风险评估
-- 技术风险表格
-- 缓解措施
-"""
 
 
 def run_analyze(project_root: Path, config: dict):
@@ -61,32 +21,45 @@ def run_analyze(project_root: Path, config: dict):
         f"=== 文件: {f['path']} ===\n{f['content'][:2000]}" for f in project_files[:10]
     ])
 
-    llm = OpenAICompatibleLLM(config)
-    user_prompt = f"""请根据以下需求和项目上下文，输出完整开发方案：
-
-## 需求文档
-
-{requirements}
-
-## 项目上下文
-
-{context}
-"""
-    result = llm.chat(SYSTEM_PROMPT, user_prompt, max_tokens=16384, temperature=0.6)
-
-    plan_file = version_dir / 'docs' / 'DEV_PLAN.md'
-    plan_file.write_text(result, encoding='utf-8')
-
-    tasks = parse_tasks_from_plan(result)
     state = StateManager(version_dir)
     if not state.data:
         state.init(version_dir.name)
+    state.data['status'] = 'analyzing'
+    state.data['last_action'] = 'analyze'
+    state.data['last_error'] = None
+    state.save()
+
+    orchestrator = get_orchestrator(config)
+    result = orchestrator.run('analyze', {
+        'requirements': requirements,
+        'context': context,
+        'project_root': str(project_root),
+        'version_dir': str(version_dir),
+    })
+
+    plan_markdown = result.get('plan_markdown', '')
+    if not plan_markdown:
+        raise RuntimeError('analyze 未返回 plan_markdown')
+
+    plan_file = version_dir / 'docs' / 'DEV_PLAN.md'
+    plan_file.write_text(plan_markdown, encoding='utf-8')
+
+    tasks = normalize_tasks(result.get('tasks', [])) if result.get('tasks') else parse_tasks_from_plan(plan_markdown)
+    if not tasks:
+        raise RuntimeError('analyze 未返回可用任务列表')
+
     state.data['tasks'] = tasks
     state.data['status'] = 'pending_confirm'
+    state.data['last_orchestration'] = config.get('adapters', {}).get('orchestration', 'local_llm') or 'local_llm'
+    state.data['last_result_format'] = result.get('result_format', 'unknown')
+    state.data['last_summary'] = result.get('summary', '')
     state.save()
 
     return {
         'plan_file': str(plan_file),
         'tasks': tasks,
         'task_count': len(tasks),
+        'orchestration': state.data['last_orchestration'],
+        'result_format': state.data['last_result_format'],
+        'summary': state.data['last_summary'],
     }

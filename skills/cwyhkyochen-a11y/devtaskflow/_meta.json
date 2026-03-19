@@ -3,11 +3,16 @@
   "slug": "devtaskflow",
   "displayName": "DevTaskFlow",
   "latest": {
-    "version": "0.1.1",
-    "publishedAt": 1773850466827,
-    "commit": "https://github.com/openclaw/skills/commit/b43554b1c555c2111d34a76996a6638314333004"
+    "version": "0.5.1",
+    "publishedAt": 1773933151564,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.1",
+      "publishedAt": 1773850466827,
+      "commit": "https://github.com/openclaw/skills/commit/b43554b1c555c2111d34a76996a6638314333004"
+    },
     {
       "version": "0.1.0",
       "publishedAt": 1773818250696,

@@ -1,80 +1,13 @@
-import re
 from pathlib import Path
 
-from llm import OpenAICompatibleLLM
+from orchestrator import get_orchestrator
 from project import scan_project_files, get_current_version_dir
 from state import StateManager
-
-
-SYSTEM_PROMPT = """你是一个严格的代码审查员。请对以下代码进行全面审查。
-
-必须按以下结构输出 Markdown：
-
-# 代码审查报告
-
-## 基本信息
-| 项目 | 内容 |
-|------|------|
-| 任务编号 | [TASK_ID] |
-| 任务名称 | [TASK_NAME] |
-| 审查日期 | [日期] |
-
-## 审查发现
-
-### 🔴 严重问题（必须修复）
-1. **[问题类型]** [问题描述]
-   - **位置**: [文件路径]:[行号]
-   - **影响**: [影响描述]
-   - **修复建议**: [具体建议]
-
-### 🟡 警告（建议修复）
-1. **[问题类型]** [问题描述]
-   - **位置**: [文件路径]:[行号]
-   - **建议**: [改进建议]
-
-### 🟢 建议（可选优化）
-1. **[问题类型]** [问题描述]
-   - **建议**: [优化建议]
-
-## 代码质量评分
-
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 功能完整性 | [0-10] | |
-| 代码规范 | [0-10] | |
-| 安全性 | [0-10] | |
-| 性能 | [0-10] | |
-| 可维护性 | [0-10] | |
-| **总分** | **[0-10]** | |
-
-## 审查结论
-
-[✅ 通过 / ❌ 不通过]
-
-**原因**:
-[详细说明]
-"""
+from contracts_review import build_review_payload
 
 
 def parse_review_passed(review_result: str):
-    has_critical = '🔴' in review_result or '严重问题' in review_result
-
-    conclusion_match = re.search(r'(?:## 审查结论|审查结论)[\s\S]*?([✅❌].*?)(?:\n\n|\n##|$)', review_result)
-    if conclusion_match:
-        conclusion = conclusion_match.group(1)
-        if '❌' in conclusion or '不通过' in conclusion:
-            return False
-        if ('✅' in conclusion or '通过' in conclusion) and not has_critical:
-            return True
-
-    score_match = re.search(r'\|\s*\*\*总分\*\*\s*\|\s*\*\*(\d+(?:\.\d+)?)\*\*\s*\|', review_result)
-    if score_match:
-        score = float(score_match.group(1))
-        return score >= 7.0 and not has_critical
-
-    if has_critical:
-        return False
-    return True
+    return '❌ 不通过' not in review_result
 
 
 def run_review(project_root: Path, config: dict):
@@ -102,25 +35,29 @@ def run_review(project_root: Path, config: dict):
         f"=== 文件: {f['path']} ===\n```\n{f['content'][:4000]}\n```" for f in code_files[:10]
     ])
 
-    llm = OpenAICompatibleLLM(config)
-    user_prompt = f"""请审查以下代码：
+    state.data['status'] = 'reviewing'
+    state.data['last_action'] = 'review'
+    state.data['last_error'] = None
+    state.save()
 
-## 任务
-[{task['id']}] {task['name']}
+    orchestrator = get_orchestrator(config)
+    result = orchestrator.run('review', build_review_payload(project_root, version_dir, task, dev_plan, code))
 
-## 开发计划
-{dev_plan[:4000]}
+    if result.get('status') == 'not_implemented':
+        raise RuntimeError(result.get('message', 'review 编排器未实现'))
 
-## 代码
-{code}
-"""
-    result = llm.chat(SYSTEM_PROMPT, user_prompt, max_tokens=12288, temperature=0.3)
+    review_text = result.get('raw_text', '') or result.get('summary', '')
+    if not review_text:
+        raise RuntimeError('review 未返回 raw_text')
 
     review_file = version_dir / 'docs' / f'REVIEW_TASK_{task_id}.md'
-    review_file.write_text(result, encoding='utf-8')
+    review_file.write_text(review_text, encoding='utf-8')
 
-    passed = parse_review_passed(result)
+    passed = result.get('passed') if isinstance(result.get('passed'), bool) else parse_review_passed(review_text)
     state.data['status'] = 'review_passed' if passed else 'needs_fix'
+    state.data['last_orchestration'] = config.get('adapters', {}).get('orchestration', 'local_llm') or 'local_llm'
+    state.data['last_result_format'] = result.get('result_format', 'unknown')
+    state.data['last_summary'] = result.get('summary', '')
     state.save()
 
     return {
@@ -128,4 +65,7 @@ def run_review(project_root: Path, config: dict):
         'task_name': task['name'],
         'review_file': str(review_file),
         'passed': passed,
+        'orchestration': state.data['last_orchestration'],
+        'result_format': state.data['last_result_format'],
+        'summary': state.data['last_summary'],
     }

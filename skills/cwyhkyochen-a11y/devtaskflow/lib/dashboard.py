@@ -16,61 +16,81 @@ HTML_TEMPLATE = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DevTaskFlow Dashboard</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; background: #0b1020; color: #e8ecf3; }
-    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
-    .hero { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; margin-bottom:24px; }
-    .card { background:#121a2b; border:1px solid #25304a; border-radius:16px; padding:16px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
-    h1,h2 { margin: 0 0 12px; }
-    .muted { color:#9fb0d1; font-size:14px; }
-    input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid #31415f; background:#0f1728; color:#fff; }
-    table { width:100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { text-align:left; padding:12px 10px; border-bottom:1px solid #22304c; vertical-align: top; }
-    th { color:#9fb0d1; font-weight:600; }
-    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#1e2a45; color:#cfe0ff; font-size:12px; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .grid { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:16px; margin-bottom:20px; }
-    .num { font-size:28px; font-weight:700; }
-    details { margin-top: 8px; }
-    a { color:#8cc8ff; text-decoration:none; }
-    @media (max-width: 900px) { .grid { grid-template-columns:1fr; } .hero { flex-direction:column; } }
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(18, 26, 43, 0.88);
+      --border: rgba(104, 128, 171, 0.22);
+      --text: #e8ecf3;
+      --muted: #9fb0d1;
+      --primary: #7c9cff;
+      --shadow: 0 16px 48px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(124,156,255,.18), transparent 30%),
+        linear-gradient(180deg, #0b1020 0%, #0d1326 100%);
+    }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 28px; }
+    .hero { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; margin-bottom:24px; }
+    .hero h1 { margin:0; font-size:36px; letter-spacing:-0.02em; }
+    .hero .sub { color:var(--muted); margin-top:8px; max-width:760px; line-height:1.6; }
+    .glass { background: var(--panel); backdrop-filter: blur(14px); border:1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow); }
+    .card { padding:18px; }
+    .search-box { min-width:320px; flex:1; max-width:460px; }
+    .label { color:var(--muted); font-size:13px; margin-bottom:10px; }
+    input { width:100%; padding:14px 16px; border-radius:14px; border:1px solid #31415f; background:#0f1728; color:#fff; font-size:14px; }
+    .stats { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:16px; margin-bottom:20px; }
+    .stat .num { font-size:30px; font-weight:700; margin-top:8px; }
+    .section-title { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .section-title h2 { margin:0; font-size:20px; }
+    .muted { color:var(--muted); font-size:14px; }
+    .projects { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; }
+    .project-card { padding:18px; }
+    .project-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+    .project-name { font-size:20px; font-weight:700; }
+    .badge { display:inline-flex; align-items:center; border-radius:999px; padding:6px 10px; font-size:12px; background: rgba(124,156,255,.14); color:#dbe5ff; }
+    .kv { display:grid; grid-template-columns: 96px 1fr; gap:8px; font-size:14px; margin-top:8px; }
+    .kv .k { color:var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+    .footer { margin-top: 20px; color:var(--muted); font-size:13px; text-align:right; }
+    @media (max-width: 980px) {
+      .stats, .projects { grid-template-columns:1fr; }
+      .hero { flex-direction:column; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="hero">
       <div>
-        <h1>DevTaskFlow Dashboard</h1>
-        <div class="muted">本地项目看板 / 查询界面 / 归档信息总览</div>
+        <h1>DevTaskFlow</h1>
+        <div class="sub">全部项目总览页。用于本地打开或发送本地链接查看当前工作区项目，不承担复杂项目管理功能。</div>
       </div>
-      <div class="card" style="min-width:320px; flex:1; max-width:460px;">
-        <div class="muted" style="margin-bottom:8px;">搜索项目名 / 状态 / 版本</div>
-        <input id="q" placeholder="例如：socialhub / 迭代中 / v1.5.0" />
+      <div class="glass card search-box">
+        <div class="label">搜索项目名 / 状态 / 版本</div>
+        <input id="q" placeholder="例如：socialhub / 新建中 / v1.2.0" />
       </div>
     </div>
 
-    <div class="grid">
-      <div class="card"><div class="muted">项目总数</div><div class="num" id="count-all"></div></div>
-      <div class="card"><div class="muted">迭代中</div><div class="num" id="count-active"></div></div>
-      <div class="card"><div class="muted">看板文件</div><div class="mono" id="board-path"></div></div>
+    <div class="stats">
+      <div class="glass card stat"><div class="muted">项目总数</div><div class="num" id="count-all"></div></div>
+      <div class="glass card stat"><div class="muted">迭代中</div><div class="num" id="count-active"></div></div>
+      <div class="glass card stat"><div class="muted">已发布</div><div class="num" id="count-published"></div></div>
     </div>
 
-    <div class="card">
-      <h2>项目看板</h2>
-      <div class="muted">支持直接查看项目、当前版本、状态，以及已归档的文档 / 源码 / 部署说明。</div>
-      <table>
-        <thead>
-          <tr>
-            <th>项目名</th>
-            <th>状态</th>
-            <th>最新版本</th>
-            <th>路径</th>
-            <th>最后更新</th>
-            <th>归档信息</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
+    <div class="glass card">
+      <div class="section-title">
+        <h2>项目列表</h2>
+        <div class="muted">看板文件：<span class="mono" id="board-path"></span></div>
+      </div>
+      <div class="projects" id="rows"></div>
     </div>
+
+    <div class="footer">Generated by DevTaskFlow Dashboard</div>
   </div>
   <script>
     const DATA = __DATA__;
@@ -80,36 +100,29 @@ HTML_TEMPLATE = """<!doctype html>
     document.getElementById('board-path').textContent = BOARD_PATH;
     document.getElementById('count-all').textContent = String(DATA.length);
     document.getElementById('count-active').textContent = String(DATA.filter(x => String(x.status || '').includes('迭代')).length);
+    document.getElementById('count-published').textContent = String(DATA.filter(x => !!x.publish).length);
 
     function esc(v){ return String(v ?? '').replace(/[&<>\"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s])); }
-    function archiveBlock(item){
-      if (!item.archive) return '<span class="muted">暂无</span>';
-      const a = item.archive;
-      const docs = (a.docs_files || []).map(x => `<li>${esc(x)}</li>`).join('');
+    function badge(text){ return `<span class="badge">${esc(text || '-')}</span>`; }
+    function card(item){
       return `
-        <details>
-          <summary>查看归档</summary>
-          <div class="muted" style="margin-top:8px;">当前任务：${esc(item.current_task || '-')}</div>
-          <div class="mono">docs: ${esc(a.docs_dir || '-')}</div>
-          <div class="mono">src: ${esc(a.src_dir || '-')}</div>
-          <div class="mono">deploy: ${esc(a.deployment_file || '-')}</div>
-          <div>文档：</div>
-          <ul>${docs || '<li>无</li>'}</ul>
-        </details>
+        <div class="glass project-card">
+          <div class="project-head">
+            <div>
+              <div class="project-name">${esc(item.name)}</div>
+              <div class="muted">${esc(item.note || '暂无备注')}</div>
+            </div>
+            ${badge(item.status || '-')}
+          </div>
+          <div class="kv"><div class="k">当前版本</div><div class="mono">${esc(item.current_version || '-')}</div></div>
+          <div class="kv"><div class="k">项目路径</div><div class="mono">${esc(item.path || '-')}</div></div>
+          <div class="kv"><div class="k">更新时间</div><div>${esc(item.updated_at || '-')}</div></div>
+          <div class="kv"><div class="k">归档状态</div><div>${esc(item.pipeline_status || '未启动')}</div></div>
+          <div class="kv"><div class="k">发布状态</div><div>${item.publish ? '已发布' : '未发布'}</div></div>
+        </div>
       `;
     }
-    function render(items){
-      rowsEl.innerHTML = items.map(item => `
-        <tr>
-          <td><strong>${esc(item.name)}</strong></td>
-          <td><span class="pill">${esc(item.status || '-')}</span></td>
-          <td class="mono">${esc(item.current_version || '-')}</td>
-          <td class="mono">${esc(item.path || '-')}</td>
-          <td>${esc(item.updated_at || '-')}</td>
-          <td>${archiveBlock(item)}</td>
-        </tr>
-      `).join('');
-    }
+    function render(items){ rowsEl.innerHTML = items.map(card).join(''); }
     qEl.addEventListener('input', () => {
       const q = qEl.value.trim().toLowerCase();
       if (!q) return render(DATA);
@@ -133,9 +146,8 @@ def enrich_projects(projects: list[dict], start: Path | None = None):
             version_dir = get_current_version_dir(project_path, config)
             if version_dir and (version_dir / '.state.json').exists():
                 state = StateManager(version_dir)
-                row['current_task'] = state.data.get('current_task')
                 row['pipeline_status'] = state.data.get('status')
-                row['archive'] = state.data.get('archive')
+                row['publish'] = state.data.get('publish')
         except Exception:
             pass
         enriched.append(row)

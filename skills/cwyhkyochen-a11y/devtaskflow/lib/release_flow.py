@@ -3,12 +3,7 @@ import shutil
 
 from project import get_current_version_dir
 from state import StateManager
-
-
-ARCHIVE_DOC_FILES = [
-    'REQUIREMENTS.md',
-    'DEV_PLAN.md',
-]
+from deploy_adapter import run_deploy_adapter
 
 
 def ensure_deployment_guide(project_root: Path, version_dir: Path):
@@ -82,13 +77,16 @@ def run_deploy(project_root: Path, config: dict):
     if state.data.get('status') not in allowed:
         raise RuntimeError(f"当前状态不允许 deploy: {state.data.get('status')}")
 
+    adapter_result = run_deploy_adapter(project_root, config)
     state.data['status'] = 'deployed'
+    state.data['deploy'] = adapter_result
     state.save()
 
     return {
         'version': version_dir.name,
-        'mode': config.get('adapters', {}).get('deploy', 'manual'),
-        'message': '当前为基础版 deploy：仅完成状态推进，真实部署将由 deploy adapter 接管。',
+        'mode': config.get('adapters', {}).get('deploy', 'shell'),
+        'adapter': adapter_result,
+        'message': 'deploy 已切到 adapter 模式，当前仍为骨架实现。',
     }
 
 

@@ -4,7 +4,7 @@ from pathlib import Path
 from project_board import find_workspace_root, register_project
 
 
-def init_project_structure(project_root: Path, templates_dir: Path, project_name: str | None = None):
+def init_project_structure(project_root: Path, templates_dir: Path, project_name: str | None = None, workspace_root: Path | None = None):
     dtflow_dir = project_root / '.dtflow'
     versions_dir = project_root / 'versions'
     docs_dir = project_root / 'docs'
@@ -29,7 +29,7 @@ def init_project_structure(project_root: Path, templates_dir: Path, project_name
     config_text = config_text.replace('your-project-name', final_name)
     config_dst.write_text(config_text, encoding='utf-8')
 
-    workspace_root = find_workspace_root(project_root)
+    workspace_root = workspace_root or find_workspace_root(project_root)
     project_rel_path = str(project_root.resolve().relative_to(workspace_root.resolve())) if str(project_root.resolve()).startswith(str(workspace_root.resolve())) else str(project_root.resolve())
     board_item = register_project(workspace_root, final_name, project_rel_path)
 

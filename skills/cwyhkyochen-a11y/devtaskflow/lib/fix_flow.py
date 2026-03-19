@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from llm import OpenAICompatibleLLM
+from orchestrator import get_orchestrator
 from project import scan_project_files, get_current_version_dir
 from state import StateManager
-from write_flow import parse_file_blocks, apply_file_blocks, SYSTEM_PROMPT as WRITE_SYSTEM_PROMPT
+from write_flow import apply_file_blocks
+from contracts_fix import build_fix_payload
 
 
 def run_fix(project_root: Path, config: dict):
@@ -35,29 +36,26 @@ def run_fix(project_root: Path, config: dict):
         f"=== 文件: {f['path']} ===\n{f['content'][:2000]}" for f in project_files[:8]
     ])
 
-    llm = OpenAICompatibleLLM(config)
-    user_prompt = f"""请根据以下审查报告修复代码：
+    state.data['status'] = 'fixing'
+    state.data['last_action'] = 'fix'
+    state.data['last_error'] = None
+    state.save()
 
-## 当前任务
-[{task['id']}] {task['name']}
+    orchestrator = get_orchestrator(config)
+    result = orchestrator.run('fix', build_fix_payload(project_root, version_dir, task, dev_plan, context, review_feedback))
 
-## 开发计划
-{dev_plan[:5000]}
+    if result.get('status') == 'not_implemented':
+        raise RuntimeError(result.get('message', 'fix 编排器未实现'))
 
-## 项目上下文
-{context}
-
-## 审查报告
-{review_feedback}
-
-请严格使用 FILE 输出格式返回修复后的代码。"""
-    result = llm.chat(WRITE_SYSTEM_PROMPT, user_prompt, max_tokens=16384, temperature=0.3)
-    file_blocks = parse_file_blocks(result)
+    file_blocks = result.get('file_operations', [])
     if not file_blocks:
-        raise RuntimeError('fix 输出未解析出任何文件块')
+        raise RuntimeError('fix 未返回任何 file_operations')
 
     written = apply_file_blocks(project_root, file_blocks)
     state.data['status'] = 'written'
+    state.data['last_orchestration'] = config.get('adapters', {}).get('orchestration', 'local_llm') or 'local_llm'
+    state.data['last_result_format'] = result.get('result_format', 'unknown')
+    state.data['last_summary'] = result.get('summary', '')
     state.save()
 
     return {
@@ -65,4 +63,7 @@ def run_fix(project_root: Path, config: dict):
         'task_name': task['name'],
         'files': written,
         'count': len(written),
+        'orchestration': state.data['last_orchestration'],
+        'result_format': state.data['last_result_format'],
+        'summary': state.data['last_summary'],
     }

@@ -13,12 +13,16 @@ def now_date() -> str:
 
 
 def find_workspace_root(start: Path | None = None) -> Path:
-    current = (start or Path.cwd()).resolve()
+    origin = (start or Path.cwd()).resolve()
+    current = origin
+    last_projects_match = None
     while current != current.parent:
         if (current / 'AGENTS.md').exists():
             return current
+        if (current / DEFAULT_PROJECTS_FILE).exists():
+            last_projects_match = current
         current = current.parent
-    return Path.cwd().resolve()
+    return last_projects_match or origin
 
 
 def load_projects(board_path: Path) -> list[dict]:

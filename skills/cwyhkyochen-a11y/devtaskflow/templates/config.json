@@ -1,10 +1,10 @@
 {
   "project": {
-    "name": "your-project-name",
+    "name": "my-first-project",
     "repo_path": ".",
     "language": "typescript",
     "board_enabled": true,
-    "board_name": "your-project-name"
+    "board_name": "my-first-project"
   },
   "pipeline": {
     "versions_dir": "versions",
@@ -18,8 +18,28 @@
     "model_env": "DTFLOW_LLM_MODEL"
   },
   "adapters": {
-    "deploy": "manual",
+    "deploy": "shell",
     "archive": "local-copy",
-    "orchestration": "none"
+    "orchestration": "local_llm",
+    "publish": "github"
+  },
+  "openclaw": {
+    "agent_id": "skill-runner",
+    "mode": "run",
+    "timeout_seconds": 900,
+    "model": "Opus"
+  },
+  "deploy": {
+    "build_command": "",
+    "deploy_command": "",
+    "restart_command": "",
+    "host": "",
+    "user": "",
+    "path": "",
+    "upload_mode": "rsync"
+  },
+  "publish": {
+    "github_repo": "",
+    "release_branch": "main"
   }
 }

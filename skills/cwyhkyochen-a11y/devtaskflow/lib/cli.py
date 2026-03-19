@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 
 from config import find_project_root, load_config, validate_config, ConfigError
@@ -11,206 +12,477 @@ from write_flow import run_write
 from review_flow import run_review
 from fix_flow import run_fix
 from release_flow import run_deploy, run_seal
+from publish_flow import run_publish
 from version_flow import create_version
-from project_queries import list_projects, get_project_by_name, bump_version
 from dashboard import build_dashboard
 from serve import run_serve
-from workspace_layout import resolve_project_init_path
-from project_board import find_workspace_root
+from llm_risk import estimate_llm_risk, print_llm_risk
+from workspace_layout import resolve_project_init_path, guess_workspace_root_for_init
+from project_board import find_workspace_root, load_projects, DEFAULT_PROJECTS_FILE
+from error_handling import mark_command_failed
+from ux import build_status_explanation, build_next_step_hint
+from requirement_guidance import render_requirement_guidance
+from human_summary import (
+    render_analyze_summary,
+    render_review_summary,
+    render_write_summary,
+    render_fix_summary,
+    render_next_step,
+)
+from setup_flow import run_setup
+from auto_advance import auto_advance
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / 'templates'
 
 
-def cmd_init_project(args):
-    workspace_root = find_workspace_root(Path.cwd())
-    project_root = resolve_project_init_path(workspace_root, args.path, args.name)
-    result = init_project_structure(project_root, TEMPLATES_DIR, project_name=args.name)
-    print('✅ DevTaskFlow 项目初始化完成')
-    for k, v in result.items():
-        print(f'- {k}: {v}')
-    print('\n下一步：')
-    print('1. 编辑 .dtflow/config.json')
-    print('2. 配置环境变量或 .env')
-    print('3. 执行 dtflow doctor')
+def list_projects(start: Path):
+    workspace_root = find_workspace_root(start)
+    return load_projects(workspace_root / DEFAULT_PROJECTS_FILE)
+
+
+def get_project_by_name(name: str, start: Path):
+    projects = list_projects(start)
+    for project in projects:
+        if project.get('name') == name:
+            return project
+    raise RuntimeError(f'项目不存在: {name}')
+
+
+def bump_version(version: str, bump: str):
+    if not version.startswith('v'):
+        raise ValueError('版本号必须以 v 开头，例如 v1.2.3')
+    parts = version[1:].split('.')
+    if len(parts) != 3:
+        raise ValueError('版本号必须是语义化版本，例如 v1.2.3')
+    major, minor, patch = map(int, parts)
+    if bump == 'major':
+        return f'v{major + 1}.0.0'
+    if bump == 'minor':
+        return f'v{major}.{minor + 1}.0'
+    return f'v{major}.{minor}.{patch + 1}'
+
+
+def find_next_version(project_root: Path, config: dict, new_project: bool = False) -> str:
+    versions_dir = project_root / config['pipeline'].get('versions_dir', 'versions')
+    if new_project or not versions_dir.exists():
+        return 'v0.1.0'
+    versions = sorted([p.name for p in versions_dir.iterdir() if p.is_dir() and p.name.startswith('v')])
+    if not versions:
+        return 'v0.1.0'
+    return bump_version(versions[-1], 'patch')
+
+
+# ============================================================
+# 核心命令 1: setup — 依赖初始化
+# ============================================================
+
+def cmd_setup(args):
+    root = find_project_root()
+    return run_setup(project_root=root)
+
+
+# ============================================================
+# 核心命令 2: start — 开始/继续项目
+# ============================================================
+
+def cmd_start(args):
+    # 找到或创建项目
+    workspace_root = guess_workspace_root_for_init(Path.cwd())
+    project_name = args.name or 'my-project'
+    project_root = resolve_project_init_path(workspace_root, args.path, project_name)
+
+    # 如果项目不存在，先初始化
+    if not (project_root / '.dtflow' / 'config.json').exists():
+        init_project_structure(project_root, TEMPLATES_DIR, project_name=project_name, workspace_root=workspace_root)
+        print(f'✅ 已为你创建项目 {project_name}')
+
+    try:
+        config = load_config(project_root)
+        validate_config(config)
+    except ConfigError as e:
+        print(f'\n⚠️ 配置有问题：{e}')
+        print('   建议先运行 dtflow setup 配置 AI 服务。')
+        return 1
+
+    # 检查是否有进行中的版本
+    version_dir = get_current_version_dir(project_root, config)
+    has_version = version_dir and (version_dir / '.state.json').exists()
+
+    if not has_version:
+        # 全新项目：需要 --idea
+        if not args.idea:
+            print('\n📋 这是一个新项目，先告诉我你想做什么吧。')
+            print('   运行 dtflow start --idea "用自然语言描述你的需求"')
+            return 0
+
+        # 创建版本 + 写入需求
+        version = args.version or find_next_version(project_root, config, new_project=args.new_project)
+        try:
+            result = create_version(
+                project_root, config, version,
+                mode='new' if args.new_project else 'iterate',
+                requirements_text=args.idea,
+            )
+        except Exception as e:
+            print(f'\n⚠️ 创建项目时出了问题：{e}')
+            return 1
+
+        print(f'\n✅ 已为你启动项目 {project_name}（版本 {version}）')
+        print(f'   需求文档：{result["requirements_file"]}')
+
+        # 给出需求建议
+        print('\n💡 需求建议：')
+        print(render_requirement_guidance(args.idea))
+        print('\n   如果你觉得有帮助，把补充内容直接追加到需求里就行。')
+
+    # 根据参数决定行为
+    try:
+        if args.confirm:
+            return 0 if auto_advance(project_root, action='confirm')['status'] != 'failed' else 1
+        if args.confirm_write:
+            return 0 if auto_advance(project_root, action='confirm_write')['status'] != 'failed' else 1
+        if args.feedback:
+            return 0 if auto_advance(project_root, action='revise', feedback=args.feedback)['status'] != 'failed' else 1
+        if args.run:
+            from run_flow import run_flow
+            result = run_flow(project_root, config)
+            url = result.get('url', '')
+            status = result.get('status', '')
+            if status == 'already_running':
+                print(f'✅ 服务已在运行：{url}')
+            elif status == 'running':
+                print(f'✅ 预览已启动：{url}')
+            else:
+                print(f'⏳ 服务正在启动：{url}')
+                print(f'   {result.get("message", "")}')
+            return 0
+        if args.stop:
+            from run_flow import stop_run
+            result = stop_run(project_root, config)
+            print(f'✅ {result.get("message", "")}')
+            return 0
+        if args.deploy:
+            return 0 if auto_advance(project_root, action='deploy')['status'] != 'failed' else 1
+
+        # 默认：自动推进
+        result = auto_advance(project_root, action='continue')
+        return 0 if result.get('status') != 'failed' else 1
+
+    except Exception as e:
+        print(f'\n⚠️ 出了点问题：{e}')
+        return 1
+
+
+# ============================================================
+# 核心命令 3: board — 项目看板
+# ============================================================
+
+def cmd_board(args):
+    import subprocess
+    import json as _json
+
+    board_dir = BASE_DIR / 'board'
+
+    if args.serve:
+        # 启动 Node.js 看板服务
+        if not (board_dir / 'node_modules').exists():
+            print('⏳ 首次使用，正在安装看板依赖...')
+            subprocess.run(['npm', 'install'], cwd=board_dir, check=True)
+
+        # 确定工作区路径
+        try:
+            workspace_root = find_workspace_root(Path.cwd())
+        except Exception:
+            workspace_root = Path.cwd()
+
+        port = args.port
+        env = {**os.environ, 'DTFLOW_WORKSPACE': str(workspace_root), 'DTFLOW_BOARD_PORT': str(port)}
+
+        # 检查端口是否已被占用
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        in_use = sock.connect_ex(('127.0.0.1', port)) == 0
+        sock.close()
+        if in_use:
+            print(f'✅ 看板已在运行：http://localhost:{port}')
+            print('   如需重启，请先停止现有服务。')
+            return 0
+
+        print(f'🚀 正在启动看板服务...')
+        print(f'   地址：http://localhost:{port}')
+        print('   按 Ctrl+C 停止')
+        try:
+            subprocess.run(['node', 'server.js'], cwd=board_dir, env=env)
+        except KeyboardInterrupt:
+            print('\n已停止')
+        return 0
+
+    # 文字版看板 — 给 agent 在对话中使用
+    try:
+        workspace_root = find_workspace_root(Path.cwd())
+    except Exception:
+        workspace_root = Path.cwd()
+
+    projects_file = workspace_root / DEFAULT_PROJECTS_FILE
+    if not projects_file.exists():
+        print('暂无项目。运行 dtflow start --idea "你的需求" 创建第一个项目。')
+        return 0
+
+    projects = load_projects(projects_file)
+    if not projects:
+        print('暂无项目。运行 dtflow start --idea "你的需求" 创建第一个项目。')
+        return 0
+
+    print()
+    print('📊 项目看板')
+    print('=' * 40)
+
+    for idx, project in enumerate(projects, start=1):
+        name = project.get('name', '未命名')
+        status = project.get('status', '-')
+        version = project.get('current_version', '-')
+        updated = project.get('updated_at', '-')
+
+        status_icon = {
+            'active': '🟢', 'sealed': '📦', 'paused': '⏸️', 'failed': '🔴',
+        }.get(status, '⚪')
+
+        print(f'\n{idx}. {status_icon} {name}  [{version}]')
+        print(f'   状态：{status}  |  更新：{updated}')
+
+        # 读取详细状态
+        try:
+            proj_path = Path(project.get('path', ''))
+            if (proj_path / '.dtflow' / 'config.json').exists():
+                config = load_config(proj_path)
+                vd = get_current_version_dir(proj_path, config)
+                if vd and (vd / '.state.json').exists():
+                    sm = StateManager(vd)
+                    explanation = build_status_explanation(sm.data)
+                    next_step = build_next_step_hint(sm.data)
+                    print(f'   进度：{explanation}')
+                    print(f'   下一步：{next_step}')
+
+                    # 部署信息
+                    deploy = config.get('deploy', {})
+                    host = deploy.get('host', '')
+                    deploy_path = deploy.get('path', '')
+                    if host or deploy_path:
+                        print(f'   部署：{deploy.get("user", "")}@{host}:{deploy_path}' if deploy.get('user') else f'   部署：{host}:{deploy_path}')
+        except Exception:
+            pass
+
+        if project.get('note'):
+            print(f'   备注：{project["note"]}')
+
+    print(f'\n共 {len(projects)} 个项目。')
     return 0
 
 
-def cmd_doctor(args):
-    checks = run_doctor()
-    ok = True
-    print('DevTaskFlow Doctor')
-    print('=' * 24)
-    for name, passed, detail in checks:
-        mark = '✅' if passed else '❌'
-        print(f'{mark} {name}: {detail}')
-        if not passed:
-            ok = False
-    return 0 if ok else 1
+# ============================================================
+# 核心命令 board 的详细查询（agent 用）
+# ============================================================
+
+def cmd_board_query(args):
+    """查询单个项目详情，文字输出（agent 向用户回复用）。"""
+    try:
+        workspace_root = find_workspace_root(Path.cwd())
+    except Exception:
+        workspace_root = Path.cwd()
+
+    projects = load_projects(workspace_root / DEFAULT_PROJECTS_FILE)
+    name = args.name
+
+    project = None
+    for p in projects:
+        if p.get('name') == name:
+            project = p
+            break
+
+    if not project:
+        # 模糊匹配
+        matches = [p for p in projects if name.lower() in p.get('name', '').lower()]
+        if len(matches) == 1:
+            project = matches[0]
+        elif matches:
+            print(f'找到多个匹配项目：')
+            for m in matches:
+                print(f'  - {m["name"]}')
+            return 1
+        else:
+            print(f'未找到项目「{name}」。')
+            return 1
+
+    proj_path = Path(project.get('path', ''))
+    status = project.get('status', '-')
+    version = project.get('current_version', '-')
+
+    status_icon = {
+        'active': '🟢', 'sealed': '📦', 'paused': '⏸️', 'failed': '🔴',
+    }.get(status, '⚪')
+
+    print(f'{status_icon} {project["name"]}')
+    print(f'版本：{version}  |  状态：{status}')
+    print(f'更新时间：{project.get("updated_at", "-")}')
+
+    # 详细状态
+    try:
+        config = load_config(proj_path)
+        vd = get_current_version_dir(proj_path, config)
+        if vd and (vd / '.state.json').exists():
+            sm = StateManager(vd)
+            print(f'流程进度：{build_status_explanation(sm.data)}')
+            print(f'下一步：{build_next_step_hint(sm.data)}')
+
+            # 任务列表
+            tasks = sm.data.get('tasks', [])
+            if tasks:
+                done = sum(1 for t in tasks if t.get('status') == 'done')
+                print(f'\n任务进度：{done}/{len(tasks)}')
+                for t in tasks:
+                    icon = '✅' if t.get('status') == 'done' else '⏳'
+                    print(f'  {icon} [{t["id"]}] {t["name"]} ({t.get("priority", "")})')
+
+            # 最近错误
+            last_error = sm.data.get('last_error')
+            if last_error:
+                print(f'\n⚠️ 最近错误：{last_error}')
+
+        # 部署信息
+        deploy = config.get('deploy', {})
+        host = deploy.get('host', '')
+        if host:
+            print(f'\n📦 部署信息')
+            print(f'  服务器：{deploy.get("user", "")}@{host}')
+            print(f'  路径：{deploy.get("path", "")}')
+            print(f'  构建：{deploy.get("build_command", "") or "未配置"}')
+            print(f'  部署：{deploy.get("deploy_command", "") or "未配置"}')
+
+        # 需求摘要
+        req_path = vd / 'docs' / 'REQUIREMENTS.md'
+        if req_path.exists():
+            req = req_path.read_text(encoding='utf-8')[:300]
+            print(f'\n📝 需求摘要')
+            print(f'  {req}{"..." if len(req_path.read_text(encoding="utf-8")) > 300 else ""}')
+
+    except Exception as e:
+        print(f'\n⚠️ 读取详情时出错：{e}')
+
+    return 0
 
 
-def cmd_status(args):
+# ============================================================
+# 高级命令（保留给高级用户）
+# ============================================================
+
+def cmd_advanced(args):
+    """高级命令入口，打印帮助。"""
+    print('DevTaskFlow 高级命令')
+    print('=' * 40)
+    print()
+    print('以下命令供高级用户使用，普通用户使用 setup / start / board 即可。')
+    print()
+    print('可用命令：')
+    print('  dtflow advanced status          查看项目详细状态')
+    print('  dtflow advanced doctor          检查环境')
+    print('  dtflow advanced analyze         手动执行需求分析')
+    print('  dtflow advanced confirm         手动确认方案')
+    print('  dtflow advanced write           手动生成代码')
+    print('  dtflow advanced review          手动审查代码')
+    print('  dtflow advanced fix             手动修复问题')
+    print('  dtflow advanced deploy          手动部署')
+    print('  dtflow advanced seal            手动封版')
+    print('  dtflow advanced publish         发布到 GitHub')
+    print('  dtflow advanced next-version    计算下一个版本号')
+    print('  dtflow advanced project-list    项目列表（原始格式）')
+    print('  dtflow advanced project-status  单项目状态')
+    print('  dtflow advanced dashboard       生成 HTML 看板文件')
+    print('  dtflow advanced demo            查看示例项目')
+    return 0
+
+
+def cmd_adv_status(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。先运行 dtflow setup 或 dtflow start --idea "需求"。')
         return 1
     try:
         config = load_config(root)
         validate_config(config)
     except ConfigError as e:
-        print(f'配置错误: {e}')
+        print(f'⚠️ 配置有问题：{e}')
         return 1
-    print('DevTaskFlow Status')
-    print('=' * 24)
-    print(f'project_root: {root}')
-    print(f'project_name: {config["project"].get("name")}')
-    print(f'language: {config["project"].get("language")}')
-    print(f'versions_dir: {config["pipeline"].get("versions_dir")}')
-    print(f'orchestration: {config["adapters"].get("orchestration")}')
+    print('DevTaskFlow 详细状态')
+    print('=' * 40)
+    print(f'项目目录：{root}')
+    print(f'项目名称：{config["project"].get("name")}')
+    print(f'开发语言：{config["project"].get("language")}')
+    print(f'编排模式：{config["adapters"].get("orchestration")}')
     version_dir = get_current_version_dir(root, config)
     if version_dir and (version_dir / '.state.json').exists():
         state = StateManager(version_dir)
-        print(f'version: {version_dir.name}')
-        print(f'status: {state.data.get("status")}')
-        print(f'current_task: {state.data.get("current_task")}')
+        print(f'当前版本：{version_dir.name}')
+        print(f'流程状态：{state.data.get("status")}')
+        print(f'当前任务：{state.data.get("current_task") or "-"}')
+        print(f'最近操作：{state.data.get("last_action") or "-"}')
+        print(f'结果格式：{state.data.get("last_result_format") or "-"}')
+        print(f'最近摘要：{state.data.get("last_summary") or "-"}')
+        print(f'最近错误：{state.data.get("last_error") or "-"}')
+        print(f'状态说明：{build_status_explanation(state.data)}')
+        print(f'下一步建议：{build_next_step_hint(state.data)}')
     try:
         project = get_project_by_name(config['project']['name'], root)
-        print(f'board_status: {project.get("status")}')
-        print(f'board_version: {project.get("current_version")}')
+        print(f'看板状态：{project.get("status")}')
+        print(f'看板版本：{project.get("current_version")}')
     except Exception:
         pass
     return 0
 
 
-def cmd_project_list(args):
-    projects = list_projects(Path.cwd())
-    print('DevTaskFlow Projects')
-    print('=' * 24)
-    if not projects:
-        print('暂无项目')
-        return 0
-    for idx, project in enumerate(projects, start=1):
-        print(f"{idx}. {project['name']}")
-        print(f"   - status: {project.get('status', '-')}")
-        print(f"   - version: {project.get('current_version', '-')}")
-        print(f"   - path: {project.get('path', '-')}")
-        print(f"   - updated_at: {project.get('updated_at', '-')}")
-        if project.get('note'):
-            print(f"   - note: {project.get('note')}")
-    return 0
+def cmd_adv_doctor(args):
+    checks = run_doctor()
+    ok = True
+    print('环境检查')
+    print('=' * 40)
+    for name, passed, detail in checks:
+        mark = '✅' if passed else '❌'
+        print(f'{mark} {name}: {detail}')
+        if not passed:
+            ok = False
+    if not ok:
+        print('\n有检查项未通过，建议运行 dtflow setup 重新配置。')
+    return 0 if ok else 1
 
 
-def cmd_project_status(args):
-    if not args.name:
-        print('请通过 --name 指定项目名')
-        return 1
-    try:
-        project = get_project_by_name(args.name, Path.cwd())
-    except Exception as e:
-        print(f'project-status 失败: {e}')
-        return 1
-    print('DevTaskFlow Project Status')
-    print('=' * 24)
-    for key in ['name', 'status', 'current_version', 'path', 'updated_at', 'note']:
-        print(f'{key}: {project.get(key, "-")}')
-    return 0
-
-
-def cmd_next_version(args):
-    if not args.version:
-        print('请通过 --version 指定当前版本号')
-        return 1
-    try:
-        next_version = bump_version(args.version, args.bump)
-    except Exception as e:
-        print(f'next-version 失败: {e}')
-        return 1
-    print(next_version)
-    return 0
-
-
-def cmd_dashboard(args):
-    try:
-        result = build_dashboard(Path.cwd())
-    except Exception as e:
-        print(f'dashboard 失败: {e}')
-        return 1
-    print('✅ dashboard 已生成')
-    print(f"- board_path: {result['board_path']}")
-    print(f"- dashboard_path: {result['dashboard_path']}")
-    print(f"- project_count: {result['project_count']}")
-    return 0
-
-
-def cmd_serve(args):
-    try:
-        server, result = run_serve(Path.cwd(), port=args.port)
-    except Exception as e:
-        print(f'serve 失败: {e}')
-        return 1
-    print('✅ 本地看板服务已启动')
-    print(f"- url: {result['url']}")
-    print(f"- dashboard_path: {result['dashboard_path']}")
-    print('按 Ctrl+C 停止')
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print('\n已停止')
-    finally:
-        server.server_close()
-    return 0
-
-
-def cmd_start_version(args):
+def cmd_adv_analyze(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
-        return 1
-    if not args.version:
-        print('请通过 --version 指定版本号，例如 v0.1.0')
-        return 1
-    mode = 'new' if args.new_project else 'iterate'
-    try:
-        config = load_config(root)
-        validate_config(config)
-        result = create_version(root, config, args.version, mode=mode)
-    except Exception as e:
-        print(f'start-version 失败: {e}')
-        return 1
-    print('✅ 版本已启动')
-    print(f"- mode: {result['mode']}")
-    print(f"- version_dir: {result['version_dir']}")
-    print(f"- requirements_file: {result['requirements_file']}")
-    print('下一步：填写 REQUIREMENTS.md，然后执行 dtflow analyze')
-    return 0
-
-
-def cmd_analyze(args):
-    root = find_project_root()
-    if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
         return 1
     try:
         config = load_config(root)
         validate_config(config)
+        print_llm_risk(estimate_llm_risk(root, config, 'analyze'))
         result = run_analyze(root, config)
     except Exception as e:
-        print(f'analyze 失败: {e}')
+        mark_command_failed(root, 'analyze', e)
+        print(f'⚠️ 分析失败：{e}')
         return 1
     print('✅ analyze 完成')
-    print(f"- plan_file: {result['plan_file']}")
-    print(f"- task_count: {result['task_count']}")
+    print(f"- 方案文件：{result['plan_file']}")
+    print(f"- 任务数：{result['task_count']}")
     for task in result['tasks'][:10]:
         print(f"  - [{task['id']}] {task['name']} ({task['priority']})")
-    print('\n下一步：dtflow confirm 或 dtflow revise --feedback "..."')
+    print('\n下一步：dtflow start --confirm')
     return 0
 
 
-def cmd_confirm(args):
+def cmd_adv_confirm(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
         return 1
     try:
         config = load_config(root)
@@ -219,213 +491,320 @@ def cmd_confirm(args):
             raise RuntimeError('没有找到当前版本目录')
         state = StateManager(version_dir)
         if state.data.get('status') != 'pending_confirm':
-            raise RuntimeError(f"当前状态不是 pending_confirm，而是 {state.data.get('status')}")
+            raise RuntimeError(f'当前状态不是待确认，而是 {state.data.get("status")}')
         state.data['architecture_confirmed'] = True
         state.data['status'] = 'confirmed'
+        state.data['last_action'] = 'confirm'
         tasks = state.data.get('tasks', [])
         state.data['current_task'] = tasks[0]['id'] if tasks else None
         state.save()
     except Exception as e:
-        print(f'confirm 失败: {e}')
+        print(f'⚠️ 确认失败：{e}')
         return 1
     print('✅ 方案已确认')
-    print(f"- current_task: {state.data.get('current_task')}")
-    print('下一步：dtflow write')
+    print('下一步：dtflow advanced write --dry-run')
     return 0
 
 
-def cmd_revise(args):
+def cmd_adv_write(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
-        return 1
-    if not args.feedback:
-        print('请通过 --feedback 提供修改意见')
-        return 1
-    try:
-        config = load_config(root)
-        version_dir = get_current_version_dir(root, config)
-        if not version_dir:
-            raise RuntimeError('没有找到当前版本目录')
-        state = StateManager(version_dir)
-        state.data['revision_feedback'] = args.feedback
-        state.save()
-    except Exception as e:
-        print(f'revise 失败: {e}')
-        return 1
-    print('✅ 已记录反馈')
-    print(f'- feedback: {args.feedback}')
-    print('请重新执行 dtflow analyze')
-    return 0
-
-
-def cmd_write(args):
-    root = find_project_root()
-    if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
         return 1
     try:
         config = load_config(root)
         validate_config(config)
-        result = run_write(root, config, task_id=args.task_id)
+        print_llm_risk(estimate_llm_risk(root, config, 'write'))
+        result = run_write(root, config, task_id=args.task_id, dry_run=args.dry_run)
     except Exception as e:
-        print(f'write 失败: {e}')
+        mark_command_failed(root, 'write', e)
+        print(f'⚠️ 生成失败：{e}')
         return 1
     print('✅ write 完成')
-    print(f"- task: [{result['task_id']}] {result['task_name']}")
-    print(f"- files_written: {result['count']}")
+    print(f"- 任务：[{result['task_id']}] {result['task_name']}")
+    print(f"- 文件数：{result['count']}")
     for item in result['files'][:20]:
         print(f"  - {item['action']}: {item['path']}")
-    print('\n下一步：dtflow review')
+    print('\n下一步：' + ('确认预览后再次执行 dtflow advanced write' if result.get('dry_run') else 'dtflow advanced review'))
     return 0
 
 
-def cmd_review(args):
+def cmd_adv_review(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
         return 1
     try:
         config = load_config(root)
         validate_config(config)
+        print_llm_risk(estimate_llm_risk(root, config, 'review'))
         result = run_review(root, config)
     except Exception as e:
-        print(f'review 失败: {e}')
+        mark_command_failed(root, 'review', e)
+        print(f'⚠️ 审查失败：{e}')
         return 1
     print('✅ review 完成')
-    print(f"- review_file: {result['review_file']}")
-    print(f"- passed: {result['passed']}")
-    print('下一步：' + ('继续下一个任务 / dtflow deploy' if result['passed'] else 'dtflow fix'))
+    print(f"- 通过：{result['passed']}")
+    print('\n下一步：' + ('dtflow start --deploy 或继续下一个任务' if result['passed'] else 'dtflow advanced fix'))
     return 0
 
 
-def cmd_fix(args):
+def cmd_adv_fix(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
         return 1
     try:
         config = load_config(root)
         validate_config(config)
+        print_llm_risk(estimate_llm_risk(root, config, 'fix'))
         result = run_fix(root, config)
     except Exception as e:
-        print(f'fix 失败: {e}')
+        mark_command_failed(root, 'fix', e)
+        print(f'⚠️ 修复失败：{e}')
         return 1
     print('✅ fix 完成')
-    print(f"- task: [{result['task_id']}] {result['task_name']}")
-    print(f"- files_written: {result['count']}")
-    for item in result['files'][:20]:
-        print(f"  - {item['action']}: {item['path']}")
-    print('下一步：dtflow review')
+    print(f"- 文件数：{result['count']}")
+    print('\n下一步：dtflow advanced review')
     return 0
 
 
-def cmd_deploy(args):
+def cmd_adv_deploy(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
         return 1
     try:
         config = load_config(root)
         validate_config(config)
+        version_dir = get_current_version_dir(root, config)
+        if version_dir and (version_dir / '.state.json').exists():
+            state = StateManager(version_dir)
+            state.data['status'] = 'deploying'
+            state.data['last_action'] = 'deploy'
+            state.data['last_error'] = None
+            state.save()
         result = run_deploy(root, config)
     except Exception as e:
-        print(f'deploy 失败: {e}')
+        print(f'⚠️ 部署失败：{e}')
         return 1
     print('✅ deploy 完成')
-    print(f"- version: {result['version']}")
-    print(f"- mode: {result['mode']}")
-    print(f"- note: {result['message']}")
-    print('下一步：dtflow seal')
+    print(f"- 版本：{result['version']}")
+    print('\n下一步：dtflow advanced seal')
     return 0
 
 
-def cmd_seal(args):
+def cmd_adv_seal(args):
     root = find_project_root()
     if not root:
-        print('未找到 .dtflow/config.json，当前目录不是 DevTaskFlow 项目')
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
         return 1
     try:
         config = load_config(root)
         validate_config(config)
         result = run_seal(root, config)
+        version_dir = get_current_version_dir(root, config)
+        if version_dir and (version_dir / '.state.json').exists():
+            state = StateManager(version_dir)
+            state.data['status'] = 'sealed'
+            state.data['last_action'] = 'seal'
+            state.data['last_error'] = None
+            state.save()
     except Exception as e:
-        print(f'seal 失败: {e}')
+        print(f'⚠️ 封版失败：{e}')
         return 1
     print('✅ seal 完成')
-    print(f"- version: {result['version']}")
-    print(f"- docs_dir: {result['docs_dir']}")
-    print(f"- src_dir: {result['src_dir']}")
-    print(f"- deployment_file: {result['deployment_file']}")
-    print(f"- docs_files: {', '.join(result['docs_files'])}")
-    print(f"- src_items: {result['src_items']}")
+    print(f"- 版本：{result['version']}")
     return 0
 
 
+def cmd_adv_publish(args):
+    root = find_project_root()
+    if not root:
+        print('⚠️ 当前目录不是 DevTaskFlow 项目。')
+        return 1
+    try:
+        config = load_config(root)
+        validate_config(config)
+        result = run_publish(
+            root, config, args.target,
+            allow_dirty=args.allow_dirty,
+            force_tag=args.force_tag,
+            replace_release=args.replace_release,
+        )
+    except Exception as e:
+        print(f'⚠️ 发布失败：{e}')
+        return 1
+    print('✅ publish 完成')
+    print(f"- 目标：{result['target']}")
+    print(f"- 版本：{result['version']}")
+    return 0
+
+
+def cmd_adv_next_version(args):
+    if not args.version:
+        print('请通过 --version 指定当前版本号')
+        return 1
+    try:
+        next_version = bump_version(args.version, args.bump)
+    except Exception as e:
+        print(f'⚠️ 计算失败：{e}')
+        return 1
+    print(next_version)
+    return 0
+
+
+def cmd_adv_project_list(args):
+    projects = list_projects(Path.cwd())
+    print('项目列表')
+    print('=' * 40)
+    if not projects:
+        print('暂无项目')
+        return 0
+    for idx, project in enumerate(projects, start=1):
+        print(f"{idx}. {project['name']}")
+        print(f"   - status: {project.get('status', '-')}")
+        print(f"   - version: {project.get('current_version', '-')}")
+        print(f"   - path: {project.get('path', '-')}")
+    return 0
+
+
+def cmd_adv_project_status(args):
+    if not args.name:
+        print('请通过 --name 指定项目名')
+        return 1
+    try:
+        project = get_project_by_name(args.name, Path.cwd())
+    except Exception as e:
+        print(f'⚠️ 查询失败：{e}')
+        return 1
+    for key in ['name', 'status', 'current_version', 'path', 'updated_at', 'note']:
+        print(f'{key}: {project.get(key, "-")}')
+    return 0
+
+
+def cmd_adv_dashboard(args):
+    try:
+        result = build_dashboard(Path.cwd())
+    except Exception as e:
+        print(f'⚠️ 生成失败：{e}')
+        return 1
+    print('✅ HTML 看板已生成')
+    print(f"- 文件：{result['dashboard_path']}")
+    return 0
+
+
+def cmd_adv_demo(args):
+    demo_root = BASE_DIR / 'example-project'
+    print('示例项目')
+    print('=' * 40)
+    print(f'位置：{demo_root}')
+    print()
+    print('体验步骤：')
+    print('1. cd 到 example-project')
+    print('2. 运行 dtflow board 查看状态')
+    print('3. 查看 versions/v0.1.0/docs/REQUIREMENTS.md 了解需求格式')
+    print('4. 配好 AI 后运行 dtflow start 体验完整流程')
+    return 0
+
+
+# ============================================================
+# CLI 入口
+# ============================================================
+
 def main():
-    parser = argparse.ArgumentParser(description='DevTaskFlow CLI')
+    parser = argparse.ArgumentParser(
+        prog='dtflow',
+        description='DevTaskFlow — 用自然语言描述需求，AI 帮你做开发',
+    )
     subparsers = parser.add_subparsers(dest='command')
 
-    p_init = subparsers.add_parser('init-project', help='初始化 DevTaskFlow 项目')
-    p_init.add_argument('--path', help='项目路径，默认当前目录')
-    p_init.add_argument('--name', help='项目名称，默认取目录名')
-    p_init.set_defaults(func=cmd_init_project)
+    # --- 核心命令 ---
 
-    p_project_list = subparsers.add_parser('project-list', help='查看当前工作区项目看板')
-    p_project_list.set_defaults(func=cmd_project_list)
+    p_setup = subparsers.add_parser('setup', help='配置 AI 服务（首次使用必做）')
+    p_setup.set_defaults(func=cmd_setup)
 
-    p_project_status = subparsers.add_parser('project-status', help='查看单个项目状态')
-    p_project_status.add_argument('--name', required=True, help='项目名')
-    p_project_status.set_defaults(func=cmd_project_status)
+    p_start = subparsers.add_parser('start', help='开始或继续一个项目')
+    p_start.add_argument('--name', help='项目名称')
+    p_start.add_argument('--path', help='项目路径')
+    p_start.add_argument('--version', help='版本号')
+    p_start.add_argument('--new-project', action='store_true', help='新项目首版')
+    p_start.add_argument('--idea', help='用自然语言描述你的需求')
+    p_start.add_argument('--confirm', action='store_true', help='确认分析方案')
+    p_start.add_argument('--confirm-write', action='store_true', help='确认预览后正式生成代码')
+    p_start.add_argument('--feedback', help='对分析方案提出修改意见')
+    p_start.add_argument('--run', action='store_true', help='本地预览')
+    p_start.add_argument('--stop', action='store_true', help='停止本地预览')
+    p_start.add_argument('--deploy', action='store_true', help='部署上线并封版')
+    p_start.set_defaults(func=cmd_start)
 
-    p_next_version = subparsers.add_parser('next-version', help='计算下一个语义化版本号')
-    p_next_version.add_argument('--version', required=True, help='当前版本号，例如 v1.2.3')
-    p_next_version.add_argument('--bump', choices=['major', 'minor', 'patch'], default='patch', help='递增类型')
-    p_next_version.set_defaults(func=cmd_next_version)
+    p_board = subparsers.add_parser('board', help='查看所有项目状态')
+    p_board.add_argument('--serve', action='store_true', help='启动可视化看板')
+    p_board.add_argument('--port', type=int, default=8765, help='看板端口')
+    p_board.set_defaults(func=cmd_board)
 
-    p_dashboard = subparsers.add_parser('dashboard', help='生成本地 HTML 看板界面')
-    p_dashboard.set_defaults(func=cmd_dashboard)
+    p_bq = subparsers.add_parser('board-query', help='查看单个项目详情')
+    p_bq.add_argument('--name', required=True, help='项目名称（支持模糊匹配）')
+    p_bq.set_defaults(func=cmd_board_query)
 
-    p_serve = subparsers.add_parser('serve', help='启动本地看板服务')
-    p_serve.add_argument('--port', type=int, default=8765, help='端口，默认 8765')
-    p_serve.set_defaults(func=cmd_serve)
+    # --- 高级命令 ---
 
-    p_start_version = subparsers.add_parser('start-version', help='在当前项目中启动一个新版本开发')
-    p_start_version.add_argument('--version', required=True, help='版本号，例如 v0.1.0')
-    p_start_version.add_argument('--new-project', action='store_true', help='标记为新项目首个版本')
-    p_start_version.set_defaults(func=cmd_start_version)
+    p_advanced = subparsers.add_parser('advanced', help='高级命令（给需要精细控制的用户）')
+    advanced_sub = p_advanced.add_subparsers(dest='adv_command')
 
-    p_doctor = subparsers.add_parser('doctor', help='检查环境与项目结构')
-    p_doctor.set_defaults(func=cmd_doctor)
+    p_adv_status = advanced_sub.add_parser('status', help='查看详细状态')
+    p_adv_status.set_defaults(func=cmd_adv_status)
 
-    p_status = subparsers.add_parser('status', help='查看项目状态')
-    p_status.set_defaults(func=cmd_status)
+    p_adv_doctor = advanced_sub.add_parser('doctor', help='检查环境')
+    p_adv_doctor.set_defaults(func=cmd_adv_doctor)
 
-    p_analyze = subparsers.add_parser('analyze', help='执行需求分析，生成 DEV_PLAN.md')
-    p_analyze.set_defaults(func=cmd_analyze)
+    p_adv_analyze = advanced_sub.add_parser('analyze', help='手动执行需求分析')
+    p_adv_analyze.set_defaults(func=cmd_adv_analyze)
 
-    p_confirm = subparsers.add_parser('confirm', help='确认分析方案')
-    p_confirm.set_defaults(func=cmd_confirm)
+    p_adv_confirm = advanced_sub.add_parser('confirm', help='手动确认方案')
+    p_adv_confirm.set_defaults(func=cmd_adv_confirm)
 
-    p_revise = subparsers.add_parser('revise', help='记录修改意见')
-    p_revise.add_argument('--feedback', required=True, help='修改意见')
-    p_revise.set_defaults(func=cmd_revise)
+    p_adv_write = advanced_sub.add_parser('write', help='手动生成代码')
+    p_adv_write.add_argument('--task-id', help='指定任务 ID')
+    p_adv_write.add_argument('--dry-run', action='store_true', help='仅预览')
+    p_adv_write.set_defaults(func=cmd_adv_write)
 
-    p_write = subparsers.add_parser('write', help='根据任务计划生成代码')
-    p_write.add_argument('--task-id', help='指定任务 ID，默认当前任务')
-    p_write.set_defaults(func=cmd_write)
+    p_adv_review = advanced_sub.add_parser('review', help='手动审查代码')
+    p_adv_review.set_defaults(func=cmd_adv_review)
 
-    p_review = subparsers.add_parser('review', help='审查当前任务代码')
-    p_review.set_defaults(func=cmd_review)
+    p_adv_fix = advanced_sub.add_parser('fix', help='手动修复问题')
+    p_adv_fix.set_defaults(func=cmd_adv_fix)
 
-    p_fix = subparsers.add_parser('fix', help='根据审查结果修复代码')
-    p_fix.set_defaults(func=cmd_fix)
+    p_adv_deploy = advanced_sub.add_parser('deploy', help='手动部署')
+    p_adv_deploy.set_defaults(func=cmd_adv_deploy)
 
-    p_deploy = subparsers.add_parser('deploy', help='推进到部署状态')
-    p_deploy.set_defaults(func=cmd_deploy)
+    p_adv_seal = advanced_sub.add_parser('seal', help='手动封版')
+    p_adv_seal.set_defaults(func=cmd_adv_seal)
 
-    p_seal = subparsers.add_parser('seal', help='封版并归档当前工作区')
-    p_seal.set_defaults(func=cmd_seal)
+    p_adv_publish = advanced_sub.add_parser('publish', help='发布到 GitHub')
+    p_adv_publish.add_argument('--target', default='github', choices=['github'])
+    p_adv_publish.add_argument('--allow-dirty', action='store_true')
+    p_adv_publish.add_argument('--force-tag', action='store_true')
+    p_adv_publish.add_argument('--replace-release', action='store_true')
+    p_adv_publish.set_defaults(func=cmd_adv_publish)
+
+    p_adv_nv = advanced_sub.add_parser('next-version', help='计算下一个版本号')
+    p_adv_nv.add_argument('--version', required=True)
+    p_adv_nv.add_argument('--bump', choices=['major', 'minor', 'patch'], default='patch')
+    p_adv_nv.set_defaults(func=cmd_adv_next_version)
+
+    p_adv_pl = advanced_sub.add_parser('project-list', help='项目列表')
+    p_adv_pl.set_defaults(func=cmd_adv_project_list)
+
+    p_adv_ps = advanced_sub.add_parser('project-status', help='单项目状态')
+    p_adv_ps.add_argument('--name', required=True)
+    p_adv_ps.set_defaults(func=cmd_adv_project_status)
+
+    p_adv_dash = advanced_sub.add_parser('dashboard', help='生成 HTML 看板文件')
+    p_adv_dash.set_defaults(func=cmd_adv_dashboard)
+
+    p_adv_demo = advanced_sub.add_parser('demo', help='查看示例项目')
+    p_adv_demo.set_defaults(func=cmd_adv_demo)
 
     args = parser.parse_args()
     if not hasattr(args, 'func'):

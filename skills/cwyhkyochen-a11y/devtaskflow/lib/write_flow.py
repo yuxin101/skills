@@ -1,88 +1,52 @@
-import re
 from pathlib import Path
 
-from llm import OpenAICompatibleLLM
+from orchestrator import get_orchestrator
 from project import scan_project_files, get_current_version_dir
 from state import StateManager
+from contracts_write import build_write_payload
 
 
-SYSTEM_PROMPT = """你是一个专业的高级软件工程师。请基于开发计划，编写高质量的代码。
-
-对于每个需要创建的文件，必须按以下格式输出：
-
-### FILE: [相对路径]
-**操作类型**: [create | overwrite | append]
-**描述**: [该文件的用途说明]
-
-```[语言]
-[完整的文件代码内容]
-```
-
----
-
-规则：
-1. 每个文件必须以 `### FILE: 路径` 开头
-2. 操作类型必须明确
-3. 路径使用相对路径
-4. 不要省略任何任务要求的文件
-"""
+ALLOWED_FILE_OPERATIONS = {'create', 'overwrite', 'append'}
 
 
-def parse_file_blocks(code_result: str):
-    files = []
-    file_sections = re.split(r'\n---\s*\n|\n(?=### FILE:)', code_result)
-    for section in file_sections:
-        section = section.strip()
-        if not section:
-            continue
-        file_match = re.search(r'###\s*FILE:\s*(.+?)(?:\n|$)', section)
-        if not file_match:
-            continue
-        filepath = file_match.group(1).strip()
-        op_match = re.search(r'\*\*操作类型\*\*:\s*(\w+)', section)
-        operation = op_match.group(1).lower() if op_match else 'create'
-        desc_match = re.search(r'\*\*描述\*\*:\s*(.+?)(?:\n|$)', section)
-        description = desc_match.group(1).strip() if desc_match else ''
-        code_match = re.search(r'```[\w]*\n([\s\S]*?)```', section)
-        if not code_match:
-            continue
-        content = code_match.group(1).strip()
-        if not content:
-            continue
-        files.append({
-            'path': filepath,
-            'operation': operation,
-            'description': description,
-            'content': content,
-        })
-    return files
+def resolve_safe_path(project_root: Path, relative_path: str) -> Path:
+    candidate = (project_root / relative_path).resolve()
+    project_root_resolved = project_root.resolve()
+    if candidate == project_root_resolved or project_root_resolved in candidate.parents:
+        return candidate
+    raise RuntimeError(f'非法写入路径，已超出项目目录: {relative_path}')
 
 
-def apply_file_blocks(project_root: Path, file_blocks: list):
+def apply_file_blocks(project_root: Path, file_blocks: list, dry_run: bool = False):
     written = []
     for block in file_blocks:
-        full_path = project_root / block['path']
-        full_path.parent.mkdir(parents=True, exist_ok=True)
         operation = block['operation']
-        if operation == 'append':
-            existing = full_path.read_text(encoding='utf-8') if full_path.exists() else ''
-            full_path.write_text(existing + ('\n' if existing else '') + block['content'], encoding='utf-8')
-            action = 'append'
-        elif operation == 'overwrite':
-            full_path.write_text(block['content'], encoding='utf-8')
-            action = 'overwrite'
-        else:
-            if full_path.exists():
+        if operation not in ALLOWED_FILE_OPERATIONS:
+            raise RuntimeError(f'不支持的文件操作类型: {operation}')
+        full_path = resolve_safe_path(project_root, block['path'])
+        action = operation
+        if not dry_run:
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            if operation == 'append':
+                existing = full_path.read_text(encoding='utf-8') if full_path.exists() else ''
+                full_path.write_text(existing + ('\n' if existing else '') + block['content'], encoding='utf-8')
+            elif operation == 'overwrite':
                 full_path.write_text(block['content'], encoding='utf-8')
-                action = 'overwrite'
             else:
-                full_path.write_text(block['content'], encoding='utf-8')
-                action = 'create'
+                if full_path.exists():
+                    full_path.write_text(block['content'], encoding='utf-8')
+                    action = 'overwrite'
+                else:
+                    full_path.write_text(block['content'], encoding='utf-8')
+                    action = 'create'
+        else:
+            if operation == 'create' and full_path.exists():
+                action = 'overwrite'
         written.append({'path': block['path'], 'action': action})
     return written
 
 
-def run_write(project_root: Path, config: dict, task_id: str | None = None):
+def run_write(project_root: Path, config: dict, task_id: str | None = None, dry_run: bool = False):
     version_dir = get_current_version_dir(project_root, config)
     if not version_dir:
         raise RuntimeError('没有找到当前版本目录')
@@ -107,26 +71,26 @@ def run_write(project_root: Path, config: dict, task_id: str | None = None):
         f"=== 文件: {f['path']} ===\n{f['content'][:2000]}" for f in project_files[:8]
     ])
 
-    llm = OpenAICompatibleLLM(config)
-    user_prompt = f"""当前任务：[{task['id']}] {task['name']}
+    state.data['status'] = 'writing'
+    state.data['last_action'] = 'write'
+    state.data['last_error'] = None
+    state.save()
 
-输出文件：{task.get('output_files')}
-依赖：{task.get('dependencies')}
+    orchestrator = get_orchestrator(config)
+    result = orchestrator.run('write', build_write_payload(project_root, version_dir, task, dev_plan, context))
 
-## 开发计划
-{dev_plan[:6000]}
+    if result.get('status') == 'not_implemented':
+        raise RuntimeError(result.get('message', 'write 编排器未实现'))
 
-## 项目上下文
-{context}
-
-请生成完整代码，并严格使用 FILE 输出格式。"""
-    result = llm.chat(SYSTEM_PROMPT, user_prompt, max_tokens=16384, temperature=0.4)
-    file_blocks = parse_file_blocks(result)
+    file_blocks = result.get('file_operations', [])
     if not file_blocks:
-        raise RuntimeError('LLM 输出未解析出任何文件块')
+        raise RuntimeError('write 未返回任何 file_operations')
 
-    written = apply_file_blocks(project_root, file_blocks)
-    state.data['status'] = 'written'
+    written = apply_file_blocks(project_root, file_blocks, dry_run=dry_run)
+    state.data['status'] = 'confirmed' if dry_run else 'written'
+    state.data['last_orchestration'] = config.get('adapters', {}).get('orchestration', 'local_llm') or 'local_llm'
+    state.data['last_result_format'] = result.get('result_format', 'unknown')
+    state.data['last_summary'] = result.get('summary', '')
     state.save()
 
     return {
@@ -134,4 +98,8 @@ def run_write(project_root: Path, config: dict, task_id: str | None = None):
         'task_name': task['name'],
         'files': written,
         'count': len(written),
+        'orchestration': state.data['last_orchestration'],
+        'result_format': state.data['last_result_format'],
+        'dry_run': dry_run,
+        'summary': state.data['last_summary'],
     }

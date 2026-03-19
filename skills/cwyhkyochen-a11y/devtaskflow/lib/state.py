@@ -24,6 +24,10 @@ class StateManager:
             'tasks': [],
             'created_at': now,
             'updated_at': now,
+            'last_error': None,
+            'last_action': None,
+            'last_result_format': None,
+            'last_summary': '',
         }
         self.save()
 
@@ -44,4 +48,10 @@ class StateManager:
 
     def set_current_task(self, task_id: str | None):
         self.data['current_task'] = task_id
+        self.save()
+
+    def set_error(self, error: str | None, action: str | None = None):
+        self.data['last_error'] = error
+        if action is not None:
+            self.data['last_action'] = action
         self.save()

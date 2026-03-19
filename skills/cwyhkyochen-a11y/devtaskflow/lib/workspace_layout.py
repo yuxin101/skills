@@ -19,3 +19,10 @@ def resolve_project_init_path(workspace_root: Path, raw_path: str | None, name: 
         raise RuntimeError('未提供 --path 时必须提供 --name')
     projects_root = ensure_projects_root(workspace_root)
     return (projects_root / name).resolve()
+
+
+def guess_workspace_root_for_init(cwd: Path) -> Path:
+    candidate = cwd.resolve()
+    if (candidate / 'PROJECTS.md').exists() or (candidate / 'AGENTS.md').exists():
+        return candidate
+    return candidate
