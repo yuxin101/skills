@@ -3,11 +3,16 @@
   "slug": "web-search-pro",
   "displayName": "Web Search Pro",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773285006265,
-    "commit": "https://github.com/openclaw/skills/commit/1492c5a30ecd9f1d12385a49e7ecdec1bdc3f70f"
+    "version": "2.1.4",
+    "publishedAt": 1773473923731,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773285006265,
+      "commit": "https://github.com/openclaw/skills/commit/1492c5a30ecd9f1d12385a49e7ecdec1bdc3f70f"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1772706958229,

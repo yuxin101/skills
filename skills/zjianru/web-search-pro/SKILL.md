@@ -1,141 +1,173 @@
 ---
 name: web-search-pro
 description: |
-  Multi-engine web search with full parameter control. Supports Tavily, Exa, Serper, and SerpAPI
-  with domain filtering, date ranges, deep search, news mode, and content extraction.
-  Auto-selects the best engine based on query type and available API keys.
-  多引擎精细化搜索：支持域名过滤、日期范围、深度搜索、新闻模式、内容提取。
-  根据查询类型和可用 API Key 自动选择最优引擎。
+  Agent-first web search and retrieval for live web search, news search, docs lookup, code
+  lookup, company research, site crawl, site map, and structured evidence packs.
+  Includes a no-key baseline plus optional Tavily, Exa, Querit, Serper, Brave, SerpAPI, You.com,
+  SearXNG, and Perplexity / Sonar providers for wider coverage and answer-first routing.
 homepage: https://github.com/Zjianru/web-search-pro
-metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"]}}}
+metadata: {"openclaw":{"emoji":"🔎","requires":{"bins":["node"],"config":["config.json"],"env":{"TAVILY_API_KEY":"optional — premium deep search, news, and extract","EXA_API_KEY":"optional — semantic search and extract fallback","QUERIT_API_KEY":"optional — multilingual AI search with native geo and language filters","SERPER_API_KEY":"optional — Google-like search and news","BRAVE_API_KEY":"optional — structured web search aligned with existing OpenClaw setups","SERPAPI_API_KEY":"optional — multi-engine search including Baidu","YOU_API_KEY":"optional — LLM-ready web search with freshness and locale support","PERPLEXITY_API_KEY":"optional — native Perplexity Sonar access","OPENROUTER_API_KEY":"optional — gateway access to Perplexity/Sonar via OpenRouter","KILOCODE_API_KEY":"optional — gateway access to Perplexity/Sonar via Kilo","PERPLEXITY_GATEWAY_API_KEY":"optional — custom gateway key for Perplexity/Sonar models","PERPLEXITY_BASE_URL":"optional — required with PERPLEXITY_GATEWAY_API_KEY","SEARXNG_INSTANCE_URL":"optional — self-hosted privacy-first metasearch endpoint"},"note":"No API key is required for the baseline. Optional provider credentials or endpoints widen retrieval coverage."}},"clawdbot":{"emoji":"🔎","requires":{"bins":["node"],"config":["config.json"],"note":"No API key is required for the baseline. Optional provider credentials or endpoints widen retrieval coverage."},"install":[{"kind":"node","label":"Bundled Node skill runtime","bins":["node"]}],"config":{"stateDirs":[".cache/web-search-pro"],"example":"{\n  env = {\n    WEB_SEARCH_PRO_CONFIG = \"./config.json\";\n  };\n}"},"cliHelp":"node {baseDir}/scripts/search.mjs --help"}}
 ---
 
-# Web Search Pro
+# Web Search Pro 2.1 Core Profile
 
-Multi-engine web search with full parameter control for AI agents.
-A precision supplement to OpenClaw's built-in `web_search` (Brave/Perplexity), providing
-domain filtering, deep search, news mode, date ranges, and content extraction
-that the built-in search does not support.
+This ClawHub package publishes the core retrieval profile of `web-search-pro`.
+It is a code-backed Node runtime package, not an instruction-only bundle.
 
-多引擎精细化网络搜索，为 AI Agent 设计。
-作为 OpenClaw 内置 `web_search`（Brave/Perplexity）的精细化补充，提供域名过滤、
-深度搜索、新闻模式、日期范围、内容提取等内置搜索不支持的能力。
-配置一个或多个 API Key，自动选择最优引擎。
+## Use This Skill When
 
-## Engines / 引擎
+- the caller needs live web search or news search
+- the caller needs docs lookup or code lookup
+- the caller may continue from search into extract, crawl, map, or research
+- the agent needs explainable routing and visible federated-search gains
+- the first run needs a real no-key baseline
 
-| Engine | Strengths | Free Tier | API Key Env |
-|--------|-----------|-----------|-------------|
-| **Tavily** | AI-optimized, best answer quality, full filters, extract | 1000/month | `TAVILY_API_KEY` |
-| **Exa** | Semantic/neural search, deep research | $10 credit | `EXA_API_KEY` |
-| **Serper** | Real Google SERP, best news coverage | 100/month | `SERPER_API_KEY` |
-| **SerpAPI** | Multi-engine (Google/Bing/Baidu/Yandex/DuckDuckGo) | 250/month | `SERPAPI_API_KEY` |
+## Quick Start
 
-## Auto-Select Priority / 自动选择优先级
+The shortest successful path is:
 
-When `--engine` is not specified, the skill picks the best available engine:
+- Option A: No-key baseline
+- Option B: Add one premium provider
+- Then try docs, news, and research
 
-| Query Type | Priority | Reason |
-|------------|----------|--------|
-| Default | Tavily > Exa > Serper > SerpAPI | Tavily has best AI answer + full filters |
-| `--deep` | Tavily > Exa | Both have dedicated deep search modes |
-| `--news` | Serper > Tavily | Google News has widest coverage |
-| `--news --days` | Tavily only | `--days` is Tavily news-specific parameter |
-| `--include-domains` | Tavily > Exa > Serper > SerpAPI | Tavily/Exa have native domain filters |
-| `--search-engine baidu` | SerpAPI | Only SerpAPI supports Baidu/Yandex |
+### Option A: No-key baseline
 
-## Search / 搜索
+No API key is required for the first successful run.
 
 ```bash
-# Basic search (auto-select engine)
-node {baseDir}/scripts/search.mjs "query"
-
-# Force specific engine
-node {baseDir}/scripts/search.mjs "query" --engine tavily
-
-# Domain filtering (only search specific sites)
-node {baseDir}/scripts/search.mjs "query" --include-domains "github.com,stackoverflow.com"
-
-# Exclude domains
-node {baseDir}/scripts/search.mjs "query" --exclude-domains "pinterest.com,quora.com"
-
-# Date range (absolute)
-node {baseDir}/scripts/search.mjs "query" --from 2026-01-01 --to 2026-02-09
-
-# Time range (relative)
-node {baseDir}/scripts/search.mjs "query" --time-range week
-
-# Deep/advanced search
-node {baseDir}/scripts/search.mjs "query" --deep
-
-# News search
-node {baseDir}/scripts/search.mjs "query" --news --days 7
-
-# Multi-engine: Baidu search
-node {baseDir}/scripts/search.mjs "query" --engine serpapi --search-engine baidu
-
-# More results
-node {baseDir}/scripts/search.mjs "query" -n 10
-
-# JSON output (for programmatic use)
-node {baseDir}/scripts/search.mjs "query" --json
+node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/bootstrap.mjs --json
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --json
 ```
 
-## Extract / 内容提取
+### Option B: Add one premium provider
 
-Extract readable content from URLs (Tavily Extract or Exa livecrawl):
+If you only add one premium provider, start with `TAVILY_API_KEY`.
 
 ```bash
-node {baseDir}/scripts/extract.mjs "https://example.com/article"
-node {baseDir}/scripts/extract.mjs "url1" "url2" "url3"
-node {baseDir}/scripts/extract.mjs "url" --engine exa
-node {baseDir}/scripts/extract.mjs "url" --json
+export TAVILY_API_KEY=tvly-xxxxx
+node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/search.mjs "latest OpenAI news" --type news --json
 ```
 
-## All Options / 全部参数
-
-| Option | Description | Engines |
-|--------|-------------|---------|
-| `--engine <name>` | Force engine: tavily\|exa\|serper\|serpapi | all |
-| `-n <count>` | Number of results (default: 5) | all |
-| `--deep` | Deep/advanced search mode | tavily, exa |
-| `--news` | News search mode | tavily, serper, serpapi |
-| `--days <n>` | Limit news to last N days | tavily |
-| `--include-domains <d,...>` | Only search these domains | all (native: tavily, exa) |
-| `--exclude-domains <d,...>` | Exclude these domains | all (native: tavily, exa) |
-| `--time-range <range>` | day\|week\|month\|year | all |
-| `--from <YYYY-MM-DD>` | Results after this date | all |
-| `--to <YYYY-MM-DD>` | Results before this date | all |
-| `--search-engine <name>` | SerpAPI sub-engine: google\|bing\|baidu\|yandex\|duckduckgo | serpapi |
-| `--country <code>` | Country code (us, cn, de...) | serper, serpapi |
-| `--lang <code>` | Language code (en, zh, de...) | serper, serpapi |
-| `--json` | Raw JSON output | all |
-
-## Setup / 配置
-
-Add API keys to your environment (e.g., `~/.openclaw/.env`):
+### First successful searches
 
 ```bash
-# Configure at least one (recommended: Tavily)
-TAVILY_API_KEY=tvly-xxxxx        # https://tavily.com (1000 free/month)
-EXA_API_KEY=exa-xxxxx            # https://exa.ai ($10 free credit)
-SERPER_API_KEY=xxxxx             # https://serper.dev (100 free/month)
-SERPAPI_API_KEY=xxxxx            # https://serpapi.com (250 free/month)
+node {baseDir}/scripts/search.mjs "OpenClaw web search" --json
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --plan --json
+node {baseDir}/scripts/extract.mjs "https://platform.openai.com/docs" --json
 ```
 
-## Notes / 说明
+### Then try docs, news, and research
 
-- At least one API key must be configured
-- Skill metadata only declares the `node` runtime, because this skill supports multiple alternative provider keys and OpenClaw metadata does not currently support an `env_any` / one-of env requirement
-- Provider key validation happens at command execution time, based on the selected engine and flags
-- Any one of these keys can enable part of the skill: `TAVILY_API_KEY`, `EXA_API_KEY`, `SERPER_API_KEY`, `SERPAPI_API_KEY`
-- `--search-engine <name>` always uses SerpAPI and requires `SERPAPI_API_KEY`
-- `--deep` only works on Tavily/Exa; if both keys are missing, command exits with an error
-- `--news` only works on Tavily/Serper/SerpAPI; if none are available, command exits with an error
-- `--days` only works with Tavily news mode
-- `--news --days <n>` auto-selects Tavily; if Tavily key is missing, command exits with an error
-- Domain filtering via `--include-domains`/`--exclude-domains` works natively on Tavily and Exa; on Serper/SerpAPI it's implemented via `site:` query operators
-- `--deep` mode uses more API credits (Tavily: 2x, Exa: varies)
-- Extract only works with Tavily and Exa
-- Missing/invalid option values fail fast with explicit CLI error messages (no silent fallback, no runtime TypeError)
-- All output is Markdown-formatted for AI agent consumption; use `--json` for programmatic access
+```bash
+node {baseDir}/scripts/search.mjs "OpenAI Responses API docs" --preset docs --json
+node {baseDir}/scripts/search.mjs "latest OpenAI news" --type news --json
+node {baseDir}/scripts/research.mjs "OpenClaw search skill landscape" --plan --json
+```
+
+## Install Model
+
+ClawHub installs this bundle directly as a code-backed Node skill pack.
+
+- hard runtime requirement: `node`
+- no remote installer, curl-to-shell bootstrap, or Python helper transport in the baseline path
+- optional runtime config file: `config.json`
+- local state directory: `.cache/web-search-pro`
+
+## Why Federated Search Matters
+
+Federation is not just "more providers". It exposes compact gain metrics:
+
+- `federated.value.additionalProvidersUsed`
+- `federated.value.resultsRecoveredByFanout`
+- `federated.value.resultsCorroboratedByFanout`
+- `federated.value.duplicateSavings`
+- `routingSummary.federation.value`
+
+## Runtime Contract
+
+- `selectedProvider`
+  The planner's primary route.
+- `routingSummary`
+  Compact route explanation with confidence and federation summary.
+- `routing.diagnostics`
+  Full route diagnostics exposed by `--explain-routing` or `--plan`.
+- `federated.providersUsed`
+  The providers that actually returned results when fanout is active.
+- `federated.value`
+  Compact federation gain summary for added providers, recovered results, corroboration, and
+  duplicate savings.
+- `cached` / `cache`
+  Cache hit plus TTL telemetry for agents.
+- `topicType`, `topicSignals`, `researchAxes`
+  Structured planning summaries for the model-facing research pack.
+
+## Commands By Task
+
+Included commands:
+
+- `search.mjs`
+- `extract.mjs`
+- `crawl.mjs`
+- `map.mjs`
+- `research.mjs`
+- `doctor.mjs`
+- `bootstrap.mjs`
+- `capabilities.mjs`
+- `review.mjs`
+- `cache.mjs`
+- `health.mjs`
+
+Runtime notes:
+
+- Node is the only hard runtime requirement.
+- No API key is required for the baseline.
+- Optional provider credentials or endpoints widen coverage.
+- Baseline outbound requests use `curl` when available and fall back to built-in `fetch`.
+
+Baseline:
+
+- No API key is required for the baseline.
+- `ddg` is best-effort no-key search.
+- `fetch` is the no-key extract / crawl / map fallback.
+
+Optional provider credentials or endpoints unlock stronger coverage:
+
+```bash
+TAVILY_API_KEY=tvly-xxxxx
+EXA_API_KEY=exa-xxxxx
+QUERIT_API_KEY=xxxxx
+SERPER_API_KEY=xxxxx
+BRAVE_API_KEY=xxxxx
+SERPAPI_API_KEY=xxxxx
+YOU_API_KEY=xxxxx
+SEARXNG_INSTANCE_URL=https://searx.example.com
+
+# Perplexity / Sonar: choose one transport path
+PERPLEXITY_API_KEY=xxxxx
+OPENROUTER_API_KEY=xxxxx
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1  # optional override
+KILOCODE_API_KEY=xxxxx
+
+# Or use a custom OpenAI-compatible gateway
+PERPLEXITY_GATEWAY_API_KEY=xxxxx
+PERPLEXITY_BASE_URL=https://gateway.example.com/v1
+PERPLEXITY_MODEL=perplexity/sonar-pro  # accepts sonar* or perplexity/sonar*
+```
+
+Review and diagnostics:
+
+```bash
+node {baseDir}/scripts/capabilities.mjs --json
+node {baseDir}/scripts/doctor.mjs --json
+node {baseDir}/scripts/bootstrap.mjs --json
+node {baseDir}/scripts/review.mjs --json
+```
+
+Search keywords:
+
+`web search`, `news search`, `latest updates`, `current events`, `docs search`,
+`API docs`, `code search`, `company research`, `competitor analysis`, `site crawl`,
+`site map`, `multilingual search`, `Baidu search`, `answer-first search`,
+`cited answers`, `explainable routing`, `no-key baseline`
