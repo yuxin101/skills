@@ -101,9 +101,21 @@ exit_if_grace() {
     fi
 }
 
+# ─── NEGATION DETECTION ────────────────────────────────────────
+# Detects if a line contains a negation context around a trigger word.
+# Catches: "No X found", "not compromised", "без утечек", "never leaked",
+#          "zero vulnerabilities", "clean (no issues)"
+# Returns: 0 = negation detected (line should be neutral), 1 = no negation
+NEGATION_PATTERN="(^|[^a-z])(no|not|never|none|zero|без|clean|passed|intact|safe)[^a-z]"
+
+line_has_negation() {
+    local line="$1"
+    echo "$line" | grep -qiE "$NEGATION_PATTERN"
+}
+
 # ─── LINE-LEVEL SCAN FUNCTION ──────────────────────────────────
 # Shared line-level scanner for all needs.
-# Analyzes each line: if BOTH positive and negative patterns present → positive wins.
+# Priority: positive > negated-negative (neutral) > negative
 # Usage: scan_lines_in_file "file" "pos_pattern" "neg_pattern"
 # Sets global: pos_signals, neg_signals (caller must initialize to 0)
 scan_lines_in_file() {
@@ -118,9 +130,16 @@ scan_lines_in_file() {
         echo "$line" | grep -qiE "$pos_pattern" && has_pos=1
         echo "$line" | grep -qiE "$neg_pattern" && has_neg=1
         if [[ $has_pos -eq 1 ]]; then
+            # Positive signal (wins over everything)
             pos_signals=$((pos_signals + 1))
         elif [[ $has_neg -eq 1 ]]; then
-            neg_signals=$((neg_signals + 1))
+            # Negative signal — but check for negation context first
+            if line_has_negation "$line"; then
+                # "No X leaked", "not compromised" → neutral, skip
+                :
+            else
+                neg_signals=$((neg_signals + 1))
+            fi
         fi
     done < "$file"
 }

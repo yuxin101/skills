@@ -1,5 +1,121 @@
 # Changelog
 
+## v1.27.1 (2026-03-19) — Gate hardening (post-review)
+- **Bug fix**: flock (fd 203) on gate.lock prevents data races between concurrent gate operations
+- **Bug fix**: tmp.$$ PID-unique temp filenames prevent collision on concurrent writes
+- **Bug fix**: `--non-deferrable` flag in gate-propose.sh, passed by run-cycle.sh for starvation guard actions
+- **Bug fix**: gate-resolve.sh validates action existence before processing (clear "Action not found" error)
+
+## v1.27.0 (2026-03-19) — Execution Gate (Phase 1)
+- **Execution Gate**: structural enforcement that prevents "describing actions instead of doing them"
+  - `gate-propose.sh` — registers pending actions when run-cycle selects them
+  - `gate-resolve.sh` — resolves actions with verifiable evidence (mark_satisfied, file_modified, self_report)
+  - `gate-check.sh` — blocks new proposals until pending actions resolved/deferred (built into run-cycle.sh)
+  - `gate-status.sh` — human-readable gate status with execution rate analytics
+  - Non-deferrable actions from starvation guard (cannot be deferred)
+  - Evidence types: mark_satisfied (HIGH trust), file_created/modified (HIGH), command_output (HIGH), self_report (LOW)
+  - Auto-defer on timeout (configurable, default 600s)
+  - 24h cleanup of resolved actions
+- Gate integrated into run-cycle.sh: script refuses to propose new actions while old ones pending
+- SKIP_GATE env var for test isolation
+- Test suite: pending_actions.json cleaned between tests
+- Config: `execution_gate` block in mindstate-config.json
+- Design spec: EXECUTION-GATE-SPEC.md (v0.3.0-draft)
+- Phase 2 (wake-gate) and Phase 3 (self-continuation) prepared but disabled
+
+## v1.26.0 (2026-03-19)
+- **Turing-exp tension formula**: replaces linear `importance × deprivation`
+  - `tension = dep² + importance × max(0, dep - crisis_threshold)²`
+  - At homeostasis (dep < threshold): all needs produce equal tension → round-robin selection
+  - In crisis (dep > threshold): importance amplifies signal → Maslow hierarchy activates
+  - Configurable `crisis_threshold` (default 1.0, meaning sat < 2.0 activates hierarchy)
+  - Solves monopoly problem: high-importance needs no longer dominate at homeostasis
+  - Solves starvation problem: low-importance needs get equal slots when system is healthy
+- Temperature thresholds recalibrated for Turing-exp scale (avg_tension ≈ 0.25 at homeostasis)
+- Test suite hardened: lock file cleanup between tests, fixture-based state restoration
+- 25/25 tests passing (22 unit + 3 integration, 1 stress test skipped)
+
+## v1.23.0 (2026-03-18)
+- **Continuity Layer (Layer D)**: pseudo-continuous existence across discrete sessions
+  - `mindstate-daemon.sh` — reality updater (cron every 5min), tracks pyramid state, filesystem, system health, physical temperature
+  - `mindstate-freeze.sh` — cognition snapshot at substantive session end (trajectory, open_threads, momentum, cognitive temperature)
+  - `mindstate-boot.sh` — boot with forecast reconciliation, continuity scoring (SMOOTH/PARTIAL/HARD_BREAK), temperature drift detection
+  - `mindstate-utils.sh` — shared utilities (compute_satisfaction, is_substantive, mindstate_get)
+  - `mindstate-config.json` — configurable thresholds, temperature vocab, staleness detection
+- **Temperature system**: 6 physical words (кризис/давление/фокус/импульс/накопление/штиль) + 6 cognitive words, deterministic mapping, drift detection at boot
+- **Boot sequence**: MINDSTATE.md → SOUL.md → MEMORY.md (position+velocity before identity before history)
+- **Test isolation**: `MINDSTATE_ASSETS_DIR` env var for isolated test state
+- **Bug fixes**: `mindstate_get()` pipefail safety, `((0++))` arithmetic under `set -e`, `find -newer` on nonexistent files
+- **Test fix**: `test_action_dedup` Test 3 was running real `run-cycle.sh` instead of sandbox copy, corrupting production state file
+- **Tests**: 26/26 green (22 unit + 4 integration), 65+ assertions
+
+## v1.22.1 (2026-03-16)
+- **Spontaneity tuning**: gate_min 1.5→1.0, baseline 2.0→1.5, threshold 10→6 — first [SPONTANEOUS] event now reachable in ~16-24h instead of ~80h. Eliminates spontaneity paralysis.
+
+## v1.22.0 (2026-03-16)
+- **Negation-aware scanning**: scanner now detects negation context ("no", "not", "never", "zero", "clean", "intact", "без") around trigger words — lines like "No X found" are treated as neutral instead of negative. Prevents self-referential false positives in documentation.
+- Supports English and Russian negation markers
+- 22/22 tests green
+
+## v1.21.0 (2026-03-16)
+- **Race condition fix**: flock guard changed from blocking-wait to skip-and-exit — prevents parallel heartbeat sessions from running duplicate cycles (root cause of triple-post incident)
+- **Action dedup guard**: `select_action_with_dedup()` checks `action_history` before selecting — if an action was selected within 8h cooldown, tries alternatives. Covers ALL actions, not just external ones.
+- **Scanner false-positive fix**: rewrote log line that contained a trigger word in denial context ("No X found") — scanner regex matched it as negative signal, permanently overriding security satisfaction to 0
+- **Disabled action support**: `select(.disabled != true)` filter in action selection — actions with `"disabled": true` in config are skipped
+- **Test fixes**: state file `to_entries|map` now handles non-need keys (`_meta`, `history`, `needs`) without crashing
+- **Tests**: 22/22 green (19 unit + 3 integration)
+
+## v1.20.2 (2026-03-16)
+- **Security: path traversal protection** — `validate_path()` blocks `..` and paths escaping `$WORKSPACE` via `realpath` check
+- **Security: symlink escape prevention** — `find -not -type l` prevents following symlinks outside workspace
+- **Security: grep injection fix** — `grep -F` for literal keyword matching (no regex interpretation from config)
+- **Bug: SKIP_SCANS env ignored** — was hardcoded `false`, now respects env var for test isolation
+- **Bug: init.sh snapshot baseline** — creates context snapshot on init to prevent noisy first cycle
+- **Tests: keyword delta coverage** — 6 new tests for `file_keyword_delta` detector (19→21 context tests)
+- **Tests: path traversal test** — verifies `../../etc/` paths are blocked
+- **Docs: TUNING.md** — documented noise_cap sharing between layers B+C, effective activation threshold
+
+## v1.20.1 (2026-03-16)
+- **Security/PII audit**: removed hardcoded workspace paths from SKILL.md, DESCRIPTION.md, test_followups.sh
+- **Temp file safety**: all `/tmp/tp_*$$` replaced with `mktemp` for crash safety and no race conditions
+- **Runtime state excluded**: `last-scan-snapshot.json` no longer ships (created on first run); `needs-state.json` ships as clean template
+- **Permissions**: all scripts set executable
+- **Test fixes**: 9 pre-existing failures fixed (permissions, tolerance, timeout); 21/21 passing
+- **SKIP_SPONTANEITY env**: integration tests skip heavy spontaneity processing for speed
+
+## v1.20.0 (2026-03-16)
+- **Spontaneity Layer C** — context-driven triggers via delta detection
+  - `scripts/context-scan.sh`: stateful delta engine (file_count_delta, file_modified, file_keyword_delta)
+  - `assets/context-triggers.json`: configurable trigger rules with cooldowns
+  - `assets/last-scan-snapshot.json`: persistent state between cycles
+  - Context boosts feed into noise upgrade (additive with boredom + echo)
+  - Labels: [CONTEXT:name] on triggered actions, composable with [NOISE], [ECHO]
+  - Cooldown system prevents trigger spam
+  - 19 unit tests covering all 3 detector types, snapshots, cooldowns, thresholds, keyword delta, boost accumulation
+
+## v1.19.1 (2026-03-16)
+- **Migration guard**: `calc_boredom_noise` auto-initializes `last_high_action_at` to now if missing (prevents 9% boredom spike on upgrade)
+- **Migration guard**: `calc_echo_boost` treats missing `last_spontaneous_at` as expired (no false echo on upgrade)
+
+## v1.19.0 (2026-03-16)
+- **Spontaneity Layer B** — stochastic noise for organic variety
+  - B2 (Boredom Noise): grows with time since last high-impact action (0%→9% over 72h)
+  - B3 (Momentum Echo): 8% boost decaying over 24h after Layer A [SPONTANEOUS] fires
+  - Combined noise capped at 12%, upgrades impact range by one step (low→mid, mid→high)
+  - `mark-satisfied.sh` now tracks `last_high_action_at` for high-impact actions (≥2.0)
+  - `record_spontaneous` tracks `last_spontaneous_at` for echo momentum
+  - `show-status.sh` displays noise percentages per need
+  - `init.sh` initializes all new state fields to prevent first-run spikes
+  - 19 unit tests for B2/B3 (boredom calc, echo calc, upgrade logic, caps, edge cases)
+  - Layer B operates independently of gate — always active for spontaneity-enabled needs
+
+## v1.18.1 (2026-03-16)
+- **Bugfix**: `roll_impact_range` returned "skip 0" instead of "skip" at sat=3.0 — broke skip detection
+- **Bugfix**: `accumulate_surplus` called before starvation detection — gate didn't close during starvation
+- **Bugfix**: `init.sh` now initializes surplus=0 and last_surplus_check=now — prevents first-run cap jump
+- **Integration**: `show-status.sh` now displays surplus pool bars via `show_surplus_status()`
+- **Docs**: Fixed test count 25→20 in CHANGELOG and SKILL.md
+
 ## v1.18.0 (2026-03-16)
 - **Spontaneity Layer A** — surplus energy system for organic high-impact actions
   - Global gate: all needs must be ≥ 1.5 AND no starvation guard active
@@ -10,7 +126,7 @@
   - Configurable per-need: target_matrix, cap, threshold; disabled for security/integrity/coherence
   - New file: `scripts/spontaneity.sh` (sourced by run-cycle.sh)
   - Status display: surplus pool bars with gate status and eligibility indicators
-  - 25 unit tests covering gate, accumulation, clamping, matrix shift, spend, edge cases
+  - 20 unit tests covering gate, accumulation, clamping, matrix shift, spend, edge cases
 
 ## v1.17.1 (2026-03-08)
 - **Research thread integration**: 3 new actions in `understanding` need — continue/start/synthesize research threads (migrated from weighted-daemon)
@@ -200,3 +316,6 @@ Balance fixes after stress testing:
 - Complete 10-need system
 - Decay mechanics
 - Impact matrix
+
+### Known Behavior
+- Fresh `needs-state.json` (before first `run-cycle.sh`) lacks `surplus` and `last_spontaneous_at` fields. Daemon handles gracefully via jq defaults (`// 0`, `// "1970-01-01"`), but surplus/impulse detection won't fire until first cycle populates the fields.

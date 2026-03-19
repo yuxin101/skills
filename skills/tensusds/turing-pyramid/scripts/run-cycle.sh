@@ -12,10 +12,14 @@ fi
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="$SKILL_DIR/assets/needs-config.json"
 
-# Calculate max_tension dynamically from config
-# max_tension = max_importance × max_deprivation(3)
+# Turing-exp formula: tension = dep² + importance × max(0, dep - crisis_threshold)²
+# At homeostasis (dep < threshold): all needs equal (dep² only)
+# In crisis (dep > threshold): importance amplifies — hierarchy emerges
 MAX_IMPORTANCE=$(jq '[.needs[].importance] | max' "$CONFIG_FILE")
-MAX_TENSION=$((MAX_IMPORTANCE * 3))
+CRISIS_THRESHOLD=$(jq -r '.settings.tension_formula.crisis_threshold // 1.0' "$CONFIG_FILE")
+# MAX_TENSION = 3² + max_imp × (3 - threshold)² [dep=3 worst case]
+MAX_CRISIS_EXCESS=$(echo "scale=2; 3 - $CRISIS_THRESHOLD" | bc -l)
+MAX_TENSION=$(echo "scale=1; 9 + ($MAX_IMPORTANCE * $MAX_CRISIS_EXCESS * $MAX_CRISIS_EXCESS)" | bc -l)
 STATE_FILE="$SKILL_DIR/assets/needs-state.json"
 SCRIPTS_DIR="$SKILL_DIR/scripts"
 source "$SCRIPTS_DIR/spontaneity.sh"
@@ -29,16 +33,32 @@ if [[ ! -f "$STATE_FILE" ]]; then
     exit 1
 fi
 
-# Acquire exclusive lock on state file to prevent race conditions
-exec 200>"$STATE_FILE.lock"
+# Acquire exclusive lock — skip if another cycle is already running
+LOCK_FILE="$SKILL_DIR/assets/cycle.lock"
+exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
-    echo "⏳ Another cycle is running, waiting..." >&2
-    flock 200
+    echo "⏳ Another cycle is already running — skipping this one." >&2
+    exit 0
 fi
 
 NOW=$(date +%s)
 NOW_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 TODAY=$(date +%Y-%m-%d)
+
+# ─── Execution Gate: block new proposals if pending actions exist ───
+if [[ "${SKIP_GATE:-}" != "true" ]]; then
+    GATE_CHECK="$SCRIPTS_DIR/gate-check.sh"
+    if [[ -x "$GATE_CHECK" ]]; then
+        if ! bash "$GATE_CHECK" 2>&1; then
+            echo ""
+            bash "$SCRIPTS_DIR/gate-status.sh" 2>/dev/null || true
+            echo ""
+            echo "Resolve: gate-resolve.sh --need <need> --evidence \"what you did\""
+            echo "Or defer: gate-resolve.sh --defer <id> --reason \"why\""
+            exit 0
+        fi
+    fi
+fi
 
 # Bootstrap mode: process ALL needs
 if [[ "$1" == "--bootstrap" ]]; then
@@ -48,10 +68,12 @@ else
     MAX_ACTIONS=$(jq -r '.settings.max_actions_per_cycle // 3' "$CONFIG_FILE")
 fi
 
-# No-scans mode for testing
-SKIP_SCANS=false
+# No-scans mode for testing (env or arg)
+SKIP_SCANS="${SKIP_SCANS:-false}"
 if [[ "$1" == "--no-scans" || "$2" == "--no-scans" ]]; then
     SKIP_SCANS=true
+fi
+if [[ "$SKIP_SCANS" == "true" ]]; then
     echo "⚠️  TEST MODE — skipping event scans"
 fi
 
@@ -113,8 +135,12 @@ calculate_tensions() {
         # Clamp to 0-3
         if (( $(echo "$deprivation < 0" | bc -l) )); then deprivation="0.00"; fi
         if (( $(echo "$deprivation > 3" | bc -l) )); then deprivation="3.00"; fi
-        # Float tension = importance × deprivation
-        local tension=$(echo "scale=1; $importance * $deprivation" | bc -l)
+        # Turing-exp: tension = dep² + importance × max(0, dep - crisis_threshold)²
+        # Below threshold: all needs compete equally (pure deprivation)
+        # Above threshold: importance amplifies crisis signal (Maslow hierarchy emerges)
+        local crisis_excess=$(echo "scale=4; $deprivation - $CRISIS_THRESHOLD" | bc -l)
+        if (( $(echo "$crisis_excess < 0" | bc -l) )); then crisis_excess="0"; fi
+        local tension=$(echo "scale=1; ($deprivation * $deprivation) + ($importance * $crisis_excess * $crisis_excess)" | bc -l)
         
         TENSIONS[$need]=$tension
         SATISFACTIONS[$need]=$satisfaction  # Keep float for display
@@ -205,7 +231,7 @@ roll_impact_range() {
     
     # If all zeros (sat=3.0), skip action
     if [[ $p_low -eq 0 && $p_mid -eq 0 && $p_high -eq 0 ]]; then
-        echo "skip 0"
+        echo "skip"
         return
     fi
     
@@ -242,15 +268,125 @@ roll_impact_range() {
     echo "$impact_range"
 }
 
+# ─── Action Dedup Guard ──────────────────────────────────────────────────────
+# Check if an action was already executed recently (across sessions).
+# Uses audit.log (written by mark-satisfied.sh) as source of truth.
+# Args: $1=action_name, $2=cooldown_hours (default: 8)
+# Returns: 0=OK (not recent), 1=duplicate (was done recently)
+AUDIT_LOG="$SKILL_DIR/assets/audit.log"
+
+action_was_recent() {
+    local action_name="$1"
+    local cooldown_hours="${2:-8}"
+
+    if [[ ! -f "$AUDIT_LOG" ]]; then
+        return 1  # no log = no duplicates
+    fi
+
+    local cutoff_epoch=$((NOW - cooldown_hours * 3600))
+
+    # Search audit.log for this action's reason field within cooldown window
+    # Audit format: {"timestamp":"...","need":"...","reason":"..."}
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        local ts=$(echo "$line" | jq -r '.timestamp // empty' 2>/dev/null)
+        [[ -z "$ts" ]] && continue
+        local ts_epoch=$(date -d "$ts" +%s 2>/dev/null || echo 0)
+        [[ $ts_epoch -lt $cutoff_epoch ]] && continue
+        local reason=$(echo "$line" | jq -r '.reason // empty' 2>/dev/null)
+        [[ -z "$reason" ]] && continue
+        # Match if the reason contains the action name (mark-satisfied logs the action as reason)
+        if [[ "$reason" == *"$action_name"* ]]; then
+            return 0  # found recent execution
+        fi
+    done < "$AUDIT_LOG"
+
+    return 1  # not found
+}
+
+# Check action_history in state file (written by record_action_selection)
+# More precise: checks if this exact action was SELECTED (not just satisfied)
+# Args: $1=need, $2=action_name, $3=cooldown_hours (default: 8)
+action_was_selected_recently() {
+    local need="$1"
+    local action_name="$2"
+    local cooldown_hours="${3:-8}"
+    local cutoff_epoch=$((NOW - cooldown_hours * 3600))
+
+    local last_selected=$(jq -r --arg n "$need" --arg a "$action_name" \
+        '.[$n].action_history[$a] // "1970-01-01T00:00:00Z"' "$STATE_FILE" 2>/dev/null)
+    local last_epoch=$(date -d "$last_selected" +%s 2>/dev/null || echo 0)
+
+    [[ $last_epoch -ge $cutoff_epoch ]]
+}
+
+# Select action with dedup: try weighted selection, if duplicate, try alternatives
+# Args: $1=need, $2=range
+# Returns: action name (empty if all depleted)
+select_action_with_dedup() {
+    local need="$1"
+    local range="$2"
+    local cooldown_hours=8  # configurable
+
+    # Get all available actions for this range
+    local actions_json
+    case $range in
+        low)  actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.disabled != true) | select(.impact < 1.0)]" "$CONFIG_FILE") ;;
+        mid)  actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.disabled != true) | select(.impact >= 1.0 and .impact < 2.0)]" "$CONFIG_FILE") ;;
+        high) actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.disabled != true) | select(.impact >= 2.0)]" "$CONFIG_FILE") ;;
+    esac
+
+    local count=$(echo "$actions_json" | jq 'length')
+    [[ $count -eq 0 ]] && return
+
+    # Try up to $count times to find a non-duplicate action
+    local attempts=0
+    local max_attempts=$count
+    local tried=()
+
+    while [[ $attempts -lt $max_attempts ]]; do
+        local candidate=$(select_weighted_action "$need" "$range")
+        [[ -z "$candidate" ]] && break
+
+        # Check if we already tried this one
+        local already_tried=false
+        for t in "${tried[@]}"; do
+            [[ "$t" == "$candidate" ]] && already_tried=true && break
+        done
+        if $already_tried; then
+            ((attempts++))
+            continue
+        fi
+        tried+=("$candidate")
+
+        # Check dedup: was this action selected or executed recently?
+        if action_was_selected_recently "$need" "$candidate" "$cooldown_hours"; then
+            echo "  ↩ Skipping \"$candidate\" (selected ${cooldown_hours}h ago)" >&2
+            ((attempts++))
+            continue
+        fi
+
+        # Passed dedup check
+        echo "$candidate"
+        return
+    done
+
+    # All actions were recent — fall through to the first one with a warning
+    if [[ ${#tried[@]} -gt 0 ]]; then
+        echo "  ⚠️ All $range actions for $need were recent — repeating least-stale" >&2
+        echo "${tried[0]}"
+    fi
+}
+
 # Get actions filtered by impact range (low/mid/high)
 get_actions_by_range() {
     local need=$1
     local range=$2
     
     case $range in
-        low)  jq -r ".needs.\"$need\".actions[] | select(.impact < 1.0) | .name" "$CONFIG_FILE" ;;
-        mid)  jq -r ".needs.\"$need\".actions[] | select(.impact >= 1.0 and .impact < 2.0) | .name" "$CONFIG_FILE" ;;
-        high) jq -r ".needs.\"$need\".actions[] | select(.impact >= 2.0) | .name" "$CONFIG_FILE" ;;
+        low)  jq -r ".needs.\"$need\".actions[] | select(.disabled != true) | select(.impact < 1.0) | .name" "$CONFIG_FILE" ;;
+        mid)  jq -r ".needs.\"$need\".actions[] | select(.disabled != true) | select(.impact >= 1.0 and .impact < 2.0) | .name" "$CONFIG_FILE" ;;
+        high) jq -r ".needs.\"$need\".actions[] | select(.disabled != true) | select(.impact >= 2.0) | .name" "$CONFIG_FILE" ;;
     esac
 }
 
@@ -314,9 +450,9 @@ select_weighted_action() {
     # Get actions with weights for this impact range
     local actions_json
     case $range in
-        low)  actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.impact < 1.0)]" "$CONFIG_FILE") ;;
-        mid)  actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.impact >= 1.0 and .impact < 2.0)]" "$CONFIG_FILE") ;;
-        high) actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.impact >= 2.0)]" "$CONFIG_FILE") ;;
+        low)  actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.disabled != true) | select(.impact < 1.0)]" "$CONFIG_FILE") ;;
+        mid)  actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.disabled != true) | select(.impact >= 1.0 and .impact < 2.0)]" "$CONFIG_FILE") ;;
+        high) actions_json=$(jq -c "[.needs.\"$need\".actions[] | select(.disabled != true) | select(.impact >= 2.0)]" "$CONFIG_FILE") ;;
     esac
     
     local count=$(echo "$actions_json" | jq 'length')
@@ -629,10 +765,6 @@ fi
 
 calculate_tensions
 
-# Spontaneity: accumulate surplus (after tensions, before action selection)
-starvation_active=false
-accumulate_surplus "$STATE_FILE" "$CONFIG_FILE" "$starvation_active"
-
 # Check if all satisfied
 all_satisfied=true
 for need in "${!TENSIONS[@]}"; do
@@ -674,6 +806,18 @@ if [[ -n "$starving_list" ]]; then
     done <<< "$starving_list"
 
     echo "🚨 Starvation guard: ${forced_needs[*]} forced into cycle"
+fi
+
+# Spontaneity: accumulate surplus AFTER starvation detection
+if [[ "${SKIP_SPONTANEITY:-false}" != "true" ]]; then
+    starvation_active=false
+    if [[ ${#forced_needs[@]} -gt 0 ]]; then
+        starvation_active=true
+    fi
+    accumulate_surplus "$STATE_FILE" "$CONFIG_FILE" "$starvation_active"
+
+    # Layer C: Context scan — detect environmental triggers
+    run_context_scan "$SCRIPTS_DIR"
 fi
 
 # Phase 2: Fill remaining slots with top-N (excluding forced)
@@ -728,19 +872,25 @@ for need in "${top_needs_array[@]}"; do
         
         if $is_forced_need || roll_action $sat $tension; then
             # Roll for impact range (with spontaneity shift if eligible)
-            # Surplus logs go to /tmp/tp_spont_log for capture
-            roll_impact_range "$need" "$sat" > /tmp/tp_roll_result.$$ 2>/tmp/tp_spont_log.$$
-            impact_range=$(cat /tmp/tp_roll_result.$$)
+            tp_roll_file=$(mktemp /tmp/tp_roll_XXXXXX)
+            tp_spont_file=$(mktemp /tmp/tp_spont_XXXXXX)
+            roll_impact_range "$need" "$sat" > "$tp_roll_file" 2>"$tp_spont_file"
+            impact_range=$(cat "$tp_roll_file")
             
             # Print surplus logs and detect [SPONTANEOUS]
             local_spont_label=""
-            if [[ -s /tmp/tp_spont_log.$$ ]]; then
-                cat /tmp/tp_spont_log.$$
-                if grep -q "\[SPONTANEOUS\]" /tmp/tp_spont_log.$$; then
+            if [[ -s "$tp_spont_file" ]]; then
+                cat "$tp_spont_file"
+                if grep -q "\[SPONTANEOUS\]" "$tp_spont_file"; then
                     local_spont_label=" [SPONTANEOUS]"
                 fi
             fi
-            rm -f /tmp/tp_roll_result.$$ /tmp/tp_spont_log.$$
+            rm -f "$tp_roll_file" "$tp_spont_file"
+            
+            # Record spontaneous for echo tracking (Layer B3)
+            if [[ -n "$local_spont_label" && "$impact_range" == "high" ]]; then
+                record_spontaneous "$need" "$STATE_FILE"
+            fi
             
             # If sat=3.0, skip action (fully satisfied)
             if [[ "$impact_range" == "skip" ]]; then
@@ -748,6 +898,22 @@ for need in "${top_needs_array[@]}"; do
                 echo ""
                 echo "○ SATISFIED: $need (sat=$sat) — no action needed"
                 continue
+            fi
+            
+            # Layer B — Noise upgrade (boredom + echo)
+            local_noise_label=""
+            tp_noise_file=$(mktemp /tmp/tp_noise_XXXXXX)
+            noise_result=$(try_noise_upgrade "$need" "$impact_range" "$STATE_FILE" "$CONFIG_FILE" 2>"$tp_noise_file")
+            if [[ -s "$tp_noise_file" ]]; then
+                cat "$tp_noise_file"
+            fi
+            rm -f "$tp_noise_file"
+            # Parse: "range [LABEL]" or just "range"
+            noise_range=$(echo "$noise_result" | awk '{print $1}')
+            noise_tag=$(echo "$noise_result" | sed 's/^[a-z]* *//')
+            if [[ "$noise_range" != "$impact_range" ]]; then
+                local_noise_label=" $noise_tag"
+                impact_range="$noise_range"
             fi
             
             # ACTION - weighted action selection
@@ -759,8 +925,8 @@ for need in "${top_needs_array[@]}"; do
                 local_forced_label=" [STARVATION GUARD]"
             fi
             
-            # Select specific action using weights within range
-            selected_action=$(select_weighted_action "$need" "$impact_range")
+            # Select specific action using weights within range (with dedup guard)
+            selected_action=$(select_action_with_dedup "$need" "$impact_range")
             
             # Get actual impact value of selected action
             actual_impact=""
@@ -769,13 +935,21 @@ for need in "${top_needs_array[@]}"; do
             fi
             
             echo ""
-            echo "▶ ACTION: $need (tension=$tension, sat=$sat)$local_forced_label$local_spont_label"
+            echo "▶ ACTION: $need (tension=$tension, sat=$sat)$local_forced_label$local_spont_label$local_noise_label"
             echo "  Range $impact_range rolled → selected:"
             
             if [[ -n "$selected_action" ]]; then
                 echo "    ★ $selected_action (impact: $actual_impact)"
                 # Record selection for staleness tracking
                 record_action_selection "$need" "$selected_action"
+                # Register in execution gate (skip in test mode)
+                if [[ "${SKIP_GATE:-}" != "true" ]]; then
+                    local gate_args=(--need "$need" --action "$selected_action" --impact "$actual_impact" --source "run-cycle")
+                    if $is_forced_need; then
+                        gate_args+=(--non-deferrable)
+                    fi
+                    bash "$SCRIPTS_DIR/gate-propose.sh" "${gate_args[@]}" 2>/dev/null || true
+                fi
                 # Check for auto-followup
                 create_auto_followup "$need" "$selected_action"
             else
@@ -808,6 +982,12 @@ echo "Summary: $action_count action(s), $noticed_count noticed"
 
 if [[ $action_count -gt 0 ]]; then
     echo ""
-    echo "After completing actions, update state with:"
-    echo "  ./scripts/mark-satisfied.sh <need> [impact]"
+    echo "📋 EXECUTE these actions, then resolve:"
+    bash "$SCRIPTS_DIR/gate-status.sh" 2>/dev/null || true
+    echo ""
+    echo "After each action:"
+    echo "  mark-satisfied.sh <need> <impact> --reason \"what you did\""
+    echo "  gate-resolve.sh --need <need> --evidence \"what you did\""
+    echo "Or defer:"
+    echo "  gate-resolve.sh --defer <id> --reason \"why\""
 fi

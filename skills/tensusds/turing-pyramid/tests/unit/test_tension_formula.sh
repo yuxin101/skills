@@ -1,21 +1,25 @@
 #!/bin/bash
-# test_tension_formula.sh — Verify tension = importance × (3 - satisfaction)
-# Expected: tension for security(imp=10) at sat=2 should be 10
+# test_tension_formula.sh — Verify Turing-exp formula math
+# tension = dep² + importance × max(0, dep - threshold)²
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CONFIG="$SKILL_DIR/assets/needs-config.json"
 
-# Get security importance
 importance=$(jq -r '.needs.security.importance' "$CONFIG")
+threshold=$(jq -r '.settings.tension_formula.crisis_threshold // 1.0' "$CONFIG")
 
-# Test case: sat=2, importance=10 → tension should be 10
-sat=2
-expected_tension=$((importance * (3 - sat)))
+# Test: security(imp=10) at sat=2.0 (dep=1.0 = threshold)
+# excess = max(0, 1.0 - 1.0) = 0
+# tension = 1² + 10 × 0² = 1.0
+dep=1
+excess=$(echo "scale=4; $dep - $threshold" | bc -l)
+if (( $(echo "$excess < 0" | bc -l) )); then excess=0; fi
+expected=$(echo "scale=1; ($dep * $dep) + ($importance * $excess * $excess)" | bc -l)
 
-if [[ "$expected_tension" -eq 10 ]]; then
+if (( $(echo "$expected == 1.0" | bc -l) )); then
     exit 0
 else
-    echo "Expected tension=10, got tension=$expected_tension"
+    echo "Expected tension=1.0, got tension=$expected (imp=$importance, dep=$dep, threshold=$threshold)"
     exit 1
 fi

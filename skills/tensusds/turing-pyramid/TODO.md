@@ -140,3 +140,13 @@ Force logging discipline — tension builds if important events aren't captured.
 
 - **Garbage Cleanup action** — already added to integrity need (v1.12)
 - **Stillness/Rest** — careful design needed to avoid passivity trap
+
+## v2.0 — Selection/Impact Separation (design phase)
+- [ ] Separate need selection (by deprivation) from impact selection (by importance)
+  - All needs get equal frequency of attention
+  - Important needs get bigger actions when selected
+  - Closer to biological model: eat regularly AND draw regularly, but meals are bigger
+- [ ] Adapt spontaneity layers (A/B/C) to new selection model
+- [ ] Adapt continuity layer temperature calculations to new tension model
+- [ ] Rebalance probability tables for deprivation-only selection
+- [ ] Recalibrate cross-need impact weights

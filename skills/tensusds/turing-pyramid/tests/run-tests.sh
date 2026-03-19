@@ -26,7 +26,11 @@ run_test() {
         return
     fi
     
-    if WORKSPACE="$SKILL_DIR" "$test_file" >/dev/null 2>&1; then
+    # Clear stale lock files and gate state before each test
+    rm -f "$SKILL_DIR"/assets/*.lock 2>/dev/null || true
+    rm -f "$SKILL_DIR"/assets/pending_actions.json "$SKILL_DIR"/assets/gate.lock 2>/dev/null || true
+    
+    if WORKSPACE="$SKILL_DIR" SKIP_GATE=true "$test_file" >/dev/null 2>&1; then
         echo -e "${GREEN}PASS${NC} $test_name"
         ((PASSED++)) || true
     else

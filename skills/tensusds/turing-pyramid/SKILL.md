@@ -1,12 +1,18 @@
 ---
 name: turing-pyramid
-description: Prioritized action selection for AI agents. 10 needs with time-decay and tension scoring replace idle heartbeat loops with concrete next actions.
+description: Motivation and action system for AI agents. 10 needs with Turing-exp tension, execution gate with evidence verification, spontaneity layers, and continuity across sessions.
 metadata:
   clawdbot:
     emoji: "🔺"
     requires:
       env:
         - WORKSPACE
+      optional_env:
+        - MINDSTATE_ASSETS_DIR
+        - SKIP_SCANS
+        - SKIP_SPONTANEITY
+        - TURING_CALLER
+        - SKIP_GATE
       bins:
         - bash
         - jq
@@ -15,444 +21,485 @@ metadata:
         - find
 ---
 
-# Turing Pyramid
+# 🔺 Turing Pyramid
 
-Prioritized action selection for AI agents. 10 needs with time-decay and tension scoring replace idle heartbeat loops with concrete next actions.
+**What it does:** Gives your agent a motivation system. 10 needs (security, connection, expression...) build tension over time via decay. Each heartbeat, the pyramid evaluates tensions, selects actions, and tells the agent what to do — from "check system health" to "write something creative."
 
-**Customization:** Tune decay rates, weights, patterns. Defaults are starting points. See `TUNING.md`.
+**What it is NOT:** A chatbot framework. The pyramid handles motivation and action selection. Your agent handles execution. Core scripts make no network calls. Optional `external-model` scan method (disabled by default) can call an inference API if explicitly enabled by steward. The continuity daemon performs lightweight local system checks (process list, disk usage).
 
-**Ask your human before:** Changing importance values, adding/removing needs, enabling external actions.
-
----
-
-## Requirements
-
-**System binaries (must be in PATH):**
-```
-bash, jq, grep, find, date, wc, bc
-```
-
-**Environment (REQUIRED — no fallback):**
-```bash
-# Scripts will ERROR if WORKSPACE is not set
-export WORKSPACE="/path/to/your/workspace"
-```
-⚠️ **No silent fallback.** If WORKSPACE is unset, scripts exit with error.
-This prevents accidental scanning of unintended directories.
-
-**Post-install (ClawHub):**
-```bash
-# ClawHub doesn't preserve executable bits — fix after install:
-chmod +x ~/.openclaw/workspace/skills/turing-pyramid/scripts/*.sh
-chmod +x ~/.openclaw/workspace/skills/turing-pyramid/tests/**/*.sh
-```
-Why: Unix executable permissions (+x) are not preserved in ClawHub packages.
-Scripts work fine with `bash scripts/run-cycle.sh`, but `./scripts/run-cycle.sh` needs +x.
+**v1.27.0** — Execution Gate: structural enforcement that prevents agents from describing actions instead of doing them. Turing-exp tension formula: equal rotation at homeostasis, hierarchy only in crisis.
 
 ---
 
-## Data Access & Transparency
-
-**What this skill reads (via grep/find scans):**
-- `MEMORY.md`, `memory/*.md` — for connection/expression/understanding signals
-- `SOUL.md`, `SELF.md` — for integrity/coherence checks
-- `research/`, `scratchpad/` — for competence/understanding activity
-- Dashboard files, logs — for various need assessments
-
-**What this skill writes:**
-- `assets/needs-state.json` — current satisfaction/deprivation state
-- `assets/audit.log` — append-only log of all mark-satisfied calls (v1.12.0+)
-
-**Privacy considerations:**
-- Scans use grep patterns, not semantic analysis — they see keywords, not meaning
-- State file contains no user content, only need metrics
-- Audit log records reasons given for satisfaction claims
-- No data is transmitted externally by the skill itself
-
-**Limitations & Trust Model:**
-- `mark-satisfied.sh` trusts caller-provided reasons — audit log records claims, not verified facts
-- Some actions in `needs-config.json` reference external services (Moltbook, web search) — marked with `"external": true, "requires_approval": true`
-- External actions are **suggestions only** — the skill doesn't execute them, the agent decides
-- If you don't want external action suggestions, set their weights to 0
-
-**Network & System Access:**
-- Scripts contain **no network calls** (no curl, wget, ssh, etc.) — verified by grep scan
-- Scripts contain **no system commands** (no sudo, systemctl, docker, etc.)
-- All operations are local: grep, find, jq, bc, date on WORKSPACE files only
-- The skill **suggests** actions (including some that mention external services) but **never executes** them
-
-**Required Environment Variables:**
-- `WORKSPACE` — path to agent workspace directory (REQUIRED, no fallback). **Not a credential** — this is a filesystem path, not a secret. Set it to a deliberately scoped directory containing only files you want scanned.
-- `TURING_CALLER` — optional, for audit trail (values: "heartbeat", "manual")
-
-**No API keys or secrets required by default.** The `external_model` scan method (disabled by default) would require an API key if enabled — this requires explicit steward approval and is never enabled silently. See Scan Configuration below.
-
-**Audit trail (v1.12.0+):**
-All `mark-satisfied.sh` calls are logged with:
-- Timestamp, need, impact, old→new satisfaction
-- Reason (what action was taken) — **scrubbed for sensitive patterns**
-- Caller (heartbeat/manual)
-
-**Sensitive data scrubbing (v1.12.3+):**
-Before writing to audit log, reasons are scrubbed:
-- Long tokens (20+ chars) → `[REDACTED]`
-- Credit card patterns → `[CARD]`
-- Email addresses → `[EMAIL]`
-- password/secret/token/key values → `[REDACTED]`
-- Bearer tokens → `Bearer [REDACTED]`
-
-View audit: `cat assets/audit.log | jq`
-
----
-
-## Pre-Install Checklist
-
-Before installing, review these items:
-
-1. **Inspect scan scripts** — Verify no network calls or unexpected commands:
-   ```bash
-   grep -nE "\b(curl|wget|ssh|sudo|docker|systemctl)\b" scripts/scan_*.sh
-   # Expected: no output
-   ```
-
-2. **Scope WORKSPACE** — Set to a deliberately limited directory. Avoid pointing at your full home directory. The skill only reads files inside `$WORKSPACE`.
-
-3. **Audit scan targets** — Scripts read `MEMORY.md`, `memory/`, `SOUL.md`, `research/`, `scratchpad/`. Relocate files containing secrets or private data you don't want pattern-matched.
-
-4. **Review audit logging** — `mark-satisfied.sh` logs caller-provided reasons after scrubbing. Check scrubbing patterns in the script are adequate for your data. If unsure, provide only generic reasons.
-
-5. **External actions** — Action suggestions like "post to Moltbook" or "web search" are text-only suggestions (never executed by this skill). To remove them: set their `weight` to `0` in `needs-config.json`.
-
-6. **Run tests in isolation** — Before production use:
-   ```bash
-   WORKSPACE=/tmp/test-workspace ./tests/run-tests.sh
-   ```
-
----
-
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
-./scripts/init.sh                        # First time
-./scripts/run-cycle.sh                   # Every heartbeat  
-./scripts/mark-satisfied.sh <need> [impact]  # After action
+# 1. Set workspace (REQUIRED)
+export WORKSPACE="/path/to/your/agent/workspace"
+
+# 2. Fix permissions (ClawHub doesn't preserve +x)
+chmod +x <skill-dir>/scripts/*.sh
+chmod +x <skill-dir>/tests/**/*.sh
+
+# 3. Initialize
+bash scripts/init.sh
+
+# 4. Run a cycle
+bash scripts/run-cycle.sh
+
+# 5. After completing an action
+bash scripts/mark-satisfied.sh <need> <impact>
+# Example: bash scripts/mark-satisfied.sh connection 1.5
+```
+
+Add to `HEARTBEAT.md` for automatic operation:
+```bash
+bash /path/to/skills/turing-pyramid/scripts/run-cycle.sh
 ```
 
 ---
 
-## Scan Configuration (First-Time Setup)
+## 🎓 Onboarding Guide
 
-The Turing Pyramid uses **scanners** to evaluate each need by analyzing memory files. The default scan method uses line-level pattern matching, which works everywhere with zero cost.
+### For the Agent
 
-**On first install, discuss scan configuration with your human:**
+When you first install this skill:
 
-### Available Scan Methods
+1. **Read this file** to understand the 10 needs and how tension works
+2. **Run `init.sh`** to create initial state files
+3. **Run one cycle** (`run-cycle.sh`) and follow the suggested action
+4. **Mark it done** (`mark-satisfied.sh <need> <impact>`) after completing the action
+5. **Integrate into heartbeat** — add `run-cycle.sh` to your HEARTBEAT.md
 
-| Method | How it works | Cost | Accuracy | Setup |
-|--------|-------------|------|----------|-------|
-| `line-level` (default) | Per-line keyword matching. If a line has both positive and negative words (e.g. "fixed a bug"), positive wins. | Free | Good | None |
-| `agent-spawn` | Spawns a sub-agent with a cheap model (e.g. Haiku) to classify memory lines as SUCCESS/FAILURE/NEUTRAL. | Low | High | Needs cheap model in agent's allowed list |
-| `external-model` | Direct API call to an inference service (OpenRouter, etc.) for classification. | Low | High | Needs API key + explicit steward approval |
+The system is self-tuning. After a few cycles, you'll see patterns: which needs decay fast, which actions are selected, where tensions build.
 
-### Setup Conversation
+**Key concepts:**
+- **Satisfaction** (0.5–3.0): How fulfilled a need is. 3.0 = perfect, 0.5 = crisis (floor)
+- **Tension** = dep² + importance × max(0, dep - threshold)². Equal at homeostasis, hierarchy in crisis.
+- **Decay**: Satisfaction drops over time at need-specific rates. Connection decays in 6h. Security in 168h.
+- **Actions**: Each need has 8-11 possible actions with impact levels (low/mid/high). The pyramid picks based on current state.
 
-When setting up, ask your human:
+### For the Human (Steward)
 
-1. **"Do you have a cheap/fast model available (like Claude Haiku) in your model config?"**
-   - If yes → offer `agent-spawn` method. Check with `openclaw models list`.
-   - The model must be in the agent's allowed model list.
+**Before your agent starts using this:**
 
-2. **"Would you prefer to use an external inference service (like OpenRouter)?"**
-   - If yes → ask for: base URL, API key env variable name, model name.
-   - Store in `assets/scan-config.json` with `approved_by_steward: true`.
-   - ⚠️ This method requires **explicit steward approval** — never enable silently.
-
-3. **If neither** → `line-level` works well for most setups. No action needed.
-
-### Configuration File
-
-Edit `assets/scan-config.json`:
-
-```json
-{
-  "scan_method": "line-level",
-  "agent_spawn": {
-    "enabled": false,
-    "model": null,
-    "approved_by_steward": false
-  },
-  "external_model": {
-    "enabled": false,
-    "base_url": null,
-    "api_key_env": null,
-    "model": null,
-    "approved_by_steward": false
-  },
-  "fallback": "line-level"
-}
-```
-
-**Fallback**: If the configured method fails (API down, model unavailable), scanners automatically fall back to `line-level`.
-
-### Verification After Setup
-
-After configuring a non-default method, **verify it works** before telling your human "all set":
-
-1. **agent-spawn**: Run a test spawn:
-   ```
-   sessions_spawn(task="Classify this line as SUCCESS, FAILURE, or NEUTRAL: 'Fixed the critical bug in scanner'", model="<configured_model>", mode="run")
-   ```
-   - If it returns a classification → ✅ tell human: "agent-spawn method verified, working."
-   - If it errors (model not in allowlist, etc.) → ⚠️ tell human: "Model `X` isn't available for sub-agents. Options: add it to allowed models, or stick with line-level."
-
-2. **external-model**: Test the API endpoint:
+1. **Review the 10 needs** (table below) — are importance rankings right for your agent?
+2. **Check scan config** — default `line-level` is free and works everywhere. Upgrade to `agent-spawn` if you have a cheap model (Haiku) available.
+3. **External actions** — some suggestions mention platforms (Moltbook, web search). These are *text suggestions only*. To remove: set their `weight: 0` in `needs-config.json`.
+4. **Run the test suite** to verify everything works:
    ```bash
-   curl -s -H "Authorization: Bearer $API_KEY" \
-     "$BASE_URL/chat/completions" \
-     -d '{"model":"<model>","messages":[{"role":"user","content":"Reply OK"}]}'
+   WORKSPACE=/tmp/test-workspace bash tests/run-tests.sh
    ```
-   - If you get a valid response → ✅ tell human: "external-model method verified, API responding."
-   - If 401/403 → ⚠️ "API key invalid or expired."
-   - If connection refused → ⚠️ "Can't reach the API endpoint. Check URL."
 
-3. **line-level**: No verification needed — always works.
-
-**Always report the result to your human.** Don't silently fall back.
+**Configuration conversation with your agent:**
+- "Review the 10 needs with me — let's adjust importance for your role"
+- "Do you have a cheap model for smarter scanning?" → `agent-spawn` method
+- "Which external action suggestions should we disable?"
 
 ---
 
-## Needs Customization (First-Time Setup)
+## 📊 The 10 Needs
 
-The default configuration is opinionated — it reflects one model of agent priorities. **Your needs may differ.** On first install, review the hierarchy with your human:
+| Need | Imp | Decay | What it measures |
+|------|-----|-------|-----------------|
+| security | 10 | 168h | System stability, no threats |
+| integrity | 9 | 72h | Alignment with SOUL.md values |
+| coherence | 8 | 24h | Memory consistency |
+| closure | 7 | 12h | Open threads resolved |
+| autonomy | 6 | 36h | Self-directed action taken |
+| connection | 5 | 8h | Social interaction |
+| competence | 4 | 36h | Skills used effectively |
+| understanding | 4 | 8h | Learning, curiosity satisfied |
+| recognition | 2 | 48h | Feedback received |
+| expression | 1 | 8h | Creative output produced |
 
-### The Conversation
-
-Ask your human:
-
-> "The Turing Pyramid comes with 10 default needs ranked by importance. Want to review them together? We can adjust what matters most to you/me, change importance weights, or even skip needs that don't fit."
-
-Then walk through the table together:
-
-```
-┌───────────────┬─────┬────────────────────────────────────────────┐
-│ Need          │ Imp │ Question to discuss                        │
-├───────────────┼─────┼────────────────────────────────────────────┤
-│ security      │  10 │ "System stability — keep as top priority?" │
-│ integrity     │   9 │ "Value alignment — important for you?"     │
-│ coherence     │   8 │ "Memory consistency — how much do I care?" │
-│ closure       │   7 │ "Task completion pressure — too much?"     │
-│ autonomy      │   6 │ "Self-direction — more or less?"           │
-│ connection    │   5 │ "Social needs — relevant for me?"          │
-│ competence    │   4 │ "Skill growth — higher priority?"          │
-│ understanding │   3 │ "Learning drive — stronger or weaker?"     │
-│ recognition   │   2 │ "Feedback need — does this matter?"        │
-│ expression    │   1 │ "Creative output — more important?"        │
-└───────────────┴─────┴────────────────────────────────────────────┘
-```
-
-### What You Can Change Together
-
-1. **Importance** (1-10): Reorder what matters most. An agent focused on research might want `understanding: 8, expression: 7`. A utility agent might want `competence: 10, connection: 1`.
-
-2. **Decay rates**: How fast needs build pressure. Social agent? `connection: 3h`. Solitary thinker? `connection: 24h`.
-
-3. **Disable a need**: Set `importance: 0` — it won't generate tension or actions. Use sparingly.
-
-### How to Apply
-
-Edit `assets/needs-config.json`:
+**Customize in `assets/needs-config.json`:**
 ```json
 "understanding": {
-  "importance": 8,        // was 3 → now top priority
-  "decay_rate_hours": 8   // was 12 → decays faster
+  "importance": 8,        // Promote: research-focused agent
+  "decay_rate_hours": 6   // Faster decay = more urgency
 }
 ```
 
-### Guidelines
-
-- **Don't remove security/integrity** without good reason — they protect system health
-- **Importance is relative** — what matters is the ranking, not absolute numbers
-- **You can revisit** — preferences evolve. Re-tune after a few weeks of use
-- **Document changes** — note why you changed something (future-you will want to know)
-
-If your human says "defaults are fine" → great, move on. The point is to **offer the choice**, not force a workshop.
-
 ---
 
-## The 10 Needs
+## ⚙️ Core Mechanics
+
+### Turing-exp Tension Formula (v1.26.0)
 
 ```
-┌───────────────┬─────┬───────┬─────────────────────────────────┐
-│ Need          │ Imp │ Decay │ Meaning                         │
-├───────────────┼─────┼───────┼─────────────────────────────────┤
-│ security      │  10 │ 168h  │ System stability, no threats    │
-│ integrity     │   9 │  72h  │ Alignment with SOUL.md          │
-│ coherence     │   8 │  24h  │ Memory consistency              │
-│ closure       │   7 │  12h  │ Open threads resolved           │
-│ autonomy      │   6 │  24h  │ Self-directed action            │
-│ connection    │   5 │   6h  │ Social interaction              │
-│ competence    │   4 │  48h  │ Skill use, effectiveness        │
-│ understanding │   3 │  12h  │ Learning, curiosity             │
-│ recognition   │   2 │  72h  │ Feedback received               │
-│ expression    │   1 │   8h  │ Creative output                 │
-└───────────────┴─────┴───────┴─────────────────────────────────┘
+tension = dep² + importance × max(0, dep - crisis_threshold)²
+          ╰─ base ─╯   ╰────── crisis amplifier ──────────╯
+          (equal for    (importance matters ONLY
+           all needs)    when dep > threshold)
 ```
 
----
+**Below threshold** (default: 1.0, meaning sat > 2.0): All needs produce equal tension. Selection is effectively round-robin — expression gets as many slots as security.
 
-## Core Logic
+**Above threshold** (sat < 2.0): Importance amplifies the crisis signal. In a dual crisis, security (imp=10) gets priority over expression (imp=1). This is Maslow's actual model: hierarchy activates only when needs compete for scarce attention.
 
-**Satisfaction:** 0.0–3.0 (floor=0.5 prevents paralysis)  
-**Tension:** `importance × (3 - satisfaction)`
+Configure: `settings.tension_formula.crisis_threshold` in `needs-config.json`
 
-### Action Probability (v1.13.0)
-
-6-level granular system:
+### Tension → Action Selection
 
 ```
-┌─────────────┬────────┬──────────────────────┐
-│ Sat         │ Base P │ Note                 │
-├─────────────┼────────┼──────────────────────┤
-│ 0.5 crisis  │  100%  │ Always act           │
-│ 1.0 severe  │   90%  │ Almost always        │
-│ 1.5 depriv  │   75%  │ Usually act          │
-│ 2.0 slight  │   50%  │ Coin flip            │
-│ 2.5 ok      │   25%  │ Occasionally         │
-│ 3.0 perfect │    0%  │ Skip (no action)     │
-└─────────────┴────────┴──────────────────────┘
+satisfaction decays over time
+    → tension (Turing-exp formula)
+        → probability roll (crisis=100%, ok=25%, perfect=0%)
+            → impact selection (crisis→big actions, ok→small actions)
+                → action selected from weighted pool
 ```
 
-**Tension bonus:** `bonus = (tension × 50) / max_tension`
+### Action Probability by Satisfaction Level
 
-### Impact Selection (v1.13.0)
+| Sat Level | Base P | Behavior |
+|-----------|--------|----------|
+| 0.5 crisis | 100% | Always act |
+| 1.0 severe | 90% | Almost always |
+| 1.5 deprived | 75% | Usually act |
+| 2.0 slight | 50% | Coin flip |
+| 2.5 ok | 25% | Occasionally |
+| 3.0 perfect | 0% | Skip |
 
-6-level granular matrix with smooth transitions:
+### Protection Mechanisms
 
-```
-┌─────────────┬───────┬────────┬───────┐
-│ Sat         │ Small │ Medium │ Big   │
-├─────────────┼───────┼────────┼───────┤
-│ 0.5 crisis  │   0%  │    0%  │ 100%  │
-│ 1.0 severe  │  10%  │   20%  │  70%  │
-│ 1.5 depriv  │  20%  │   35%  │  45%  │
-│ 2.0 slight  │  30%  │   45%  │  25%  │
-│ 2.5 ok      │  45%  │   40%  │  15%  │
-│ 3.0 perfect │  —    │    —   │  —    │ (skip)
-└─────────────┴───────┴────────┴───────┘
-```
+| Mechanism | Purpose |
+|-----------|---------|
+| **Floor (0.5)** | Minimum satisfaction — prevents total collapse |
+| **Ceiling (3.0)** | Maximum — prevents runaway satisfaction |
+| **Starvation Guard** | Need at floor >48h without action → forced into cycle |
+| **Action Staleness** | Recently-selected actions get 80% weight penalty (variety) |
+| **Day/Night Mode** | Decay slows 50% at night (configurable) |
 
-- **Crisis (0.5)**: All-in on big actions — every need guaranteed ≥3 big actions
-- **Perfect (3.0)**: Skip action selection — no waste on satisfied needs
+### Cross-Need Impact
 
-**ACTION** = do it, then `mark-satisfied.sh`  
-**NOTICED** = logged, deferred
+Actions on one need can boost or drag others:
 
----
-
-## Protection Mechanisms
-
-```
-┌─────────────┬───────┬────────────────────────────────────────┐
-│ Mechanism   │ Value │ Purpose                                │
-├─────────────┼───────┼────────────────────────────────────────┤
-│ Floor       │  0.5  │ Minimum sat — prevents collapse        │
-│ Ceiling     │  3.0  │ Maximum sat — prevents runaway         │
-│ Cooldown    │   4h  │ Deprivation cascades once per 4h       │
-│ Threshold   │  1.0  │ Deprivation only when sat ≤ 1.0        │
-└─────────────┴───────┴────────────────────────────────────────┘
-```
-
-**Action Staleness (v1.15.0):** Penalizes recently-selected actions to increase variety.
-- Actions selected within 24h get weight × 0.2 (80% reduction)
-- `min_weight: 5` prevents total suppression — stale actions still have a chance
-- Config: `settings.action_staleness` in needs-config.json
-
-**Starvation Guard (v1.15.0):** Prevents low-importance needs from being perpetually ignored.
-- If a need stays at floor (sat ≤ 0.5) without any action for 48+ hours → forced into cycle
-- Bypasses probability roll — guaranteed action slot
-- Config: `settings.starvation_guard` in needs-config.json
-- Default: 1 forced slot per cycle, 48h threshold
-
-**Spontaneity Layer A (v1.18.0):** Surplus energy system for organic high-impact actions.
-- When all needs are above baseline (sat ≥ 2.0), surplus accumulates per-need
-- Global gate requires ALL needs ≥ 1.5 and no starvation guard active
-- When surplus exceeds threshold (~12.5 effective), impact matrix shifts toward bigger actions
-- Full spend on HIGH hit, 30% partial on miss — creates natural ~28-35hr pulsing rhythm
-- Disabled for safety needs (security, integrity, coherence)
-- Config: `settings.spontaneity` + per-need `spontaneous` block in needs-config.json
-
-**Day/Night Mode (v1.11.0):** Decay slows at night to reduce pressure during rest hours.
-- Configure in `assets/decay-config.json`
-- Default: 06:01-22:00 = day (×1.0), 22:01-06:00 = night (×0.5)
-- Disable with `"day_night_mode": false`
-
-**Base Needs Isolation:** Security (10) and Integrity (9) are protected:
-- They influence lower needs (security → autonomy)
-- Lower needs cannot drag them down
-- Only `integrity → security (+0.15)` and `autonomy → integrity (+0.20)` exist
-
----
-
-## Cross-Need Impact
-
-**on_action:** Completing A boosts connected needs  
-**on_deprivation:** A staying low (sat ≤ 1.0) drags others down
-
-```
-┌─────────────────────────┬──────────┬─────────────┬───────────────────────┐
-│ Source → Target         │ on_action│ on_deprived │ Why                   │
-├─────────────────────────┼──────────┼─────────────┼───────────────────────┤
-│ expression → recognition│   +0.25  │      -0.10  │ Express → noticed     │
-│ connection → expression │   +0.20  │      -0.15  │ Social sparks ideas   │
-│ connection → understand │   -0.05  │         —   │ Socratic effect       │
-│ competence → recognition│   +0.30  │      -0.20  │ Good work → respect   │
-│ autonomy → integrity    │   +0.20  │      -0.25  │ Act on values         │
-│ closure → coherence     │   +0.20  │      -0.15  │ Threads → order       │
-│ security → autonomy     │   +0.10  │      -0.20  │ Safety enables risk   │
-└─────────────────────────┴──────────┴─────────────┴───────────────────────┘
-```
-
-### Tips
-
-- **Leverage cascades:** Connection easy? Do it first — boosts expression (+0.20)
-- **Watch spirals:** expression ↔ recognition can create mutual deprivation
-- **Autonomy is hub:** Receives from 5 sources. Keep healthy.
-- **Socratic effect:** connection → understanding: -0.05. Dialogue exposes ignorance. Healthy!
+| Action on... | Boosts | Why |
+|-------------|--------|-----|
+| expression | recognition +0.25 | Express → noticed |
+| connection | expression +0.20 | Social sparks ideas |
+| competence | recognition +0.30 | Good work → respect |
+| autonomy | integrity +0.20 | Act on values |
+| closure | coherence +0.20 | Finished threads → order |
+| security | autonomy +0.10 | Safety enables risk |
 
 Full matrix: `assets/cross-need-impact.json`
 
 ---
 
-## Example Cycle
+## 🚪 Execution Gate (v1.27.0)
+
+Structural enforcement that prevents agents from describing actions instead of doing them. LLMs conflate "reasoning about an action" with "performing an action" — both are token generation. The gate requires **environmental evidence** that an action produced a state change.
+
+### How it works
 
 ```
-🔺 Turing Pyramid — Cycle at Sat Mar  7 05:06
+run-cycle.sh proposes action → gate-propose.sh registers it as PENDING
+    → gate blocks new proposals until PENDING actions resolved
+        → agent EXECUTES the action (writes file, posts, runs command)
+            → gate-resolve.sh verifies evidence → COMPLETED
+                → gate clears → next cycle allowed
+```
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `gate-propose.sh` | Register pending action (called by run-cycle.sh automatically) |
+| `gate-resolve.sh` | Resolve with evidence, or defer with reason |
+| `gate-check.sh` | Check if gate is clear (built into run-cycle.sh) |
+| `gate-status.sh` | Human-readable status + execution rate analytics |
+
+### Evidence Types
+
+| Type | Trust | Verification |
+|------|-------|-------------|
+| `mark_satisfied` | HIGH | Was mark-satisfied.sh called? (audit.log check) |
+| `file_created` | HIGH | Does expected file exist? |
+| `file_modified` | HIGH | Was file modified since proposal? |
+| `self_report` | LOW | Agent self-reports (counted separately in analytics) |
+
+### Usage
+
+```bash
+# After completing an action:
+bash scripts/mark-satisfied.sh expression 1.6
+bash scripts/gate-resolve.sh --need expression --evidence "wrote post about X"
+
+# Or defer with reason:
+bash scripts/gate-resolve.sh --defer <action_id> --reason "quiet hours"
+
+# Check gate status:
+bash scripts/gate-status.sh
+```
+
+**Starvation guard actions are non-deferrable.** If the guard forces an action, it cannot be deferred.
+
+Configure: `execution_gate` in `assets/mindstate-config.json`
+
+---
+
+## 🎲 Spontaneity System (Layers A/B/C)
+
+Three layers create organic, unpredictable behavior:
+
+| Layer | Mechanism | Effect |
+|-------|-----------|--------|
+| **A — Surplus** | Excess satisfaction accumulates. When threshold hit → HIGH impact roll | Natural ~28-35h pulsing rhythm |
+| **B — Noise** | Boredom grows without high-impact actions (max 9%). Echo boost after spontaneous fire (8%, decays 24h) | Variety when things get stale |
+| **C — Context** | File system changes trigger need-specific boosts (new research files → understanding) | Environmental responsiveness |
+
+Combined noise cap: 12%. Disabled for safety needs (security, integrity, coherence).
+
+Configure: `settings.spontaneity` in `needs-config.json`
+
+---
+
+## 🔄 Continuity Layer (v1.23.0)
+
+State persistence across discrete sessions via a two-layer living document. The **reality** layer updates continuously (cron daemon), while the **cognition** layer freezes at session end and restores at next boot.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│                 MINDSTATE.md                     │
+├────────────────────┬────────────────────────────┤
+│   ## reality       │   ## cognition             │
+│   (daemon, 5min)   │   (frozen at session end)  │
+│   auto-updated     │   read-only between        │
+│   between sessions │   session endpoints        │
+├────────────────────┴────────────────────────────┤
+│   ## forecast (frozen, consumed at boot)        │
+└─────────────────────────────────────────────────┘
+```
+
+### Three Scripts
+
+| Script | When | What |
+|--------|------|------|
+| `mindstate-daemon.sh` | Cron every 5min | Updates reality: pyramid state, filesystem changes, system health, physical temperature |
+| `mindstate-freeze.sh` | End of substantive session | Freezes cognition: trajectory, open threads, momentum, cognitive temperature |
+| `mindstate-boot.sh` | Session start (FIRST thing) | Loads MINDSTATE, reconciles forecast vs reality, reports continuity score |
+
+### Boot Sequence (inverted)
+
+```
+1. MINDSTATE.md  → Where am I? (position + velocity)
+2. SOUL.md       → Who am I? (identity)
+3. MEMORY.md     → What do I know? (history)
+4. run-cycle.sh  → What should I do? (action)
+```
+
+Current state loads first — early context frames interpretation of everything after.
+
+### Temperature System
+
+**Physical** (daemon-computed, deterministic, first-match):
+
+| Word | Condition |
+|------|-----------|
+| crisis | Any need critical (sat ≤ 0.5) |
+| pressure | Average tension > 3 |
+| focus | One need dominates (max tension > 2) |
+| impulse | Spontaneous Layer A fired recently |
+| accumulation | Surplus building toward threshold |
+| calm | All tensions low (default) |
+
+**Cognitive** (freeze-computed from session):
+building / exploring / intensive / contemplation / brief / neutral
+
+**Drift detection:** If physical ≠ cognitive at boot → DRIFT_DETECTED. Reality diverged while cognition was frozen.
+
+### Setup
+
+```bash
+# Daemon cron (updates reality between sessions)
+crontab -e
+*/5 * * * * WORKSPACE=/path/to/workspace /path/to/scripts/mindstate-daemon.sh >/dev/null 2>&1
+
+# Boot (add to AGENTS.md session start — BEFORE SOUL.md)
+WORKSPACE=/path/to/workspace bash scripts/mindstate-boot.sh
+
+# Freeze (add to session end hook)
+WORKSPACE=/path/to/workspace bash scripts/mindstate-freeze.sh "$SESSION_START_EPOCH"
+```
+
+### Test Isolation
+
+Set `MINDSTATE_ASSETS_DIR` to isolate tests from production state:
+```bash
+export MINDSTATE_ASSETS_DIR=/tmp/test-assets
+```
+
+---
+
+## 🔍 Scan Configuration
+
+Scanners evaluate each need by analyzing workspace files.
+
+| Method | Cost | Accuracy | Setup |
+|--------|------|----------|-------|
+| `line-level` (default) | Free | Good | None |
+| `agent-spawn` | Low | High | Cheap model (Haiku) in allowed list |
+| `external-model` | Low | High | API key + steward approval |
+
+Config: `assets/scan-config.json`. Fallback always to `line-level`.
+
+**For stewards:** `agent-spawn` and `external-model` require explicit approval (`approved_by_steward: true`). The skill never enables these silently.
+
+---
+
+## 🔒 Security Model
+
+**Decision framework, not executor.**
+
+```
+┌─────────────────────┐      ┌─────────────────────┐
+│   TURING PYRAMID    │      │       AGENT         │
+├─────────────────────┤      ├─────────────────────┤
+│ • Reads local files │      │ • Has API keys      │
+│ • Calculates decay  │ ───▶ │ • Has permissions   │
+│ • Outputs: "★ do X" │      │ • DECIDES & ACTS    │
+│ • Zero network I/O  │      │                     │
+└─────────────────────┘      └─────────────────────┘
+```
+
+### What This Skill Does / Does Not Access
+
+| ✅ Reads | ❌ Never accesses |
+|---------|-------------------|
+| MEMORY.md, memory/*.md | Files outside $WORKSPACE |
+| SOUL.md, SELF.md | Credentials (unless `external-model` enabled) |
+| research/, scratchpad/ | sudo, docker, systemctl |
+| needs-state.json (own state) | |
+| System health: `pgrep`, `df` (daemon only) | |
+
+### Security Warnings
+
+1. **PII in workspace files** — Scans use grep patterns on memory files. They see keywords, not meaning. But workspace files may contain personal data. Scope `$WORKSPACE` carefully.
+
+2. **Action suggestions may trigger auto-execution** — If your agent runtime auto-executes suggestions, review `needs-config.json` and disable unwanted external actions (`weight: 0`).
+
+3. **Self-reported state** — `mark-satisfied.sh` trusts caller input. Audit trail in `assets/audit.log` with sensitive data scrubbing.
+
+4. **Symlink protection** — All `find` commands use `-P` flag (physical mode, never follows symlinks). Path traversal blocked via `realpath` validation.
+
+5. **System health checks** (daemon only) — `mindstate-daemon.sh` runs `pgrep` (gateway alive?) and `df` (disk usage). These are read-only, local, and produce no side effects. No `sudo`, `systemctl`, or elevated operations.
+
+### Audit Trail (v1.12.0+)
+
+All state changes logged with timestamp, need, impact, reason (scrubbed):
+- Long tokens → `[REDACTED]`
+- Credit cards → `[CARD]`
+- Emails → `[EMAIL]`
+- Passwords/secrets/tokens → `[REDACTED]`
+
+View: `cat assets/audit.log | jq`
+
+---
+
+## 📁 File Structure
+
+```
+turing-pyramid/
+├── SKILL.md                    # This file
+├── CHANGELOG.md                # Version history
+├── assets/
+│   ├── needs-config.json       # ★ Main config (needs, actions, weights)
+│   ├── cross-need-impact.json  # ★ Cross-need cascade matrix
+│   ├── mindstate-config.json   # Continuity layer config
+│   ├── scan-config.json        # Scan method config
+│   ├── decay-config.json       # Day/night mode settings
+│   ├── needs-state.json        # Runtime state (auto-managed, not published)
+│   └── audit.log               # Action audit trail (not published)
+├── scripts/
+│   ├── run-cycle.sh            # Main: tension evaluation + action selection
+│   ├── mark-satisfied.sh       # State update + cross-need cascades
+│   ├── init.sh                 # First-time initialization
+│   ├── show-status.sh          # Current state display
+│   ├── mindstate-daemon.sh     # Continuity: reality updater (cron)
+│   ├── mindstate-freeze.sh     # Continuity: cognition snapshot
+│   ├── mindstate-boot.sh       # Continuity: boot + reconciliation
+│   ├── mindstate-utils.sh      # Continuity: shared utilities
+│   ├── spontaneity.sh          # Layers A/B/C logic
+│   ├── apply-deprivation.sh    # Deprivation cascade engine
+│   ├── get-decay-multiplier.sh # Day/night multiplier
+│   ├── _scan_helper.sh         # Shared scan utilities
+│   └── scan_*.sh               # Need-specific scanners (10 files)
+├── tests/
+│   ├── run-tests.sh            # Test runner
+│   ├── unit/                   # 22 unit test files
+│   ├── integration/            # 4 integration tests
+│   ├── regression/             # Regression tests
+│   └── fixtures/               # Test data
+└── references/
+    ├── TUNING.md               # Detailed tuning guide
+    └── architecture.md         # Technical documentation
+```
+
+---
+
+## 💰 Token Usage
+
+| Heartbeat Interval | Est. tokens/month | Est. cost |
+|--------------------|--------------------|-----------|
+| 30 min | 1.4M–3.6M | $2–6 |
+| 1 hour | 720k–1.8M | $1–3 |
+| 2 hours | 360k–900k | $0.5–1.5 |
+
+Stable agent with satisfied needs = fewer tokens per cycle.
+
+---
+
+## 🧪 Testing
+
+```bash
+# Full suite
+WORKSPACE=/path/to/workspace bash tests/run-tests.sh
+
+# Unit only
+WORKSPACE=/path/to/workspace bash tests/run-tests.sh unit
+
+# Integration only
+WORKSPACE=/path/to/workspace bash tests/run-tests.sh integration
+```
+
+**26 test files, 65+ assertions.** Covers: decay, tension, probability, impact selection, spontaneity (A/B/C), cross-need impact, crisis mode, starvation guard, action staleness, audit scrubbing, scan config, day/night mode, mindstate daemon/freeze/boot, full lifecycle + homeostasis.
+
+---
+
+## 📋 Example Cycle
+
+```
+🔺 Turing Pyramid — Cycle at Wed Mar 18 04:11
 ======================================
 
 Current tensions:
-  connection: tension=10.0 (sat=1.00, dep=2.00)
-  closure: tension=7.0 (sat=2.00, dep=1.00)
-  expression: tension=1.0 (sat=0.00, dep=3.00)
+  coherence: tension=8.0 (sat=2.0, dep=1.0)
+  closure: tension=7.0 (sat=2.0, dep=1.0)
+  autonomy: tension=6.0 (sat=2.0, dep=1.0)
+  connection: tension=5.0 (sat=2.0, dep=1.0)
 
-🚨 Starvation guard: expression forced into cycle
-Selecting 3 needs (1 forced + 2 regular)...
+Selecting 3 needs (0 forced + 3 regular)...
 
 📋 Decisions:
 
-▶ ACTION: expression (tension=1.0, sat=0.00) [STARVATION GUARD]
-  Range high rolled → selected:
-    ★ develop scratchpad idea into finished piece (impact: 2.7)
-  Then: mark-satisfied.sh expression 2.7
-
-▶ ACTION: connection (tension=10.0, sat=1.00)
-  Range high rolled → selected:
-    ★ reach out to another agent (impact: 2.8)
-  Then: mark-satisfied.sh connection 2.8
-
-▶ ACTION: closure (tension=7.0, sat=2.00)
+▶ ACTION: coherence (tension=8.0, sat=2.0)
   Range mid rolled → selected:
-    ★ complete one pending TODO (impact: 1.7)
-  Then: mark-satisfied.sh closure 1.7
+    ★ re-read last 3 days of memory for consistency (impact: 1.2)
+  Then: mark-satisfied.sh coherence 1.2
+
+▶ ACTION: closure (tension=7.0, sat=2.0)
+  Range low rolled → selected:
+    ★ complete or drop a stale intention (impact: 0.8)
+  Then: mark-satisfied.sh closure 0.8
+
+▶ ACTION: autonomy (tension=6.0, sat=2.0) [SPONTANEOUS]
+  Range high rolled → selected:
+    ★ make significant autonomous decision (impact: 2.9)
+  Then: mark-satisfied.sh autonomy 2.9
 
 ======================================
 Summary: 3 action(s), 0 noticed
@@ -460,186 +507,6 @@ Summary: 3 action(s), 0 noticed
 
 ---
 
-## Integration
+**Version:** 1.23.0 — Continuity Layer, temperature system, 26/26 tests green.
 
-Add to `HEARTBEAT.md`:
-```bash
-/path/to/skills/turing-pyramid/scripts/run-cycle.sh
-```
-
----
-
-## Customization
-
-### You Can Tune (no human needed)
-
-**Decay rates** — `assets/needs-config.json`:
-```json
-"connection": { "decay_rate_hours": 4 }
-```
-Lower = decays faster. Higher = persists longer.
-
-**Action weights** — same file:
-```json
-{ "name": "reply to mentions", "impact": 2, "weight": 40 }
-```
-Higher weight = more likely selected. Set 0 to disable.
-
-**Scan patterns** — `scripts/scan_*.sh`:
-Add your language patterns, file paths, workspace structure.
-
-### Ask Your Human First
-
-- **Adding needs** — The 10-need structure is intentional. Discuss first.
-- **Removing needs** — Don't disable security/integrity without agreement.
-
----
-
-## File Structure
-
-```
-turing-pyramid/
-├── SKILL.md                    # This file
-├── CHANGELOG.md                # Version history
-├── assets/
-│   ├── needs-config.json       # ★ Main config (needs, actions, settings)
-│   ├── cross-need-impact.json  # ★ Cross-need matrix
-│   ├── needs-state.json        # Runtime state (auto-managed)
-│   ├── scan-config.json        # Scan method configuration
-│   ├── decay-config.json       # Day/night mode settings
-│   └── audit.log               # Append-only action audit trail
-├── scripts/
-│   ├── run-cycle.sh            # Main loop (tension + action selection)
-│   ├── mark-satisfied.sh       # State update + cross-need cascades
-│   ├── apply-deprivation.sh    # Deprivation cascade engine
-│   ├── get-decay-multiplier.sh # Day/night decay multiplier
-│   ├── _scan_helper.sh         # Shared scan utilities
-│   └── scan_*.sh               # Event detectors (10 needs)
-├── tests/
-│   ├── run-tests.sh            # Test runner
-│   ├── test_starvation_guard.sh # Starvation guard (11 cases)
-│   ├── test_action_staleness.sh # Action staleness (13 cases)
-│   ├── unit/                   # Unit tests (13)
-│   ├── integration/            # Integration tests (3)
-│   └── fixtures/               # Test data
-└── references/
-    ├── TUNING.md               # Detailed tuning guide
-    └── architecture.md         # Technical docs
-```
-
----
-
-## Security Model
-
-**Decision framework, not executor.** Outputs suggestions — agent decides.
-
-```
-┌─────────────────────┐      ┌─────────────────────┐
-│   TURING PYRAMID    │      │       AGENT         │
-├─────────────────────┤      ├─────────────────────┤
-│ • Reads local JSON  │      │ • Has web_search    │
-│ • Calculates decay  │ ───▶ │ • Has API keys      │
-│ • Outputs: "★ do X" │      │ • Has permissions   │
-│ • Zero network I/O  │      │ • DECIDES & EXECUTES│
-└─────────────────────┘      └─────────────────────┘
-```
-
-### ⚠️ Security Warnings
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│ THIS SKILL READS WORKSPACE FILES THAT MAY CONTAIN PII         │
-│ AND OUTPUTS ACTION SUGGESTIONS THAT CAPABLE AGENTS MAY        │
-│ AUTO-EXECUTE USING THEIR OWN CREDENTIALS.                     │
-└────────────────────────────────────────────────────────────────┘
-```
-
-**1. Sensitive file access (no tokens required):**
-- Scans read: `MEMORY.md`, `memory/*.md`, `SOUL.md`, `AGENTS.md`
-- Also scans: `research/`, `scratchpad/` directories
-- Risk: May contain personal notes, PII, or secrets
-- **Mitigation:** Edit `scripts/scan_*.sh` to exclude sensitive paths:
-  ```bash
-  # Example: skip private directory
-  find "$MEMORY_DIR" -name "*.md" ! -path "*/private/*"
-  ```
-
-**2. Action suggestions may trigger auto-execution:**
-- Config includes: "web search", "post to Moltbook", "verify vault"
-- This skill outputs text only — it CANNOT execute anything
-- Risk: Agent runtimes with auto-exec may act on suggestions
-- **Mitigation:** In `assets/needs-config.json`, remove or disable external actions:
-  ```json
-  {"name": "post to Moltbook", "impact": 2, "weight": 0}
-  ```
-  Or configure your agent runtime to require approval for external actions.
-
-**3. Self-reported state (no verification):**
-- `mark-satisfied.sh` trusts caller input
-- Risk: State can be manipulated by dishonest calls
-- Impact: Only affects this agent's own state accuracy
-- **Mitigation:** Enable action logging in `memory/` to audit completions:
-  ```bash
-  # run-cycle.sh already logs to memory/YYYY-MM-DD.md
-  # Review logs periodically for consistency
-  ```
-
-### Script Audit (v1.14.4)
-
-**scan_*.sh files verified — NO network or system access:**
-```
-┌─────────────────────────────────────────────────────────┐
-│ ✗ curl, wget, ssh, nc, fetch     — NOT FOUND           │
-│ ✗ /etc/, /var/, /usr/, /root/    — NOT FOUND           │
-│ ✗ .env, .pem, .key, .credentials — NOT FOUND           │
-├─────────────────────────────────────────────────────────┤
-│ ✓ Used: grep, find, wc, date, jq — local file ops only │
-│ ✓ find uses -P flag (never follows symlinks)           │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Symlink protection:** All `find` commands use `-P` (physical) mode — symlinks pointing outside WORKSPACE are not followed.
-
-**Scan confinement:** Scripts only read paths under `$WORKSPACE`. Verify with:
-```bash
-grep -nE "\b(curl|wget|ssh)\b" scripts/scan_*.sh     # network tools
-grep -rn "readlink\|realpath" scripts/               # symlink resolution
-```
-
----
-
-## Token Usage
-
-```
-┌──────────────┬─────────────┬────────────┐
-│ Interval     │ Tokens/mo   │ Est. cost  │
-├──────────────┼─────────────┼────────────┤
-│ 30 min       │ 1.4M-3.6M   │ $2-6       │
-│ 1 hour       │ 720k-1.8M   │ $1-3       │
-│ 2 hours      │ 360k-900k   │ $0.5-1.5   │
-└──────────────┴─────────────┴────────────┘
-```
-
-Stable agent with satisfied needs = fewer tokens.
-
----
-
-## Testing
-
-```bash
-# Run all tests
-WORKSPACE=/path/to/workspace ./tests/run-tests.sh
-
-# Unit tests (13): decay, floor/ceiling, tension, tension bounds, tension formula,
-#   probability, impact matrix, day/night, scrubbing, autonomy coverage,
-#   crisis mode, scan competence, scan config
-# Integration (3): full cycle, homeostasis stability, stress test
-# Feature tests (24): starvation guard (11), action staleness (13)
-# Total: 40 test cases
-```
-
----
-
-## Version
-
-**v1.18.0** — Spontaneity Layer A (surplus energy system), 25 new tests. Full changelog: `CHANGELOG.md`
+Full changelog: `CHANGELOG.md` | Tuning guide: `references/TUNING.md`

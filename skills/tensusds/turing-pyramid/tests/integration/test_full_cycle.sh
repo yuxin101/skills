@@ -71,8 +71,8 @@ done
 
 # -------------------------------------------
 # Test 3: Tension values are mathematically correct
-# Formula: tension = importance × deprivation
-# Where: deprivation = 3 - round(satisfaction)
+# Turing-exp: tension = dep² + importance × max(0, dep - crisis_threshold)²
+# Where: deprivation = 3 - satisfaction
 # -------------------------------------------
 echo ""
 echo "Test 3: Tension values verification"
@@ -87,8 +87,11 @@ for need in security integrity coherence closure autonomy connection competence 
     # Float deprivation (matches actual code: scale=2; 3 - satisfaction)
     dep=$(echo "scale=2; 3 - $sat" | bc -l)
     if (( $(echo "$dep < 0" | bc -l) )); then dep="0"; fi
-    # Float tension = importance × deprivation (matches code: scale=1)
-    expected=$(echo "scale=1; $imp * $dep" | bc -l)
+    # Turing-exp: dep² + importance × max(0, dep - threshold)²
+    threshold=$(jq -r '.settings.tension_formula.crisis_threshold // 1.0' "$CONFIG_FILE")
+    excess=$(echo "scale=4; $dep - $threshold" | bc -l)
+    if (( $(echo "$excess < 0" | bc -l) )); then excess="0"; fi
+    expected=$(echo "scale=1; ($dep * $dep) + ($imp * $excess * $excess)" | bc -l)
     
     # Extract actual tension from output (match tension line, not cascade)
     need_line=$(echo "$output" | grep -E "^\s+$need: tension=" | head -1)
@@ -97,11 +100,16 @@ for need in security integrity coherence closure autonomy connection competence 
     # Tension=0 needs are not shown in output
     if [[ -z "$actual" && "$expected" == "0" ]]; then
         echo "  $need: not shown (tension=0) — OK"
-    elif (( $(echo "${actual:-0} == $expected" | bc -l) )); then
-        echo "  $need: tension=$actual — OK"
     else
-        echo "  $need: tension=$actual (expected $expected, imp=$imp, sat=$sat→$sat_int, dep=$dep) — FAIL"
-        ((errors++))
+        # Allow small tolerance for rounding (bc scale=1 rounding vs actual float calc)
+        diff=$(echo "scale=4; ($actual - $expected)" | bc -l)
+        diff=${diff#-}
+        if (( $(echo "$diff <= 0.1" | bc -l) )); then
+            echo "  $need: tension=$actual — OK"
+        else
+            echo "  $need: tension=$actual (expected $expected, imp=$imp, sat=$sat→$sat_int, dep=$dep) — FAIL"
+            ((errors++))
+        fi
     fi
 done
 
