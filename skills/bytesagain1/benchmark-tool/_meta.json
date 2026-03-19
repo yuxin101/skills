@@ -3,11 +3,16 @@
   "slug": "benchmark-tool",
   "displayName": "Benchmark Tool",
   "latest": {
-    "version": "2.3.7",
-    "publishedAt": 1773663400374,
-    "commit": "https://github.com/openclaw/skills/commit/c8879a22c5e319047ee9bf155d9e6d6bc5f7d78e"
+    "version": "3.0.0",
+    "publishedAt": 1773922108954,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.7",
+      "publishedAt": 1773663400374,
+      "commit": "https://github.com/openclaw/skills/commit/c8879a22c5e319047ee9bf155d9e6d6bc5f7d78e"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773447527568,
