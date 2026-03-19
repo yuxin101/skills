@@ -9,7 +9,7 @@ This is the official [Agent Skill](https://agentskills.io) for [TapAuth](https:/
 Works with any agent that supports the [Agent Skills standard](https://agentskills.io):
 
 ```bash
-npx skills add tapauth/tapauth-skill
+npx skills add tapauth/skill
 ```
 
 Compatible with: **Claude Code** · **Cursor** · **OpenClaw** · **OpenAI Codex** · **GitHub Copilot** · **VS Code** · and more.
@@ -31,8 +31,6 @@ No API key needed. No signup needed. The user's approval is the only gate.
 | GitHub | [references/github.md](references/github.md) | `repo`, `read:user`, `workflow`, etc. |
 | Google Workspace | [references/google.md](references/google.md) | Drive, Calendar, Sheets, Docs, Contacts |
 | Gmail | [references/gmail.md](references/gmail.md) | Read, send, manage emails |
-| Google Drive | [references/google_drive.md](references/google_drive.md) | View and manage files |
-| Google Contacts | [references/google_contacts.md](references/google_contacts.md) | View and manage contacts |
 | Google Sheets | [references/google_sheets.md](references/google_sheets.md) | Read and write spreadsheets |
 | Google Docs | [references/google_docs.md](references/google_docs.md) | Read and write documents |
 | Linear | [references/linear.md](references/linear.md) | Issues, projects, teams |
@@ -40,6 +38,8 @@ No API key needed. No signup needed. The user's approval is the only gate.
 | Notion | [references/notion.md](references/notion.md) | Pages, databases, search |
 | Slack | [references/slack.md](references/slack.md) | Channels, messages, users, files |
 | Asana | [references/asana.md](references/asana.md) | Tasks, projects, workspaces |
+| Discord | [references/discord.md](references/discord.md) | Guilds, channels, messages, users |
+| Sentry | [references/sentry.md](references/sentry.md) | Error tracking, projects, organizations |
 
 ## Quick Example
 

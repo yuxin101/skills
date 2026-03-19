@@ -2,7 +2,14 @@
 set -euo pipefail
 
 TAPAUTH_BASE="${TAPAUTH_BASE_URL:-https://tapauth.ai}"
-TAPAUTH_DIR="${TAPAUTH_HOME:-./.tapauth}"
+# Use CLAUDE_PLUGIN_DATA if available (stable per-plugin dir), fall back to .tapauth
+if [ -n "${TAPAUTH_HOME:-}" ]; then
+  TAPAUTH_DIR="$TAPAUTH_HOME"
+elif [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
+  TAPAUTH_DIR="$CLAUDE_PLUGIN_DATA"
+else
+  TAPAUTH_DIR="./.tapauth"
+fi
 mkdir -p "$TAPAUTH_DIR" && chmod 700 "$TAPAUTH_DIR"
 
 provider="${1:-}"
@@ -15,7 +22,9 @@ fi
 
 # Sort scopes for deterministic file naming
 sorted_scopes=$(echo "$scopes" | tr "," "\n" | sort | tr "\n" "," | sed "s/,$//")
-env_file="${TAPAUTH_DIR}/${provider}-${sorted_scopes}.env"
+# Sanitize scopes for use in filenames (URLs contain /:)
+safe_scopes=$(echo "$sorted_scopes" | tr '/:' '__')
+env_file="${TAPAUTH_DIR}/${provider}-${safe_scopes}.env"
 
 save_and_emit() {
   install -m 600 /dev/null "$env_file"
@@ -54,8 +63,15 @@ if [ -z "${TAPAUTH_GRANT_ID:-}" ] || [ -z "${TAPAUTH_GRANT_SECRET:-}" ] || [ -z 
   exit 1
 fi
 echo "Approve access: ${TAPAUTH_APPROVE_URL}" >&2
+poll_start=$SECONDS
 while true; do
   sleep 2
+  elapsed=$((SECONDS - poll_start))
+  if [ "$elapsed" -ge 600 ]; then
+    echo "tapauth: timed out after 600s waiting for approval" >&2
+    exit 1
+  fi
+  echo "Waiting for approval... (${elapsed}s) ${TAPAUTH_APPROVE_URL}" >&2
   response=$(curl -s -w "\n%{http_code}" "${TAPAUTH_BASE}/api/v1/token/${TAPAUTH_GRANT_ID}" \
     -H "Authorization: Bearer ${TAPAUTH_GRANT_SECRET}")
   http_code="${response##*$'\n'}"

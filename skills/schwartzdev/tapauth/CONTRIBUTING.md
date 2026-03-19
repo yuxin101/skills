@@ -2,19 +2,19 @@
 
 ## Source of Truth
 
-The **monorepo** (`tapauth/tapauth` → `packages/skill/`) is the source of truth for provider reference docs. This public repo (`tapauth/tapauth-skill`) is the published distribution.
+The **monorepo** (`tapauth/tapauth` → `packages/skill/`) is the source of truth for provider reference docs. This public repo (`tapauth/skill`) is the published distribution.
 
 ## Syncing Changes
 
 When provider docs are added or updated in the monorepo:
 
-1. Copy updated files from `packages/skill/references/` to `tapauth-skill/references/`
+1. Copy updated files from `packages/skill/references/` to `skill/references/`
 2. Update the provider list in `SKILL.md` and `README.md` if a new provider was added
 3. **Open a PR** — never push directly to main. All changes go through pull requests with review.
 
 ```bash
 # Example: sync all provider docs
-cp ~/tapauth/packages/skill/references/*.md ~/tapauth-skill/references/
+cp ~/tapauth/packages/skill/references/*.md ~/skill/references/
 
 # Check for new providers in production
 # Compare keys in apps/web/src/lib/providers.ts with references/ directory
@@ -25,7 +25,7 @@ cp ~/tapauth/packages/skill/references/*.md ~/tapauth-skill/references/
 After pushing changes:
 
 ```bash
-clawhub publish /path/to/tapauth-skill/ \
+clawhub publish /path/to/skill/ \
   --slug tapauth \
   --name "TapAuth" \
   --version <new-version> \

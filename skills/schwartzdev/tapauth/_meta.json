@@ -3,11 +3,16 @@
   "slug": "tapauth",
   "displayName": "TapAuth",
   "latest": {
-    "version": "1.2.1",
-    "publishedAt": 1772820418577,
-    "commit": "https://github.com/openclaw/skills/commit/52361260ec244c2f58290876403e50e8831d964e"
+    "version": "1.4.0",
+    "publishedAt": 1773850266583,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.2.1",
+      "publishedAt": 1772820418577,
+      "commit": "https://github.com/openclaw/skills/commit/52361260ec244c2f58290876403e50e8831d964e"
+    },
     {
       "version": "1.2.0",
       "publishedAt": 1772773389303,
