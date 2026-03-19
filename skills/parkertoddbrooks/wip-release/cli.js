@@ -21,6 +21,8 @@ const noPublish = args.includes('--no-publish');
 const skipProductCheck = args.includes('--skip-product-check');
 const skipStaleCheck = args.includes('--skip-stale-check');
 const skipWorktreeCheck = args.includes('--skip-worktree-check');
+const skipTechDocsCheck = args.includes('--skip-tech-docs-check');
+const skipCoverageCheck = args.includes('--skip-coverage-check');
 const notesFilePath = flag('notes-file');
 let notes = flag('notes');
 // Bug fix #121: use strict check, not truthiness. --notes="" is empty, not absent.
@@ -75,7 +77,8 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
       const { readdirSync } = await import('node:fs');
       const devUpdatesDir = join(process.cwd(), 'ai', 'dev-updates');
       if (existsSync(devUpdatesDir)) {
-        const today = new Date().toISOString().split('T')[0];
+        const d = new Date();
+        const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const todayFiles = readdirSync(devUpdatesDir)
           .filter(f => f.startsWith(today) && f.endsWith('.md'))
           .sort()
@@ -96,6 +99,15 @@ let notesSource = (notes !== null && notes !== undefined && notes !== '') ? 'fla
       }
     } catch {}
   }
+}
+
+if (args.includes('--version') || args.includes('-v')) {
+  const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'package.json'), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
 }
 
 if (!level || args.includes('--help') || args.includes('-h')) {
@@ -119,12 +131,12 @@ Flags:
   --skip-stale-check       Skip stale remote branch check
   --skip-worktree-check    Skip worktree guard (allow release from worktree)
 
-Release notes (highest priority wins, files ALWAYS beat --notes flag):
-  1. --notes-file=path          Explicit file path (always wins)
-  2. RELEASE-NOTES-v{ver}.md    In repo root (wins over --notes)
-  3. ai/dev-updates/YYYY-MM-DD* Today's dev update (wins over --notes if longer)
-  4. --notes="text"             Fallback only (use for repos without release notes files)
-  Written notes on disk always take priority over a CLI one-liner.
+Release notes (REQUIRED, must be a file on disk):
+  1. --notes-file=path          Explicit file path
+  2. RELEASE-NOTES-v{ver}.md    In repo root (auto-detected)
+  3. ai/dev-updates/YYYY-MM-DD* Today's dev update (auto-detected)
+  The --notes flag is NOT accepted. Write a file. Commit it on your branch.
+  The file shows up in the PR diff so it can be reviewed before merge.
 
 Skill publish to website:
   Add .publish-skill.json to repo root: { "name": "my-tool" }
@@ -155,6 +167,8 @@ release({
   skipProductCheck,
   skipStaleCheck,
   skipWorktreeCheck,
+  skipTechDocsCheck,
+  skipCoverageCheck,
 }).catch(err => {
   console.error(`  ✗ ${err.message}`);
   process.exit(1);

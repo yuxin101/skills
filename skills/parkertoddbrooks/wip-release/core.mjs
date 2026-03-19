@@ -89,7 +89,8 @@ export function syncSkillVersion(repoPath, newVersion) {
  */
 export function updateChangelog(repoPath, newVersion, notes) {
   const changelogPath = join(repoPath, 'CHANGELOG.md');
-  const date = new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   // Bug fix #121: never silently default to "Release." when notes are empty.
   // If notes are empty at this point, warn loudly.
@@ -134,7 +135,14 @@ function trashReleaseNotes(repoPath) {
   for (const f of files) {
     renameSync(join(repoPath, f), join(trashDir, f));
     execFileSync('git', ['add', join('_trash', f)], { cwd: repoPath, stdio: 'pipe' });
-    execFileSync('git', ['rm', '--cached', f], { cwd: repoPath, stdio: 'pipe' });
+    // Only git rm if the file was tracked (committed or staged).
+    // Untracked scaffolded files from failed releases just need the rename.
+    try {
+      execFileSync('git', ['ls-files', '--error-unmatch', f], { cwd: repoPath, stdio: 'pipe' });
+      execFileSync('git', ['rm', '--cached', f], { cwd: repoPath, stdio: 'pipe' });
+    } catch {
+      // File wasn't tracked. Rename already moved it.
+    }
   }
   return files.length;
 }
@@ -227,26 +235,36 @@ function checkReleaseNotes(notes, notesSource, level) {
   const issues = [];
 
   if (!notes) {
-    issues.push('No release notes provided. Write a RELEASE-NOTES-v{version}.md or ai/dev-updates/ file.');
+    issues.push('No release notes found. A file is REQUIRED.');
+    issues.push('Write RELEASE-NOTES-v{version}.md or ai/dev-updates/YYYY-MM-DD--description.md');
+    issues.push('Commit it on your branch so it is reviewable in the PR.');
     return { ok: false, issues, block: true };
   }
 
-  // Notes too short. All levels blocked.
+  // HARD RULE: release notes must come from a file on disk.
+  // --notes flag is NOT accepted. Write a file. Commit it. Review it.
+  if (notesSource === 'flag') {
+    issues.push('Release notes must come from a file, not the --notes flag.');
+    issues.push('Write RELEASE-NOTES-v{version}.md or ai/dev-updates/YYYY-MM-DD--description.md');
+    issues.push('Commit it on your branch so it is reviewable in the PR before merge.');
+    return { ok: false, issues, block: true };
+  }
+
+  // Notes too short.
   if (notes.length < 50) {
     issues.push('Release notes are too short (under 50 chars). Explain what changed and why.');
-    issues.push('Write a RELEASE-NOTES-v{version}.md or ai/dev-updates/ file.');
   }
 
-  // Bare --notes flag for minor/major is never acceptable.
-  if (notesSource === 'flag' && (level === 'minor' || level === 'major')) {
-    issues.push('Minor/major releases require a file, not --notes flag.');
-    issues.push('Write RELEASE-NOTES-v{version}.md (dashes not dots) and commit it.');
-  }
-
-  // Check for changelog-style one-liners regardless of source
+  // Check for changelog-style one-liners
   const looksLikeChangelog = /^(fix|add|update|remove|bump|chore|refactor|docs?)[\s:]/i.test(notes);
   if (looksLikeChangelog && notes.length < 100) {
     issues.push('Notes look like a changelog entry, not a narrative. Explain the impact.');
+  }
+
+  // Release notes should reference at least one issue
+  const hasIssueRef = /#\d+/.test(notes);
+  if (!hasIssueRef) {
+    issues.push('No issue reference found (#XX). Every release should close or reference an issue.');
   }
 
   return { ok: issues.length === 0, issues, block: issues.length > 0 };
@@ -264,6 +282,19 @@ export function scaffoldReleaseNotes(repoPath, version) {
   const pkg = JSON.parse(readFileSync(join(repoPath, 'package.json'), 'utf8'));
   const name = pkg.name?.replace(/^@[^/]+\//, '') || basename(repoPath);
 
+  // Auto-detect issue references from commits since last tag
+  let issueRefs = '';
+  try {
+    const lastTag = execFileSync('git', ['describe', '--tags', '--abbrev=0'],
+      { cwd: repoPath, encoding: 'utf8' }).trim();
+    const log = execFileSync('git', ['log', `${lastTag}..HEAD`, '--oneline'],
+      { cwd: repoPath, encoding: 'utf8' });
+    const issues = [...new Set(log.match(/#\d+/g) || [])];
+    if (issues.length > 0) {
+      issueRefs = issues.map(i => `- ${i}`).join('\n');
+    }
+  } catch {}
+
   const template = `# Release Notes: ${name} v${version}
 
 **One-line summary of what this release does**
@@ -278,6 +309,10 @@ Describe the changes. Not a commit list. Explain:
 ## Why
 
 What problem does this solve? What was broken or missing?
+
+## Issues closed
+
+${issueRefs || '- #XX (replace with actual issue numbers)'}
 
 ## How to verify
 
@@ -354,6 +389,260 @@ function checkProductDocs(repoPath) {
   }
 
   return { missing, ok: missing.length === 0, skipped: false };
+}
+
+/**
+ * Check that technical docs (SKILL.md, TECHNICAL.md) were updated
+ * when source code changed since last release tag.
+ * Returns { missing: string[], ok: boolean, skipped: boolean }.
+ */
+function checkTechnicalDocs(repoPath) {
+  try {
+    let lastTag;
+    try {
+      lastTag = execFileSync('git', ['describe', '--tags', '--abbrev=0'],
+        { cwd: repoPath, encoding: 'utf8' }).trim();
+    } catch {
+      return { missing: [], ok: true, skipped: true }; // No tags yet
+    }
+
+    const diff = execFileSync('git', ['diff', '--name-only', lastTag, 'HEAD'],
+      { cwd: repoPath, encoding: 'utf8' });
+    const changedFiles = diff.split('\n').map(f => f.trim()).filter(Boolean);
+
+    // Find source code changes (*.mjs, *.js, *.ts) excluding non-source dirs
+    const excludePattern = /\/(node_modules|dist|_trash|examples)\//;
+    const sourcePattern = /\.(mjs|js|ts)$/;
+    const sourceChanges = changedFiles.filter(f =>
+      sourcePattern.test(f) && !excludePattern.test(f) && !f.startsWith('ai/')
+    );
+
+    if (sourceChanges.length === 0) {
+      return { missing: [], ok: true, skipped: false }; // No source changes
+    }
+
+    // Check if any doc files were also modified
+    const docChanges = changedFiles.filter(f =>
+      f === 'SKILL.md' || f === 'TECHNICAL.md' ||
+      /^tools\/[^/]+\/SKILL\.md$/.test(f) ||
+      /^tools\/[^/]+\/TECHNICAL\.md$/.test(f)
+    );
+
+    if (docChanges.length > 0) {
+      return { missing: [], ok: true, skipped: false }; // Docs updated
+    }
+
+    // Source changed but no doc updates
+    const missing = [];
+    const preview = sourceChanges.slice(0, 5).join(', ');
+    const more = sourceChanges.length > 5 ? ` (and ${sourceChanges.length - 5} more)` : '';
+    missing.push('Source files changed since last tag but no SKILL.md or TECHNICAL.md was updated');
+    missing.push(`Changed: ${preview}${more}`);
+    missing.push('Update SKILL.md or TECHNICAL.md to document these changes');
+
+    return { missing, ok: false, skipped: false };
+  } catch {
+    return { missing: [], ok: true, skipped: true }; // Graceful fallback
+  }
+}
+
+/**
+ * Parse the interface coverage table from a markdown file.
+ * Returns array of { name, cli, module, mcp, openclaw, skill, ccHook } or null.
+ */
+function parseInterfaceCoverageTable(filePath) {
+  if (!existsSync(filePath)) return null;
+  const content = readFileSync(filePath, 'utf8');
+  const lines = content.split('\n');
+
+  const headerIdx = lines.findIndex(l => /^\|\s*#\s*\|\s*Tool\s*\|/i.test(l));
+  if (headerIdx === -1) return null;
+
+  const rows = [];
+  for (let i = headerIdx + 2; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line.startsWith('|')) break;
+    const cells = line.split('|').map(c => c.trim()).filter(c => c !== '');
+    if (cells.length < 8) continue;
+    // Skip category header rows (# cell is empty, non-numeric, or bold)
+    const num = cells[0].trim();
+    if (!num || /^\*\*/.test(num) || isNaN(parseInt(num))) continue;
+    rows.push({
+      name: cells[1].trim(),
+      cli: /^Y$/i.test(cells[2]),
+      module: /^Y$/i.test(cells[3]),
+      mcp: /^Y$/i.test(cells[4]),
+      openclaw: /^Y$/i.test(cells[5]),
+      skill: /^Y$/i.test(cells[6]),
+      ccHook: /^Y$/i.test(cells[7]),
+    });
+  }
+  return rows.length > 0 ? rows : null;
+}
+
+/**
+ * Read display name from a tool's SKILL.md frontmatter.
+ * Tries display-name, then name field. Falls back to null.
+ */
+function getToolDisplayName(toolPath) {
+  const skillPath = join(toolPath, 'SKILL.md');
+  if (!existsSync(skillPath)) return null;
+  try {
+    const content = readFileSync(skillPath, 'utf8');
+    const displayMatch = content.match(/^\s*display-name:\s*"?([^"\n]+)"?/m);
+    if (displayMatch) return displayMatch[1].trim();
+    const nameMatch = content.match(/^name:\s*"?([^"\n]+)"?/m);
+    if (nameMatch) return nameMatch[1].trim();
+  } catch {}
+  return null;
+}
+
+/**
+ * Check that the interface coverage table in README.md and SKILL.md
+ * matches the actual interfaces detected in tools/* subdirectories.
+ * Returns { missing: string[], ok: boolean, skipped: boolean }.
+ */
+function checkInterfaceCoverage(repoPath) {
+  try {
+    // Only applies to toolbox repos
+    const toolsDir = join(repoPath, 'tools');
+    if (!existsSync(toolsDir)) return { missing: [], ok: true, skipped: true };
+
+    const entries = readdirSync(toolsDir, { withFileTypes: true });
+    const tools = entries
+      .filter(e => e.isDirectory() && existsSync(join(toolsDir, e.name, 'package.json')))
+      .map(e => ({ name: e.name, path: join(toolsDir, e.name) }));
+
+    if (tools.length === 0) return { missing: [], ok: true, skipped: true };
+
+    // Detect actual interfaces for each tool
+    const actualMap = {};
+    for (const tool of tools) {
+      const pkg = JSON.parse(readFileSync(join(tool.path, 'package.json'), 'utf8'));
+      actualMap[tool.name] = {
+        displayName: getToolDisplayName(tool.path) || tool.name,
+        cli: !!(pkg.bin),
+        module: !!(pkg.main || pkg.exports),
+        mcp: ['mcp-server.mjs', 'mcp-server.js', 'dist/mcp-server.js'].some(f => existsSync(join(tool.path, f))),
+        openclaw: existsSync(join(tool.path, 'openclaw.plugin.json')),
+        skill: existsSync(join(tool.path, 'SKILL.md')),
+        ccHook: !!(pkg.claudeCode?.hook) || existsSync(join(tool.path, 'guard.mjs')),
+      };
+    }
+
+    const missing = [];
+
+    // Check both README.md and SKILL.md tables
+    for (const [label, filePath] of [['README.md', join(repoPath, 'README.md')], ['SKILL.md', join(repoPath, 'SKILL.md')]]) {
+      const tableRows = parseInterfaceCoverageTable(filePath);
+      if (!tableRows) continue;
+
+      // Tool count
+      if (tools.length !== tableRows.length) {
+        missing.push(`${label}: tool count mismatch (${tools.length} in tools/, ${tableRows.length} in table)`);
+      }
+
+      // Check each actual tool against the table
+      for (const tool of tools) {
+        const actual = actualMap[tool.name];
+        const displayName = actual.displayName;
+        const tableRow = tableRows.find(r =>
+          r.name === displayName ||
+          r.name.toLowerCase() === displayName.toLowerCase() ||
+          r.name.toLowerCase().includes(tool.name.replace(/^wip-/, '').replace(/-/g, ' '))
+        );
+
+        if (!tableRow) {
+          missing.push(`${label}: ${tool.name} (${displayName}) missing from coverage table`);
+          continue;
+        }
+
+        const ifaceMap = [
+          ['cli', 'CLI'], ['module', 'Module'], ['mcp', 'MCP'],
+          ['openclaw', 'OC Plugin'], ['skill', 'Skill'], ['ccHook', 'CC Hook']
+        ];
+
+        for (const [key, name] of ifaceMap) {
+          if (actual[key] && !tableRow[key]) {
+            missing.push(`${label}: ${displayName} has ${name} but table says no`);
+          }
+          if (tableRow[key] && !actual[key]) {
+            missing.push(`${label}: ${displayName} marked ${name} in table but not detected`);
+          }
+        }
+      }
+    }
+
+    return { missing, ok: missing.length === 0, skipped: false };
+  } catch {
+    return { missing: [], ok: true, skipped: true }; // Graceful fallback
+  }
+}
+
+/**
+ * Auto-update version/date lines in product docs before the release commit.
+ * Updates roadmap.md "Current version" and "Last updated",
+ * and readme-first-product.md "Last updated" and "What's Built (as of vX.Y.Z)".
+ * Returns number of files updated.
+ */
+function syncProductDocs(repoPath, newVersion) {
+  let updated = 0;
+  const td = new Date();
+  const today = `${td.getFullYear()}-${String(td.getMonth()+1).padStart(2,'0')}-${String(td.getDate()).padStart(2,'0')}`;
+
+  // 1. roadmap.md
+  const roadmapPath = join(repoPath, 'ai', 'product', 'plans-prds', 'roadmap.md');
+  if (existsSync(roadmapPath)) {
+    let content = readFileSync(roadmapPath, 'utf8');
+    let changed = false;
+
+    // Update "Current version: vX.Y.Z"
+    const versionRe = /(\*\*Current version:\*\*\s*)v[\d.]+/;
+    if (versionRe.test(content)) {
+      content = content.replace(versionRe, `$1v${newVersion}`);
+      changed = true;
+    }
+
+    // Update "Last updated: YYYY-MM-DD"
+    const dateRe = /(\*\*Last updated:\*\*\s*)[\d-]+/;
+    if (dateRe.test(content)) {
+      content = content.replace(dateRe, `$1${today}`);
+      changed = true;
+    }
+
+    if (changed) {
+      writeFileSync(roadmapPath, content);
+      updated++;
+    }
+  }
+
+  // 2. readme-first-product.md
+  const rfpPath = join(repoPath, 'ai', 'product', 'readme-first-product.md');
+  if (existsSync(rfpPath)) {
+    let content = readFileSync(rfpPath, 'utf8');
+    let changed = false;
+
+    // Update "Last updated: YYYY-MM-DD"
+    const dateRe = /(\*\*Last updated:\*\*\s*)[\d-]+/;
+    if (dateRe.test(content)) {
+      content = content.replace(dateRe, `$1${today}`);
+      changed = true;
+    }
+
+    // Update "What's Built (as of vX.Y.Z)"
+    const builtRe = /(What's Built \(as of\s*)v[\d.]+(\))/;
+    if (builtRe.test(content)) {
+      content = content.replace(builtRe, `$1v${newVersion}$2`);
+      changed = true;
+    }
+
+    if (changed) {
+      writeFileSync(rfpPath, content);
+      updated++;
+    }
+  }
+
+  return updated;
 }
 
 /**
@@ -495,6 +784,23 @@ export function createGitHubRelease(repoPath, newVersion, notes, currentVersion)
         console.warn(`  ! GitHub release body is only ${bodyLen} chars. Notes may be truncated.`);
       }
     } catch {}
+
+    // Auto-close referenced issues
+    const issueNums = [...new Set((body.match(/#(\d+)/g) || []).map(m => m.slice(1)))];
+    for (const num of issueNums) {
+      try {
+        // Only close if issue exists and is open on the public repo
+        const publicSlug = repoSlug.replace(/-private$/, '');
+        execFileSync('gh', [
+          'issue', 'close', num,
+          '--repo', publicSlug,
+          '--comment', `Closed by v${newVersion}. See release notes.`
+        ], { cwd: repoPath, stdio: 'pipe' });
+        console.log(`  ✓ Closed #${num} on ${publicSlug}`);
+      } catch {
+        // Issue doesn't exist on public repo or already closed. Fine.
+      }
+    }
   } finally {
     try { execFileSync('rm', ['-f', tmpFile]); } catch {}
   }
@@ -709,7 +1015,7 @@ export function checkStaleBranches(repoPath, level) {
 /**
  * Run the full release pipeline.
  */
-export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck }) {
+export async function release({ repoPath, level, notes, notesSource, dryRun, noPublish, skipProductCheck, skipStaleCheck, skipWorktreeCheck, skipTechDocsCheck, skipCoverageCheck }) {
   repoPath = repoPath || process.cwd();
   const currentVersion = detectCurrentVersion(repoPath);
   const newVersion = bumpSemver(currentVersion, level);
@@ -853,6 +1159,50 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     }
   }
 
+  // 0.85. Technical docs check
+  if (!skipTechDocsCheck) {
+    const techDocsCheck = checkTechnicalDocs(repoPath);
+    if (!techDocsCheck.skipped) {
+      if (techDocsCheck.ok) {
+        console.log('  ✓ Technical docs up to date');
+      } else {
+        const isMinorOrMajor = level === 'minor' || level === 'major';
+        const prefix = isMinorOrMajor ? '✗' : '!';
+        console.log(`  ${prefix} Technical docs need attention:`);
+        for (const m of techDocsCheck.missing) console.log(`    - ${m}`);
+        if (isMinorOrMajor) {
+          console.log('');
+          console.log('  Update SKILL.md or TECHNICAL.md before a minor/major release.');
+          console.log('  Use --skip-tech-docs-check to override.');
+          console.log('');
+          return { currentVersion, newVersion, dryRun: false, failed: true };
+        }
+      }
+    }
+  }
+
+  // 0.9. Interface coverage check
+  if (!skipCoverageCheck) {
+    const coverageCheck = checkInterfaceCoverage(repoPath);
+    if (!coverageCheck.skipped) {
+      if (coverageCheck.ok) {
+        console.log('  ✓ Interface coverage table matches');
+      } else {
+        const isMinorOrMajor = level === 'minor' || level === 'major';
+        const prefix = isMinorOrMajor ? '✗' : '!';
+        console.log(`  ${prefix} Interface coverage table has mismatches:`);
+        for (const m of coverageCheck.missing) console.log(`    - ${m}`);
+        if (isMinorOrMajor) {
+          console.log('');
+          console.log('  Update the coverage table in README.md and SKILL.md.');
+          console.log('  Use --skip-coverage-check to override.');
+          console.log('');
+          return { currentVersion, newVersion, dryRun: false, failed: true };
+        }
+      }
+    }
+  }
+
   if (dryRun) {
     // Product docs check (dry-run)
     if (!skipProductCheck) {
@@ -890,6 +1240,32 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
         console.log('  [dry run] ✓ No stale remote branches');
       }
     }
+    // Technical docs check (dry-run)
+    if (!skipTechDocsCheck) {
+      const techDocsCheck = checkTechnicalDocs(repoPath);
+      if (!techDocsCheck.skipped) {
+        if (techDocsCheck.ok) {
+          console.log('  [dry run] ✓ Technical docs up to date');
+        } else {
+          const isMinorOrMajor = level === 'minor' || level === 'major';
+          console.log(`  [dry run] ${isMinorOrMajor ? '✗ Would BLOCK' : '! Would WARN'}: technical docs need updates`);
+          for (const m of techDocsCheck.missing) console.log(`    - ${m}`);
+        }
+      }
+    }
+    // Interface coverage check (dry-run)
+    if (!skipCoverageCheck) {
+      const coverageCheck = checkInterfaceCoverage(repoPath);
+      if (!coverageCheck.skipped) {
+        if (coverageCheck.ok) {
+          console.log('  [dry run] ✓ Interface coverage table matches');
+        } else {
+          const isMinorOrMajor = level === 'minor' || level === 'major';
+          console.log(`  [dry run] ${isMinorOrMajor ? '✗ Would BLOCK' : '! Would WARN'}: interface coverage mismatches`);
+          for (const m of coverageCheck.missing) console.log(`    - ${m}`);
+        }
+      }
+    }
     const hasSkill = existsSync(join(repoPath, 'SKILL.md'));
     console.log(`  [dry run] Would bump package.json to ${newVersion}`);
     if (hasSkill) console.log(`  [dry run] Would update SKILL.md version`);
@@ -897,7 +1273,7 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     console.log(`  [dry run] Would commit and tag v${newVersion}`);
     if (!noPublish) {
       console.log(`  [dry run] Would publish to npm (@wipcomputer scope)`);
-      console.log(`  [dry run] Would publish to GitHub Packages`);
+      console.log(`  [dry run] GitHub Packages: handled by deploy-public.sh`);
       console.log(`  [dry run] Would create GitHub release v${newVersion}`);
       if (hasSkill) console.log(`  [dry run] Would publish to ClawHub`);
       // Skill-to-website dry run (auto-detects SKILL.md, no config needed)
@@ -972,6 +1348,12 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
     console.log(`  ✓ Moved ${trashed} RELEASE-NOTES file(s) to _trash/`);
   }
 
+  // 3.75. Auto-update product docs version/date
+  const docsUpdated = syncProductDocs(repoPath, newVersion);
+  if (docsUpdated > 0) {
+    console.log(`  ✓ Product docs synced to v${newVersion} (${docsUpdated} file(s))`);
+  }
+
   // 4. Git commit + tag
   gitCommitAndTag(repoPath, newVersion, notes);
   console.log(`  ✓ Committed and tagged v${newVersion}`);
@@ -999,15 +1381,11 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
       console.log(`  ✗ npm publish failed: ${e.message}`);
     }
 
-    // 7. GitHub Packages
-    try {
-      publishGitHubPackages(repoPath);
-      distResults.push({ target: 'GitHub Packages', status: 'ok', detail: `${newVersion}` });
-      console.log(`  ✓ Published to GitHub Packages`);
-    } catch (e) {
-      distResults.push({ target: 'GitHub Packages', status: 'failed', detail: e.message });
-      console.log(`  ✗ GitHub Packages publish failed: ${e.message}`);
-    }
+    // 7. GitHub Packages ... SKIPPED from private repos.
+    // deploy-public.sh publishes to GitHub Packages from the public repo clone.
+    // Publishing from private ties the package to the private repo, making it
+    // invisible on the public repo's Packages tab. (#53)
+    console.log(`  - GitHub Packages: handled by deploy-public.sh (from public repo)`);
 
     // 8. GitHub release
     try {
@@ -1200,6 +1578,18 @@ export async function release({ repoPath, level, notes, notesSource, dryRun, noP
   } catch (e) {
     console.log(`  ! Branch prune skipped: ${e.message}`);
   }
+
+  // Write release marker so branch guard blocks immediate install (#73)
+  try {
+    const markerDir = join(process.env.HOME || '', '.ldm', 'state');
+    const { mkdirSync, writeFileSync } = await import('node:fs');
+    mkdirSync(markerDir, { recursive: true });
+    writeFileSync(join(markerDir, '.last-release'), JSON.stringify({
+      repo: repoName,
+      version: newVersion,
+      timestamp: new Date().toISOString(),
+    }) + '\n');
+  } catch {}
 
   console.log('');
   console.log(`  Done. ${repoName} v${newVersion} released.`);
