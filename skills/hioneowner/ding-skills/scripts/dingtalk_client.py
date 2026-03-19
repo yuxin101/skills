@@ -111,5 +111,20 @@ def handle_error(e):
         }, ensure_ascii=False, indent=2))
 
 
+def get_robot_code(arg_value=None):
+    """获取 robotCode：优先使用传入参数，其次读取环境变量 DINGTALK_ROBOT_CODE"""
+    code = arg_value or os.environ.get("DINGTALK_ROBOT_CODE")
+    if not code:
+        print(json.dumps({
+            "success": False,
+            "error": {
+                "code": "MISSING_ROBOT_CODE",
+                "message": "缺少 robotCode，请通过命令行参数传入或设置环境变量 DINGTALK_ROBOT_CODE",
+            }
+        }, ensure_ascii=False, indent=2))
+        sys.exit(1)
+    return code
+
+
 def output(data):
     print(json.dumps(data, ensure_ascii=False, indent=2))
