@@ -3,11 +3,16 @@
   "slug": "poku",
   "displayName": "Poku",
   "latest": {
-    "version": "1.0.9",
-    "publishedAt": 1773095978925,
-    "commit": "https://github.com/openclaw/skills/commit/26386abe6e73575b2808653a55e7889db3576309"
+    "version": "1.0.10",
+    "publishedAt": 1773941785301,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.9",
+      "publishedAt": 1773095978925,
+      "commit": "https://github.com/openclaw/skills/commit/26386abe6e73575b2808653a55e7889db3576309"
+    },
     {
       "version": "1.0.8",
       "publishedAt": 1772661351407,
