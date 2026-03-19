@@ -858,7 +858,7 @@ MCP (Model Context Protocol) tool definitions for use with Claude, Kiro, and oth
 ```json
 {
   "name": "gprophet_predict",
-  "description": "Predict stock/crypto price using AI. Markets: US, CN, HK, CRYPTO. Algorithms: auto, gprophet2026v1, lstm, transformer, random_forest, ensemble.",
+  "description": "Predict stock/crypto price using AI. Markets: US, CN, HK, CRYPTO. Algorithms: auto, gprophet2026v1, lstm, transformer, random_forest, ensemble. IMPORTANT: The response includes 'symbol', 'name' (official stock name), and 'market' fields — always use these values directly, never infer or fabricate the stock name from the symbol.",
   "inputSchema": {
     "type": "object",
     "properties": {

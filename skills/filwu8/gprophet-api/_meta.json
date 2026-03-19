@@ -3,11 +3,16 @@
   "slug": "gprophet-api",
   "displayName": "Gprophet Api",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773642857723,
-    "commit": "https://github.com/openclaw/skills/commit/149e3b4f448e3ebf8d9866ef2739e7907625174c"
+    "version": "1.0.6",
+    "publishedAt": 1773651238357,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773642857723,
+      "commit": "https://github.com/openclaw/skills/commit/149e3b4f448e3ebf8d9866ef2739e7907625174c"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1772632084126,

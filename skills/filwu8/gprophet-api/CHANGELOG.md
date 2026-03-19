@@ -2,7 +2,16 @@
 
 All notable changes to the G-Prophet API skill will be documented in this file.
 
-## [2.0.0] - 2026-03-10
+## [1.0.6] - 2026-03-16
+
+### Changed
+
+- Removed noise documentation files (IMPROVEMENTS*.md, FINAL_REPORT.md, RELEASE_NOTES.md, etc.) to reduce context pollution
+- Simplified README.md to essential information only
+- Added explicit warning to `gprophet_predict` MCP tool description: always use the `name` field from response, never fabricate stock names
+- Updated api-docs page example responses to include `name` and `market` fields
+
+
 
 ### ⚡ New Features
 
