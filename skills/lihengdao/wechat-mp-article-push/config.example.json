@@ -5,7 +5,7 @@
     "description": "可选说明文字，无业务作用。",
     "meta": "可选。含 generatedAt、source 等，由向导生成，推送接口不读。",
     "apiBase": "可选。推送接口完整 URL。缺省时大模型应使用 https://api.pcloud.ac.cn/openClawService 。仅 POST JSON。",
-    "openId": "必填。微信用户 openId，由配置向导扫码登录后得到；推送 sendToWechat 必须携带。禁止编造。",
+    "openId": "必填。微信用户 openId，由配置向导微信扫码后得到；推送 sendToWechat 必须携带。禁止编造。",
     "pushMode": "必填。可选值仅两种：「default」= 系统默认公众号；「custom」= 用户自己的已绑定公众号。",
     "accountId": "当 pushMode 为 custom 时必填其一：云数据库里该公众号记录 _id，或向导保存后返回的 id。default 模式为 null。",
     "wechatAppId": "用户授权的公众号的 AppID（wx 开头）；default 为 null。",

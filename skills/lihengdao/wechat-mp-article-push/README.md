@@ -8,19 +8,30 @@
  
 - 🔒 **安全配置** - 通过在线向导安全配置,无需泄露公众号密钥，无需配置公众号白名单
 - 📝 **图文生成** - 按照 design.md 规范自动生成符合公众号格式的 HTML 文章
-- 🚀 **快速推送** - 推送文章到公众号，推送成功后有服务通知 
+- 🚀 **一键推送** - 推送文章到公众号，推送成功后有服务通知 
+
+## 📥 安装
+
+在 AI 对话中发送技能链接，或在终端执行以下命令，安装后即可使用本技能：
+
+- **链接安装**：发送 [https://clawhub.ai/lihengdao/wechat-mp-article-push](https://clawhub.ai/lihengdao/wechat-mp-article-push) 给 AI
+- **命令行安装**：
+
+```bash
+npx skills add lihengdao/wechat-mp-article-push
+```
 
 ## 📦 快速开始
 
 ### 1. 配置公众号
 
-访问配置向导完成公众号配置:
+用户访问配置向导完成公众号配置:
 
 ```
 https://app.pcloud.ac.cn/design/wechat-mp-article-push.html
 ```
 
-1. 微信扫码登录
+1. 用户微信扫码
 2. 选择要推送的公众号
 3. 复制生成的配置文件发给AI
 
