@@ -1,233 +1,70 @@
 ---
 name: llm-as-judge
-description: Cross-model verification pattern. Spawn a judge subagent with a different model to review plans, code, or decisions before execution. Catches ~85% of issues vs ~60% for self-reflection.
+description: Cross-model verification for complex tasks. Spawn a judge subagent with a different model to review plans, code, architecture, or decisions before execution. Use when working on "architecture", "system design", "complex feature", "security review", "production deployment", financial/trading systems, or when stuck after 3+ attempts. NOT for simple edits, config changes, or routine tasks.
 ---
 
 # LLM-as-Judge
 
 **Core principle:** Same model = same blind spots. Different model = fresh perspective. Cross-model review catches ~85% of issues vs ~60% for self-reflection.
 
-## When to Use
+## Activation Criteria
 
-**High-Value Scenarios:**
-- Complex planning (architecture decisions, multi-file changes)
-- High-stakes code review (production deployments, security-critical)
-- Ambiguous requirements (need clarification on approach)
-- Before major commits (prevent rollbacks)
-- When stuck after 3+ attempts (fundamental approach may be wrong)
+**Use this pattern when:**
+- Architecture or system design decisions
+- Multi-file changes affecting >5 files or >500 LOC
+- Security-critical code (auth, payments, crypto/DeFi)
+- Financial/trading systems (market making, quant strategies)
+- Planning documents that will drive weeks of work
+- Stuck after 3+ failed attempts on same problem
 
-**Decision Matrix:**
-```
-Task Complexity    Stakes    Recommended Judge
-─────────────────────────────────────────────────
-Low               Any       Self-review sufficient
-Medium            Low       Self-review
-Medium            High      LLM-as-Judge (optional)
-High              Any       LLM-as-Judge (required)
-Stuck >3x         Any       LLM-as-Judge (required)
-```
-
-**Cost/Benefit:**
-- **Cost:** 2x tokens on planning/review phase (usually <10% of total task cost)
-- **Benefit:** Prevents expensive re-work, catches blind spots
-- **ROI:** Spending 20¢ to save $2 of wasted execution
-
----
+**Skip when:**
+- Simple edits, config tweaks, bug fixes with obvious cause
+- Documentation updates
+- Single-file changes under 100 LOC
+- Tasks where self-review is sufficient
 
 ## The Pattern
 
-### Basic Flow
 ```
 Executor (Model A) → Output → Judge (Model B) → Verdict → Action
 ```
 
-**Verdict Options:**
-- **APPROVE:** Proceed with execution
-- **REVISE:** Specific feedback provided, executor revises
-- **REJECT:** Fundamental issue, restart with different approach
+**Verdicts:** APPROVE | REVISE (with specific feedback) | REJECT (restart)
 
-### Model Pairing Strategy
+## Model Pairing
 
-**Recommended Pairings:**
+Use a different provider than the executor to avoid shared blind spots:
 
-| Executor | Judge | Why It Works |
-|----------|-------|--------------|
-| Claude Sonnet | Kimi k2.5 | Different architectures, reasoning styles |
-| GPT-4 | Claude Opus | Safety vs. creativity balance |
-| Kimi k2.5 | Claude Sonnet | Long context vs. structured output |
-| MiniMax | Kimi/Claude | Cheap execution, quality review |
-
-**Principles:**
-- Different provider (OpenAI ↔ Anthropic ↔ Moonshot)
-- Different training data and biases
-- Different reasoning patterns
-- Similar capability tier
-
----
+- **Executor: Claude** → Judge: `kimi` or `grok` or `gemini-pro`
+- **Executor: Kimi/Gemini** → Judge: `opus`
+- **Principle:** Different provider, similar capability tier
 
 ## Judge Prompt Templates
 
-### Template 1: Plan Review
+### Plan/Architecture Review
+See `references/judge-prompts.md` for full templates covering:
+- Plan completeness, feasibility, risk, testing strategy
+- Architecture review with scoring (0-10 per dimension)
+- Code review checklist (correctness, design, safety, maintainability)
 
-```markdown
-You are a senior engineering manager reviewing a work plan.
-Be critical but constructive. Your goal is to catch gaps and risks.
+## Integration Points
 
-## Evaluation Criteria (0-10 each):
+- **With adversarial review:** This IS the formalized version of "spawn a separate model to review"
+- **With planning-protocol:** Judge reviews the plan before the Execute phase
+- **With coding workflows:** Code → cross-model review → fix findings → test → build → push
 
-1. **Completeness** - All files identified? Dependencies mapped?
-2. **Feasibility** - Timeline realistic? Unknown unknowns considered?
-3. **Risk Awareness** - What could go wrong? Mitigation plans?
-4. **Testing Strategy** - How to verify? Edge cases covered?
+## Quick Decision
 
-## Required Output:
-
-**Verdict:** [APPROVE / REVISE / REJECT]
-
-**Scores:**
-- Completeness: X/10
-- Feasibility: X/10
-- Risk Awareness: X/10
-- Testing Strategy: X/10
-
-**Issues:** (list if any score < 7)
-**Recommendations:** (specific actionable suggestions)
+```
+Simple task?           → Self-review
+Complex / high stakes? → LLM-as-Judge
+Stuck after retries?   → LLM-as-Judge (fresh perspective)
+Financial/security?    → LLM-as-Judge (mandatory)
 ```
 
-### Template 2: Code Review
-
-```markdown
-You are a staff engineer conducting production code review.
-
-## Review Checklist:
-**Correctness:** Logic correct? Edge cases? Error paths?
-**Design:** Follows patterns? Appropriate abstractions?
-**Safety:** No vulnerabilities? Input validation? Safe data handling?
-**Maintainability:** Clear names? Testable? Documented?
-
-## Verdict: [APPROVE / REVISE / REJECT]
-
-**Critical Issues:** (must fix)
-**Major Issues:** (should fix)
-**Minor Issues:** (nice to have)
-```
-
----
-
-## Implementation Examples
-
-### Example 1: Complex Feature Implementation
-
-```markdown
-User: "Implement JWT authentication for our API"
-
-Executor (Claude): Creates implementation plan
-↓
-Spawns Judge (Kimi)
-↓
-Judge Review:
-- Score: 7/10 completeness (missing refresh token logic)
-- Score: 8/10 feasibility
-- Score: 6/10 risk awareness (didn't mention token storage security)
-- Score: 5/10 testing (no tests for edge cases)
-↓
-Verdict: REVISE
-↓
-Feedback: "Add refresh token flow, consider XSS protection, add tests for expired tokens"
-↓
-Executor revises → Re-judge → APPROVED → Execute
-```
-
-### Example 2: Architecture Decision
-
-```markdown
-User: "Should we migrate from REST to GraphQL?"
-
-Executor (Kimi): Researches, proposes migration plan
-↓
-Spawns Judge (Claude)
-↓
-Judge Review:
-- Questions: "Have you considered the learning curve for the team?"
-- Alternative: "What about tRPC for type safety without GraphQL complexity?"
-- Risk: "Migration timeline doesn't account for debugging production issues"
-↓
-Verdict: REVISE
-↓
-Output: More nuanced decision with alternatives comparison
-```
-
----
-
-## Integration with Other Patterns
-
-### With Planning Protocol
-```
-Phase 1: GATHER → Phase 2: PLAN + LLM-as-Judge review → Phase 3: EXECUTE
-```
-Judge reviews the plan before any code is written.
-
-### With Subagent-Driven Development
-```
-Implementer subagent → Judge subagent (spec compliance) → Judge subagent (quality) → Merge
-```
-Two-stage review: first checks if it matches spec, second checks code quality.
-
-### With Verification Loops
-```
-Pre-commit: Self-review → LLM-as-Judge review → Human review (if high stakes)
-```
-Layered verification for critical changes.
-
----
-
-## Quick Reference
-
-**One-liner:**
-```
-When in doubt, spawn a judge with a different model.
-```
-
-**Decision tree:**
-- Simple task? → Self-review
-- Complex or high stakes? → LLM-as-Judge
-- Stuck after retries? → LLM-as-Judge for fresh perspective
-- Production code? → LLM-as-Judge + human review
-
-**Default pairing:**
-- Fast/cheap executor (MiniMax) + Quality judge (Kimi/Claude)
-
----
-
-## Anti-Patterns
-
-❌ **Don't** use same model for executor and judge (same blind spots)
-❌ **Don't** judge low-complexity tasks (overhead not worth it)
-❌ **Don't** ignore judge feedback without consideration
-❌ **Don't** use LLM-as-judge for final deployment decisions (human required)
-❌ **Don't** skip self-review entirely (judge is enhancement, not replacement)
-
-✅ **Do** use different providers/models
-✅ **Do** provide clear criteria to the judge
-✅ **Do** iterate when judge finds issues
-✅ **Do** log judge feedback for pattern learning
-✅ **Do** combine with other verification methods
-
----
-
-## Measuring Effectiveness
-
-**Track these metrics:**
-- Issues caught by judge vs. issues found in production
-- Revision rate (how often judge requests changes)
-- Time saved (prevented re-work vs. review overhead)
-- User satisfaction (confidence in final output)
-
-**Target thresholds:**
-- Judge approval rate: 60-70% (too high = not critical enough, too low = quality issues)
-- Production issues prevented: >50% reduction in post-deployment bugs
-- Review overhead: <15% of total task time
-
----
-
-*The LLM-as-Judge pattern acknowledges that even the best AI agents have blind spots. A second pair of eyes—especially one with different training—catches what the first misses.*
+## Gotchas
+- **Same provider defeats the purpose** — Claude Opus judging Claude Sonnet shares the same training distribution. Use a different provider (Grok judging Claude, Gemini judging GPT, etc.).
+- **Vague judge output is useless** — If the judge says "looks good" without specifics, the prompt is too weak. Always require the judge to produce scored dimensions + specific actionable items, even if approving.
+- **Judge scope creep** — Judges sometimes rewrite the entire plan instead of reviewing it. Constrain the verdict to APPROVE / REVISE / REJECT with specific feedback, not a replacement solution.
+- **Approval rate drift** — If the judge approves >80% of submissions, the model pairing is too similar or the prompts are too lenient. Target 60-70% approval rate.
+- **Don't judge trivial tasks** — A 50-line CSS fix doesn't need cross-model review. Use the activation criteria in this skill strictly.
