@@ -3,11 +3,16 @@
   "slug": "gift-finder",
   "displayName": "Gift Finder",
   "latest": {
-    "version": "2.3.6",
-    "publishedAt": 1773666121018,
-    "commit": "https://github.com/openclaw/skills/commit/0ceb3ae86523c04e87e6c6f5f5af66b8288ec334"
+    "version": "2.0.1",
+    "publishedAt": 1773830630198,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.6",
+      "publishedAt": 1773666121018,
+      "commit": "https://github.com/openclaw/skills/commit/0ceb3ae86523c04e87e6c6f5f5af66b8288ec334"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773447587985,
