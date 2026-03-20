@@ -1,8 +1,8 @@
 {
   "name": "yhd",
-  "version": "1.0.0",
-  "description": "Shop YHD.com (1号店) with smart deal finding, daily flash sales, fresh grocery navigation, and membership benefits guidance",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "1号店购物助手 Skill - 支持搜索、每日秒杀、生鲜选购、加购物车，支付环节留给用户",
+  "main": "SKILL.md",
   "keywords": [
     "yhd",
     "1号店",
@@ -15,9 +15,6 @@
   ],
   "author": "harrylabsj",
   "license": "MIT",
-  "peerDependencies": {
-    "openclaw": ">=0.1.0"
-  },
   "homepage": "https://clawic.com/skills/yhd",
   "repository": {
     "type": "git",
