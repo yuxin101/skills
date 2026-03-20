@@ -34,7 +34,8 @@ try:
     from erpclaw_lib.audit import audit
     from erpclaw_lib.dependencies import check_required_tables
     from erpclaw_lib.query_helpers import resolve_company_id
-    from erpclaw_lib.query import Q, P, Table, Field, fn, Case, Order, Criterion, Not, NULL, DecimalSum, DecimalAbs
+    from erpclaw_lib.query import Q, P, Table, Field, fn, Case, Order, Criterion, Not, NULL, DecimalSum, DecimalAbs, dynamic_update, now
+    from erpclaw_lib.args import SafeArgumentParser, check_unknown_args
     from erpclaw_lib.vendor.pypika.terms import LiteralValue, ValueWrapper
 except ImportError:
     import json as _json
@@ -159,6 +160,16 @@ def add_account(conn, args):
     currency = args.currency or "USD"
     is_group = 1 if args.is_group else 0
 
+    # Guard: certain account_types must be leaf (posting) accounts, never groups
+    LEAF_ONLY_TYPES = {
+        "receivable", "payable", "bank", "cash", "tax",
+        "cost_of_goods_sold", "stock", "depreciation",
+        "accumulated_depreciation", "round_off",
+    }
+    if is_group and account_type and account_type.lower() in LEAF_ONLY_TYPES:
+        err(f"Account type '{account_type}' must be a posting (leaf) account, "
+            f"not a group. Remove --is-group to create a postable account.")
+
     # Default balance direction
     balance_direction = "debit_normal"
     if root_type in ("liability", "equity", "income"):
@@ -230,11 +241,10 @@ def update_account(conn, args):
     if not updates:
         err("No fields to update")
 
-    # raw SQL — dynamic column building from user-provided update dict
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
-    set_clause += ", updated_at = datetime('now')"
-    values = list(updates.values()) + [acct_id]
-    conn.execute(f"UPDATE account SET {set_clause} WHERE id = ?", values)
+    data = dict(updates)
+    data["updated_at"] = now()
+    sql, values = dynamic_update("account", data, where={"id": acct_id})
+    conn.execute(sql, values)
 
     audit(conn, "erpclaw-gl", "update", "account", acct_id,
            old_values={k: old.get(k) for k in updates},
@@ -347,7 +357,7 @@ def freeze_account(conn, args):
         err(f"Account {acct_id} not found")
     q = (Q.update(t)
          .set(Field("is_frozen"), 1)
-         .set(Field("updated_at"), LiteralValue("datetime('now')"))
+         .set(Field("updated_at"), now())
          .where(t.id == P()))
     conn.execute(q.get_sql(), (acct_id,))
     audit(conn, "erpclaw-gl", "freeze", "account", acct_id, new_values={"is_frozen": 1})
@@ -366,7 +376,7 @@ def unfreeze_account(conn, args):
         err(f"Account {acct_id} not found")
     q = (Q.update(t)
          .set(Field("is_frozen"), 0)
-         .set(Field("updated_at"), LiteralValue("datetime('now')"))
+         .set(Field("updated_at"), now())
          .where(t.id == P()))
     conn.execute(q.get_sql(), (acct_id,))
     audit(conn, "erpclaw-gl", "unfreeze", "account", acct_id, new_values={"is_frozen": 0})
@@ -751,7 +761,7 @@ def close_fiscal_year(conn, args):
     # Close the fiscal year
     q = (Q.update(t_fy)
          .set(Field("is_closed"), 1)
-         .set(Field("updated_at"), LiteralValue("datetime('now')"))
+         .set(Field("updated_at"), now())
          .where(t_fy.id == P()))
     conn.execute(q.get_sql(), (fy_id,))
 
@@ -889,14 +899,14 @@ def reopen_fiscal_year(conn, args):
 
         q = (Q.update(t_pcv)
              .set(Field("status"), ValueWrapper("cancelled"))
-             .set(Field("updated_at"), LiteralValue("datetime('now')"))
+             .set(Field("updated_at"), now())
              .where(t_pcv.id == P()))
         conn.execute(q.get_sql(), (pcv["id"],))
         pcv_reversed = True
 
     q = (Q.update(t_fy)
          .set(Field("is_closed"), 0)
-         .set(Field("updated_at"), LiteralValue("datetime('now')"))
+         .set(Field("updated_at"), now())
          .where(t_fy.id == P()))
     conn.execute(q.get_sql(), (fy_id,))
 
@@ -1368,13 +1378,13 @@ def revalue_foreign_balances(conn, args):
     for acct in accounts:
         acct_currency = acct["currency"]
 
-        # raw SQL — uses CAST(column AS REAL) which PyPika doesn't support cleanly
+        # raw SQL — uses CAST(column AS NUMERIC) which PyPika doesn't support cleanly
         bal = conn.execute(
             """SELECT
-                COALESCE(SUM(CAST(debit AS REAL)), 0) as total_debit,
-                COALESCE(SUM(CAST(credit AS REAL)), 0) as total_credit,
-                COALESCE(SUM(CAST(debit_base AS REAL)), 0) as total_debit_base,
-                COALESCE(SUM(CAST(credit_base AS REAL)), 0) as total_credit_base
+                COALESCE(SUM(CAST(debit AS NUMERIC)), 0) as total_debit,
+                COALESCE(SUM(CAST(credit AS NUMERIC)), 0) as total_credit,
+                COALESCE(SUM(CAST(debit_base AS NUMERIC)), 0) as total_debit_base,
+                COALESCE(SUM(CAST(credit_base AS NUMERIC)), 0) as total_credit_base
                FROM gl_entry
                WHERE account_id = ? AND is_cancelled = 0 AND posting_date <= ?""",
             (acct["id"], as_of_date),
@@ -1576,6 +1586,7 @@ def import_opening_balances(conn, args):
         err(f"File not found: {csv_path}")
 
     from erpclaw_lib.csv_import import validate_csv, parse_csv_rows
+    from erpclaw_lib.args import SafeArgumentParser, check_unknown_args
 
     errors = validate_csv(csv_real, "opening_balance")
     if errors:
@@ -1684,7 +1695,7 @@ ACTIONS = {
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="ERPClaw GL Skill")
+    parser = SafeArgumentParser(description="ERPClaw GL Skill")
     parser.add_argument("--action", required=True, choices=sorted(ACTIONS.keys()))
     parser.add_argument("--db-path", default=None)
 
@@ -1738,7 +1749,8 @@ def main():
     # CSV import
     parser.add_argument("--csv-path", default=None)
 
-    args, _unknown = parser.parse_known_args()
+    args, unknown = parser.parse_known_args()
+    check_unknown_args(parser, unknown)
     check_input_lengths(args)
 
     db_path = args.db_path or DEFAULT_DB_PATH

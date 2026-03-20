@@ -1,40 +1,32 @@
 ---
-name: erp-claw
-version: 3.1.2
+name: erpclaw
+version: 3.2.0
 description: >
-  AI-native ERP system. Full accounting, invoicing, inventory, purchasing,
+  AI-native ERP system with self-extending OS. Full accounting, invoicing, inventory, purchasing,
   tax, billing, HR, payroll, advanced accounting (ASC 606/842, intercompany, consolidation),
-  and financial reporting in a single install. 365+ actions across 14 domains.
-  Modular expansion via GitHub-hosted modules. Double-entry GL, immutable audit trail, US GAAP.
-author: AvanSaber / Nikhil Jathar
-homepage: https://www.erpclaw.ai
+  and financial reporting. 413 actions across 14 domains, 43 expansion modules.
+  Constitutional guardrails, adversarial audit, schema migration. Double-entry GL, immutable audit trail, US GAAP.
+author: AvanSaber
+homepage: https://github.com/avansaber/erpclaw
 source: https://github.com/avansaber/erpclaw
-tier: 0
-category: erp
-requires: []
-database: ~/.openclaw/erpclaw/data.sqlite
 user-invocable: true
 tags: [erp, accounting, invoicing, inventory, purchasing, tax, billing, payments, gl, reports, sales, buying, setup, hr, payroll, employees, leave, attendance, salary, revenue-recognition, lease-accounting, intercompany, consolidation]
-metadata: {"openclaw":{"type":"executable","install":{"post":"python3 scripts/erpclaw-setup/db_query.py --action initialize-database"},"requires":{"bins":["python3"],"env":[],"optionalEnv":["ERPCLAW_DB_PATH"]},"os":["darwin","linux"]}}
+metadata: {"openclaw":{"type":"executable","install":{"post":"python3 scripts/erpclaw-setup/db_query.py --action initialize-database"},"requires":{"bins":["python3","git"],"env":[],"optionalEnv":["ERPCLAW_DB_PATH"]},"os":["darwin","linux"]}}
 cron:
   - expression: "0 1 * * *"
     timezone: "America/Chicago"
-    description: "Process recurring journal entries"
     message: "Using erpclaw, run the process-recurring action."
     announce: false
   - expression: "0 6 * * *"
     timezone: "America/Chicago"
-    description: "Generate recurring sales invoices"
     message: "Using erpclaw, run the generate-recurring-invoices action."
     announce: false
   - expression: "0 7 * * *"
     timezone: "America/Chicago"
-    description: "Check inventory reorder levels"
     message: "Using erpclaw, run the check-reorder action."
     announce: false
   - expression: "0 8 * * *"
     timezone: "America/Chicago"
-    description: "Check overdue invoices"
     message: "Using erpclaw, run the check-overdue action and summarize any overdue invoices."
     announce: false
 ---
@@ -50,16 +42,32 @@ full double-entry accounting and immutable audit trail.
 
 ## Security Model
 
-- **Local-first**: All data in `~/.openclaw/erpclaw/data.sqlite`. Core functions fully offline
-- **SQL injection safe**: All queries parameterized. **Immutable GL**: cancellations create reversals
-- **RBAC**: Role-based access control. Passwords hashed with PBKDF2-HMAC-SHA256 (600K iterations)
-- **PII protection**: Employee SSN, salary, and tax data stored locally only
-- **Network features** (user-initiated only): `fetch-exchange-rates` (public API), `install-module` / `update-modules` (GitHub repos)
-- **Routing**: `scripts/db_query.py` → domain scripts within package, or installed modules in `~/.openclaw/erpclaw/modules/`
+- **Local-first**: All data in `~/.openclaw/erpclaw/data.sqlite`. Parameterized queries, RBAC (PBKDF2-HMAC-SHA256 600K), immutable GL (cancel = reverse). PII stored locally only.
+- **Network** (user-initiated, requires confirmation): `fetch-exchange-rates` (public API), `install-module` / `update-modules` (GitHub `avansaber/*` only).
+- **Routing**: `scripts/db_query.py` → domain scripts or installed modules in `~/.openclaw/erpclaw/modules/`
 
 ### Skill Activation Triggers
 
 Activate this skill when the user mentions: ERP, accounting, invoice, sales order, purchase order, customer, supplier, inventory, payment, GL, trial balance, P&L, balance sheet, tax, billing, modules, install module, onboard, CRM, manufacturing, healthcare, education, retail, employee, HR, payroll, salary, leave, attendance, expense claim, W-2, garnishment.
+
+### Auto-Detection (IMPORTANT)
+
+When a user describes their business for the first time:
+1. **Detect business type** from context (e.g., "dental practice" → dental, "trucking company" → fleet, "restaurant" → food-service)
+2. **Ask the user to confirm** the detected type and proposed modules before proceeding
+3. **On confirmation**, call `setup-company` with `--industry <detected-type>` and `--country <country-code>`
+4. **After setup, call `list-all-actions`** to discover newly available module-specific actions
+5. **Use module-specific actions** going forward (e.g., `health-add-patient` instead of `add-customer` for healthcare)
+
+If a user mentions a country other than US, confirm with the user, then use `--country` on `setup-company` (e.g., `--country IN` for India, `--country CA` for Canada). This installs the regional compliance module after confirmation.
+
+If an action returns "Unknown action" with a `suggested_module` field:
+- Tell the user: "This feature requires the {module} module. Want me to install it?"
+- **Wait for explicit user confirmation** before installing
+- On confirmation: `--action install-module --module-name {module}`
+- After install: `--action list-all-actions` to refresh available actions
+
+Industry values: retail, restaurant, healthcare, dental, veterinary, construction, manufacturing, legal, agriculture, hospitality, property, school, university, nonprofit, automotive, therapy, home-health, consulting, distribution, saas
 
 ### Setup (First Use Only)
 
@@ -83,16 +91,20 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 --action trial-balance --company-id <id> --to-date 2026-03-08
 ```
 
+New here? Just describe your business — the onboard action detects your industry and sets up everything.
+
 ## All Actions (Tier 2)
 
-### Setup & Admin (42 actions)
+Run `list-all-actions` for the complete list of all available actions. Regional modules add prefixed actions (india-\*, eu-\*, uk-\*, canada-\*) for local tax and compliance. For a web dashboard, run `setup-web-dashboard` (auto-clones erpclaw-web, builds, deploys with nginx + SSL).
+
+### Setup & Admin (44 actions)
 
 | Action | Description |
 |--------|-------------|
 | `initialize-database` / `setup-company` / `update-company` / `get-company` / `list-companies` | DB init & company CRUD |
 | `add-currency` / `list-currencies` / `add-exchange-rate` / `get-exchange-rate` / `list-exchange-rates` | Currency & FX |
 | `add-payment-terms` / `list-payment-terms` / `add-uom` / `list-uoms` / `add-uom-conversion` | Terms & UoMs |
-| `seed-defaults` / `seed-demo-data` / `check-installation` / `install-guide` | Seeding & install |
+| `seed-defaults` / `seed-demo-data` / `check-installation` / `install-guide` / `setup-web-dashboard` | Seeding & install |
 | `add-user` / `update-user` / `get-user` / `list-users` | User management |
 | `add-role` / `list-roles` / `assign-role` / `revoke-role` / `set-password` / `seed-permissions` | RBAC & security |
 | `link-telegram-user` / `unlink-telegram-user` / `check-telegram-permission` | Telegram integration |
@@ -100,7 +112,7 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `get-audit-log` / `get-schema-version` / `update-regional-settings` | System admin |
 | `fetch-exchange-rates` / `tutorial` / `onboarding-step` / `status` | Utilities |
 
-### General Ledger (28 actions)
+### General Ledger (26 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -117,7 +129,7 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `revalue-foreign-balances` | FX revaluation |
 | `import-chart-of-accounts` / `import-opening-balances` | CSV import |
 
-### Journal Entries (17 actions)
+### Journal Entries (16 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -128,7 +140,7 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `add-recurring-template` / `update-recurring-template` / `list-recurring-templates` / `get-recurring-template` | Recurring JE templates |
 | `process-recurring` / `delete-recurring-template` | Recurring JE processing |
 
-### Payments (14 actions)
+### Payments (13 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -137,7 +149,7 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `create-payment-ledger-entry` / `get-outstanding` / `get-unallocated-payments` | Payment ledger |
 | `allocate-payment` / `reconcile-payments` / `bank-reconciliation` | Reconciliation |
 
-### Tax (19 actions)
+### Tax (17 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -149,7 +161,7 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `add-tax-withholding-category` / `get-withholding-details` | Withholding |
 | `record-withholding-entry` / `record-1099-payment` / `generate-1099-data` | 1099 reporting |
 
-### Financial Reports (21 actions)
+### Financial Reports (20 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -161,7 +173,7 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `comparative-pl` / `check-overdue` | Analysis |
 | `add-elimination-rule` / `list-elimination-rules` / `run-elimination` / `list-elimination-entries` | Intercompany |
 
-### Selling / Order-to-Cash (42 actions)
+### Selling (42 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -171,13 +183,13 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `add-sales-order` / `update-sales-order` / `get-sales-order` / `list-sales-orders` / `submit-sales-order` / `cancel-sales-order` | Sales orders |
 | `create-delivery-note` / `get-delivery-note` / `list-delivery-notes` / `submit-delivery-note` / `cancel-delivery-note` | Delivery |
 | `create-sales-invoice` / `update-sales-invoice` / `get-sales-invoice` / `list-sales-invoices` / `submit-sales-invoice` / `cancel-sales-invoice` | Invoicing |
-| `create-credit-note` / `update-invoice-outstanding` | Credit notes |
+| `create-credit-note` / `list-credit-notes` / `update-invoice-outstanding` | Credit notes |
 | `add-sales-partner` / `list-sales-partners` | Sales partners |
 | `add-recurring-invoice-template` / `update-recurring-invoice-template` / `list-recurring-invoice-templates` / `generate-recurring-invoices` | Recurring invoices |
 | `import-customers` | CSV import |
 | `add-intercompany-account-map` / `list-intercompany-account-maps` / `create-intercompany-invoice` / `list-intercompany-invoices` / `cancel-intercompany-invoice` | Intercompany |
 
-### Buying / Procure-to-Pay (36 actions)
+### Buying (34 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -191,7 +203,7 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `create-debit-note` / `update-purchase-outstanding` / `add-landed-cost-voucher` | Adjustments |
 | `import-suppliers` | CSV import |
 
-### Inventory (38 actions)
+### Inventory (36 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -200,14 +212,14 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `add-warehouse` / `update-warehouse` / `list-warehouses` | Warehouses |
 | `add-stock-entry` / `get-stock-entry` / `list-stock-entries` / `submit-stock-entry` / `cancel-stock-entry` | Stock entries |
 | `create-stock-ledger-entries` / `reverse-stock-ledger-entries` | Stock ledger |
-| `get-stock-balance` / `stock-balance-report` / `stock-ledger-report` | Stock reports |
+| `get-stock-balance` / `stock-balance` / `stock-balance-report` / `stock-ledger-report` | Stock reports |
 | `add-batch` / `list-batches` / `add-serial-number` / `list-serial-numbers` | Batch & serial tracking |
 | `add-price-list` / `add-item-price` / `get-item-price` / `add-pricing-rule` | Pricing |
 | `add-stock-reconciliation` / `submit-stock-reconciliation` | Reconciliation |
 | `revalue-stock` / `list-stock-revaluations` / `get-stock-revaluation` / `cancel-stock-revaluation` | Revaluation |
 | `check-reorder` / `import-items` | Utilities |
 
-### Billing & Metering (22 actions)
+### Billing & Metering (21 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -219,82 +231,69 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `add-billing-adjustment` / `list-billing-periods` / `get-billing-period` | Adjustments |
 | `add-prepaid-credit` / `get-prepaid-balance` | Prepaid credits |
 
-### Advanced Accounting (46 actions)
+### Advanced Accounting (45 actions)
 
 | Action | Description |
 |--------|-------------|
-| `add-revenue-contract` / `update-revenue-contract` / `get-revenue-contract` / `list-revenue-contracts` | Revenue contract CRUD (ASC 606) |
-| `add-performance-obligation` / `list-performance-obligations` / `satisfy-performance-obligation` | Performance obligations |
-| `add-variable-consideration` / `list-variable-considerations` / `modify-contract` | Variable consideration & mods |
-| `calculate-revenue-schedule` / `generate-revenue-entries` | Revenue schedule & GL posting |
-| `revenue-waterfall-report` / `revenue-recognition-summary` | Revenue reports |
-| `add-lease` / `update-lease` / `get-lease` / `list-leases` / `classify-lease` | Lease CRUD & classification (ASC 842) |
-| `calculate-rou-asset` / `calculate-lease-liability` / `generate-amortization-schedule` / `record-lease-payment` | ROU asset, liability & amortization |
+| `add-revenue-contract` / `update-revenue-contract` / `get-revenue-contract` / `list-revenue-contracts` | Revenue contract CRUD |
+| `add-performance-obligation` / `list-performance-obligations` / `satisfy-performance-obligation` | ASC 606 performance obligations |
+| `add-variable-consideration` / `list-variable-considerations` / `modify-contract` | Variable consideration & modifications |
+| `calculate-revenue-schedule` / `generate-revenue-entries` / `revenue-waterfall-report` / `revenue-recognition-summary` | Revenue recognition processing & reports |
+| `add-lease` / `update-lease` / `get-lease` / `list-leases` / `classify-lease` | ASC 842 lease CRUD & classification |
+| `calculate-rou-asset` / `calculate-lease-liability` / `generate-amortization-schedule` / `record-lease-payment` | Lease calculations & payments |
 | `lease-maturity-report` / `lease-disclosure-report` / `lease-summary` | Lease reports |
-| `add-ic-transaction` / `update-ic-transaction` / `get-ic-transaction` / `list-ic-transactions` | Intercompany CRUD |
-| `approve-ic-transaction` / `post-ic-transaction` | IC workflow |
-| `add-transfer-price-rule` / `list-transfer-price-rules` | Transfer pricing |
+| `add-ic-transaction` / `update-ic-transaction` / `get-ic-transaction` / `list-ic-transactions` | Intercompany transaction CRUD |
+| `approve-ic-transaction` / `post-ic-transaction` / `add-transfer-price-rule` / `list-transfer-price-rules` | IC approvals & transfer pricing |
 | `ic-reconciliation-report` / `ic-elimination-report` | IC reports |
-| `add-consolidation-group` / `list-consolidation-groups` / `add-group-entity` | Consolidation groups |
-| `run-consolidation` / `generate-elimination-entries` / `add-currency-translation` | Consolidation process |
-| `consolidation-trial-balance-report` / `consolidation-summary` | Consolidation reports |
+| `add-consolidation-group` / `list-consolidation-groups` / `add-group-entity` / `add-currency-translation` | Multi-entity consolidation setup |
+| `run-consolidation` / `generate-elimination-entries` / `consolidation-trial-balance-report` / `consolidation-summary` | Consolidation processing & reports |
 | `standards-compliance-dashboard` | ASC 606/842 compliance overview |
 
-### HR & Payroll (50 actions)
+### HR & Payroll (49 actions)
 
 | Action | Description |
 |--------|-------------|
 | `add-employee` / `update-employee` / `get-employee` / `list-employees` | Employee CRUD |
 | `add-department` / `list-departments` / `add-designation` / `list-designations` | Org structure |
 | `add-leave-type` / `list-leave-types` / `add-leave-allocation` / `get-leave-balance` | Leave config |
-| `add-leave-application` / `approve-leave` / `reject-leave` / `list-leave-applications` | Leave workflow |
-| `mark-attendance` / `bulk-mark-attendance` / `list-attendance` / `add-holiday-list` | Attendance & holidays |
-| `add-expense-claim` / `submit-expense-claim` / `approve-expense-claim` / `reject-expense-claim` / `list-expense-claims` | Expense claims |
-| `record-lifecycle-event` / `hr-status` / `update-expense-claim-status` | HR lifecycle & status |
-| `add-salary-component` / `list-salary-components` / `add-salary-structure` / `get-salary-structure` / `list-salary-structures` | Salary setup |
+| `add-leave-application` / `approve-leave` / `reject-leave` / `list-leave-applications` | Leave requests |
+| `mark-attendance` / `bulk-mark-attendance` / `list-attendance` / `add-holiday-list` | Attendance |
+| `add-expense-claim` / `submit-expense-claim` / `approve-expense-claim` / `reject-expense-claim` | Expenses |
+| `update-expense-claim-status` / `list-expense-claims` / `record-lifecycle-event` | Expense status & HR events |
+| `add-salary-component` / `list-salary-components` / `add-salary-structure` / `get-salary-structure` / `list-salary-structures` | Salary components & structures |
 | `add-salary-assignment` / `list-salary-assignments` / `add-income-tax-slab` / `update-fica-config` / `update-futa-suta-config` | Payroll config |
-| `create-payroll-run` / `generate-salary-slips` / `submit-payroll-run` / `cancel-payroll-run` / `get-salary-slip` / `list-salary-slips` | Payroll processing |
-| `generate-w2-data` / `add-garnishment` / `update-garnishment` / `get-garnishment` / `list-garnishments` / `payroll-status` | W-2, garnishments & status |
+| `create-payroll-run` / `generate-salary-slips` / `get-salary-slip` / `list-salary-slips` | Payroll processing |
+| `submit-payroll-run` / `cancel-payroll-run` / `generate-w2-data` | Payroll lifecycle & W-2 |
+| `add-garnishment` / `update-garnishment` / `get-garnishment` / `list-garnishments` / `payroll-status` | Garnishments & status |
 
-### Module Management (10 actions)
+### Module Management & OS (41 actions)
 
 | Action | Description |
 |--------|-------------|
 | `install-module` | Install a module from GitHub (`--module-name <name>`) |
 | `remove-module` | Remove an installed module (`--module-name <name>`) |
 | `update-modules` | Update all or a specific module |
-| `list-modules` | List all installed modules |
-| `available-modules` | Browse module catalog (`--category`, `--search`) |
-| `module-status` | Detailed status for a module (`--module-name <name>`) |
-| `search-modules` | Search catalog by keyword (`--search <query>`) |
-| `rebuild-action-cache` | Rebuild action routing cache |
-| `list-profiles` | Browse business onboarding profiles |
-| `onboard` | Auto-install modules for a business type (`--profile <name>`) |
+| `list-modules` / `available-modules` / `search-modules` / `module-status` | Browse and search module catalog |
+| `rebuild-action-cache` / `list-all-actions` | Refresh available actions after module changes |
+| `list-profiles` / `onboard` | Browse business profiles, auto-install for a business type |
+| `validate-module` / `generate-module` / `configure-module` / `deploy-module` / `list-industries` | OS: Module lifecycle |
+| `build-table-registry` / `list-articles` | OS: Constitution & schema registry |
+| `install-suite` / `classify-operation` / `run-audit` / `compliance-weather-status` | OS: Suite install, tier classification, audit |
+| `schema-plan` / `schema-apply` / `schema-rollback` / `schema-drift` / `deploy-audit-log` | OS: Schema migration & deploy audit |
+| `semantic-check` / `semantic-rules-list` | OS: Semantic correctness — validates GL postings use correct account types |
+| `log-improvement` / `list-improvements` / `review-improvement` | OS: Self-improvement log — track AI-proposed changes |
+| `dgm-run-variant` / `dgm-list-variants` / `dgm-select-best` | OS: DGM variant engine — evolutionary optimization (non-financial code only) |
+| `heartbeat-analyze` / `heartbeat-report` / `heartbeat-suggest` | OS: Heartbeat — usage patterns, gap detection, module suggestions |
+| `detect-gaps` / `suggest-modules` | OS: Gap detection — identifies missing modules for your industry |
+| `regenerate-skill-md` | OS: Regenerate SKILL.md after module changes |
 
-### Quick Command Reference
+### Domain Status (9 actions)
 
-| User Says | Action |
-|-----------|--------|
-| "Set up my company" | `setup-company` |
-| "Show trial balance" | `trial-balance` |
-| "Create an invoice" | `create-sales-invoice` → `submit-sales-invoice` |
-| "Record a payment" | `add-payment` → `submit-payment` |
-| "Install CRM" | `install-module --module-name erpclaw-growth` |
-| "Set up for retail" | `onboard --profile retail` |
-| "Add employee" | `add-employee` |
-| "Run payroll" | `create-payroll-run` → `generate-salary-slips` → `submit-payroll-run` |
-| "Apply for leave" | `add-leave-application` |
-| "Generate W-2s" | `generate-w2-data` |
+| Action | Description |
+|--------|-------------|
+| `gl-status` / `journals-status` / `payments-status` / `tax-status` / `reports-status` / `selling-status` / `buying-status` / `inventory-status` / `billing-status` | Per-domain health check |
 
-Confirm before: `submit-*`, `cancel-*`, `approve-*`, `reject-*`, `run-elimination`, `run-consolidation`, `restore-database`, `close-fiscal-year`, `initialize-database --force`, `install-module`, `remove-module`, `onboard`. All `add-*`, `get-*`, `list-*`, `update-*` actions run immediately.
+**Always confirm with user before running:** `setup-company` (with --industry or --country), `onboard`, `install-module`, `remove-module`, `update-modules`, `submit-*`, `cancel-*`, `approve-*`, `reject-*`, `run-elimination`, `run-consolidation`, `restore-database`, `close-fiscal-year`, `initialize-database --force`. All `add-*`, `get-*`, `list-*`, `update-*` run immediately.
 
 ## Technical Details (Tier 3)
-
-### Architecture
-- **Router**: `scripts/db_query.py` dispatches to 14 core domain scripts + installed modules
-- **Core Domains**: setup, meta, gl, journals, payments, tax, reports, selling, buying, inventory, billing, accounting-adv, hr, payroll
-- **Module System**: Expansion modules installed from GitHub to `~/.openclaw/erpclaw/modules/`
-- **Database**: Single SQLite at `~/.openclaw/erpclaw/data.sqlite`
-- **Shared Library**: `~/.openclaw/erpclaw/lib/erpclaw_lib/` (installed by `initialize-database`)
-- **151 tables** (149 core + 2 module system). Money = TEXT (Decimal), IDs = TEXT (UUID4). GL entries immutable.
-- **Script**: `scripts/db_query.py --action <action-name> [--key value ...]`
+Router: `scripts/db_query.py` → 14 core domains + erpclaw-os. Modules from GitHub to `~/.openclaw/erpclaw/modules/`. Single SQLite DB (WAL mode). 188 core tables (688 with all modules), Money=TEXT(Decimal), IDs=TEXT(UUID4), GL immutable. Python 3.10+.

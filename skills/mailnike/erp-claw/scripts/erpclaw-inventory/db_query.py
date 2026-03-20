@@ -9,6 +9,7 @@ Usage: python3 db_query.py --action <action-name> [--flags ...]
 Output: JSON to stdout, exit 0 on success, exit 1 on error.
 """
 import argparse
+import itertools
 import json
 import os
 import sqlite3
@@ -36,9 +37,10 @@ try:
     from erpclaw_lib.audit import audit
     from erpclaw_lib.dependencies import check_required_tables
     from erpclaw_lib.query_helpers import resolve_company_id
-    from erpclaw_lib.query import Q, P, Table, Field, fn, DecimalSum, DecimalAbs
+    from erpclaw_lib.query import Q, P, Table, Field, fn, DecimalSum, DecimalAbs, dynamic_update
     from erpclaw_lib.vendor.pypika import Order
-    from erpclaw_lib.vendor.pypika.terms import LiteralValue
+    from erpclaw_lib.args import SafeArgumentParser, check_unknown_args
+    from erpclaw_lib.vendor.pypika.terms import LiteralValue, ValueWrapper
 except ImportError:
     import json as _json
     print(_json.dumps({"status": "error", "error": "ERPClaw foundation not installed. Install erpclaw first: clawhub install erpclaw", "suggestion": "clawhub install erpclaw"}))
@@ -180,37 +182,32 @@ def update_item(conn, args):
     if item["status"] == "disabled" and args.item_status != "active":
         err("Cannot update a disabled item (set --status active first)")
 
-    updates, params, updated_fields = [], [], []
+    data, updated_fields = {}, []
 
     if args.item_name is not None:
-        updates.append("item_name = ?")
-        params.append(args.item_name)
+        data["item_name"] = args.item_name
         updated_fields.append("item_name")
     if args.reorder_level is not None:
-        updates.append("reorder_level = ?")
-        params.append(args.reorder_level)
+        data["reorder_level"] = args.reorder_level
         updated_fields.append("reorder_level")
     if args.reorder_qty is not None:
-        updates.append("reorder_qty = ?")
-        params.append(args.reorder_qty)
+        data["reorder_qty"] = args.reorder_qty
         updated_fields.append("reorder_qty")
     if args.standard_rate is not None:
-        updates.append("standard_rate = ?")
-        params.append(str(round_currency(to_decimal(args.standard_rate))))
+        data["standard_rate"] = str(round_currency(to_decimal(args.standard_rate)))
         updated_fields.append("standard_rate")
     if args.item_status is not None:
         if args.item_status not in ("active", "disabled"):
             err("--status must be 'active' or 'disabled'")
-        updates.append("status = ?")
-        params.append(args.item_status)
+        data["status"] = args.item_status
         updated_fields.append("status")
 
     if not updated_fields:
         err("No fields to update")
 
-    updates.append("updated_at = datetime('now')")
-    params.append(args.item_id)
-    conn.execute(f"UPDATE item SET {', '.join(updates)} WHERE id = ?", params)
+    data["updated_at"] = LiteralValue("datetime('now')")
+    sql, params = dynamic_update("item", data, where={"id": args.item_id})
+    conn.execute(sql, params)
 
     audit(conn, "erpclaw-inventory", "update-item", "item", args.item_id,
            new_values={"updated_fields": updated_fields})
@@ -278,12 +275,17 @@ def get_item(conn, args):
 def list_items(conn, args):
     """Query items with filtering."""
     i = Table("item").as_("i")
+    ig = Table("item_group").as_("ig")
 
     # Warehouse filter: items that have stock in a specific warehouse
     warehouse_id = getattr(args, "warehouse_id", None)
 
+    company_id = getattr(args, "company_id", None)
+
     # Build count query
     count_q = Q.from_(i).select(fn.Count("*"))
+    if company_id:
+        count_q = count_q.join(ig).on(ig.id == i.item_group_id).where(ig.company_id == P())
     if warehouse_id:
         sle = Table("stock_ledger_entry")
         sub = (Q.from_(sle).select(sle.item_id).distinct()
@@ -299,6 +301,8 @@ def list_items(conn, args):
         )
 
     count_params = []
+    if company_id:
+        count_params.append(company_id)
     if warehouse_id:
         count_params.append(warehouse_id)
     if args.item_group:
@@ -315,11 +319,15 @@ def list_items(conn, args):
     offset = int(args.offset) if args.offset else 0
 
     rows_q = (Q.from_(i)
+              .left_join(ig).on(ig.id == i.item_group_id)
               .select(i.id, i.item_code, i.item_name, i.item_group_id,
+                      ig.name.as_("item_group_name"),
                       i.item_type, i.stock_uom, i.standard_rate, i.status,
                       i.has_batch, i.has_serial)
               .orderby(i.item_name)
               .limit(P()).offset(P()))
+    if company_id:
+        rows_q = rows_q.where(ig.company_id == P())
     if warehouse_id:
         sle = Table("stock_ledger_entry")
         sub = (Q.from_(sle).select(sle.item_id).distinct()
@@ -335,6 +343,8 @@ def list_items(conn, args):
         )
 
     row_params = []
+    if company_id:
+        row_params.append(company_id)
     if warehouse_id:
         row_params.append(warehouse_id)
     if args.item_group:
@@ -360,6 +370,8 @@ def add_item_group(conn, args):
     if not args.name:
         err("--name is required")
 
+    company_id = getattr(args, "company_id", None)
+
     if args.parent_id:
         ig_t = Table("item_group")
         parent_q = Q.from_(ig_t).select(ig_t.id).where(ig_t.id == P())
@@ -369,12 +381,14 @@ def add_item_group(conn, args):
 
     ig_id = str(uuid.uuid4())
     t = Table("item_group")
-    q = Q.into(t).columns("id", "name", "parent_id").insert(P(), P(), P())
+    q = Q.into(t).columns("id", "name", "company_id", "parent_id").insert(P(), P(), P(), P())
     try:
-        conn.execute(q.get_sql(), (ig_id, args.name, args.parent_id))
+        conn.execute(q.get_sql(), (ig_id, args.name, company_id, args.parent_id))
     except sqlite3.IntegrityError as e:
         sys.stderr.write(f"[erpclaw-inventory] {e}\n")
-        err("Item group creation failed — check for duplicates or invalid data")
+        err(f"Item group '{args.name}' already exists"
+            f"{' for this company' if company_id else ''}"
+            f". Choose a different name or update the existing group.")
 
     audit(conn, "erpclaw-inventory", "add-item-group", "item_group", ig_id,
            new_values={"name": args.name})
@@ -390,11 +404,17 @@ def list_item_groups(conn, args):
     """List item groups."""
     t = Table("item_group")
 
+    company_id = getattr(args, "company_id", None)
+
     count_q = Q.from_(t).select(fn.Count("*"))
+    if company_id:
+        count_q = count_q.where(t.company_id == P())
     if args.parent_id:
         count_q = count_q.where(t.parent_id == P())
 
     count_params = []
+    if company_id:
+        count_params.append(company_id)
     if args.parent_id:
         count_params.append(args.parent_id)
 
@@ -407,10 +427,14 @@ def list_item_groups(conn, args):
     rows_q = (Q.from_(t).select(t.star)
               .orderby(t.name)
               .limit(P()).offset(P()))
+    if company_id:
+        rows_q = rows_q.where(t.company_id == P())
     if args.parent_id:
         rows_q = rows_q.where(t.parent_id == P())
 
     row_params = []
+    if company_id:
+        row_params.append(company_id)
     if args.parent_id:
         row_params.append(args.parent_id)
     row_params.extend([limit, offset])
@@ -491,11 +515,10 @@ def update_warehouse(conn, args):
         err(f"Warehouse {args.warehouse_id} not found")
     args.warehouse_id = wh["id"]  # normalize to id
 
-    updates, params, updated_fields = [], [], []
+    data, updated_fields = {}, []
 
     if args.name is not None:
-        updates.append("name = ?")
-        params.append(args.name)
+        data["name"] = args.name
         updated_fields.append("name")
     if args.account_id is not None:
         acct_t = Table("account")
@@ -503,17 +526,15 @@ def update_warehouse(conn, args):
         acct = conn.execute(acct_q.get_sql(), (args.account_id,)).fetchone()
         if not acct:
             err(f"Account {args.account_id} not found")
-        updates.append("account_id = ?")
-        params.append(args.account_id)
+        data["account_id"] = args.account_id
         updated_fields.append("account_id")
 
     if not updated_fields:
         err("No fields to update")
 
-    updates.append("updated_at = datetime('now')")
-    params.append(args.warehouse_id)
-    conn.execute(
-        f"UPDATE warehouse SET {', '.join(updates)} WHERE id = ?", params)
+    data["updated_at"] = LiteralValue("datetime('now')")
+    sql, params = dynamic_update("warehouse", data, where={"id": args.warehouse_id})
+    conn.execute(sql, params)
 
     audit(conn, "erpclaw-inventory", "update-warehouse", "warehouse", args.warehouse_id,
            new_values={"updated_fields": updated_fields})
@@ -2345,6 +2366,7 @@ def import_items(conn, args):
         err(f"File not found: {csv_path}")
 
     from erpclaw_lib.csv_import import validate_csv, parse_csv_rows
+    from erpclaw_lib.args import SafeArgumentParser, check_unknown_args
 
     errors = validate_csv(csv_real, "item")
     if errors:
@@ -2398,6 +2420,446 @@ def import_items(conn, args):
 
 
 # ---------------------------------------------------------------------------
+# Feature #4: get-projected-qty
+# ---------------------------------------------------------------------------
+
+def get_projected_qty(conn, args):
+    """Calculate projected quantity for an item in a warehouse.
+
+    projected_qty = actual_qty + ordered_qty (pending receipt) - reserved_qty (pending delivery)
+
+    ordered_qty = SUM(po_item.quantity - po_item.received_qty) for open POs
+    reserved_qty = SUM(so_item.quantity - so_item.delivered_qty) for confirmed SOs
+    """
+    if not args.item_id:
+        err("--item-id is required")
+    if not args.warehouse_id:
+        err("--warehouse-id is required")
+
+    # Verify item exists
+    item_t = Table("item")
+    q = Q.from_(item_t).select(item_t.id, item_t.item_code, item_t.item_name).where(item_t.id == P())
+    item = conn.execute(q.get_sql(), (args.item_id,)).fetchone()
+    if not item:
+        err(f"Item {args.item_id} not found")
+
+    # Verify warehouse exists
+    wh_t = Table("warehouse")
+    q = Q.from_(wh_t).select(wh_t.id).where(wh_t.id == P())
+    wh = conn.execute(q.get_sql(), (args.warehouse_id,)).fetchone()
+    if not wh:
+        err(f"Warehouse {args.warehouse_id} not found")
+
+    # 1. Actual qty from SLE
+    balance = get_stock_balance(conn, args.item_id, args.warehouse_id)
+    actual_qty = to_decimal(balance["qty"])
+
+    # 2. Ordered qty: open PO items not yet fully received
+    # PO statuses that indicate pending receipt: confirmed, partially_received
+    po_rows = conn.execute(
+        """SELECT poi.quantity, poi.received_qty
+        FROM purchase_order_item poi
+        JOIN purchase_order po ON po.id = poi.purchase_order_id
+        WHERE poi.item_id = ?
+          AND (poi.warehouse_id = ? OR poi.warehouse_id IS NULL)
+          AND po.status IN ('confirmed', 'partially_received')""",
+        (args.item_id, args.warehouse_id),
+    ).fetchall()
+    ordered_qty = round_currency(sum(
+        (max(to_decimal(r["quantity"]) - to_decimal(r["received_qty"]), Decimal("0")) for r in po_rows),
+        Decimal("0"),
+    ))
+
+    # 3. Reserved qty: confirmed SO items not yet fully delivered
+    # SO statuses that indicate pending delivery: confirmed, partially_delivered
+    so_rows = conn.execute(
+        """SELECT soi.quantity, soi.delivered_qty
+        FROM sales_order_item soi
+        JOIN sales_order so_ ON so_.id = soi.sales_order_id
+        WHERE soi.item_id = ?
+          AND (soi.warehouse_id = ? OR soi.warehouse_id IS NULL)
+          AND so_.status IN ('confirmed', 'partially_delivered')""",
+        (args.item_id, args.warehouse_id),
+    ).fetchall()
+    reserved_qty = round_currency(sum(
+        (max(to_decimal(r["quantity"]) - to_decimal(r["delivered_qty"]), Decimal("0")) for r in so_rows),
+        Decimal("0"),
+    ))
+
+    projected_qty = round_currency(actual_qty + ordered_qty - reserved_qty)
+
+    ok({
+        "item_id": args.item_id,
+        "item_code": item["item_code"],
+        "item_name": item["item_name"],
+        "warehouse_id": args.warehouse_id,
+        "actual_qty": str(round_currency(actual_qty)),
+        "ordered_qty": str(ordered_qty),
+        "reserved_qty": str(reserved_qty),
+        "projected_qty": str(projected_qty),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Feature #5: Item Variants
+# ---------------------------------------------------------------------------
+
+def add_item_attribute(conn, args):
+    """Add an attribute definition to a template item.
+
+    Marks the item as has_variants=1 (template).
+    --attribute-values is a JSON array, e.g. '["Red","Blue","Green"]'
+    """
+    if not args.item_id:
+        err("--item-id is required")
+    if not args.attribute_name:
+        err("--attribute-name is required")
+    if not args.attribute_values:
+        err("--attribute-values is required (JSON array)")
+
+    # Validate item exists
+    item_t = Table("item")
+    q = Q.from_(item_t).select(item_t.id, item_t.variant_of).where(item_t.id == P())
+    item = conn.execute(q.get_sql(), (args.item_id,)).fetchone()
+    if not item:
+        err(f"Item {args.item_id} not found")
+    if item["variant_of"]:
+        err("Cannot add attributes to a variant item — add to the template instead")
+
+    # Parse values
+    values = _parse_json_arg(args.attribute_values, "attribute-values")
+    if not isinstance(values, list) or len(values) == 0:
+        err("--attribute-values must be a non-empty JSON array")
+
+    # Check for duplicate attribute name on this item
+    attr_t = Table("item_attribute")
+    q = (Q.from_(attr_t).select(attr_t.id)
+         .where(attr_t.item_id == P())
+         .where(attr_t.attribute_name == P()))
+    existing = conn.execute(q.get_sql(), (args.item_id, args.attribute_name)).fetchone()
+    if existing:
+        err(f"Attribute '{args.attribute_name}' already exists for this item")
+
+    attr_id = str(uuid.uuid4())
+    q = Q.into(attr_t).columns(
+        "id", "item_id", "attribute_name", "attribute_values",
+    ).insert(P(), P(), P(), P())
+    conn.execute(q.get_sql(), (attr_id, args.item_id, args.attribute_name, json.dumps(values)))
+
+    # Mark item as template
+    q = (Q.update(item_t)
+         .set(item_t.has_variants, 1)
+         .set(item_t.updated_at, _NOW)
+         .where(item_t.id == P()))
+    conn.execute(q.get_sql(), (args.item_id,))
+
+    audit(conn, "erpclaw-inventory", "add-item-attribute", "item_attribute", attr_id,
+          new_values={"item_id": args.item_id, "attribute_name": args.attribute_name})
+    conn.commit()
+    ok({"attribute_id": attr_id, "item_id": args.item_id,
+        "attribute_name": args.attribute_name, "values": values})
+
+
+def create_item_variant(conn, args):
+    """Create a single item variant from a template item with specific attribute values.
+
+    --attributes is a JSON object, e.g. '{"Color": "Red", "Size": "Large"}'
+    """
+    if not args.template_item_id:
+        err("--template-item-id is required")
+    if not args.attributes:
+        err("--attributes is required (JSON object)")
+
+    # Validate template item
+    item_t = Table("item")
+    q = Q.from_(item_t).select(item_t.star).where(item_t.id == P())
+    template = conn.execute(q.get_sql(), (args.template_item_id,)).fetchone()
+    if not template:
+        err(f"Template item {args.template_item_id} not found")
+    if not template["has_variants"]:
+        err("Item is not a template (has_variants must be 1)")
+
+    attributes = _parse_json_arg(args.attributes, "attributes")
+    if not isinstance(attributes, dict) or len(attributes) == 0:
+        err("--attributes must be a non-empty JSON object")
+
+    # Validate attribute values against template's attribute definitions
+    attr_t = Table("item_attribute")
+    q = Q.from_(attr_t).select(attr_t.attribute_name, attr_t.attribute_values).where(attr_t.item_id == P())
+    template_attrs = conn.execute(q.get_sql(), (args.template_item_id,)).fetchall()
+    template_attr_map = {}
+    for a in template_attrs:
+        template_attr_map[a["attribute_name"]] = json.loads(a["attribute_values"]) if a["attribute_values"] else []
+
+    for attr_name, attr_val in attributes.items():
+        if attr_name not in template_attr_map:
+            err(f"Attribute '{attr_name}' is not defined on the template item")
+        if attr_val not in template_attr_map[attr_name]:
+            err(f"Value '{attr_val}' is not valid for attribute '{attr_name}'. "
+                f"Valid: {template_attr_map[attr_name]}")
+
+    # Build variant code: template_code-Val1-Val2
+    suffix = "-".join(str(v) for v in attributes.values())
+    variant_code = f"{template['item_code']}-{suffix}"
+    variant_name = f"{template['item_name']} ({suffix})"
+
+    # Check for duplicate variant
+    dup_q = Q.from_(item_t).select(item_t.id).where(item_t.item_code == P())
+    existing = conn.execute(dup_q.get_sql(), (variant_code,)).fetchone()
+    if existing:
+        err(f"Variant '{variant_code}' already exists")
+
+    variant_id = str(uuid.uuid4())
+    q = Q.into(item_t).columns(
+        "id", "item_code", "item_name", "item_group_id", "item_type", "stock_uom",
+        "valuation_method", "is_stock_item", "is_purchase_item", "is_sales_item",
+        "has_batch", "has_serial", "standard_rate", "variant_of", "status",
+    ).insert(P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), "active")
+    try:
+        conn.execute(q.get_sql(), (
+            variant_id, variant_code, variant_name,
+            template["item_group_id"], template["item_type"],
+            template["stock_uom"], template["valuation_method"],
+            template["is_stock_item"], template["is_purchase_item"],
+            template["is_sales_item"], template["has_batch"],
+            template["has_serial"], template["standard_rate"],
+            args.template_item_id,
+        ))
+    except sqlite3.IntegrityError as e:
+        sys.stderr.write(f"[erpclaw-inventory] {e}\n")
+        err("Variant creation failed — check for duplicates")
+
+    # Store variant's attribute values as item_attribute rows
+    for attr_name, attr_val in attributes.items():
+        va_id = str(uuid.uuid4())
+        q = Q.into(attr_t).columns(
+            "id", "item_id", "attribute_name", "attribute_values",
+        ).insert(P(), P(), P(), P())
+        conn.execute(q.get_sql(), (va_id, variant_id, attr_name, json.dumps(attr_val)))
+
+    audit(conn, "erpclaw-inventory", "create-item-variant", "item", variant_id,
+          new_values={"variant_of": args.template_item_id, "attributes": attributes})
+    conn.commit()
+    ok({"variant_id": variant_id, "item_code": variant_code,
+        "item_name": variant_name, "template_item_id": args.template_item_id,
+        "attributes": attributes})
+
+
+def generate_item_variants(conn, args):
+    """Generate all possible variants from a template item's attributes (cartesian product)."""
+    if not args.template_item_id:
+        err("--template-item-id is required")
+
+    # Validate template
+    item_t = Table("item")
+    q = Q.from_(item_t).select(item_t.star).where(item_t.id == P())
+    template = conn.execute(q.get_sql(), (args.template_item_id,)).fetchone()
+    if not template:
+        err(f"Template item {args.template_item_id} not found")
+    if not template["has_variants"]:
+        err("Item is not a template (has_variants must be 1)")
+
+    # Get all attributes
+    attr_t = Table("item_attribute")
+    q = (Q.from_(attr_t).select(attr_t.attribute_name, attr_t.attribute_values)
+         .where(attr_t.item_id == P())
+         .orderby(attr_t.attribute_name))
+    attrs = conn.execute(q.get_sql(), (args.template_item_id,)).fetchall()
+    if not attrs:
+        err("Template has no attributes defined — use add-item-attribute first")
+
+    attr_names = []
+    attr_value_lists = []
+    for a in attrs:
+        attr_names.append(a["attribute_name"])
+        values = json.loads(a["attribute_values"]) if a["attribute_values"] else []
+        if not values:
+            err(f"Attribute '{a['attribute_name']}' has no values")
+        attr_value_lists.append(values)
+
+    # Cartesian product
+    combinations = list(itertools.product(*attr_value_lists))
+
+    created = []
+    skipped = []
+    for combo in combinations:
+        attributes = dict(zip(attr_names, combo))
+        suffix = "-".join(str(v) for v in combo)
+        variant_code = f"{template['item_code']}-{suffix}"
+        variant_name = f"{template['item_name']} ({suffix})"
+
+        # Skip if already exists
+        dup_q = Q.from_(item_t).select(item_t.id).where(item_t.item_code == P())
+        existing = conn.execute(dup_q.get_sql(), (variant_code,)).fetchone()
+        if existing:
+            skipped.append(variant_code)
+            continue
+
+        variant_id = str(uuid.uuid4())
+        q = Q.into(item_t).columns(
+            "id", "item_code", "item_name", "item_group_id", "item_type", "stock_uom",
+            "valuation_method", "is_stock_item", "is_purchase_item", "is_sales_item",
+            "has_batch", "has_serial", "standard_rate", "variant_of", "status",
+        ).insert(P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), P(), "active")
+        conn.execute(q.get_sql(), (
+            variant_id, variant_code, variant_name,
+            template["item_group_id"], template["item_type"],
+            template["stock_uom"], template["valuation_method"],
+            template["is_stock_item"], template["is_purchase_item"],
+            template["is_sales_item"], template["has_batch"],
+            template["has_serial"], template["standard_rate"],
+            args.template_item_id,
+        ))
+
+        # Store variant attribute values
+        for attr_name, attr_val in attributes.items():
+            va_id = str(uuid.uuid4())
+            q = Q.into(attr_t).columns(
+                "id", "item_id", "attribute_name", "attribute_values",
+            ).insert(P(), P(), P(), P())
+            conn.execute(q.get_sql(), (va_id, variant_id, attr_name, json.dumps(attr_val)))
+
+        created.append({"variant_id": variant_id, "item_code": variant_code, "attributes": attributes})
+
+    conn.commit()
+    ok({
+        "template_item_id": args.template_item_id,
+        "created": len(created),
+        "skipped": len(skipped),
+        "skipped_codes": skipped,
+        "variants": created,
+    })
+
+
+def list_item_variants(conn, args):
+    """List all variants of a template item."""
+    if not args.template_item_id:
+        err("--template-item-id is required")
+
+    # Verify template exists
+    item_t = Table("item")
+    q = Q.from_(item_t).select(item_t.id, item_t.has_variants).where(item_t.id == P())
+    template = conn.execute(q.get_sql(), (args.template_item_id,)).fetchone()
+    if not template:
+        err(f"Template item {args.template_item_id} not found")
+
+    # Get all variants
+    q = (Q.from_(item_t)
+         .select(item_t.id, item_t.item_code, item_t.item_name, item_t.status, item_t.standard_rate)
+         .where(item_t.variant_of == P())
+         .orderby(item_t.item_code))
+    variants = conn.execute(q.get_sql(), (args.template_item_id,)).fetchall()
+
+    # For each variant, get its attributes
+    attr_t = Table("item_attribute")
+    results = []
+    for v in variants:
+        q = (Q.from_(attr_t)
+             .select(attr_t.attribute_name, attr_t.attribute_values)
+             .where(attr_t.item_id == P()))
+        attrs = conn.execute(q.get_sql(), (v["id"],)).fetchall()
+        attr_dict = {}
+        for a in attrs:
+            val = json.loads(a["attribute_values"]) if a["attribute_values"] else None
+            attr_dict[a["attribute_name"]] = val
+        results.append({
+            "variant_id": v["id"],
+            "item_code": v["item_code"],
+            "item_name": v["item_name"],
+            "status": v["status"],
+            "standard_rate": v["standard_rate"],
+            "attributes": attr_dict,
+        })
+
+    ok({
+        "template_item_id": args.template_item_id,
+        "count": len(results),
+        "variants": results,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Feature #6: Item Supplier (Min Order Qty)
+# ---------------------------------------------------------------------------
+
+def add_item_supplier(conn, args):
+    """Link an item to a supplier with min order qty and lead time."""
+    if not args.item_id:
+        err("--item-id is required")
+    if not args.supplier_id:
+        err("--supplier-id is required")
+
+    # Validate item
+    item_t = Table("item")
+    q = Q.from_(item_t).select(item_t.id).where(item_t.id == P())
+    item = conn.execute(q.get_sql(), (args.item_id,)).fetchone()
+    if not item:
+        err(f"Item {args.item_id} not found")
+
+    # Validate supplier
+    sup_t = Table("supplier")
+    q = Q.from_(sup_t).select(sup_t.id).where(sup_t.id == P())
+    sup = conn.execute(q.get_sql(), (args.supplier_id,)).fetchone()
+    if not sup:
+        err(f"Supplier {args.supplier_id} not found")
+
+    min_order_qty = str(round_currency(to_decimal(args.min_order_qty or "0")))
+    lead_time = int(args.lead_time_days) if args.lead_time_days else None
+    priority = int(args.priority) if args.priority is not None else 0
+
+    is_t = Table("item_supplier")
+    is_id = str(uuid.uuid4())
+    q = Q.into(is_t).columns(
+        "id", "item_id", "supplier_id", "min_order_qty", "lead_time_days", "priority",
+    ).insert(P(), P(), P(), P(), P(), P())
+    try:
+        conn.execute(q.get_sql(), (is_id, args.item_id, args.supplier_id, min_order_qty, lead_time, priority))
+    except sqlite3.IntegrityError:
+        err("This item-supplier link already exists")
+
+    audit(conn, "erpclaw-inventory", "add-item-supplier", "item_supplier", is_id,
+          new_values={"item_id": args.item_id, "supplier_id": args.supplier_id,
+                      "min_order_qty": min_order_qty})
+    conn.commit()
+    ok({"item_supplier_id": is_id, "item_id": args.item_id,
+        "supplier_id": args.supplier_id, "min_order_qty": min_order_qty,
+        "lead_time_days": lead_time, "priority": priority})
+
+
+def list_item_suppliers(conn, args):
+    """List all suppliers for an item, or all items for a supplier."""
+    is_t = Table("item_supplier")
+    item_t = Table("item")
+    sup_t = Table("supplier")
+
+    q = (Q.from_(is_t)
+         .left_join(item_t).on(item_t.id == is_t.item_id)
+         .left_join(sup_t).on(sup_t.id == is_t.supplier_id)
+         .select(
+             is_t.id, is_t.item_id, is_t.supplier_id,
+             is_t.min_order_qty, is_t.lead_time_days, is_t.priority,
+             item_t.item_code, item_t.item_name,
+             sup_t.name.as_("supplier_name"),
+         )
+         .orderby(is_t.priority))
+
+    params = []
+    if args.item_id:
+        q = q.where(is_t.item_id == P())
+        params.append(args.item_id)
+    if args.supplier_id:
+        q = q.where(is_t.supplier_id == P())
+        params.append(args.supplier_id)
+
+    if not args.item_id and not args.supplier_id:
+        err("At least one of --item-id or --supplier-id is required")
+
+    rows = conn.execute(q.get_sql(), params).fetchall()
+    results = [row_to_dict(r) for r in rows]
+    ok({"count": len(results), "item_suppliers": results})
+
+
+# ---------------------------------------------------------------------------
 # Action dispatch
 # ---------------------------------------------------------------------------
 
@@ -2438,12 +2900,19 @@ ACTIONS = {
     "cancel-stock-revaluation": cancel_stock_revaluation,
     "check-reorder": check_reorder,
     "import-items": import_items,
+    "get-projected-qty": get_projected_qty,
+    "add-item-attribute": add_item_attribute,
+    "create-item-variant": create_item_variant,
+    "generate-item-variants": generate_item_variants,
+    "list-item-variants": list_item_variants,
+    "add-item-supplier": add_item_supplier,
+    "list-item-suppliers": list_item_suppliers,
     "status": status_action,
 }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="ERPClaw Inventory Skill")
+    parser = SafeArgumentParser(description="ERPClaw Inventory Skill")
     parser.add_argument("--action", required=True, choices=sorted(ACTIONS.keys()))
     parser.add_argument("--db-path", default=None)
 
@@ -2468,6 +2937,7 @@ def main():
 
     # Warehouse
     parser.add_argument("--warehouse-id")
+    parser.add_argument("--warehouse-name", dest="name")  # alias for --name
     parser.add_argument("--warehouse-type")
     parser.add_argument("--account-id")
     parser.add_argument("--is-group")
@@ -2526,6 +2996,17 @@ def main():
     parser.add_argument("--new-rate")
     parser.add_argument("--reason")
 
+    # Item variants
+    parser.add_argument("--template-item-id")
+    parser.add_argument("--attribute-name")
+    parser.add_argument("--attribute-values")
+    parser.add_argument("--attributes")  # JSON object for create-item-variant
+
+    # Item supplier
+    parser.add_argument("--supplier-id")
+    parser.add_argument("--min-order-qty")
+    parser.add_argument("--lead-time-days")
+
     # Search / filters
     parser.add_argument("--search")
     parser.add_argument("--from-date")
@@ -2533,7 +3014,8 @@ def main():
     parser.add_argument("--limit", default="20")
     parser.add_argument("--offset", default="0")
 
-    args, _unknown = parser.parse_known_args()
+    args, unknown = parser.parse_known_args()
+    check_unknown_args(parser, unknown)
     check_input_lengths(args)
 
     db_path = args.db_path or DEFAULT_DB_PATH
