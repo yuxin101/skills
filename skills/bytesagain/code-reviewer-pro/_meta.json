@@ -3,9 +3,15 @@
   "slug": "code-reviewer-pro",
   "displayName": "Code Reviewer Pro",
   "latest": {
-    "version": "2.3.5",
-    "publishedAt": 1773665249425,
-    "commit": "https://github.com/openclaw/skills/commit/e0a8aeeea48f74fc60ce728b1f1bf412864994bc"
+    "version": "2.0.0",
+    "publishedAt": 1773774242844,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.5",
+      "publishedAt": 1773665249425,
+      "commit": "https://github.com/openclaw/skills/commit/e0a8aeeea48f74fc60ce728b1f1bf412864994bc"
+    }
+  ]
 }

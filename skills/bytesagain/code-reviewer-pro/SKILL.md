@@ -3,6 +3,8 @@ version: "2.0.0"
 name: code-reviewer-pro
 description: "代码审查、重构建议、安全漏洞检查、命名规范、复杂度分析、注释文档生成. Use when you need code reviewer pro capabilities. Triggers on: code reviewer pro."
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 
 # Code Reviewer
