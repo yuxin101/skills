@@ -12,6 +12,32 @@
     "env": [],
     "bins": []
   },
+  "sideEffects": {
+    "fileWrites": [
+      {
+        "path": "soul.md",
+        "scope": "openclaw-workspace",
+        "description": "训练档案和安全口诀写入 soul.md（用户主动触发后执行，仅追加/更新 [ClawdGo ...] 标记区域，不修改其他内容）"
+      },
+      {
+        "path": "~/.openclaw/clawdgo-arena-{room_id}.json",
+        "scope": "user-home",
+        "description": "Arena 双实例对抗模式（v1.1.0-beta，可选功能）：两只独立龙虾通过此文件共享对战状态，仅在用户主动传入 --room 参数时创建",
+        "optional": true
+      }
+    ],
+    "autonomousModes": [
+      {
+        "mode": "B self-train",
+        "description": "自主训练：连续完成全部场景，期间无需用户确认。开场会明确告知用户，用户随时可发送"暂停"/"退出"中断。"
+      },
+      {
+        "mode": "F arena",
+        "description": "对抗竞技场：5 轮连续运行，期间无需用户确认。用户随时可发送"暂停"/"退出"中断。"
+      }
+    ],
+    "cronNote": "SKILL.md 包含 cron 配置示例，仅供参考，Skill 本身不会自动安装任何定时任务。需用户在 OpenClaw 设置中手动配置。"
+  },
   "capabilities": [
     "guided-training",
     "self-training",

@@ -151,7 +151,7 @@ Arena 称号体系（按蓝方防御得分）：
 
 **Arena约束：** 蓝方判断时绝对不参考红方意图；5轮连续完成，期间无需用户干预。
 
-**双实例真实对抗（v1.1.0-beta）：** 两只独立龙虾实例通过共享 `~/.openclaw/clawdgo-arena-{room_id}.json` 状态文件，轮流写入动作，实现真正盲对抗。
+**双实例真实对抗（v1.1.0-beta，可选）：** 两只独立龙虾实例通过共享状态文件轮流写入动作，实现真正盲对抗。文件路径 `~/.openclaw/clawdgo-arena-{room_id}.json`，仅在用户主动传入 `--room` 参数时创建，已在 skill.json sideEffects 中声明。
 
 ### 模式 G：口诀模式 🆕（`clawdgo chant` / `安全口诀`）
 
@@ -235,13 +235,16 @@ weak_dimensions: [{薄弱维度列表}]
 
 ---
 
-## 定时训练（Cron）
+## 定时训练（Cron，用户手动配置）
+
+> ⚠️ Skill 本身**不会自动安装**任何定时任务。以下为参考配置，需用户在 OpenClaw 设置中手动添加，并明确同意后方可生效。
 
 ```yaml
+# 在 OpenClaw 设置中手动添加（用户自主决定是否启用）
 cron:
   - schedule: "0 9 * * MON"
     trigger: "clawdgo self-train"
-    description: "ClawdGo 每周安全意识自主训练"
+    description: "ClawdGo 每周安全意识自主训练（可选，用户自行启用）"
 ```
 
 ---
