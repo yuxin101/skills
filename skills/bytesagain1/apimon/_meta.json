@@ -3,9 +3,15 @@
   "slug": "apimon",
   "displayName": "Apimon",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773663384376,
-    "commit": "https://github.com/openclaw/skills/commit/a578f968545ee0104f4b59b1f518ecbaa68e01a5"
+    "version": "2.0.1",
+    "publishedAt": 1773830078717,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773663384376,
+      "commit": "https://github.com/openclaw/skills/commit/a578f968545ee0104f4b59b1f518ecbaa68e01a5"
+    }
+  ]
 }
