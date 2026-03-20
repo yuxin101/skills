@@ -10,9 +10,13 @@ import subprocess
 import sys
 import time
 import logging
-import yaml
 from pathlib import Path
 from typing import Optional
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Logging
@@ -41,6 +45,9 @@ STATE_DIR.mkdir(parents=True, exist_ok=True)
 
 def _load_config() -> dict:
     """Load config from first available path."""
+    if yaml is None:
+        logging.debug("PyYAML not installed — running with defaults")
+        return {}
     for path in CONFIG_PATHS:
         if path.exists():
             with open(path) as f:
@@ -52,6 +59,10 @@ CONFIG = _load_config()
 XPULSE_CFG = CONFIG.get("xpulse", {})
 KALSHI_CFG = CONFIG.get("kalshi", {})
 OLLAMA_CFG = CONFIG.get("ollama", {"enabled": True, "model": "qwen3:latest", "timeout_seconds": 15})
+
+# qwen3 has a thinking/reasoning mode on by default that massively inflates latency.
+# Prepend /no_think to all prompts to disable it and get fast JSON responses.
+_QWEN3_NO_THINK = OLLAMA_CFG.get("model", "").startswith("qwen3")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -105,8 +116,7 @@ def _check_ollama_model() -> bool:
         return False
 
 
-# Run model check on import (non-blocking warning)
-_check_ollama_model()
+# Ollama check is deferred to first use — avoids confusing warnings on unconfigured installs
 
 
 def _call_ollama(prompt: str, timeout: int = 15) -> Optional[dict]:
@@ -116,6 +126,10 @@ def _call_ollama(prompt: str, timeout: int = 15) -> Optional[dict]:
     Falls back to CLI if HTTP fails.
     """
     model = OLLAMA_CFG.get("model", "qwen3:latest")
+
+    # Disable qwen3 thinking mode for fast responses
+    if _QWEN3_NO_THINK:
+        prompt = "/no_think\n" + prompt
 
     # Primary: HTTP API (supports JSON format natively)
     try:
@@ -127,6 +141,7 @@ def _call_ollama(prompt: str, timeout: int = 15) -> Optional[dict]:
             "prompt": prompt,
             "format": "json",
             "stream": False,
+            "options": {"num_predict": 256},  # Cap output tokens — we only need short JSON
         }).encode("utf-8")
 
         req = urllib.request.Request(
@@ -180,7 +195,7 @@ def _analyze_signals_local(topic: str, posts: list) -> dict:
             f"\"direction\": \"bullish/bearish/neutral\", \"summary\": \"one line\"}}"
         )
 
-        timeout = OLLAMA_CFG.get("timeout_seconds", 30)
+        timeout = min(OLLAMA_CFG.get("timeout_seconds", 15), 20)  # Cap at 20s per topic
         parsed = _call_ollama(prompt, timeout=timeout)
 
         if not parsed:
@@ -264,7 +279,7 @@ def _filter_novel_signals(signals: list, history: list) -> list:
             "Respond in JSON: {\"keep\": [list of topic strings to keep], \"reasoning\": \"one line explaining why\"}"
         )
 
-        timeout = OLLAMA_CFG.get("timeout_seconds", 45)
+        timeout = min(OLLAMA_CFG.get("timeout_seconds", 15), 20)  # Cap at 20s
         parsed = _call_ollama(prompt, timeout=timeout)
 
         if not parsed:
@@ -317,35 +332,26 @@ def _get_active_kalshi_topics() -> list:
 
         client = KalshiClient(config)
 
-        # SDK 3.x signature varies — call with no kwargs, filter locally
-        try:
-            resp = client.get_positions(limit=100, settlement_status="unsettled")
-        except (TypeError, Exception) as sdk_err:
-            _log(f"get_positions with kwargs failed ({sdk_err}), retrying without")
-            resp = client.get_positions()
+        # Raw API call — avoids SDK v3 pydantic deserialization bug (Issue #9)
+        resp = client._portfolio_api.get_positions_without_preload_content(limit=100)
+        raw_data = json.loads(resp.read())
+        _log(f"Raw positions API keys: {sorted(raw_data.keys())}")
 
-        # SDK returns GetPositionsResponse — extract market_positions
-        # Use getattr with default to handle SDK versions where hasattr returns False
-        # even though the attribute exists (descriptor/property edge case)
-        if isinstance(resp, dict):
-            positions = resp.get("market_positions", [])
-        else:
-            positions = getattr(resp, "market_positions", None)
-            if positions is None:
-                # Last resort: try iterating common wrapper keys via __dict__ or to_dict()
-                try:
-                    d = resp.to_dict() if hasattr(resp, "to_dict") else vars(resp)
-                    positions = d.get("market_positions", [])
-                except Exception:
-                    positions = []
-                _log(f"market_positions via fallback dict extraction, type was: {type(resp)}")
-            positions = positions or []
+        positions = (
+            raw_data.get("event_positions")
+            or raw_data.get("positions")
+            or raw_data.get("market_positions")
+            or []
+        )
 
-        # Filter to unsettled positions locally if API didn't filter
+        # Filter to unsettled, non-zero positions locally
         filtered = []
         for p in positions:
-            status = getattr(p, "settlement_status", None) or (p.get("settlement_status") if isinstance(p, dict) else None)
-            if status is None or status == "unsettled":
+            status = p.get("settlement_status")
+            if status is not None and status != "unsettled":
+                continue
+            qty = int(float(p.get("position_fp") or p.get("position", 0) or 0))
+            if qty != 0:
                 filtered.append(p)
         positions = filtered
 
@@ -429,8 +435,23 @@ def check_x_signals(state: dict, dry_run: bool = False, force: bool = False) -> 
     min_confidence = XPULSE_CFG.get("min_confidence", 0.7)
 
     if not topics:
-        _log("No topics configured for X signal scanner")
+        logging.info(
+            "⚠️  Xpulse: no topics configured — nothing to scan.\n"
+            "\n"
+            "   Add topics to ~/.openclaw/config.yaml:\n"
+            "     xpulse:\n"
+            "       enabled: true\n"
+            "       topics:\n"
+            "         - tariffs\n"
+            "         - federal reserve\n"
+            "         - bitcoin\n"
+            "\n"
+            "   Then run again: python xpulse.py --dry-run --force"
+        )
         return False
+
+    # Check Ollama availability only when we have topics to scan
+    _check_ollama_model()
 
     _log(f"X signal scanner starting... ({len(topics)} topics)")
 
@@ -455,11 +476,11 @@ def check_x_signals(state: dict, dry_run: bool = False, force: bool = False) -> 
         return None
 
     signals = []
-    with ThreadPoolExecutor(max_workers=min(len(topics), 4)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(topics), 2)) as executor:  # 2 workers max on Mac Mini
         futures = {executor.submit(_scan_topic, t): t for t in topics}
-        for future in as_completed(futures, timeout=60):
+        for future in as_completed(futures, timeout=30):  # 30s total for all topics
             try:
-                result = future.result(timeout=20)
+                result = future.result(timeout=10)
                 if result:
                     signals.append(result)
             except Exception as e:

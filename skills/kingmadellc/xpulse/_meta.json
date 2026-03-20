@@ -3,9 +3,15 @@
   "slug": "xpulse",
   "displayName": "Xpulse",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773294019544,
-    "commit": "https://github.com/openclaw/skills/commit/ea4d17cdb755e2f6a5a840a2f749c6e09dd2e2e6"
+    "version": "1.1.1",
+    "publishedAt": 1773512237617,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773294019544,
+      "commit": "https://github.com/openclaw/skills/commit/ea4d17cdb755e2f6a5a840a2f749c6e09dd2e2e6"
+    }
+  ]
 }
