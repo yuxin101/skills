@@ -3,11 +3,16 @@
   "slug": "video-toolbox",
   "displayName": "Video Toolbox",
   "latest": {
-    "version": "2.3.6",
-    "publishedAt": 1773664295195,
-    "commit": "https://github.com/openclaw/skills/commit/88d0969c6fd18e063daa07b8aaaf013628de3540"
+    "version": "3.0.0",
+    "publishedAt": 1773930222059,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.6",
+      "publishedAt": 1773664295195,
+      "commit": "https://github.com/openclaw/skills/commit/88d0969c6fd18e063daa07b8aaaf013628de3540"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773448677735,
