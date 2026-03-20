@@ -1,5 +1,7 @@
 # 千路·智贸中枢（AI-CRM）— 流程与规则说明
 
+**范围**：本文档以 **询价管理系统** 的交易环节与数据规则为主。**出入库管理系统**（WMS）为千路产品另一部分，**持续开发中**，履约与库内细节以 WMS 需求文档为准，勿默认与本节流程等同。
+
 本文档汇总项目中的**业务流程**、**数据校验规则**、**格式与命名约定**及**技术边界**，供开发与业务参考。业务术语与 UI 用词以同目录 [naming-and-terminology.md](naming-and-terminology.md) 为准。
 
 *（本文件为 kam-qianlu-doc-standards SKILL 内冗余副本，便于独立打包后使用；与项目 `apps/inquiry-server/docs/functions/process-and-rules.md` 同步。）*
@@ -43,10 +45,10 @@
 |------|----------|----------|
 | ① 客户询价 | 创建询价单（或 Excel 导入） | `rfq`、`rfq_item` |
 | ②③ 供应商报价 | 导入报价单并关联询价单 | `quotation`、`quotation_item`，关联 `rfq_id` |
-| ④ 比价 | 报价对比（按品牌+零件号取最低价） | 使用 `quotation_item` + 品牌归一化 |
+| ④ 比价 | **报价对比**（询价子系统）：① **基准单对比**——选基准报价单，与历史有效报价（`is_valid=1`）比低价，导出对比 Excel；② **品牌矩阵对比**——选品牌 + 报价日期范围，按供货商矩阵导出（仅有效报价单明细） | `quotation_item` + 品牌归一化；对比结果见导出文件，无单独「客户上传模板」 |
 | ⑤ 给客户报价 | 生成/维护回询单（价格可编辑） | `rfq_reply`、`rfq_reply_item` |
 | ⑥ 客户确认 | 导入订货单，必选询价单，行与回询单匹配 | `customer_order`、`customer_order_item`，匹配 `rfq_reply_item` |
-| ⑦ 给供应商采购 | 按供应商拆分生成采购单 | `purchase_confirmation`、采购单 Excel 导出 |
+| ⑦ 给供应商采购 | 采购单工作台 / 已确认采购：按供应商拆分、导出采购单 Excel、回传校对（见文件标准第八～九节） | `purchase_workbench`、`confirmed_purchase` 等（以当前库表为准）、采购单 Excel 导出 |
 
 ### 2.2 履约环节（交货 → 结算）
 

@@ -3,11 +3,16 @@
   "slug": "kam-qianlu-doc-standards",
   "displayName": "KAM 千路文档标准",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1773498349815,
-    "commit": "https://github.com/openclaw/skills/commit/20fff3602efc3674864450eeb05af90b578b5d24"
+    "version": "2.3.0",
+    "publishedAt": 1773987311508,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1773498349815,
+      "commit": "https://github.com/openclaw/skills/commit/20fff3602efc3674864450eeb05af90b578b5d24"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773363110976,
