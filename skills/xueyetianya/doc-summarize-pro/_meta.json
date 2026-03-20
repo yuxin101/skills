@@ -3,11 +3,16 @@
   "slug": "doc-summarize-pro",
   "displayName": "Doc Summarize Pro",
   "latest": {
-    "version": "2.3.5",
-    "publishedAt": 1773665770396,
-    "commit": "https://github.com/openclaw/skills/commit/0d42e1e629ead9b6af2bd6919a4c49c87fc904f4"
+    "version": "3.0.0",
+    "publishedAt": 1773880355895,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.5",
+      "publishedAt": 1773665770396,
+      "commit": "https://github.com/openclaw/skills/commit/0d42e1e629ead9b6af2bd6919a4c49c87fc904f4"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421203521,
