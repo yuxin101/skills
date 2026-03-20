@@ -72,6 +72,7 @@ def lookup_user(channel: str, user_id: str, account_id: str = None):
         }
     
     # 获取用户详情
+    unified_user_id = matched_entry["userId"]
     user_info = mapping["users"].get(unified_user_id, {})
     display_name = user_info.get("displayName", unified_user_id)
     
