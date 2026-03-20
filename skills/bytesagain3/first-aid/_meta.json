@@ -3,11 +3,16 @@
   "slug": "first-aid",
   "displayName": "First Aid",
   "latest": {
-    "version": "1.0.6",
-    "publishedAt": 1773665980477,
-    "commit": "https://github.com/openclaw/skills/commit/eff4a10d926cde9c74cb258e2ea1de5ebc8bb006"
+    "version": "3.0.0",
+    "publishedAt": 1773922183864,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.6",
+      "publishedAt": 1773665980477,
+      "commit": "https://github.com/openclaw/skills/commit/eff4a10d926cde9c74cb258e2ea1de5ebc8bb006"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773444871456,
