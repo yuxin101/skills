@@ -3,9 +3,15 @@
   "slug": "tcm-biomedical-research-strategist",
   "displayName": "Tcm Biomedical Research Strategist",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1773403246366,
-    "commit": "https://github.com/openclaw/skills/commit/cd3a534754cc0bcbb19da6d87e337e52dddd0a4d"
+    "version": "0.1.1",
+    "publishedAt": 1773724980595,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1773403246366,
+      "commit": "https://github.com/openclaw/skills/commit/cd3a534754cc0bcbb19da6d87e337e52dddd0a4d"
+    }
+  ]
 }
