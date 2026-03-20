@@ -1,12 +1,12 @@
 ---
 name: linkfoxai
-description: "调用 LinkFox AI 开放平台 AI 作图 API（换模特、抠图、扩图、场景裂变、智能修图、套图、姿势裂变等）。适用场景：(1) AI 作图任务创建与结果轮询，(2) 通过 api-call 调用任意开放平台接口，(3) 作图素材连通性测试。"
+description: "调用 LinkFox AI 开放平台 AI 作图/视频 API（换模特、抠图、扩图、场景裂变、智能修图、套图、姿势裂变、带货口播等）。适用场景：(1) AI 任务创建与结果轮询，(2) 通过 api-call 调用任意开放平台接口，(3) 素材连通性测试。"
 metadata: {"clawdbot":{"emoji":"🦊","requires":{"env":["LINKFOXAI_API_KEY"]}}}
 ---
 
 # LinkFoxAI - LinkFox AI 开放平台 Skill
 
-LinkFoxAI 让 OpenClaw 调用 LinkFox AI 开放平台 AI 作图能力：换模特、自动抠图、场景裂变、智能扩图、高清放大、消除笔、智能修图、商品套图、服装套图、姿势裂变等。
+LinkFoxAI 让 OpenClaw 调用 LinkFox AI 开放平台 AI 作图/视频能力：换模特、自动抠图、场景裂变、智能扩图、高清放大、消除笔、智能修图、商品套图、服装套图、姿势裂变、带货口播等。
 
 ## 配置
 
@@ -105,6 +105,7 @@ sessions_spawn:
 | `super-resolution --image-url <url> --magnification 2 [--enhance]` | 图片高清放大 |
 | `image-edit --image-url <url> --prompt "描述" [--provider BANANA_PRO] [--template 白底图]` | 智能修图 |
 | `erase --image-url <url> --mask-url <url>` | 消除笔 |
+| `sales-video --prompt "口播文案" --video-type WAN [--image-list <url1> <url2>] [--video-time 10] [--aspect-ratio 9:16]` | 带货口播（WAN: 10/15秒） |
 
 所有作图快捷命令均支持 `--wait [--timeout 300] [--interval 3]`，提交任务后自动轮询直到完成。
 
@@ -138,6 +139,7 @@ sessions_spawn:
 | 商品套图 | `/linkfox-ai/image/v2/make/productMarketMaterialV3` |
 | 服装套图 | `/linkfox-ai/image/v2/make/wearCollectionV2` |
 | 姿势裂变 | `/linkfox-ai/image/v2/make/modelPoseFission` |
+| 带货口播 | `/linkfox-ai/image/v2/make/salesVideo` |
 
 ## 连通性测试
 
@@ -160,7 +162,7 @@ sessions_spawn:
 ## 参考文档
 
 - `references/open-platform.md` — 接入流程、API 基础地址、错误码
-- `references/image-make.md` — 全部 36 个作图接口完整参数与注意事项
+- `references/image-make.md` — 全部作图接口及带货口播接口的完整参数与注意事项
 
 ## 示例
 
@@ -168,4 +170,5 @@ sessions_spawn:
 2. **AI 换模特**：「用 LinkFoxAI 做一次 AI 换模特，原图 xxx，头部图 xxx，出 4 张」→ `change-model --wait --output-num 4`
 3. **自动抠图**：「用 LinkFoxAI 把这张图抠图」→ `cutout --wait --sub-type 1`
 4. **智能修图**：「用 LinkFoxAI 把这张图改成白底图」→ `image-edit --wait --prompt "白底图" --template 白底图`（高质量：加 `--provider BANANA_PRO`）
-5. **通用调用**：「用 LinkFoxAI 做 AI 穿衣」→ `api-call --path /linkfox-ai/image/v2/make/fittingRoom --body '{...}'` + `poll --id <id>`
+5. **带货口播**：「用 LinkFoxAI 生成一条 10 秒带货口播视频，竖版」→ `sales-video --wait --video-type WAN --video-time 10 --aspect-ratio 9:16 --prompt "..."`
+6. **通用调用**：「用 LinkFoxAI 做 AI 穿衣」→ `api-call --path /linkfox-ai/image/v2/make/fittingRoom --body '{...}'` + `poll --id <id>`

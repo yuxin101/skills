@@ -3,11 +3,16 @@
   "slug": "linkfoxai",
   "displayName": "LinkFoxAI",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773480931623,
-    "commit": "https://github.com/openclaw/skills/commit/a1f4337a983367f30d54b2eee076dd358f478cf8"
+    "version": "1.0.2",
+    "publishedAt": 1773926308123,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773480931623,
+      "commit": "https://github.com/openclaw/skills/commit/a1f4337a983367f30d54b2eee076dd358f478cf8"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773239238860,

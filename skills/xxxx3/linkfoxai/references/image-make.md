@@ -1,6 +1,6 @@
-# AI 作图 - 全部接口完整说明
+# AI 作图 / 视频 - 全部接口完整说明
 
-本文档为 LinkFoxAI Skill 内置参考，涵盖开放平台 AI 作图全部能力、完整参数与注意事项。
+本文档为 LinkFoxAI Skill 内置参考，涵盖开放平台 AI 作图/视频能力、完整参数与注意事项。
 
 所有接口均为 **POST**，请求体 **Content-Type: application/json**，响应体 application/json。
 
@@ -682,3 +682,23 @@
 | prompt | 自定义姿势描述。与 postureUrl 二选一 | 否 | string |
 | postureUrl | 姿势图片 URL。作图素材(type=9)或自定义。与 prompt 二选一 | 否 | string |
 | outputNum | 输出数量 [1,4]，默认 1 | 否 | number |
+
+---
+
+## 三十七、带货口播
+
+**路径**：`/openApi/v2/imageMake/salesVideo`
+
+**注意**：
+- 该接口返回任务 ID（`taskId`），需继续轮询「获取作图结果」接口查询最终资源。
+- `prompt` 建议包含商品卖点、目标人群、使用场景和行动指令，以提升口播质量。
+- `imageList` 传入商品主图/细节图通常能提升视频一致性和转化表达。
+
+| 参数 | 说明 | 必填 | 类型 |
+|------|------|------|------|
+| prompt | 口播脚本/提示词 | 是 | string |
+| imageList | 参考图 URL 列表（建议 1~5 张） | 否 | array[string] |
+| videoType | 模型类型：WAN | 是 | string |
+| videoTime | 视频时长（秒） | 否 | number |
+| isPro | 是否开启高质量模式 | 否 | boolean |
+| aspectRatio | 视频比例：16:9 / 9:16 / 1:1 | 否 | string |

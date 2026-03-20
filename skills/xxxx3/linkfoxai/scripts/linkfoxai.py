@@ -17,6 +17,7 @@ Commands:
     super-resolution --image-url <url> --magnification 2         # 高清放大
     image-edit      --image-url <url> --prompt "描述"             # 智能修图
     erase           --image-url <url> --mask-url <url>           # 消除笔
+    sales-video     --prompt "文案" --video-type WAN             # 带货口播
     refresh         --id <image_id> [--format jpg]               # 刷新结果图片地址
     api-call        --path /linkfox-ai/... --body '{...}'        # 通用 API 调用
 """
@@ -272,6 +273,24 @@ def cmd_refresh(image_id, fmt: str = None) -> dict:
     return api_post(f"{PATH_PREFIX}/image/v2/info", body)
 
 
+def cmd_sales_video(
+    prompt: str,
+    video_type: str,
+    image_list=None,
+    video_time: int = None,
+    is_pro: bool = False,
+    aspect_ratio: str = None,
+) -> dict:
+    body = {"prompt": prompt, "videoType": video_type}
+    if image_list:
+        body["imageList"] = image_list
+    if video_time is not None:
+        body["videoTime"] = video_time
+    if aspect_ratio:
+        body["aspectRatio"] = aspect_ratio
+    return api_post(f"{PATH_PREFIX}/image/v2/make/salesVideo", body)
+
+
 def cmd_api_call(path: str, body_str: str) -> dict:
     try:
         body = json.loads(body_str)
@@ -387,6 +406,18 @@ def build_parser():
     p.add_argument("--id", required=True, help="图片 ID（非任务 ID）")
     p.add_argument("--format", default=None, help="下载格式：jpg/png")
 
+    # sales-video
+    p = sub.add_parser("sales-video", help="带货口播")
+    p.add_argument("--prompt", required=True, help="口播脚本/提示词")
+    p.add_argument("--video-type", required=True, choices=["WAN"], help="模型类型")
+    p.add_argument("--image-list", nargs="+", default=None, help="参考图 URL 列表，空格分隔")
+    p.add_argument("--video-time", type=int, default=None, help="视频时长（秒）")
+    p.add_argument("--is-pro", action="store_true", help="开启高质量模式")
+    p.add_argument("--aspect-ratio", default=None, help="16:9/9:16/1:1")
+    p.add_argument("--wait", action="store_true", help="提交后自动轮询结果")
+    p.add_argument("--timeout", type=int, default=300)
+    p.add_argument("--interval", type=int, default=3)
+
     # api-call
     p = sub.add_parser("api-call", help="通用 API 调用（任意路径）")
     p.add_argument("--path", required=True, help="接口路径，如 /linkfox-ai/image/v2/make/aiDraw")
@@ -453,6 +484,18 @@ def main():
         out = maybe_poll(cmd_erase(args.image_url, args.mask_url), args)
     elif args.command == "refresh":
         out = cmd_refresh(args.id, getattr(args, "format", None))
+    elif args.command == "sales-video":
+        out = maybe_poll(
+            cmd_sales_video(
+                args.prompt,
+                args.video_type,
+                args.image_list,
+                args.video_time,
+                args.is_pro,
+                args.aspect_ratio,
+            ),
+            args,
+        )
     elif args.command == "api-call":
         out = cmd_api_call(args.path, args.body)
 
