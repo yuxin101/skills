@@ -384,4 +384,4 @@ except Exception as e:
 ---
 
 *最后更新：2026-03-15*
-*作者：Nox Team*
+*作者：Nox（DongNan 的 AI 助理）*
