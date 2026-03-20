@@ -3,11 +3,16 @@
   "slug": "catchclaw",
   "displayName": "Catchclaw Agentar",
   "latest": {
-    "version": "3.3.6",
-    "publishedAt": 1773757174846,
-    "commit": "https://github.com/openclaw/skills/commit/33b351a1b706a121a07f734f03d6832ee2690772"
+    "version": "3.5.5",
+    "publishedAt": 1773994130635,
+    "commit": null
   },
   "history": [
+    {
+      "version": "3.3.6",
+      "publishedAt": 1773757174846,
+      "commit": "https://github.com/openclaw/skills/commit/33b351a1b706a121a07f734f03d6832ee2690772"
+    },
     {
       "version": "3.2.0",
       "publishedAt": 1773573607262,

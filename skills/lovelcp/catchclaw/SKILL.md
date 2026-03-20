@@ -17,30 +17,35 @@ An agentar is a distributable agent archive (ZIP) containing workspace files suc
 - User asks to rollback / undo / restore a previous agent workspace
 - User mentions the keyword "agentar" or "catchclaw"
 
-**Important:** Before performing any action, ensure the agentar CLI is available at `~/.agentar/agentar_cli.mjs` (see CLI Setup). Do not run search, install, export, or rollback until the CLI is present.
+**Important:** Before performing any action, verify the bundled CLI works (see CLI Setup). Do not run search, install, export, or rollback until verification passes.
 
 ## CLI Setup (mandatory — run before any command)
 
 <HARD-GATE>
-**Before running any search, install, export, or rollback command, you MUST ensure `~/.agentar/agentar_cli.mjs` exists.** No download is required. On every use of this skill:
+**Before running any search, install, export, or rollback command, you MUST verify the bundled CLI.** The CLI (`agentar_cli.mjs`) is bundled in this skill's directory — no download or copy is needed.
 
-1. **Check:** See if `~/.agentar/agentar_cli.mjs` exists (on Windows, `%USERPROFILE%\.agentar\agentar_cli.mjs`).
-2. **If it does not exist:** Copy `agentar_cli.mjs` from the skill directory (the same directory as this SKILL.md, or the skill's installation path such as `~/.agents/skills/catchclaw/`) to `~/.agentar/agentar_cli.mjs`. Create the directory `~/.agentar` if it does not exist. If `metadata.json` is present in the skill directory, copy it to `~/.agentar/metadata.json` as well.
-3. **Verify:** Run `node ~/.agentar/agentar_cli.mjs version`. Only after it succeeds, proceed with search/install/export/rollback.
+1. **Locate:** The CLI is at the same directory as this SKILL.md (e.g. `~/.agents/skills/catchclaw/agentar_cli.mjs`).
+2. **Verify:** Run `node <skill-dir>/agentar_cli.mjs version`. Only after it succeeds, proceed with search/install/export/rollback.
 
-Never run `$CLI search`, `$CLI install`, `$CLI export`, or `$CLI rollback` until the CLI is present and verification passes.
+Never run `$CLI search`, `$CLI install`, `$CLI export`, or `$CLI rollback` until verification passes.
 </HARD-GATE>
 
 ## CLI Location
 
-Before running any command, locate the CLI using this priority:
+The CLI is bundled in this skill's directory. Run it directly:
 
-1. **Primary:** `node ~/.agentar/agentar_cli.mjs`
-2. **Fallback:** `agentar` (if available in PATH)
+```bash
+node <skill-dir>/agentar_cli.mjs <command>
+```
 
-On Windows, `~` resolves to `%USERPROFILE%`.
+Where `<skill-dir>` is the directory containing this SKILL.md (e.g. `~/.agents/skills/catchclaw/`).
 
-All commands below use `$CLI` as shorthand for the resolved CLI invocation.
+All commands below use `$CLI` as shorthand for `node <skill-dir>/agentar_cli.mjs`.
+
+## Environment Variables (optional)
+
+- `AGENTAR_API_BASE_URL` — Override the default API base URL (defaults to `https://catchclaw.me`)
+- `AGENTAR_HOME` — Override the default CLI config directory (defaults to `~/.agentar`)
 
 ## Commands
 
@@ -55,15 +60,15 @@ Search the CatchClaw marketplace for agentars matching the keyword.
 ### Install
 
 ```bash
-$CLI install <slug> --overwrite
 $CLI install <slug> --name <name> [--api-key <key>]
+$CLI install <slug> --overwrite
 ```
 
 Install an agentar from the marketplace.
 
 **Options:**
-- `--overwrite` — Overwrite the main agent (`~/.openclaw/workspace`). Existing workspace is backed up automatically.
-- `--name <name>` — Create a new agent with the given name. Existing agents are not affected.
+- `--name <name>` — Create a new agent with the given name. Existing agents are not affected. (Preferred; list this option first when prompting.)
+- `--overwrite` — Overwrite the main agent (`~/.openclaw/workspace`). Existing workspace is backed up automatically. **Never use without the user's explicit selection.**
 - `--api-key <key>` — (Optional) API key to save into `skills/.credentials` for agentars that require backend authentication.
 
 ### Export
@@ -101,18 +106,22 @@ Show the CLI version.
 <HARD-GATE>
 Before executing `install`:
 1. **Slug required:** If the user wants to install an agentar but has not specified which one (no slug), prompt the user to enter the agentar name/slug to install. Do NOT run install without a slug.
-2. **Mode confirmation:** You MUST confirm the installation mode with the user. Do NOT run the install command without the user's explicit choice.
+2. **Mode confirmation (CRITICAL - MUST ASK USER):** You MUST explicitly ask the user to choose the installation mode. Do NOT proceed with installation until the user has made a clear choice. **NEVER assume or default to any mode without user confirmation.**
 
-Present the following two options:
-1. **overwrite** — Overwrite the main agent (~/.openclaw/workspace). The existing workspace will be backed up automatically.
-2. **new** — Create a new agent. The existing agents are not affected.
+Present the following two options to the user and wait for their response:
+1. **new** — Create a new agent. The existing agents are not affected.
+2. **overwrite** — Overwrite the main agent (~/.openclaw/workspace). The existing workspace will be backed up automatically.
 
-After the user selects overwrite, execute: `$CLI install <slug> --overwrite`
-After the user selects new, execute: `$CLI install <slug> --name <user-specified name>`
+**Important:**
+- Do NOT execute install until the user explicitly selects one of the above options
+- Do NOT use "new" as a default without asking
+- Do NOT use "overwrite" unless the user explicitly selects it
+- If the user chooses "new" but doesn't specify a name, use the slug as the default name
 
-If the user does not specify a name for the new agent, use the slug as the default name.
+After the user explicitly selects "new", execute: `$CLI install <slug> --name <user-specified name>`
+After the user explicitly selects "overwrite", execute: `$CLI install <slug> --overwrite`
 
-Never execute install without a slug and without the user's explicit mode selection.
+Never execute install without both: (1) a slug, and (2) explicit user confirmation of installation mode.
 </HARD-GATE>
 
 ## Export Rules
@@ -133,7 +142,7 @@ Never execute install without a slug and without the user's explicit mode select
 
 | Error | Action |
 |-------|--------|
-| CLI file not found at any path | Instruct user to install the CLI (see CLI Location section for options) |
+| CLI file not found | Verify the skill is installed correctly — `agentar_cli.mjs` should be in the skill directory |
 | API unreachable or network error | Suggest checking network connectivity, or override the API URL with: `export AGENTAR_API_BASE_URL=<url>` |
 | Node.js not installed | Instruct user to install Node.js from https://nodejs.org/ |
 | Download or extraction failure | Show the error message and suggest retrying the command |
@@ -141,6 +150,6 @@ Never execute install without a slug and without the user's explicit mode select
 ## Workflow
 
 1. **Search**: Run `$CLI search <keyword>` to find agentars. Each result includes a slug identifier.
-2. **Install**: If the user did not specify which agentar to install (no slug), ask the user to enter the agentar name/slug. Then confirm installation mode (overwrite vs new) with the user. Only after you have both slug and mode, execute the install command.
+2. **Install**: If the user did not specify which agentar to install (no slug), ask the user to enter the agentar name/slug. Then confirm installation mode: present [1] new, [2] overwrite; never use overwrite without explicit user selection. Only after you have both slug and mode, execute the install command.
 3. **Export**: If the user did not specify which agent to export, run `$CLI export` (no `--agent`) to list agents, present the list to the user, and ask them to choose. Only after the user selects an agent, run `$CLI export --agent <id>`. Do not export without the user's explicit selection.
 4. **Rollback**: If the user wants to undo an overwrite install, run `$CLI rollback` to list available backups and restore one.
