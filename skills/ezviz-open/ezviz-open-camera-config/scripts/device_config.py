@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
 """
 Ezviz Device Configuration Script
-萤石设备配置脚本 - 支持 11 个配置 API
+萤石设备配置脚本 - 支持 9 个配置 API
 
-根据文档 ID: 701,702,703,706,707,712,713,714,715,722,723
+根据文档 ID: 701,702,703,706,707,712,713,714,715
 """
 
 import os
 import sys
 import json
 from datetime import datetime
+import time
 
 import requests
+
+# Add lib directory to path for token_manager import
+script_dir = os.path.dirname(os.path.abspath(__file__))
+lib_dir = os.path.join(script_dir, "..", "lib")
+sys.path.insert(0, lib_dir)
+
+from token_manager import get_cached_token
 
 # ============================================================================
 # Configuration
 # ============================================================================
 
-# API endpoints (verified against Ezviz Open Platform docs)
+# API endpoints (using openai.ys7.com - Ezviz Open API domain)
 CONFIG_APIS = {
     # 701: 设置布撤防
     "defence_set": {
@@ -73,8 +81,10 @@ CONFIG_APIS = {
         "method": "POST",
         "params": ["accessToken", "deviceSerial", "channelNo", "type", "value"]
     },
-    # Note: motion_track (722/723) removed - device capability not widely supported
 }
+
+# API domain (openai.ys7.com = Ezviz Open API, not AI)
+API_DOMAIN = "https://openai.ys7.com"
 
 # Environment variables
 APP_KEY = os.getenv("EZVIZ_APP_KEY", "")
@@ -83,42 +93,62 @@ DEVICE_SERIAL = os.getenv("EZVIZ_DEVICE_SERIAL", "")
 CHANNEL_NO = os.getenv("EZVIZ_CHANNEL_NO", "1")
 
 # ============================================================================
-# Helper Functions
+# Config File Reader (Fallback)
 # ============================================================================
 
-def get_access_token(app_key, app_secret):
-    """Get access token from Ezviz Open Platform."""
-    url = "https://open.ys7.com/api/lapp/token/get"
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    data = {
-        "appKey": app_key,
-        "appSecret": app_secret
-    }
+def load_ezviz_config_from_files():
+    """
+    Load Ezviz credentials from OpenClaw config files.
     
-    try:
-        response = requests.post(url, headers=headers, data=data, timeout=30)
-        result = response.json()
+    Search order:
+    1. ~/.openclaw/config.json
+    2. ~/.openclaw/gateway/config.json
+    3. ~/.openclaw/channels.json
+    
+    Returns:
+        dict: {app_key, app_secret, domain} or None if not found
+    """
+    import os.path
+    
+    config_paths = [
+        os.path.expanduser("~/.openclaw/config.json"),
+        os.path.expanduser("~/.openclaw/gateway/config.json"),
+        os.path.expanduser("~/.openclaw/channels.json"),
+    ]
+    
+    for config_path in config_paths:
+        if not os.path.exists(config_path):
+            continue
         
-        if result.get("code") == "200":
-            token_data = result.get("data", {})
-            access_token = token_data.get("accessToken")
-            expire_time = token_data.get("expireTime")
-            return {
-                "success": True,
-                "token": access_token,
-                "expire_time": expire_time
-            }
-        else:
-            return {
-                "success": False,
-                "error": result.get("msg", "Failed to get token"),
-                "code": result.get("code")
-            }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            # Check channels.ezviz
+            channels = config.get("channels", {})
+            ezviz = channels.get("ezviz", {})
+            
+            if ezviz.get("enabled", False):
+                app_key = ezviz.get("appId") or ezviz.get("appKey")
+                app_secret = ezviz.get("appSecret")
+                domain = ezviz.get("domain", API_DOMAIN)
+                
+                if app_key and app_secret:
+                    print(f"[INFO] Loaded Ezviz config from: {config_path}")
+                    return {
+                        "app_key": app_key,
+                        "app_secret": app_secret,
+                        "domain": domain
+                    }
+        except Exception as e:
+            print(f"[WARNING] Failed to load config from {config_path}: {e}")
+            continue
+    
+    return None
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
 
 def execute_config(access_token, device_serial, config_type, value=None, extra_params=None):
     """
@@ -142,7 +172,7 @@ def execute_config(access_token, device_serial, config_type, value=None, extra_p
         }
     
     api_info = CONFIG_APIS[config_type]
-    api_url = f"https://open.ys7.com{api_info['url']}"
+    api_url = f"{API_DOMAIN}{api_info['url']}"
     
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     data = {
@@ -152,7 +182,7 @@ def execute_config(access_token, device_serial, config_type, value=None, extra_p
     
     # Add channelNo for APIs that support it
     if "channelNo" in api_info["params"]:
-        data["channelNo"] = "1"  # Default channel
+        data["channelNo"] = CHANNEL_NO  # Use env var or default
     
     # Add action-specific parameters based on API docs
     if value is not None:
@@ -162,7 +192,7 @@ def execute_config(access_token, device_serial, config_type, value=None, extra_p
         elif config_type == "shelter_set":
             # 707: enable - 0:关闭，1:开启 (镜头遮蔽)
             data["enable"] = str(value)
-            data["channelNo"] = "1"
+            data["channelNo"] = CHANNEL_NO
         elif config_type == "fullday_record_set":
             # 713: enable - 0:关闭，1:开启
             data["enable"] = str(value)
@@ -170,7 +200,7 @@ def execute_config(access_token, device_serial, config_type, value=None, extra_p
             # 715: type=0 (移动侦测), value=0-6 (0 最低灵敏度)
             data["type"] = "0"
             data["value"] = str(value)
-            data["channelNo"] = "1"
+            data["channelNo"] = CHANNEL_NO
         elif config_type == "defence_plan_set":
             # 703: Multiple parameters needed
             if extra_params:
@@ -228,17 +258,32 @@ def main():
     print("=" * 70)
     print(f"[Time] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Configuration
-    app_key = APP_KEY or sys.argv[1] if len(sys.argv) > 1 else ""
-    app_secret = APP_SECRET or sys.argv[2] if len(sys.argv) > 2 else ""
-    device_serial = DEVICE_SERIAL or sys.argv[3] if len(sys.argv) > 3 else ""
+    # Configuration (Priority: env vars > config files > command line)
+    app_key = APP_KEY
+    app_secret = APP_SECRET
+    device_serial = DEVICE_SERIAL
+    
+    # Fallback to config files
+    if not app_key or not app_secret:
+        file_config = load_ezviz_config_from_files()
+        if file_config:
+            app_key = app_key or file_config.get("app_key", "")
+            app_secret = app_secret or file_config.get("app_secret", "")
+    
+    # Fallback to command line arguments
+    app_key = app_key or sys.argv[1] if len(sys.argv) > 1 else app_key
+    app_secret = app_secret or sys.argv[2] if len(sys.argv) > 2 else app_secret
+    device_serial = device_serial or sys.argv[3] if len(sys.argv) > 3 else device_serial
+    
     config_type = sys.argv[4] if len(sys.argv) > 4 else "defence_set"
     value = sys.argv[5] if len(sys.argv) > 5 else None
     
     # Validate
     if not app_key or not app_secret:
         print("[ERROR] APP_KEY and APP_SECRET required.")
-        print("[INFO] Set EZVIZ_APP_KEY and EZVIZ_APP_SECRET env vars.")
+        print("[INFO] Set EZVIZ_APP_KEY and EZVIZ_APP_SECRET env vars,")
+        print("[INFO] or add to ~/.openclaw/channels.json,")
+        print("[INFO] or pass as command line arguments.")
         sys.exit(1)
     
     if not device_serial:
@@ -261,20 +306,26 @@ def main():
         except json.JSONDecodeError:
             print("[WARN] Failed to parse value as JSON, using as-is")
     
-    # Step 1: Get access token
+    # Step 1: Get access token (with global cache)
     print("\n" + "=" * 70)
     print("[Step 1] Getting access token...")
     print("=" * 70)
     
-    token_result = get_access_token(app_key, app_secret)
+    token_result = get_cached_token(app_key, app_secret)
     
     if not token_result["success"]:
         print(f"[ERROR] Failed to get token: {token_result.get('error')}")
         sys.exit(1)
     
-    access_token = token_result["token"]
+    access_token = token_result["access_token"]
     expire_time = token_result["expire_time"]
-    print(f"[SUCCESS] Token obtained, expires: {expire_time}")
+    from_cache = token_result.get("from_cache", False)
+    
+    expire_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expire_time / 1000))
+    if from_cache:
+        print(f"[SUCCESS] Using cached token, expires: {expire_str}")
+    else:
+        print(f"[SUCCESS] Token obtained, expires: {expire_str}")
     
     # Step 2: Execute config
     print("\n" + "=" * 70)
