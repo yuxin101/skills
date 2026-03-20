@@ -3,11 +3,16 @@
   "slug": "session-memory-enhanced",
   "displayName": "Session Memory Enhanced",
   "latest": {
-    "version": "4.1.0",
-    "publishedAt": 1773660260916,
-    "commit": "https://github.com/openclaw/skills/commit/66a977f7f7f0329cff978c11fd9b96297948985e"
+    "version": "4.3.0",
+    "publishedAt": 1773740488076,
+    "commit": null
   },
   "history": [
+    {
+      "version": "4.1.0",
+      "publishedAt": 1773660260916,
+      "commit": "https://github.com/openclaw/skills/commit/66a977f7f7f0329cff978c11fd9b96297948985e"
+    },
     {
       "version": "4.0.2",
       "publishedAt": 1773209244876,

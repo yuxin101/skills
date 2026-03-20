@@ -1,7 +1,23 @@
 ---
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 name: session-memory-enhanced
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 description: "Session-Memory Enhanced v4.0 - 统一增强版。融合 session-memory + memu-engine 核心功能。特性：结构化提取 + 向量检索 + 不可变分片 + 三位一体自动化 + 多代理隔离 + AI 摘要 + 零配置启动。"
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 ---
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 
 # Session-Memory Enhanced v4.0
 
@@ -57,7 +73,7 @@ description: "Session-Memory Enhanced v4.0 - 统一增强版。融合 session-me
 ## 📁 文件结构
 
 ```
-/root/.openclaw/workspace/skills/session-memory-enhanced/
+$(pwd)/skills/session-memory-enhanced/
 ├── scripts/
 │   ├── session-memory-enhanced-v4.sh       # 主脚本（统一版）
 │   ├── ai-summarizer.sh                    # AI 摘要
@@ -85,7 +101,7 @@ description: "Session-Memory Enhanced v4.0 - 统一增强版。融合 session-me
 
 ```bash
 # 1. 复制配置模板
-cd /root/.openclaw/workspace/skills/session-memory-enhanced
+cd $(pwd)/skills/session-memory-enhanced
 cp config/unified.json.example config/unified.json
 
 # 2. 重启即可使用（轻量级模式）
@@ -149,19 +165,19 @@ mv tmp.json config/unified.json
 # 每小时自动运行
 crontab -e
 # 添加：
-0 * * * * /root/.openclaw/workspace/skills/session-memory-enhanced/scripts/session-memory-enhanced-v4.sh
+0 * * * * $(pwd)/skills/session-memory-enhanced/scripts/session-memory-enhanced-v4.sh
 ```
 
 ### 手动模式
 
 ```bash
 # 立即执行
-bash /root/.openclaw/workspace/skills/session-memory-enhanced/scripts/session-memory-enhanced-v4.sh
+bash $(pwd)/skills/session-memory-enhanced/scripts/session-memory-enhanced-v4.sh
 
 # 检索
-python3 /root/.openclaw/workspace/skills/session-memory-enhanced/python/searcher.py \
+python3 $(pwd)/skills/session-memory-enhanced/python/searcher.py \
     --query "查询关键词" \
-    --db /root/.openclaw/workspace/memory/agents/main/vectors.db \
+    --db $(pwd)/memory/agents/main/vectors.db \
     --agent main \
     --api-key "your_key"
 ```
@@ -215,7 +231,31 @@ python3 /root/.openclaw/workspace/skills/session-memory-enhanced/python/searcher
 
 ---
 
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
+
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 **作者**：米粒儿  
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 **版本**：v4.0.0  
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 **创建时间**：2026-03-09 19:30  
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
 **更新时间**：2026-03-09 19:50
+
+## ⚙️ 环境变量（可选）
+
+- `OPENAI_API_KEY` - 用于AI摘要和向量嵌入（不提供时降级为纯文本模式）
