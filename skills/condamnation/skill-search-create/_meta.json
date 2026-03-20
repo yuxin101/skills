@@ -1,11 +1,17 @@
 {
   "owner": "condamnation",
   "slug": "skill-search-create",
-  "displayName": "Skill Search Create",
+  "displayName": "Skill Search & Create",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773459256693,
-    "commit": "https://github.com/openclaw/skills/commit/b34a4ecb99a1d0de96c33a5684dcd80d74e61ecf"
+    "version": "1.0.2",
+    "publishedAt": 1773889276925,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773459256693,
+      "commit": "https://github.com/openclaw/skills/commit/b34a4ecb99a1d0de96c33a5684dcd80d74e61ecf"
+    }
+  ]
 }

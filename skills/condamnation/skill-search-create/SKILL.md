@@ -1,32 +1,52 @@
+---
+name: skill-search-create
+description: 在 ClawHub 上搜索现有技能，当找不到匹配时自动创建新的 OpenClaw 技能。/ Search existing skills on ClawHub and create new OpenClaw skills automatically when no match is found. Activate when user asks to find, search, or create a skill.
+metadata:
+  {
+    "openclaw":
+      {
+        "requires": { "bins": ["clawhub"] },
+        "install":
+          [
+            {
+              "id": "node",
+              "kind": "node",
+              "package": "clawhub",
+              "bins": ["clawhub"],
+              "label": "Install ClawHub CLI (npm)",
+            },
+          ],
+      },
+  }
+---
+
 # Skill Search & Create
 
-> Version: 1.0.0
+> Version: 1.0.1
 
 _Find skills on ClawHub or create new ones when needed._
 
-## Description
-
-查找并创建 OpenClaw 技能的自动化工具。
-
-- **查找**: 搜索 ClawHub 上的现有技能
-- **创建**: 当找不到合适的技能时，自动创建新技能
-- **工作流**: 搜索 → 没找到 → 创建 → 发布
-
 ## 功能
 
-### 1. 搜索技能 (Search)
+- **搜索**: 在 ClawHub 上搜索现有技能
+- **创建**: 找不到合适的时，自动创建新技能
+- **发布**: 创建后可直接发布到 ClawHub
 
-使用 `clawhub search <关键词>` 在 ClawHub 上搜索现有技能。
+## 命令
 
-### 2. 创建技能 (Create)
-
-如果没有找到合适的技能，初始化新技能：
+### 搜索技能
 
 ```bash
-# 通过 clawhub CLI
+clawhub search <关键词>
+```
+
+### 创建技能
+
+```bash
+# 通过 CLI（需先登录）
 clawhub create <skill-name>
 
-# 或手动创建结构:
+# 或手动创建目录结构:
 # skill-name/
 #   ├── SKILL.md (必须)
 #   ├── scripts/
@@ -34,12 +54,22 @@ clawhub create <skill-name>
 #   └── assets/
 ```
 
-### 3. 工作流
+### 发布技能
+
+```bash
+clawhub publish ./my-skill --slug my-skill --name "My Skill" --version 1.0.0 --changelog "Initial release"
+```
+
+> 发布前需先登录: `clawhub login`
+
+## 推荐工作流
 
 当用户请求某个技能时：
-1. 先在 ClawHub 搜索匹配技能
-2. 找到 → 报告结果
+1. `clawhub search <关键词>` 搜索
+2. 找到 → 报告结果（名称、描述、作者）
 3. 没找到 → 询问是否创建
+4. 用户确认 → 初始化技能结构
+5. 用户想发布 → `clawhub publish`
 
 ## 使用示例
 
@@ -48,9 +78,10 @@ clawhub create <skill-name>
 | "找天气预报的 skill" | `clawhub search weather` |
 | "没有就创建一个" | 初始化新 weather 技能 |
 | "找一个做表格的" | `clawhub search spreadsheet` |
+| "把这个 skill 发布上去" | `clawhub publish ./xxx --slug xxx ...` |
 
 ## 备注
 
-- 需要安装 `clawhub` CLI
-- 如果 CLI 不可用则回退到手动创建
+- 依赖 `clawhub` CLI（通过 npm 全局安装）
+- CLI 不可用时回退到手动创建
 - 遵循 OpenClaw 技能结构规范
