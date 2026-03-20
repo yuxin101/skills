@@ -3,11 +3,16 @@
   "slug": "excel-formula",
   "displayName": "Excel Formula",
   "latest": {
-    "version": "2.3.4",
-    "publishedAt": 1773665918873,
-    "commit": "https://github.com/openclaw/skills/commit/b5b8c16b94043c75332db6c5af54e371a26ba07b"
+    "version": "2.0.0",
+    "publishedAt": 1773774197448,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.4",
+      "publishedAt": 1773665918873,
+      "commit": "https://github.com/openclaw/skills/commit/b5b8c16b94043c75332db6c5af54e371a26ba07b"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421277659,
