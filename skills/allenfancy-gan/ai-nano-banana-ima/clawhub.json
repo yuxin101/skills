@@ -1,9 +1,31 @@
 {
   "name": "IMA Nano Banana",
   "tagline": "Text-to-image, image-to-image — Nano Banana series only. Lightweight AI image generation.",
-  "description": "Image generation with IMA Open API using only Nano Banana series: Nano Banana, Nano Banana Pro, Nano Banana 2. Budget (Nano Banana2 512px), balanced (Nano Banana2/Pro), premium (Nano Banana Pro 4K). Native aspect_ratio: 1:1, 16:9, 9:16, 4:3, 3:4. Use for: text-to-image, image-to-image, lightweight image gen. Requires IMA_API_KEY.",
+  "description": "Image generation with IMA Open API, restricted to Nano Banana model IDs (gemini-3.1-flash-image, gemini-3-pro-image). Supports text-to-image and image-to-image. Requires IMA_API_KEY. For local file upload, users must explicitly pass --allow-secondary-upload-domain because API key is sent to imapi.liveme.com for upload authentication.",
   "category": "file-generation",
   "requiredEnvVars": ["IMA_API_KEY"],
+  "optionalEnvVars": ["IMA_IM_BASE_URL"],
+  "credentialNotice": "IMA_API_KEY is required at runtime (--api-key or IMA_API_KEY). It is sent to api.imastudio.com for product/task APIs. For image_to_image with local files, it is also sent to imapi.liveme.com to obtain upload tokens before uploading to OSS/CDN URLs returned by that API. Local uploads additionally require --allow-secondary-upload-domain.",
+  "localPaths": {
+    "readWrite": [
+      "~/.openclaw/memory/ima_prefs.json",
+      "~/.openclaw/logs/ima_skills/"
+    ],
+    "purpose": "Preference cache and operational logs; logs auto-cleaned after 7 days."
+  },
+  "requires": {
+    "env": ["IMA_API_KEY"],
+    "envOptional": ["IMA_IM_BASE_URL"],
+    "primaryCredential": "IMA_API_KEY",
+    "credentialNote": "IMA_API_KEY is sent to api.imastudio.com and, for local image uploads, to imapi.liveme.com."
+  },
+  "persistence": {
+    "readWrite": [
+      "~/.openclaw/memory/ima_prefs.json",
+      "~/.openclaw/logs/ima_skills/"
+    ],
+    "retention": "Logs are auto-cleaned after 7 days; preferences remain until user deletes them."
+  },
   "tags": [
     "ima-studio",
     "nano-banana",
@@ -17,12 +39,12 @@
     "nano banana 2",
     "nano banana pro"
   ],
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
   "pricing": "free",
   "author": {
     "name": "IMA Studio",
-    "url": "https://www.imaclaw.ai/"
+    "url": "https://imastudio.com/"
   },
   "keywords": [
     "nano banana",
@@ -49,15 +71,11 @@
   "supported_models": [
     "Nano Banana",
     "Nano Banana 2",
-    "Nano Banana Pro",
-    "text-to-image",
-    "image-to-image"
+    "Nano Banana Pro"
   ],
   "related_skills": [
-    "ima-knowledge-ai",
     "ima-image-ai",
-    "ima-all-ai",
-    "ima-resource-skill"
+    "ima-all-ai"
   ],
   "use_cases": [
     "Nano Banana series only: text-to-image, image-to-image",
@@ -65,8 +83,9 @@
     "Fixed aspect ratios 1:1, 16:9, 9:16, 4:3, 3:4"
   ],
   "key_features": [
-    "Nano Banana, Nano Banana Pro, Nano Banana 2 only",
+    "Strict Nano Banana model allowlist in script runtime",
     "Text-to-image, image-to-image, native aspect ratio",
+    "Explicit secondary upload-domain acknowledgment for local file uploads",
     "512px/1K/2K/4K",
     "Lightweight, no SeeDream/Midjourney"
   ]

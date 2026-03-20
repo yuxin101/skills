@@ -1,6 +1,6 @@
 ---
 name: IMA Nano Banana
-version: 1.0.0
+version: 1.1.0
 category: file-generation
 author: IMA Studio (imastudio.com)
 keywords: imastudio, nano banana, gemini image, text to image, image to image
@@ -9,7 +9,21 @@ description: >
   Image generation with IMA Open API using only Nano Banana series: Nano Banana,
   Nano Banana Pro, Nano Banana 2. Budget (Nano Banana2 512px), balanced (Nano Banana2/Pro),
   premium (Nano Banana Pro 4K). Native aspect_ratio (1:1, 16:9, 9:16, 4:3, 3:4).
-  Requires IMA API key. Bundled script: scripts/ima_image_create.py.
+  Requires ima_* API key. Bundled script: scripts/ima_image_create.py.
+requires:
+  env:
+    - IMA_API_KEY
+  envOptional:
+    - IMA_IM_BASE_URL
+  primaryCredential: IMA_API_KEY
+  credentialNote: >
+    IMA_API_KEY is sent to api.imastudio.com for generation APIs and to
+    imapi.liveme.com only when image_to_image uses local file upload.
+persistence:
+  readWrite:
+    - ~/.openclaw/memory/ima_prefs.json
+    - ~/.openclaw/logs/ima_skills/
+  retention: Logs are auto-cleaned after 7 days; preferences remain until user deletes them.
 ---
 
 # IMA Nano Banana (Image Generation)
@@ -59,17 +73,10 @@ Nano Banana 系列均**原生支持** aspect_ratio。**8K** 不支持，最高 4
 This skill runs inside IM platforms (Feishu, Discord via OpenClaw).  
 **Never let users wait in silence.** Always follow all 6 steps below, every single time.
 
-### 🚫 Never Say to Users
+### 🗣️ User-Friendly First, Transparent on Request
 
-| ❌ Never say | ✅ What users care about |
-|-------------|--------------------------|
-| `ima_image_create.py` / 脚本 / script | — |
-| 自动化脚本 / automation | — |
-| 自动处理产品列表 / 查询接口 | — |
-| attribute_id / model_version / form_config | — |
-| API 调用 / HTTP 请求 / 任何技术参数名 | — |
-
-Only tell users: **model name · estimated time · credits · result (image/media) · plain-language status**.
+Default to plain-language status updates (model name, ETA, credits, result).
+If users ask technical details, provide them transparently (script path, endpoints, and parameter names).
 
 ---
 
@@ -176,12 +183,12 @@ When task status = `failed` or any API/network error, push a failure message wit
 
 **Error Message Translation (user-facing only)**
 
-Never show technical errors. API key & credits: imaclaw.ai (same IMA platform as imastudio.com).
+Default to user-friendly explanations. If users explicitly ask for technical details, provide them transparently.
 
-| Technical Error | ❌ Never Say | ✅ Say Instead (Chinese) | ✅ Say Instead (English) |
-|-----------------|-------------|--------------------------|---------------------------|
-| `401 Unauthorized` | Invalid API key / 401 | ❌ API密钥无效或未授权<br>💡 **生成新密钥**: https://www.imaclaw.ai/imaclaw/apikey | ❌ API key is invalid or unauthorized<br>💡 **Generate API Key**: https://www.imaclaw.ai/imaclaw/apikey |
-| `4008 Insufficient points` | Insufficient points / 4008 | ❌ 积分不足，无法创建任务<br>💡 **购买积分**: https://www.imaclaw.ai/imaclaw/subscription | ❌ Insufficient points to create this task<br>💡 **Buy Credits**: https://www.imaclaw.ai/imaclaw/subscription |
+| Technical Error | Internal Literal (reference) | User-Friendly (Chinese) | User-Friendly (English) |
+|-----------------|-------------------------------|--------------------------|-------------------------|
+| `401 Unauthorized` | Invalid API key / 401 | API密钥无效或未授权<br>💡 **生成新密钥**: https://www.imaclaw.ai/imaclaw/apikey | API key is invalid or unauthorized<br>💡 **Generate API Key**: https://www.imaclaw.ai/imaclaw/apikey |
+| `4008 Insufficient points` | Insufficient points / 4008 | 积分不足，无法创建任务<br>💡 **购买积分**: https://www.imaclaw.ai/imaclaw/subscription | Insufficient points to create this task<br>💡 **Buy Credits**: https://www.imaclaw.ai/imaclaw/subscription |
 | `"Invalid product attribute"` / `"Insufficient points"` | Invalid product attribute | 生成参数配置异常，请稍后重试 | Configuration error, please try again later |
 | Error 6006 (credit mismatch) | Error 6006 | 积分计算异常，系统正在修复 | Points calculation error, system is fixing |
 | Error 6010 (attribute_id mismatch) | Attribute ID does not match | 模型参数不匹配，请尝试其他模型 | Model parameters incompatible, try another model |
@@ -263,6 +270,13 @@ python3 {baseDir}/scripts/ima_image_create.py \
   --api-key $IMA_API_KEY --task-type image_to_image \
   --model-id gemini-3.1-flash-image --prompt "turn into oil painting" \
   --input-images https://example.com/photo.jpg --user-id {user_id} --output-json
+
+# image_to_image with local file (requires explicit secondary-domain acknowledgment)
+python3 {baseDir}/scripts/ima_image_create.py \
+  --api-key $IMA_API_KEY --task-type image_to_image \
+  --model-id gemini-3.1-flash-image --prompt "turn into oil painting" \
+  --input-images ./local-photo.jpg --allow-secondary-upload-domain \
+  --user-id {user_id} --output-json
 ```
 
 The script outputs JSON; parse it for the result URL and pass to the user via the UX protocol above.
@@ -462,11 +476,3 @@ Poll every 2–5s. On completion, medias[].url, width, height, format (jpg/png).
 | Base URL | https://api.imastudio.com |
 | 生成密钥 | https://www.imaclaw.ai/imaclaw/apikey |
 | 购买积分 | https://www.imaclaw.ai/imaclaw/subscription |
-
----
-
-## Supported Models & Search Terms
-
-**Models:** Nano Banana, Nano Banana 2, Nano Banana Pro (also known as: gemini image, lightweight image)
-
-**Capabilities:** image generation, text-to-image, image-to-image, budget image generation, AI art, lightweight
