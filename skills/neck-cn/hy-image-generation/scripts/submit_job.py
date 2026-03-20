@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Submit a HunYuan text-to-image generation task (SubmitTextToImageProJob).
+Submit a HunYuan text-to-image generation task (SubmitTextToImageJob).
 Returns the JobId for subsequent status polling via query_job.py.
 """
 
@@ -119,7 +119,7 @@ def parse_args():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Submit a HunYuan Text-to-Image generation task (SubmitTextToImageProJob)"
+        description="Submit a HunYuan Text-to-Image generation task (SubmitTextToImageJob)"
     )
     parser.add_argument("prompt", nargs="?", help="Text description for image generation (Chinese recommended)")
     parser.add_argument("--stdin", action="store_true", help="Read JSON parameters from stdin")
@@ -157,8 +157,17 @@ def parse_args():
                 "basic": 'python3 submit_job.py "一只可爱的猫咪在花园里玩耍"',
                 "with_images": 'python3 submit_job.py --images "https://xxx.jpg" "一只可爱的猫咪"',
                 "with_resolution": 'python3 submit_job.py --resolution 1024:768 "山水画"',
-                "stdin": 'echo \'{"prompt":"一只猫","images":["https://xxx.jpg"]}\' | python3 submit_job.py --stdin',
+                "stdin": 'echo \'\'{"prompt":"一只猫","images":["https://xxx.jpg"]}\'\'  | python3 submit_job.py --stdin',
             },
+        }, ensure_ascii=False, indent=2))
+        sys.exit(1)
+
+    # Validate prompt length (API 限制最多 256 个 utf-8 字符)
+    if len(args.prompt) > 256:
+        print(json.dumps({
+            "error": "PROMPT_TOO_LONG",
+            "message": f"Prompt length {len(args.prompt)} exceeds max 256 characters.",
+            "hint": "请缩短文本描述，最多支持 256 个 utf-8 字符。",
         }, ensure_ascii=False, indent=2))
         sys.exit(1)
 
@@ -188,8 +197,8 @@ def parse_args():
 
 def submit_task(client, prompt, images=None, resolution="1024:1024",
                 seed=None, revise=None):
-    """Submit a SubmitTextToImageProJob request."""
-    req = models.SubmitTextToImageProJobRequest()
+    """Submit a SubmitTextToImageJob request."""
+    req = models.SubmitTextToImageJobRequest()
     params = {
         "Prompt": prompt,
         "Resolution": resolution,
@@ -205,7 +214,7 @@ def submit_task(client, prompt, images=None, resolution="1024:1024",
         params["Revise"] = revise
 
     req.from_json_string(json.dumps(params))
-    resp = client.SubmitTextToImageProJob(req)
+    resp = client.SubmitTextToImageJob(req)
     return json.loads(resp.to_json_string())
 
 

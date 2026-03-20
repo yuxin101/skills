@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Query a HunYuan text-to-image generation task (QueryTextToImageProJob).
+Query a HunYuan text-to-image generation task (QueryTextToImageJob).
 Polls the task status until completion or timeout.
 """
 
@@ -51,7 +51,8 @@ def get_credentials():
             "guide": {
                 "step1": "开通混元生图服务: https://console.cloud.tencent.com/aiart",
                 "step2": "获取 API 密钥: https://console.cloud.tencent.com/cam/capi",
-                "step3": 'export TENCENTCLOUD_SECRET_ID="your_id" && export TENCENTCLOUD_SECRET_KEY="your_key"',
+                "step3_linux": 'export TENCENTCLOUD_SECRET_ID="your_id" && export TENCENTCLOUD_SECRET_KEY="your_key"',
+                "step3_windows": '$env:TENCENTCLOUD_SECRET_ID="your_id"; $env:TENCENTCLOUD_SECRET_KEY="your_key"',
             },
         }
         print(json.dumps(error_msg, ensure_ascii=False, indent=2))
@@ -81,9 +82,9 @@ def parse_args():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Query a HunYuan Text-to-Image task (QueryTextToImageProJob)"
+        description="Query a HunYuan Text-to-Image task (QueryTextToImageJob)"
     )
-    parser.add_argument("job_id", help="Job ID returned by SubmitTextToImageProJob")
+    parser.add_argument("job_id", help="Job ID returned by SubmitTextToImageJob")
     parser.add_argument("--poll-interval", type=int, default=5,
                         help="Polling interval in seconds (default: 5)")
     parser.add_argument("--max-poll-time", type=int, default=300,
@@ -101,23 +102,23 @@ def parse_args():
 
 def query_task(client, job_id):
     """Query a single task status."""
-    req = models.QueryTextToImageProJobRequest()
+    req = models.QueryTextToImageJobRequest()
     req.from_json_string(json.dumps({"JobId": job_id}))
-    resp = client.QueryTextToImageProJob(req)
+    resp = client.QueryTextToImageJob(req)
     return json.loads(resp.to_json_string())
 
 
-# JobStatusCode: 1=waiting, 2=running, 4=failed, 5=done
+# JobStatusCode 任务状态码：1=排队中, 2=运行中, 4=生成失败, 5=生成完成
 JOB_STATUS_WAITING = "1"
 JOB_STATUS_RUNNING = "2"
 JOB_STATUS_FAILED = "4"
 JOB_STATUS_DONE = "5"
 
 JOB_STATUS_DESC = {
-    JOB_STATUS_WAITING: "waiting",
-    JOB_STATUS_RUNNING: "running",
-    JOB_STATUS_FAILED: "failed",
-    JOB_STATUS_DONE: "done",
+    JOB_STATUS_WAITING: "排队中(waiting)",
+    JOB_STATUS_RUNNING: "运行中(running)",
+    JOB_STATUS_FAILED: "生成失败(failed)",
+    JOB_STATUS_DONE: "生成完成(done)",
 }
 
 

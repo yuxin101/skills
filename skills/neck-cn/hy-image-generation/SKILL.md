@@ -112,6 +112,7 @@ python3 <SKILL_DIR>/scripts/main.py "文本描述"
   "job_id": "job-xxxxxxxxxxxx",
   "status": "success",
   "result_image": "https://aiart-xxx.cos.ap-guangzhou.myqcloud.com/xxx.png",
+  "result_details": ["https://aiart-xxx.cos.ap-guangzhou.myqcloud.com/xxx.png"],
   "revised_prompt": "一只可爱的橘色猫咪在充满鲜花的花园里愉快地玩耍，阳光明媚，色彩鲜艳"
 }
 ```
@@ -162,7 +163,9 @@ python3 <SKILL_DIR>/scripts/query_job.py "job-xxxxxxxxxxxx"
 {
   "job_id": "job-xxxxxxxxxxxx",
   "status": "success",
-  "result_image": "https://aiart-xxx.cos.ap-guangzhou.myqcloud.com/xxx.png"
+  "result_image": "https://aiart-xxx.cos.ap-guangzhou.myqcloud.com/xxx.png",
+  "result_details": ["https://aiart-xxx.cos.ap-guangzhou.myqcloud.com/xxx.png"],
+  "revised_prompt": "优化后的提示词内容"
 }
 ```
 

@@ -5,22 +5,22 @@
 ## 接口信息
 
 - **接口域名**：aiart.tencentcloudapi.com
-- **Action**：QueryTextToImageProJob
+- **Action**：QueryTextToImageJob
 - **Version**：2022-12-29
 - **HTTP 请求方法**：POST
-- **功能说明**：查询混元生图（异步）任务。根据 SubmitTextToImageProJob 返回的 JobId 查询生图任务状态和结果。
+- **功能说明**：查询混元生图（异步）任务。根据 SubmitTextToImageJob 返回的 JobId 查询生图任务状态和结果。
 
 ## 输入参数
 
 | 参数名称 | 必选 | 类型 | 描述 |
 |----------|------|------|------|
-| JobId | 是 | String | 任务 ID。由 SubmitTextToImageProJob 接口返回。 |
+| JobId | 是 | String | 任务 ID。由 SubmitTextToImageJob 接口返回。 |
 
 ## 输出参数
 
 | 参数名称 | 类型 | 描述 |
 |----------|------|------|
-| JobStatusCode | String | 任务状态码。INIT: 初始化、WAIT: 排队中、RUN: 运行中、FAIL: 生成失败、DONE: 生成完成。 |
+| JobStatusCode | String | 任务状态码。1: 排队中、2: 运行中、4: 生成失败、5: 生成完成。 |
 | JobStatusMsg | String | 任务状态信息。 |
 | JobErrorCode | String | 任务错误码。 |
 | JobErrorMsg | String | 任务错误信息。 |
@@ -33,18 +33,17 @@
 
 | 状态码 | 含义 | 说明 |
 |--------|------|------|
-| INIT | 初始化 | 任务已创建，等待调度 |
-| WAIT | 排队中 | 任务排队中 |
-| RUN | 运行中 | 任务正在生成图像 |
-| FAIL | 生成失败 | 任务执行失败，查看 JobErrorCode 和 JobErrorMsg |
-| DONE | 生成完成 | 图像生成成功，结果在 ResultImage / ResultDetails 中 |
+| 1 | 排队中 | 任务排队等待中 |
+| 2 | 运行中 | 任务正在生成图像 |
+| 4 | 生成失败 | 任务执行失败，查看 JobErrorCode 和 JobErrorMsg |
+| 5 | 生成完成 | 图像生成成功，结果在 ResultImage / ResultDetails 中 |
 
 ## 轮询建议
 
 - 首次查询建议在提交任务后 **5~10 秒** 开始
 - 轮询间隔建议 **3~5 秒**
 - 普通生图一般 **10~30 秒** 完成
-- 开启超分（Clarity=2x/4x）可能需要 **60~120 秒**
+- 开启 Prompt 改写（Revise=1）会额外增加约 **20 秒**
 - 建议设置最大轮询时间为 **5 分钟**
 
 ## 错误码

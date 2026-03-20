@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 HunYuan Text-to-Image All-in-One Script.
-Submits a SubmitTextToImageProJob task and automatically polls until the image is generated.
+Submits a SubmitTextToImageJob task and automatically polls until the image is generated.
 """
 
 import json
@@ -170,8 +170,17 @@ def parse_args():
                 "with_images": 'python3 main.py --images "https://xxx.jpg" "一只可爱的猫咪"',
                 "with_resolution": 'python3 main.py --resolution 1024:768 "壮丽的山水画"',
                 "submit_only": 'python3 main.py --no-poll "一只猫"',
-                "stdin": 'echo \'{"prompt":"一只猫","images":["https://xxx.jpg"]}\' | python3 main.py --stdin',
+                "stdin": 'echo \'\'{"prompt":"一只猫","images":["https://xxx.jpg"]}\'\'  | python3 main.py --stdin',
             },
+        }, ensure_ascii=False, indent=2))
+        sys.exit(1)
+
+    # Validate prompt length (API 限制最多 256 个 utf-8 字符)
+    if len(args.prompt) > 256:
+        print(json.dumps({
+            "error": "PROMPT_TOO_LONG",
+            "message": f"Prompt length {len(args.prompt)} exceeds max 256 characters.",
+            "hint": "请缩短文本描述，最多支持 256 个 utf-8 字符。",
         }, ensure_ascii=False, indent=2))
         sys.exit(1)
 
@@ -203,8 +212,8 @@ def parse_args():
 
 def submit_task(client, prompt, images=None, resolution="1024:1024",
                 seed=None, revise=None):
-    """Submit a SubmitTextToImageProJob request and return the response."""
-    req = models.SubmitTextToImageProJobRequest()
+    """Submit a SubmitTextToImageJob request and return the response."""
+    req = models.SubmitTextToImageJobRequest()
     params = {
         "Prompt": prompt,
         "Resolution": resolution,
@@ -220,31 +229,31 @@ def submit_task(client, prompt, images=None, resolution="1024:1024",
         params["Revise"] = revise
 
     req.from_json_string(json.dumps(params))
-    resp = client.SubmitTextToImageProJob(req)
+    resp = client.SubmitTextToImageJob(req)
     return json.loads(resp.to_json_string())
 
 
 # ===================== Query Task =====================
 
 def query_task(client, job_id):
-    """Query a single task status via QueryTextToImageProJob."""
-    req = models.QueryTextToImageProJobRequest()
+    """Query a single task status via QueryTextToImageJob."""
+    req = models.QueryTextToImageJobRequest()
     req.from_json_string(json.dumps({"JobId": job_id}))
-    resp = client.QueryTextToImageProJob(req)
+    resp = client.QueryTextToImageJob(req)
     return json.loads(resp.to_json_string())
 
 
-# JobStatusCode: 1=waiting, 2=running, 4=failed, 5=done
+# JobStatusCode 任务状态码：1=排队中, 2=运行中, 4=生成失败, 5=生成完成
 JOB_STATUS_WAITING = "1"
 JOB_STATUS_RUNNING = "2"
 JOB_STATUS_FAILED = "4"
 JOB_STATUS_DONE = "5"
 
 JOB_STATUS_DESC = {
-    JOB_STATUS_WAITING: "waiting",
-    JOB_STATUS_RUNNING: "running",
-    JOB_STATUS_FAILED: "failed",
-    JOB_STATUS_DONE: "done",
+    JOB_STATUS_WAITING: "排队中(waiting)",
+    JOB_STATUS_RUNNING: "运行中(running)",
+    JOB_STATUS_FAILED: "生成失败(failed)",
+    JOB_STATUS_DONE: "生成完成(done)",
 }
 
 
@@ -312,7 +321,7 @@ def main():
         if not job_id:
             print(json.dumps({
                 "error": "NO_JOB_ID",
-                "message": "Failed to get JobId from SubmitTextToImageProJob response.",
+"message": "Failed to get JobId from SubmitTextToImageJob response.",
                 "response": submit_resp,
             }, ensure_ascii=False, indent=2))
             sys.exit(1)
