@@ -1,13 +1,18 @@
 {
   "owner": "jisuapi",
   "slug": "stockhistory",
-  "displayName": "股票历史行情查询 - Chinese Stock Historical Data Query",
+  "displayName": "Stock Historical Data Query - 股票历史行情查询",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1773633373351,
-    "commit": "https://github.com/openclaw/skills/commit/34325da7f3c656d557465c58be66cb93d701792d"
+    "version": "1.0.5",
+    "publishedAt": 1773728582596,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1773633373351,
+      "commit": "https://github.com/openclaw/skills/commit/34325da7f3c656d557465c58be66cb93d701792d"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773202391941,
