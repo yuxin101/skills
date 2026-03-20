@@ -3,11 +3,16 @@
   "slug": "task-planner",
   "displayName": "Task Planner",
   "latest": {
-    "version": "2.4.6",
-    "publishedAt": 1773673988306,
-    "commit": "https://github.com/openclaw/skills/commit/48c3e8905dca8c0fe6df2f26616c46416caf90c8"
+    "version": "3.0.1",
+    "publishedAt": 1773880837395,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.4.6",
+      "publishedAt": 1773673988306,
+      "commit": "https://github.com/openclaw/skills/commit/48c3e8905dca8c0fe6df2f26616c46416caf90c8"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421884180,
