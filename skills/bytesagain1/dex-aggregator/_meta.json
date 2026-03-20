@@ -3,11 +3,16 @@
   "slug": "dex-aggregator",
   "displayName": "Dex Aggregator",
   "latest": {
-    "version": "2.3.5",
-    "publishedAt": 1773665734487,
-    "commit": "https://github.com/openclaw/skills/commit/bbc7b2d8e874e51384532744e4cd5532dfdc23bd"
+    "version": "3.0.0",
+    "publishedAt": 1773922156478,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.5",
+      "publishedAt": 1773665734487,
+      "commit": "https://github.com/openclaw/skills/commit/bbc7b2d8e874e51384532744e4cd5532dfdc23bd"
+    },
     {
       "version": "2.3.4",
       "publishedAt": 1773662362342,
