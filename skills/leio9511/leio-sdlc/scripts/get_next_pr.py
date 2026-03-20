@@ -3,13 +3,23 @@ import argparse
 import os
 import glob
 import sys
+import re
+
+class SecurityError(Exception):
+    pass
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--workdir", required=True, help="Working directory lock")
     parser.add_argument("--job-dir", required=True)
     args = parser.parse_args()
 
-    job_dir = args.job_dir
+    workdir = os.path.abspath(args.workdir)
+    job_dir = os.path.abspath(args.job_dir)
+    os.chdir(workdir)
+
+    if os.path.commonpath([workdir, job_dir]) != workdir:
+        raise SecurityError(f"Path traversal detected: {job_dir} is outside {workdir}")
 
     if not os.path.exists(job_dir):
         print(f"[Pre-flight Failed] Job directory '{job_dir}' does not exist.")
@@ -20,10 +30,12 @@ def main():
     md_files.sort()
 
     for md_file in md_files:
+        if os.path.commonpath([workdir, md_file]) != workdir:
+            continue # or raise Exception
         try:
             with open(md_file, 'r', encoding='utf-8') as f:
                 content = f.read()
-                if "status: open" in content:
+                if re.search(r'^status:\s*open\b', content, re.MULTILINE):
                     print(md_file)
                     sys.exit(0)
         except Exception:

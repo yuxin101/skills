@@ -39,7 +39,8 @@ def main():
             result = subprocess.run(["git", "merge", branch], check=True, text=True, capture_output=True)
             print(result.stdout)
         except subprocess.CalledProcessError as e:
-            print(f"Merge failed: {e.stderr}", file=sys.stderr)
+            print(f"Merge failed: {e.stderr}. Aborting merge.", file=sys.stderr)
+            subprocess.run(["git", "merge", "--abort"], check=False)
             sys.exit(1)
 
 if __name__ == "__main__":

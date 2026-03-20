@@ -12,7 +12,7 @@ EOF
 unset SDLC_TEST_MODE
 
 echo "Running Planner..."
-python3 scripts/spawn_planner.py --prd-file tests/dummy_triad_prd.md > tests/triad_planner.log 2>&1 || true
+python3 scripts/spawn_planner.py --prd-file tests/dummy_triad_prd.md  --workdir "$(pwd)" > tests/triad_planner.log 2>&1 || true
 
 echo "Asserting Output..."
 if grep -q "PL-999" tests/triad_planner.log && grep -q "#" tests/triad_planner.log; then

@@ -22,7 +22,12 @@ cd "$PROJECT_DIR" || exit 1
 
     echo "Running Job Queue Engine Tests..."
     bash scripts/test_job_queue_engine.sh
+    echo "Running CWD Guardrail Tests..."
+    bash scripts/test_cwd_guardrail.sh
     
+    echo "Running Anti-Reward Hacking Tests..."
+    bash scripts/test_anti_reward_hacking.sh
+
     echo "Running Preflight Guardrails Tests..."
     echo "Running Manager Queue Polling E2E Tests..."
     bash scripts/test_manager_queue_polling.sh
@@ -31,8 +36,22 @@ cd "$PROJECT_DIR" || exit 1
     echo "Running Planner Micro-Slicing Act Tests..."
     bash scripts/test_planner_micro_slicing.sh
     
+    echo "Running Planner Slice Failed PR Tests..."
+    bash scripts/test_planner_slice_failed_pr.sh
+    
     echo "Running Build Release Tests..."
     bash scripts/test_build_release.sh
+    
+    echo "Running Branch Isolation Tests..."
+    bash scripts/test_branch_isolation.sh
+    
+    echo "Running Blue/Green Deploy Tests..."
+    echo "Running Reviewer Artifact Guardrail Tests..."
+    bash scripts/test_reviewer_artifact_guardrail.sh
+    bash scripts/test_blue_green_deploy.sh
+    
+    echo "Running Orchestrator FSM Sandbox Tests..."
+    bash scripts/test_orchestrator_fsm.sh
     
 ) > "$LOG_FILE" 2>&1
 # ---------------------------------------------
@@ -53,3 +72,4 @@ else
     echo "Please fix the code above to pass the preflight gate."
     exit $EXIT_CODE
 fi
+

@@ -19,7 +19,7 @@ export SDLC_TEST_MODE=true
 # 2. Test Planner Pre-flight
 echo "Testing Planner Pre-flight..."
 set +e
-output=$(python3 scripts/spawn_planner.py --prd-file missing.md 2>&1)
+output=$(python3 scripts/spawn_planner.py --prd-file missing.md --workdir . 2>&1)
 exit_code=$?
 set -e
 if [ $exit_code -ne 1 ]; then
@@ -33,16 +33,19 @@ fi
 
 # 3. Test Coder Pre-flight
 echo "Testing Coder Pre-flight..."
+git checkout -b feature/dummy-guardrails >/dev/null 2>&1
 set +e
-output=$(python3 scripts/spawn_coder.py --pr-file missing.md --prd-file missing.md 2>&1)
+output=$(python3 scripts/spawn_coder.py --pr-file missing.md --prd-file missing.md --workdir . 2>&1)
 exit_code=$?
 set -e
+git checkout - >/dev/null 2>&1
 if [ $exit_code -ne 1 ]; then
     echo "Fail: Coder exit code is not 1"
     exit 1
 fi
 if ! echo "$output" | grep -q "\[Pre-flight Failed\]"; then
     echo "Fail: Coder did not output [Pre-flight Failed]"
+    echo "Output was: $output"
     exit 1
 fi
 
@@ -51,7 +54,7 @@ echo "Testing Reviewer Pre-flight..."
 # Create a dummy PR file to satisfy file check, but it should still fail status check or logic
 echo "status: open" > PR.md
 set +e
-output=$(python3 scripts/spawn_reviewer.py --pr-file PR.md --diff-target HEAD 2>&1)
+output=$(python3 scripts/spawn_reviewer.py --pr-file PR.md --diff-target HEAD --workdir . 2>&1)
 exit_code=$?
 set -e
 # Note: In a sandbox without real git diff or reviewer setup, this should fail.

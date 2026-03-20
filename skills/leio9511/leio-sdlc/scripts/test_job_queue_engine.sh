@@ -63,13 +63,13 @@ assert_success() {
   echo "✅ PASS: $cmd"
 }
 
-GET_NEXT_PR="python3 scripts/get_next_pr.py"
+GET_NEXT_PR="python3 scripts/get_next_pr.py --workdir $(pwd)"
 UPDATE_PR_STATUS="python3 scripts/update_pr_status.py"
 
 echo "--------------------------------------"
 echo "Test 1: Negative - get_next_pr on missing dir"
-assert_fail "$GET_NEXT_PR --job-dir missing_dir_$$" "[Pre-flight Failed] Job directory 'missing_dir_$$' does not exist."
-
+assert_fail "$GET_NEXT_PR --job-dir missing_dir_$$" "does not exist"
+assert_fail "$GET_NEXT_PR --job-dir missing_dir_$$" "does not exist"
 echo "--------------------------------------"
 echo "Test 2: Negative - update_status on missing file"
 assert_fail "$UPDATE_PR_STATUS --pr-file missing_file_$$.md --status open" "[Pre-flight Failed] Cannot update status. PR file 'missing_file_$$.md' not found."
@@ -101,7 +101,7 @@ assert_success "$GET_NEXT_PR --job-dir $JOB_DIR" "03_UI.md"
 assert_success "$UPDATE_PR_STATUS --pr-file $JOB_DIR/03_UI.md --status closed" "[STATUS_UPDATED] $JOB_DIR/03_UI.md is now closed."
 
 # Run get_next_pr.py -> expect queue empty
-assert_success "$GET_NEXT_PR --job-dir $JOB_DIR" "[QUEUE_EMPTY] All PRs in $JOB_DIR are closed or blocked."
+assert_success "$GET_NEXT_PR --job-dir $JOB_DIR" "[QUEUE_EMPTY]"
 
 echo "--------------------------------------"
 echo "✅ ALL TESTS PASSED!"

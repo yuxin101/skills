@@ -3,7 +3,7 @@ set -e
 
 echo "Running Micro-Slicing Act Test..."
 
-SANDBOX="/tmp/planner_sandbox"
+SANDBOX="tests/planner_sandbox_$$"
 mkdir -p "$SANDBOX/prs"
 rm -f "$SANDBOX"/prs/*.md || true
 
@@ -18,7 +18,7 @@ Please generate a sequential, dependency-ordered chain of Micro-PRs.
 EOF
 
 # Run Planner
-python3 scripts/spawn_planner.py --prd-file "$SANDBOX/dummy_complex_prd.md" --out-dir "$SANDBOX/prs"
+python3 scripts/spawn_planner.py --prd-file "$SANDBOX/dummy_complex_prd.md" --out-dir "$SANDBOX/prs" --workdir "$(pwd)"
 
 # Assertions
 PR_COUNT=$(ls -1q "$SANDBOX/prs/"*.md 2>/dev/null | wc -l)

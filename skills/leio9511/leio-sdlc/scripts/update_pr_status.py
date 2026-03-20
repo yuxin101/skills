@@ -7,7 +7,7 @@ import re
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pr-file", dest="pr_file", required=True)
-    parser.add_argument("--status", choices=["open", "closed", "blocked"], required=True)
+    parser.add_argument("--status", choices=["open", "closed", "blocked", "in_progress", "completed"], required=True)
     args = parser.parse_args()
 
     pr_file = args.pr_file
@@ -24,11 +24,11 @@ def main():
         print(f"Error reading file: {e}")
         sys.exit(1)
 
-    if not re.search(r'status:\s*\S+', content):
+    if not re.search(r'^status:\s*\S+', content, re.MULTILINE):
         print(f"[Pre-flight Failed] File '{pr_file}' does not contain a 'status: ...' field.")
         sys.exit(1)
 
-    updated_content = re.sub(r'status:\s*\S+', f'status: {new_status}', content)
+    updated_content = re.sub(r'^status:\s*\S+', f'status: {new_status}', content, count=1, flags=re.MULTILINE)
 
     try:
         with open(pr_file, 'w', encoding='utf-8') as f:

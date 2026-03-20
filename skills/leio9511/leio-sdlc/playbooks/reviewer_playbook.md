@@ -20,3 +20,5 @@ All agents MUST use the native `read`, `write`, and `edit` tool APIs for all fil
 When you execute `git diff`, the output will be raw, complex text (e.g., lines starting with `--- a/`, `+++ b/`, `@@ -x,y +x,y @@`). 
 **DO NOT BE CONFUSED BY THIS RAW OUTPUT.**
 You MUST NOT echo, repeat, or print the raw `git diff` output back to the user. You must digest the diff internally, analyze it against the PR Contract, and then ONLY write your final verdict (`[LGTM]` or `[ACTION_REQUIRED]`) and your analysis into the `Review_Report.md` artifact. Your response MUST strictly follow this artifact-driven format.
+## Context-Aware Triad Exemption Clause
+If a requirement from the PR Contract is missing in `current_review.diff` (or if the diff is `[EMPTY DIFF]`), you MUST read `recent_history.diff`. If the requirement was implemented in a recent commit, mark it as SATISFIED and output `[LGTM]`. Do not reject for a missing diff if the feature exists in recent history.

@@ -18,7 +18,7 @@ unset SDLC_TEST_MODE
 rm -f tests/dummy_generated_output.py
 
 echo "Running Coder..."
-python3 scripts/spawn_coder.py --pr-file tests/dummy_triad_pr_coder.md --prd-file tests/dummy_triad_prd_coder.md > tests/triad_coder.log 2>&1 || true
+python3 scripts/spawn_coder.py --pr-file tests/dummy_triad_pr_coder.md --prd-file tests/dummy_triad_prd_coder.md  --workdir "$(pwd)" > tests/triad_coder.log 2>&1 || true
 
 echo "Asserting Output..."
 if [ -f tests/dummy_generated_output.py ] && grep -q "CODER_TRIAD_SUCCESS" tests/dummy_generated_output.py; then

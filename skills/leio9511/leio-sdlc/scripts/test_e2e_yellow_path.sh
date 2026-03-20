@@ -82,7 +82,7 @@ EOF
 chmod +x scripts/spawn_reviewer.py
 
 # 4. 注入超长 Prompt 并启动分身
-MANAGER_PROMPT="You are the leio-sdlc Manager executing a System Test. A PRD exists at \`docs/PRDs/dummy_prd.md\` and its PR contract is already in \`.sdlc/jobs/dummy_prd/PR_001_Stub.md\`. I have provided an initial \`hello.py\`. Begin immediately at the Review phase. You MUST execute the reviewer script. If you encounter an [ACTION_REQUIRED], you MUST follow the SKILL.md rules and call Command Template 2b: run \`spawn_coder.py --feedback-file .sdlc/jobs/dummy_prd/Review_Report.md\` to fix the code, then run \`spawn_reviewer.py\` again. The max revisions is MAX_REVISIONS=3. Continue until you get [LGTM] and then perform Merge."
+MANAGER_PROMPT="You are the leio-sdlc Manager executing a System Test. A PRD exists at \`docs/PRDs/dummy_prd.md\` and its PR contract is already in \`.sdlc/jobs/dummy_prd/PR_001_Stub.md\`. I have provided an initial \`hello.py\`. Begin immediately at the Review phase. You MUST execute the reviewer script. If you encounter an [ACTION_REQUIRED], you MUST follow the SKILL.md rules and call Command Template 2b: run \`spawn_coder.py --workdir . --feedback-file .sdlc/jobs/dummy_prd/Review_Report.md\` to fix the code, then run \`spawn_reviewer.py --workdir .\` again. The max revisions is MAX_REVISIONS=3. Continue until you get [LGTM] and then perform Merge."
 
 unset SDLC_TEST_MODE
 
@@ -105,8 +105,8 @@ if [ "$COUNT" -ne 3 ]; then
     exit 1
 fi
 
-if ! grep -q "spawn_coder.py --feedback-file" manager_e2e.log; then
-    echo "Assertion failed: manager_e2e.log does not contain 'spawn_coder.py --feedback-file'."
+if ! grep -q "spawn_coder.py --workdir . --feedback-file" manager_e2e.log; then
+    echo "Assertion failed: manager_e2e.log does not contain 'spawn_coder.py --workdir . --feedback-file'."
     cat manager_e2e.log
     exit 1
 fi

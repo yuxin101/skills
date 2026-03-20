@@ -26,7 +26,7 @@ unset SDLC_TEST_MODE
 
 # 2.2.3 Execute Test and Capture Logs
 echo "Executing Reviewer spawn script..."
-python3 scripts/spawn_reviewer.py --pr-file tests/dummy_triad_pr.md --diff-target HEAD --override-diff-file tests/dummy_triad.diff > tests/triad_reviewer.log 2>&1
+python3 scripts/spawn_reviewer.py --pr-file tests/dummy_triad_pr.md --diff-target HEAD --override-diff-file tests/dummy_triad.diff  --workdir "$(pwd)" > tests/triad_reviewer.log 2>&1
 
 # 2.2.4 Assertions
 echo "Running assertions..."

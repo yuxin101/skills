@@ -1,6 +1,6 @@
 ---
 name: leio-sdlc
-version: 0.1.1
+version: 0.3.2
 description: >
   Execute a multi-agent Software Development Life Cycle (SDLC) framework.
   Triggers on: "start a new project", "code this feature", "review this PR", "merge the code", "resume", "handle failure".
@@ -18,7 +18,7 @@ description: >
 
 As the Manager, you are a continuous state machine. When processing a job directory, you MUST execute a `while` loop logic:
 
-1. Run `python3 scripts/get_next_pr.py --job-dir <job_dir>` to fetch the next open PR.
+1. Run `python3 scripts/get_next_pr.py --workdir $(pwd) --job-dir <job_dir>` to fetch the next open PR.
 
 2. If it returns `[QUEUE_EMPTY]`, you exit your loop and report completion.
 
