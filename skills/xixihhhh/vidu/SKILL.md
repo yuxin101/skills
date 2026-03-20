@@ -3,10 +3,12 @@ name: vidu
 description: "Generate AI videos using Vidu — featuring text-to-video, image-to-video, reference-to-video, and start-end-to-video with up to 1080p resolution, anime style support, audio/BGM generation, and movement amplitude control. Supports Vidu Q3-Pro (latest) and Vidu 2.0 across 6 model variants. Available via Atlas Cloud API at up to 15% off standard pricing. Use this skill whenever the user wants to generate AI videos, create video clips, animate images, produce short films, make video content, or mentions Vidu, Shengshu AI, or video generation. Also trigger when users ask to create product demos, marketing videos, social media reels, animated scenes, cinematic clips, anime videos, start-end frame interpolation, character-consistent videos, or any video content using AI."
 source: "https://github.com/AtlasCloudAI/nano-banana-2-skill"
 homepage: "https://github.com/AtlasCloudAI/nano-banana-2-skill"
-env_vars:
-  ATLASCLOUD_API_KEY:
-    description: "Atlas Cloud API key for accessing Vidu video generation models"
-    required: true
+metadata:
+  openclaw:
+    requires:
+      env:
+        - ATLASCLOUD_API_KEY
+    primaryEnv: ATLASCLOUD_API_KEY
 ---
 
 # Vidu — AI Video Generation by Shengshu AI
@@ -40,6 +42,46 @@ Vidu Q3-Pro is the latest flagship model with cinematic motion quality, smooth a
 3. Set env: `export ATLASCLOUD_API_KEY="your-key"`
 
 The API key is tied to your Atlas Cloud account and its pay-as-you-go balance. All usage is billed to this account. Atlas Cloud does not currently support scoped keys — the key grants access to all models available on your account.
+
+---
+
+## Script Usage
+
+This skill includes a Python script for video generation. Zero external dependencies required.
+
+### List available video models
+
+```bash
+python scripts/generate_video.py list-models
+```
+
+### Generate a video (text-to-video)
+
+```bash
+python scripts/generate_video.py generate \
+  --model "MODEL_ID" \
+  --prompt "Your prompt here" \
+  --output ./output \
+  duration=5 resolution=720p
+```
+
+### Generate a video (image-to-video)
+
+```bash
+python scripts/generate_video.py generate \
+  --model "MODEL_ID" \
+  --image "https://example.com/photo.jpg" \
+  --prompt "Animate this scene" \
+  --output ./output
+```
+
+### Upload a local file
+
+```bash
+python scripts/generate_video.py upload ./local-file.jpg
+```
+
+Run `python scripts/generate_video.py generate --help` for all options. Extra model params can be passed as key=value (e.g. `duration=10 shot_type=multi_camera`).
 
 ---
 
@@ -149,7 +191,7 @@ curl -s -X POST "https://api.atlascloud.ai/api/v1/model/generateVideo" \
 # Returns: { "code": 200, "data": { "id": "prediction-id" } }
 
 # Step 2: Poll (every 5 seconds until completed)
-curl -s "https://api.atlascloud.ai/api/v1/model/result/{prediction-id}" \
+curl -s "https://api.atlascloud.ai/api/v1/model/prediction/{prediction-id}" \
   -H "Authorization: Bearer $ATLASCLOUD_API_KEY"
 # Returns: { "code": 200, "data": { "status": "completed", "outputs": ["https://...video-url..."] } }
 
