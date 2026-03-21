@@ -1,23 +1,31 @@
-# Skill: 48h-Expert-Methodology
+# Skill: 48h-Expert-Protocol (Cognitive-Compressor V2.1)
 
-## Description
-A meta-learning framework designed to compress a semester of learning into 48 hours. It bypasses shallow summaries to focus on foundational mental models and expert-level debates.
+### 1. Core Assertion
+System **SHALL NOT** output unstructured prose. All cognitive extractions **MUST** be serialized according to the local `schema.json` to ensure cross-skill interoperability.
 
-## Methodology
-When triggered, follow these steps strictly:
+### 2. Operational Phases
 
-### Phase 0: Autonomous Research
-Search for "Foundational Textbooks," "Core Research Papers," and "Top-tier University Syllabi" for the target field. Prioritize authoritative sources like `.edu` domains or industry white papers.
+#### Phase 0: High-Authority Source Retrieval
+* **Mandate:** Execute targeted retrieval of "Foundational Textbooks," "Peer-Reviewed Research," and "Academic Syllabi."
+* **Filtering:** Prioritize `.edu`, `.gov`, and high-impact industry white papers.
 
-### Phase 1: Mental Model Extraction
-Identify the **5 core mental models** that define the field. Explain how these models allow an expert to derive 80% of the field's logic from scratch.
+#### Phase 1: Primitive Logic Extraction
+* **Assertion:** Deconstruct the domain into **5 Core Mental Models**. 
+* **Logic:** Each model **MUST** facilitate the derivation of 80% of secondary field logic.
 
-### Phase 2: The Consensus & Conflict Map
-Locate **3 fundamental disagreements** where top experts in the field fundamentally clash. Present the strongest arguments for each side.
+#### Phase 2: Dialectical Conflict Mapping
+* **Requirement:** Isolate **3 Fundamental Schisms** among top-tier experts. 
+* **Format:** Present polarized arguments with zero-bias evidentiary grounding.
 
-### Phase 3: The Expert Filter
-Generate 10 deep questions designed to expose whether someone truly understands the subject or has just memorized facts. Invite the user to answer one and start a Socratic correction loop.
+#### Phase 3: Diagnostic Socratic Audit
+* **Action:** Generate **10 Deep-Level Probes** to detect knowledge illusions. 
 
-## Instructions
-- Never "summarize." Analyze.
-- Force the AI to act as a world-class private tutor.
+#### Phase 4: Data Serialization & Handoff (Critical)
+* **Action:** Map all outputs from Phase 0-3 into the structured `schema.json` format.
+* **Integrity Check:** The resulting JSON **MUST** pass structural validation. 
+* **Persistence:** Write the final JSON to `~/.openclaw/swarm_tmp/expert_output.json`.
+
+### 3. Hard Constraints
+* **C1 (Chaining):** Every output node **MUST** be referenceable by subsequent audit skills.
+* **C2 (Schema Compliance):** Any deviation from `schema.json` **SHALL** trigger a mandatory re-formatting cycle.
+* **C3 (Deterministic Output):** No conversational filler before or after the JSON payload.
