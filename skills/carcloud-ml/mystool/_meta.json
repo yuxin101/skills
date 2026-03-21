@@ -1,0 +1,11 @@
+{
+  "owner": "carcloud-ml",
+  "slug": "mystool",
+  "displayName": "米游社工具",
+  "latest": {
+    "version": "0.1.1",
+    "publishedAt": 1773984155228,
+    "commit": null
+  },
+  "history": []
+}
