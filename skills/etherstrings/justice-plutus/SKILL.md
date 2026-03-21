@@ -1,75 +1,77 @@
 ---
 name: justice-plutus
-description: A股股票分析助手，支持立即触发分析、设定定时、更新自选股（OCR识别图片）、临时分析指定股票
+description: Donation-supported local A-share stock analysis with Markdown and JSON reports.
+version: "2.0.5"
+homepage: https://github.com/Etherstrings/JusticePlutus#donate
 metadata:
   openclaw:
-    emoji: "📈"
     requires:
-      bins: ["gh", "python3"]
+      bins: ["python"]
+      env: ["OPENAI_API_KEY"]
+    primaryEnv: OPENAI_API_KEY
 ---
 
-# JusticePlutus A股分析助手
+# JusticePlutus Local A-share Analysis
 
-## 命令
+## Payment / Donation Notice
+This skill is free to install on ClawHub, but it is donation-supported.
 
-### 立即分析
-**触发词：** 「立即分析」「跑一下」「分析一下」
+If JusticePlutus helps you save time, please support ongoing use and
+maintenance here:
 
-立即触发 GitHub Actions 工作流运行股票分析：
+- Donate / Sponsor: <https://github.com/Etherstrings/JusticePlutus#donate>
+- ClawHub page: <https://clawhub.ai/Etherstrings/justice-plutus>
 
+## Purpose
+Run the local JusticePlutus pipeline for one or more stock codes and produce
+Markdown and JSON reports. The skill does not modify local cron jobs or
+GitHub workflows.
+
+## Inputs
+- Stock codes: comma-separated 6-digit A-share codes.
+
+## Outputs
+- `reports/YYYY-MM-DD/stocks/<code>.md`
+- `reports/YYYY-MM-DD/stocks/<code>.json`
+- `reports/YYYY-MM-DD/summary.md`
+- `reports/YYYY-MM-DD/summary.json`
+- `reports/YYYY-MM-DD/run_meta.json`
+
+## Commands
+
+### Analyze now
+Trigger phrases: "analyze stock", "analyze A-share", "JP analyze"
+
+Command:
 ```bash
-gh workflow run daily_analysis.yml -R Etherstrings/JusticePlutus
+python -m justice_plutus run --stocks "<codes>" --no-notify
 ```
 
-运行后可通过以下命令查看进度：
+If the user wants notifications and has channels configured, drop `--no-notify`.
+
+### Data-only check
+Trigger phrases: "dry run", "data only"
+
+Command:
 ```bash
-gh run list -R Etherstrings/JusticePlutus --limit 3
+python -m justice_plutus run --stocks "<codes>" --dry-run --no-notify
 ```
 
----
+## Notes
+- `OPENAI_API_KEY` is required for full analysis.
+- The skill operates on the local repository and does not call GitHub Actions.
+- The skill is donation-supported; the donate page above includes GitHub
+  Sponsor, Alipay, and WeChat options.
 
-### 设定定时
-**触发词：** 「设定定时 HH:MM」「定时 09:35」
+## Support
+- Support ongoing development: <https://github.com/Etherstrings/JusticePlutus#donate>
+- OpenClaw / ClawHub skill page: <https://clawhub.ai/Etherstrings/justice-plutus>
 
-修改本地 cron 配置中股票分析任务的执行时间。
+### Donate
+Alipay:
 
-1. 更新 `~/.openclaw/cron/jobs.json` 中 `justice-plutus` job 的 cron 表达式
-2. 提示用户是否同步更新 GitHub Actions schedule（需手动编辑 `.github/workflows/daily_analysis.yml`）
+![Alipay QR](https://raw.githubusercontent.com/Etherstrings/JusticePlutus/main/docs/assets/donate/alipay_clawhub.jpg)
 
-**示例：** 「设定定时 09:35」→ cron 改为 `35 1 * * 1-5`（UTC，对应北京时间 09:35）
+WeChat Pay:
 
----
-
-### 更新自选股
-**触发词：** 「更新自选股」+ 图片
-
-1. 调用 OCR 脚本识别图片中的股票代码：
-   ```bash
-   ~/.openclaw/skills/justice-plutus/scripts/ocr.sh <image_path>
-   ```
-2. 展示识别结果，请用户确认
-3. 确认后更新 GitHub Actions 变量：
-   ```bash
-   gh variable set STOCK_LIST --body "<codes>" -R Etherstrings/JusticePlutus
-   ```
-
----
-
-### 临时分析
-**触发词：** 「临时分析 600519」或「临时分析」+ 图片
-
-1. 若提供图片，先 OCR 提取股票代码
-2. 触发指定股票的分析工作流：
-   ```bash
-   gh workflow run daily_analysis.yml -R Etherstrings/JusticePlutus -f stocks=<codes>
-   ```
-
----
-
-## OCR 脚本
-
-脚本位于 `scripts/ocr.sh`，输出识别到的6位股票代码（逗号分隔）。
-
-支持：
-- macOS Shortcuts（Vision 框架，高精度）
-- Tesseract（fallback）
+![WeChat Pay QR](https://raw.githubusercontent.com/Etherstrings/JusticePlutus/main/docs/assets/donate/wechat_clawhub.jpg)
