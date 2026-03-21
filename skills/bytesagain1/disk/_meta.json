@@ -3,9 +3,15 @@
   "slug": "disk",
   "displayName": "Disk",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773673748473,
-    "commit": "https://github.com/openclaw/skills/commit/4e2d2ca998f1561ec35741d7a293b725737b7ceb"
+    "version": "2.0.1",
+    "publishedAt": 1773830483876,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773673748473,
+      "commit": "https://github.com/openclaw/skills/commit/4e2d2ca998f1561ec35741d7a293b725737b7ceb"
+    }
+  ]
 }
