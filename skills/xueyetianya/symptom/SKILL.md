@@ -1,8 +1,10 @@
 ---
 name: "Symptom"
-description: "Symptom — a fast health & wellness tool. Log anything, find it later, export when needed."
+description: "Log health symptoms, track patterns, and chart trends. Use when logging symptoms, tracking frequency, charting trends, reviewing patterns."
 version: "2.0.0"
 author: "BytesAgain"
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 tags: ["fitness", "tracking", "daily", "self-care", "symptom"]
 ---
 
