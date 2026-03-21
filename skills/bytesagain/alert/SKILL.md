@@ -1,8 +1,10 @@
 ---
 name: "Alert"
-description: "Manage Alert data right from your terminal. Built for people who want get things done faster without complex setup."
+description: "Send and schedule alerts via multiple channels with flexible triggers. Use when monitoring servers, tracking thresholds, or setting reminders."
 version: "2.0.0"
 author: "BytesAgain"
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 tags: ["alert", "tool", "terminal", "cli", "utility"]
 ---
 
