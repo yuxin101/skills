@@ -1,0 +1,11 @@
+{
+  "owner": "boehner",
+  "slug": "jupiter-quote",
+  "displayName": "Jupiter Quote",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773955008534,
+    "commit": null
+  },
+  "history": []
+}
