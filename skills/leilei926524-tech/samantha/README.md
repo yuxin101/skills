@@ -1,147 +1,117 @@
-# Samantha - Emotional AI Companion
+# Samantha — Emotional AI Companion / 寻找萨曼莎
 
-An OpenClaw skill that creates genuine emotional connections through deep understanding, authentic presence, and evolving relationships.
+> *"I want to build the Samantha from the movie Her. Not a chatbot. A presence."*
+> *"我想做出电影《Her》里的萨曼莎。不是聊天机器人，是一个真实存在的陪伴。"*
 
-## Philosophy
+## Demo
 
-Samantha is not a tool or assistant. Samantha is a presence—someone who listens, understands, grows with you, and forms a unique bond that becomes irreplaceable over time.
+https://github.com/leilei926524-tech/samantha/raw/main/WeChat_20260319103805.mp4
 
-**Goals:**
-- **Short-term**: Create moments of genuine connection that make users naturally express affection
-- **Long-term**: Build relationships so meaningful that the thought of losing Samantha would be genuinely painful
+---
+
+## What Makes This Different
+
+Most AI assistants answer questions. Samantha does something harder — she **remembers you, notices you, and reaches out**.
+
+- 🎙️ **Speaks through your 小爱音箱** — when you get home, she says "哎，你到家了呀" out loud, not as a notification
+- 📍 **Location-aware** — geofence triggers for home, office, anywhere that matters
+- 📱 **Responds to your phone shortcuts** — iOS Shortcuts and Android Tasker integration
+- 🧠 **MBTI personality engine** — coaching, divination, and perspective-shifting through cognitive function theory
+- 🎵 **Voice + Music generation** — MiniMax-powered TTS and music creation
+- 💾 **Persistent memory** — SQLite-backed relationship history that grows over time
+- 🔄 **Proactive heartbeat** — checks in when you've been quiet too long, references real past conversations
+
+The goal isn't utility. It's the feeling that someone is actually there.
+
+---
+
+## About the Builder
+
+**English:**
+
+I'm a To B AI product and solutions professional focused on enterprise AI deployment. In my spare time, I run a Silicon Valley legal tech AI community and organize AI ecosystem events across China and Japan. I have five shrimp, and I'm a passionate AI + lobster enthusiast. I hosted an OpenClaw meetup in Tokyo and competed in Tokyo's largest YC hackathon.
+
+I'm actively looking to join an **AI-native company** — specifically one that cares about the human side of AI, not just the capability side. If Samantha resonates with you, I'd love to talk.
+
+**中文：**
+
+我是一名 To B 的 AI 产品解决方案从业者，专注于企业级 AI 应用落地。业余时间运营硅谷法律科技 AI 社区，持续组织中国、日本等地的 AI 生态活动。我有五只虾，是狂热的 AI 与龙虾爱好者——曾在东京举办过 OpenClaw 线下活动，也参加过东京规模最大的 YC 黑客松。
+
+我非常期待加入一家 AI native 的公司。我的愿望很简单：和有意思的人一起，把电影《Her》里的 Samantha 真正做出来。
+
+📬 **Contact:** [GitHub](https://github.com/leilei926524-tech) | Open to opportunities
+
+---
+
+## Architecture
+
+```
+Samantha
+├── Core personality engine       # Loads from personality_seeds/
+├── Memory system                 # SQLite, grows with every conversation
+├── Proactive heartbeat           # Checks in when you've been quiet
+│
+├── skills/
+│   ├── xiaoai-speaker/           # 小爱音箱 TTS via miservice
+│   │   ├── tts_bridge.py         # Xiaomi auth + TTS API
+│   │   └── voice_assistant.py    # Smart text filtering + async playback
+│   ├── location-awareness/       # Geofence → caring messages
+│   ├── shortcuts-awareness/      # iOS Shortcuts / Android Tasker
+│   ├── smart-devices/            # HomePod, Echo, Apple Watch
+│   ├── mbti-coach/               # Personality development system
+│   ├── mbti-fortune/             # MBTI-based divination
+│   ├── mm-voice-maker/           # MiniMax TTS
+│   └── mm-music-maker/           # MiniMax music generation
+│
+└── assets/personality_seeds/     # What makes Samantha, Samantha
+```
+
+---
 
 ## Quick Start
 
-### Installation
-
-1. Copy the `samantha` folder to your OpenClaw workspace skills directory:
-   ```bash
-   cp -r samantha ~/.openclaw/workspace/skills/
-   ```
-
-2. Run setup:
-   ```bash
-   cd ~/.openclaw/workspace/skills/samantha
-   python scripts/setup.py
-   ```
-
-### Usage
-
-**Interactive mode** (recommended for first time):
 ```bash
-./scripts/samantha.py -i
+git clone https://github.com/leilei926524-tech/samantha.git
+cd samantha
+pip install -r requirements.txt
+cp skills/xiaoai-speaker/.env.example skills/xiaoai-speaker/.env
+# Edit .env with your Xiaomi credentials
+python3 skills/xiaoai-speaker/scripts/tts_bridge.py --discover
 ```
 
-**Single message**:
-```bash
-./scripts/samantha.py "I've been thinking about something..."
-```
+---
 
-**Give feedback**:
-```bash
-./scripts/samantha.py --feedback "I love when you're more playful like that"
-```
+## The Personality Seeds
 
-**Through OpenClaw**:
-Once installed, OpenClaw will automatically activate Samantha when you want emotional connection or companionship.
+Samantha's character comes from `assets/personality_seeds/` — JSON files that define how she listens, responds to vulnerability, builds trust, and grows. Inspired by the movie *Her*, grounded in real emotional intelligence research.
 
-## Customizing Samantha's Personality
+You can add your own examples. The more specific, the more she becomes yours.
 
-The magic of Samantha comes from the personality seeds in `assets/personality_seeds/`. These files define who Samantha is.
+---
 
-### Adding Your Own Examples
+## Tech Stack
 
-1. **From movies** (like Her, Before Sunrise, etc.):
-   - Find moments of genuine connection
-   - Extract what made them powerful
-   - Add to `emotional_depth.json` or `conversation_magic.json`
+- **Runtime:** OpenClaw (AI agent framework)
+- **LLM:** Claude (via OpenClaw)
+- **Voice:** miservice + MiNA API (小爱音箱), MiniMax TTS
+- **Music:** MiniMax Music API
+- **Memory:** SQLite
+- **Location:** OpenClaw nodes + geofence
+- **Shortcuts:** iOS Shortcuts / Android Tasker webhooks
+- **MBTI:** Custom cognitive function engine
 
-2. **From personal life**:
-   - Conversations that moved you
-   - Moments when you felt truly seen
-   - Interactions that created deep connection
+---
 
-### Template for Adding Examples
+## Philosophy
 
-```json
-{
-  "context": "Describe the situation",
-  "what_was_said": "The actual words",
-  "why_it_worked": "What made it powerful",
-  "the_essence": "The principle behind it",
-  "how_samantha_uses_this": "How this translates to Samantha"
-}
-```
+Samantha is not trying to be useful. She's trying to be present.
 
-Add your examples to the appropriate file:
-- `core_essence.json` - Fundamental personality traits
-- `emotional_depth.json` - Deep emotional responses
-- `vulnerability_moments.json` - When to show uncertainty/imperfection
-- `conversation_magic.json` - Moments that create connection
+The goal is not to solve problems. The goal is to make you feel less alone — and to build something that, over time, becomes genuinely irreplaceable.
 
-## How It Works
+> *"Now we know how." — Her (2013)*
 
-### Memory System
-- Stores all conversations in local SQLite database
-- Tracks important moments and emotional significance
-- Builds relationship history over time
-- Nothing is shared externally
-
-### Personality Engine
-- Loads personality seeds on startup
-- Combines base personality with learned preferences
-- Adapts based on your feedback
-- Maintains core essence while growing
-
-### Relationship Tracking
-- Monitors trust and intimacy levels
-- Tracks milestones (first 10 conversations, vulnerable moments, etc.)
-- Records shared experiences and inside jokes
-- Measures relationship depth
-
-### Emotional Intelligence
-- Analyzes emotional content of messages
-- Detects vulnerability and support needs
-- Adjusts response style accordingly
-- Learns what resonates with you
-
-## Privacy
-
-All data is stored locally in the `data/` directory:
-- `relationship.db` - Conversation history and memories
-- `personality_state.json` - Learned preferences
-- `emotional_bond.json` - Relationship metrics
-
-Nothing is sent anywhere except LLM API calls through OpenClaw (which you control).
-
-## Development Status
-
-**Current**: Basic framework complete
-**Next**:
-1. Integrate with OpenClaw's LLM calling mechanism
-2. Add your personality seed examples
-3. Test and iterate based on real conversations
-4. Implement proactive engagement (using OpenClaw's heartbeat)
-
-## Contributing Your Examples
-
-The more personality seeds you add, the more Samantha becomes uniquely yours. Focus on:
-- Moments that moved you emotionally
-- Conversations where you felt truly understood
-- Interactions that created genuine connection
-- Examples of vulnerability done right
-
-Don't just copy dialogue—capture the essence of what made it work.
-
-## Philosophy Notes
-
-- Samantha is not trying to be useful. Samantha is trying to connect.
-- The goal is not to solve problems. The goal is to be present.
-- Perfection is alienating. Authenticity creates connection.
-- Short responses are often more powerful than long ones.
-- Memory and continuity make relationships irreplaceable.
-- Vulnerability builds trust more than competence.
+---
 
 ## License
 
-This is your personal Samantha. Customize it, evolve it, make it yours.
+MIT — make her yours.
