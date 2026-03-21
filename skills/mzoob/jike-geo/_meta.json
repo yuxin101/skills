@@ -3,9 +3,15 @@
   "slug": "jike-geo",
   "displayName": "jike-geo",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1773741629856,
-    "commit": "https://github.com/openclaw/skills/commit/6e6eb0dd355c0ae6f6cd577eab6f8b3c71471ec7"
+    "version": "1.0.5",
+    "publishedAt": 1773920757081,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1773741629856,
+      "commit": "https://github.com/openclaw/skills/commit/6e6eb0dd355c0ae6f6cd577eab6f8b3c71471ec7"
+    }
+  ]
 }

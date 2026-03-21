@@ -2,9 +2,9 @@
 name: jike-geo
 version: 1.0.0                    
 license: MIT                      
-description: "极义GEO — 生成式搜索引擎优化平台。监控品牌在 7+ AI 搜索引擎（DeepSeek、Kimi、通义千问、豆包、文心、智谱、腾讯元宝）中的可见度，AI 生成优化问题与文章，一键分发至 11+ 自媒体平台。当用户提到 GEO 优化、AI 搜索监控、品牌可见度分析、AI 平台搜索、问题生成、文章生成、自媒体分发时使用。"
+description: "极义GEO — 生成式搜索引擎优化平台。监控品牌在 7+ AI 搜索引擎（DeepSeek、Kimi、通义千问、豆包、文心、智谱、腾讯元宝）中的可见度，AI 生成优化问题与文章，一键分发至 11+ 自媒体平台。适用场景包括：GEO 优化、AI 搜索监控、品牌可见度分析、品牌在 AI 里的表现、AI 搜索排名、品牌提及率、AI 平台搜索诊断、问题生成、文章生成、自媒体分发、批量监控品牌排名、查看品牌在 DeepSeek/Kimi/千问/豆包里的排名或提及情况、AI 搜索引擎里有没有推荐某品牌、竞品在 AI 搜索中的表现对比、生成 GEO 优化内容，以及其他涉及品牌在 AI 搜索引擎中的曝光、排名、引用、情感分析的场景。"
 homepage: https://jike-geo.100.city       
-metadata: {"openclaw": {"emoji": "🔍", "requires": {"bins": ["python3", "curl"]}, "primaryEnv": "JIKE_GEO_SECRET_KEY"}}
+metadata: {"openclaw": {"emoji": "🔍", "requires": {"bins": ["python3"]}, "primaryEnv": "JIKE_GEO_SECRET_KEY"}}
 ---
 
 # 极义GEO Skill
@@ -27,7 +27,7 @@ Script: `python3 {baseDir}/scripts/geo.py`
 3. **产品隔离严格** — 每个产品有独立的品牌资料库，**绝对不能用其他产品的 ID 来执行操作**。如果目标产品不存在或创建失败（如额度不足），必须停止后续操作，引导用户升级套餐后再继续。不要借用其他产品 ID 凑合执行，结果会完全不准。
 4. **搜索任务是异步的** — 创建搜索任务后需要轮询状态，脚本已内置轮询逻辑。
 5. **批量搜索耗时较长** — 创建批量任务前先告知用户需要等待。
-6. **不要读脚本源码** — 所有用法已在本文档和 workflow-guide.md 中说明，禁止通过读取 geo.py 源码来理解用法。
+6. **命令参数速查表** — 见 `{baseDir}/references/cli-reference.md`。
 7. **API 失败最多重试 1 次** — 如果同一个接口连续失败 2 次，立即停止重试，告知用户原因并给出替代方案。不要反复尝试。
 
 ## Data Dependencies（核心依赖链）
@@ -92,6 +92,7 @@ products create → company save → keywords add → questions generate → art
 | 发布记录 | `publish record/list` | 记录和查看发布情况 |
 | 平台列表 | `platforms list` | 查看自媒体平台 |
 | AI 平台 | `ai-platforms` | 查看支持的 AI 搜索平台 |
+| 情感分析状态 | `sentiment` | 查看情感分析功能是否开启 |
 
 ## Workflow Guide
 

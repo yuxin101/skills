@@ -14,6 +14,7 @@ Usage:
   python3 geo.py publish record|list
   python3 geo.py platforms list
   python3 geo.py ai-platforms
+  python3 geo.py sentiment
 
 Configuration:
   Edit scripts/config.json to set secret_key and base_url.
@@ -656,6 +657,15 @@ def cmd_ai_platforms(args):
         print(f"[{p['id']}] {p['name']}  {color}")
 
 
+def cmd_sentiment(args):
+    data = api_request("GET", "/api/v1/sentiment/status")
+    if fmt_json(data, args.json):
+        return
+    enabled = data.get("enabled", False)
+    status = "已开启" if enabled else "未开启"
+    print(f"情感分析: {status}")
+
+
 # ---------------------------------------------------------------------------
 # Argument parser
 # ---------------------------------------------------------------------------
@@ -760,6 +770,10 @@ def build_parser():
     p = sub.add_parser("ai-platforms", help="AI 搜索平台列表")
     p.add_argument("--json", action="store_true")
 
+    # sentiment
+    p = sub.add_parser("sentiment", help="情感分析状态")
+    p.add_argument("--json", action="store_true")
+
     return parser
 
 
@@ -779,6 +793,7 @@ COMMAND_MAP = {
     "publish": cmd_publish,
     "platforms": cmd_platforms,
     "ai-platforms": cmd_ai_platforms,
+    "sentiment": cmd_sentiment,
 }
 
 
