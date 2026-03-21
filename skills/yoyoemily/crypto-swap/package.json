@@ -1,0 +1,15 @@
+{
+  "name": "crypto-swap-cli",
+  "version": "1.0.3",
+  "description": "LightningEX Cryptocurrency Swap CLI",
+  "main": "swap.js",
+  "bin": {
+    "swap": "./swap.js"
+  },
+  "scripts": {
+    "start": "node swap.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
