@@ -3,9 +3,15 @@
   "slug": "ezviz-open-restaurant-inspection",
   "displayName": "Ezviz Open Restaurant Inspection",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773676389469,
-    "commit": "https://github.com/openclaw/skills/commit/0e9c67807d1529437e5a13d0c2032f82a536d29c"
+    "version": "1.0.3",
+    "publishedAt": 1773901371949,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773676389469,
+      "commit": "https://github.com/openclaw/skills/commit/0e9c67807d1529437e5a13d0c2032f82a536d29c"
+    }
+  ]
 }
