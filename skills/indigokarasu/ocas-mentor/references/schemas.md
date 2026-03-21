@@ -16,11 +16,11 @@
 ```
 
 ## VariantProposal
-```json
-{"proposal_id":"string","target_skill":"string","base_version":"string","observed_problem":"string","supporting_evidence":["string"],"proposed_changes":"string","expected_improvement":"string","minimum_runs":"number"}
-```
+See spec-ocas-shared-schemas.md for the canonical VariantProposal schema.
+
+Written to: `~/openclaw/data/ocas-forge/intake/{proposal_id}.json`
 
 ## VariantDecision
-```json
-{"variant_id":"string","target_skill":"string","decision":"string — promote|continue_testing|archive|reject|emergency_rollback","rationale":"string","aggregate_scores":"object","confidence":"string","timestamp":"string"}
-```
+See spec-ocas-shared-schemas.md for the canonical VariantDecision schema.
+
+Written to: `~/openclaw/data/ocas-forge/intake/{decision_id}.json`

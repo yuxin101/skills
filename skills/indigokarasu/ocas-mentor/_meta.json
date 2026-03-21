@@ -3,9 +3,15 @@
   "slug": "ocas-mentor",
   "displayName": "Ocas Mentor",
   "latest": {
-    "version": "1.2.0",
-    "publishedAt": 1773720774963,
-    "commit": "https://github.com/openclaw/skills/commit/9decf8f9f50ae14db1cd43553ca34cd03fde2e85"
+    "version": "2.0.0",
+    "publishedAt": 1773812443110,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.2.0",
+      "publishedAt": 1773720774963,
+      "commit": "https://github.com/openclaw/skills/commit/9decf8f9f50ae14db1cd43553ca34cd03fde2e85"
+    }
+  ]
 }
