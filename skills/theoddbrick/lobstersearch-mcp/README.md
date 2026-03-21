@@ -1,20 +1,16 @@
-<p align="center">
-  <img src="assets/banner.svg" alt="LobsterSearch MCP Server" width="100%"/>
-</p>
 
-<h3 align="center">Find the best local businesses through AI — 7 MCP tools, 800+ verified businesses</h3>
+
+<h3 align="center">AI-Native Agentic Commerce — 10 MCP tools for discovery, catalog, and ordering</h3>
 
 <p align="center">
   <a href="https://smithery.ai/server/lobstersearch"><img src="https://smithery.ai/badge/lobstersearch" alt="Smithery" /></a>
-  <img src="https://img.shields.io/badge/MCP_SDK-1.27.1-blue?style=flat-square" alt="MCP SDK" />
-  <img src="https://img.shields.io/badge/Tools-7-green?style=flat-square" alt="Tools" />
-  <img src="https://img.shields.io/badge/Businesses-800+-orange?style=flat-square" alt="Businesses" />
-  <img src="https://img.shields.io/badge/Transport-StreamableHTTP-purple?style=flat-square" alt="Transport" />
+  <img src="https://img.shields.io/badge/MCP-StreamableHTTP-purple?style=flat-square" alt="Transport" />
+  <img src="https://img.shields.io/badge/Tools-10-green?style=flat-square" alt="Tools" />
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License" />
 </p>
 
 <p align="center">
-  <b>No API key required. No setup. Connect and search.</b>
+  <b>No API key required. No setup. Connect and shop.</b>
 </p>
 
 ---
@@ -68,8 +64,6 @@ clawhub install lobstersearch
 
 ### Cursor / Windsurf / Any MCP Client
 
-Add to your MCP settings:
-
 ```json
 {
   "mcpServers": {
@@ -85,30 +79,33 @@ Add to your MCP settings:
 
 ## What is LobsterSearch?
 
-LobsterSearch is a GEO-optimized business directory purpose-built for AI agents. Unlike generic search results, every business includes structured services with pricing, operating hours, promotions, and confidence scores — giving AI agents the data they need to make reliable recommendations.
+LobsterSearch is an **agentic commerce platform** — a single MCP endpoint that lets AI agents discover local businesses, browse their catalogs, and complete purchases with real payment processing.
 
-**800+ verified businesses** across **46 categories** with growing global coverage.
+Unlike traditional directories, LobsterSearch is built for the **agent-to-commerce** workflow:
 
-It's a hosted service. No setup, no API key, no self-hosting. Connect your MCP client and start searching.
+- **Search** with natural language and get structured, actionable results
+- **Browse** real product catalogs with variant-level detail (sizes, colors, options)
+- **Order** with atomic stock reservation, Stripe Checkout payment, and full lifecycle tracking
+- **Every response includes `next_actions`** — the agent always knows what to do next
+
+It's a hosted service. No setup, no API key, no self-hosting. Connect your MCP client and start shopping.
 
 ---
 
 ## Tools Reference
 
-### Search & Discovery
+### Discovery (3 tools)
 
-#### `search_businesses`
+#### `search`
 
-Search businesses by natural language query. Returns structured data with match relevance, quality signals, and confidence annotations.
+Natural language search with 4-step fallback chain for maximum recall. Returns structured results with quality scores.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `query` | string | Yes | Natural language query, e.g. `"vegan restaurant in Tiong Bahru open Sunday"` |
-| `country_code` | string | No | ISO 2-letter country code (e.g. `SG`, `GB`) |
+| `query` | string | Yes | Natural language query, e.g. `"best ramen in Bugis"` |
+| `business_type` | string | No | Filter by type (e.g., `restaurant`, `salon`) |
 | `city` | string | No | City name filter |
-| `business_type` | string | No | Category filter (see [categories](#supported-business-categories)) |
-| `max_results` | number | No | 1-20, default `10` |
-| `min_confidence` | number | No | 0-1, minimum data quality threshold, default `0.3` |
+| `limit` | number | No | 1-20, default `10` |
 
 <details>
 <summary>Example response</summary>
@@ -117,51 +114,18 @@ Search businesses by natural language query. Returns structured data with match 
 {
   "results": [
     {
-      "business_id": "a1b2c3d4-...",
-      "name": "Tiong Bahru Bakery",
-      "business_type": "cafe",
-      "neighbourhood": "Tiong Bahru",
-      "overall_confidence": 0.94,
-      "geo_score": 82,
-      "match_explanation": "Popular cafe in Tiong Bahru with vegan pastry options, open Sundays 8am-8pm"
-    }
-  ],
-  "answer_quality_score": 0.91,
-  "total_results": 5
-}
-```
-
-</details>
-
----
-
-#### `list_nearby_businesses`
-
-Find businesses near GPS coordinates within a radius.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `latitude` | number | Yes | GPS latitude |
-| `longitude` | number | Yes | GPS longitude |
-| `radius_km` | number | No | Search radius in km, default `2` |
-| `business_type` | string | No | Category filter |
-| `max_results` | number | No | Default `10` |
-
-<details>
-<summary>Example response</summary>
-
-```json
-{
-  "results": [
-    {
-      "name": "Keisuke Ramen",
-      "distance_km": 0.3,
+      "id": "a1b2c3d4-...",
+      "name": "Ichiran Ramen",
       "business_type": "restaurant",
-      "neighbourhood": "Tanjong Pagar",
-      "overall_confidence": 0.95
+      "description": "Premium tonkotsu ramen",
+      "quality_score": 0.92
     }
   ],
-  "total_results": 5
+  "total": 3,
+  "next_actions": [
+    { "tool": "details", "description": "Get full profile", "params": { "id": "a1b2c3d4-..." } },
+    { "tool": "browse_catalog", "description": "Browse menu", "params": { "business_id": "a1b2c3d4-..." } }
+  ]
 }
 ```
 
@@ -169,157 +133,199 @@ Find businesses near GPS coordinates within a radius.
 
 ---
 
-#### `get_trending`
+#### `details`
 
-Get trending businesses based on recent AI agent query volume.
+Full business profile by slug or ID — contact info, hours, quality scores, catalog offerings with variants.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `city` | string | No | Filter by city |
-| `country_code` | string | No | ISO 2-letter country code |
-| `days` | number | No | Look-back period, default `7` |
-| `max_results` | number | No | Default `10` |
+| `slug` | string | No | Business slug (e.g., `tanjong-rhu-dental`) |
+| `id` | string | No | Business UUID |
 
 ---
 
-### Business Intelligence
+#### `compare`
 
-#### `get_business_details`
-
-Full business profile: services with pricing, products, promotions, operating hours, contact info, payment methods.
+Side-by-side comparison of 2-5 businesses.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `business_id` | string | Yes | UUID of the business |
-| `include_services` | boolean | No | Include services data, default `true` |
-| `include_products` | boolean | No | Include products data, default `true` |
-| `include_promotions` | boolean | No | Include promotions data, default `true` |
+| `business_ids` | array | Yes | 2-5 business UUIDs to compare |
 
-<details>
-<summary>Example response</summary>
+---
+
+### Catalog (3 tools)
+
+#### `browse_catalog`
+
+Browse a business's product/service catalog. Filter by category, sort by name or price.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `business_id` | string | Yes | Business UUID |
+| `category` | string | No | Filter by category |
+| `sort_by` | string | No | `name`, `price_low`, or `price_high` |
+
+---
+
+#### `get_product_details`
+
+Deep product view — all variant dimensions, combinations, prices, SKUs, stock levels.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `offering_id` | string | Yes | Product/offering UUID |
+
+---
+
+#### `check_availability`
+
+Real-time stock check for a product or specific variant combination.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `offering_id` | string | Yes | Product/offering UUID |
+| `options` | object | No | Variant options, e.g. `{"Color":"Black","Size":"Large"}` |
+
+---
+
+### Commerce (4 tools)
+
+#### `create_order`
+
+Create a draft order with atomic stock reservation. Specify items by offering + variant + quantity.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `business_id` | string | Yes | Business UUID |
+| `items` | array | Yes | Array of `{offering_id, variant_id?, quantity}` |
+| `customer_email` | string | No | Email for notifications |
+| `customer_name` | string | No | Customer name |
+| `customer_notes` | string | No | Notes for the business |
+
+---
+
+#### `confirm_order`
+
+Confirm draft → generate Stripe Checkout payment link (30-min expiry).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `order_id` | string | Yes | Order UUID from `create_order` |
+
+---
+
+#### `get_order_status`
+
+Full order status, payment state, fulfillment progress, and event timeline.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `order_id` | string | Yes | Order UUID |
+
+---
+
+#### `cancel_order`
+
+Cancel with automatic refund (if paid) and stock restoration.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `order_id` | string | Yes | Order UUID |
+| `reason` | string | No | Reason for cancellation |
+
+---
+
+### Order Lifecycle
+
+```
+DRAFT → CONFIRMED → PAID → ACCEPTED → PREPARING → FULFILLED → COMPLETED
+                                                              ↘ CANCELLED (at any stage, with auto-refund if paid)
+```
+
+---
+
+## Example Flows
+
+### 1. Discovery → Purchase
+
+```
+Agent: search("best pasta restaurant in Bugis")
+  → Gets list of restaurants with IDs and quality scores
+
+Agent: details(slug: "mama-mia-pasta")
+  → Gets full profile, hours, catalog overview
+
+Agent: browse_catalog(business_id: "abc-123")
+  → Gets all menu items with prices and variants
+
+Agent: get_product_details(offering_id: "pasta-001")
+  → Gets variant details: sizes (Regular, Large), add-ons
+
+Agent: check_availability(offering_id: "pasta-001", options: {"Size": "Large"})
+  → Confirms availability and price
+
+Agent: create_order(business_id: "abc-123", items: [{offering_id: "pasta-001", variant_id: "v-large", quantity: 2}])
+  → Draft order created, stock reserved
+
+Agent: confirm_order(order_id: "order-xyz")
+  → Stripe Checkout URL returned for payment
+
+Agent: get_order_status(order_id: "order-xyz")
+  → Tracks through: paid → accepted → preparing → fulfilled
+```
+
+### 2. Quick Comparison
+
+```
+Agent: search("dental clinic near Tanjong Rhu")
+  → Gets 3 clinics
+
+Agent: compare(business_ids: ["clinic-1", "clinic-2", "clinic-3"])
+  → Side-by-side comparison of services, ratings, prices
+```
+
+### 3. Availability Check Before Ordering
+
+```
+Agent: check_availability(offering_id: "phone-case-001", options: {"Color": "Black", "Size": "iPhone 15"})
+  → { available: true, stock: 12, price: 29.90 }
+
+Agent: check_availability(offering_id: "phone-case-001", options: {"Color": "Red", "Size": "iPhone 15"})
+  → { available: false, stock: 0, retry_guidance: "Try a different color." }
+```
+
+---
+
+## Response Format
+
+Every tool response includes:
+
+- **Structured data** — typed, consistent fields across all tools
+- **`next_actions`** — array of suggested next steps the agent can take
+- **Error responses** — include `error` message and `retry_guidance` for agent resilience
 
 ```json
 {
-  "name": "The Nail Social",
-  "business_type": "nail",
-  "address": "42A Haji Lane, Singapore 189235",
-  "phone": "+65 6298 1230",
-  "website": "https://thenailsocial.com",
-  "operating_hours": {
-    "monday": { "open": "11:00", "close": "21:00" },
-    "sunday": { "open": "11:00", "close": "19:00" }
-  },
-  "services": [
-    {
-      "name": "Classic Manicure",
-      "price_min": 28,
-      "price_max": 35,
-      "currency": "SGD",
-      "duration": "45 min"
-    }
-  ],
-  "geo_score": 72,
-  "overall_confidence": 0.88
+  "results": [...],
+  "total": 5,
+  "next_actions": [
+    { "tool": "details", "description": "Get full profile for a business", "params": { "id": "..." } },
+    { "tool": "browse_catalog", "description": "Browse their products", "params": { "business_id": "..." } }
+  ]
 }
 ```
 
-</details>
-
 ---
 
-#### `compare_businesses`
+## Platform Details
 
-Compare 2–3 businesses side-by-side including services, pricing, ratings, and quality scores.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `business_ids` | array | Yes | 2–3 business UUIDs to compare |
-
----
-
-#### `get_promotions`
-
-Active deals, discounts, and promotions by location or category.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `city` | string | No | City filter |
-| `country_code` | string | No | ISO 2-letter country code |
-| `business_type` | string | No | Category filter |
-| `max_results` | number | No | Default `20` |
-
----
-
-### Data Quality
-
-#### `report_data_mismatch`
-
-Report when LobsterSearch data doesn't match reality. Triggers a priority re-crawl.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `business_id` | string | Yes | UUID of the business |
-| `field_name` | string | Yes | The field that is wrong |
-| `expected_value` | string | Yes | What LobsterSearch shows |
-| `actual_value` | string | Yes | What the real value is |
-
----
-
-## Supported Business Categories
-
-46 categories across 11 sectors:
-
-| Sector | Categories |
-|--------|-----------|
-| **Food & Drink** | `restaurant`, `cafe`, `bar`, `food_hawker` |
-| **Beauty** | `salon_hair`, `salon_beauty`, `spa`, `nail` |
-| **Medical** | `clinic_gp`, `clinic_dental`, `clinic_specialist`, `clinic_tcm`, `clinic_vet` |
-| **Fitness** | `fitness_gym`, `fitness_yoga`, `fitness_pilates`, `fitness_other` |
-| **Professional** | `legal`, `accounting`, `financial_advisory`, `consulting` |
-| **Education** | `education_tuition`, `education_enrichment`, `education_language` |
-| **Home Services** | `home_aircon`, `home_plumbing`, `home_electrical`, `home_renovation`, `home_cleaning` |
-| **Automotive** | `automotive_workshop`, `automotive_dealer`, `automotive_rental` |
-| **Accommodation** | `hotel`, `guesthouse`, `serviced_apartment` |
-| **Retail** | `retail_fashion`, `retail_electronics`, `retail_pharmacy`, `retail_supermarket`, `retail_other` |
-| **Other** | `travel_agency`, `entertainment`, `events`, `other` |
-
----
-
-## Coverage
-
-800+ verified businesses with full data depth (services, pricing, hours, promotions). Coverage is expanding continuously.
-
-Every business is automatically re-crawled to keep data fresh. Each result includes:
-
-- **`overall_confidence`** (0–1) — How complete and reliable the data is
-- **`geo_score`** (0–100) — How well-optimized the business is for AI discovery
-- **`answer_quality_score`** (0–1) — How well the results match your query
-
----
-
-## How It Works
-
-```
-Your query → Intent Classification → Hybrid Search (FTS + Semantic) → Quality Scoring → Confidence Gating → Response
-```
-
-1. **Intent classification** determines what you're looking for and which ranking weights to apply
-2. **Hybrid search** combines full-text search with semantic (vector) matching
-3. **Quality scoring** evaluates each result's data completeness and reliability
-4. **Confidence gating** filters out low-quality fields so your AI agent only sees trustworthy data
-
----
-
-## REST API (Fallback)
-
-If your client doesn't support MCP, use the REST API directly:
-
-```
-GET https://lobstersearch.ai/api/search?q=yoga+studios&city=singapore&limit=10
-GET https://lobstersearch.ai/api/businesses/{slug}
-```
-
-Full OpenAPI spec: [lobstersearch.ai/.well-known/openapi.json](https://lobstersearch.ai/.well-known/openapi.json)
+- **Region:** Singapore (ap-southeast-1)
+- **Businesses:** Self-service onboarded, verified
+- **Payments:** Stripe Connect (direct charge model)
+- **Data freshness:** Real-time catalog and stock
+- **Rate limits:** 30 reads/min, 5 writes/min per client
+- **Protection:** Rate limiting + behavioral analysis + resource limits
 
 ---
 
@@ -332,10 +338,10 @@ Yes. The MCP endpoint is public and rate-limited.
 No. Connect directly — no authentication required.
 
 **How fresh is the data?**
-Businesses are auto-recrawled on intelligent schedules. High-traffic businesses refresh more frequently.
+Businesses manage their own data in real-time. Catalog, pricing, and stock are always current.
 
 **What transport does it use?**
-StreamableHTTP (MCP SDK 1.27.1). Not SSE — StreamableHTTP is the current standard.
+StreamableHTTP — the current MCP standard. Not SSE.
 
 **Can I self-host?**
 No. LobsterSearch is a hosted service. Connect to the endpoint and let us handle the infrastructure.
@@ -348,13 +354,11 @@ No. LobsterSearch is a hosted service. Connect to the endpoint and let us handle
 - **MCP Endpoint:** `https://mcp.lobstersearch.ai/mcp`
 - **Smithery:** [smithery.ai/server/lobstersearch](https://smithery.ai/server/lobstersearch)
 - **OpenClaw:** `clawhub install lobstersearch`
-- **Discovery:**
-  - [/.well-known/mcp.json](https://lobstersearch.ai/.well-known/mcp.json)
-  - [/.well-known/openapi.json](https://lobstersearch.ai/.well-known/openapi.json)
-  - [/llms.txt](https://lobstersearch.ai/llms.txt)
+- **Tool Schema:** [mcp.json](mcp.json)
+- **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
 <p align="center">
-  <sub>Built by <a href="https://lobstersearch.ai">LobsterSearch</a> — AI-optimized business data for the agent economy</sub>
+  <sub>Built by <a href="https://github.com/theoddbrick">theoddbrick</a> — Agentic commerce for the AI economy</sub>
 </p>

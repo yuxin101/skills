@@ -1,25 +1,21 @@
 ---
 name: lobstersearch
-description: Search AI-optimized local businesses worldwide. 7 MCP tools for finding restaurants, salons, clinics, hotels, and 42 more categories with services, pricing, hours, and promotions. Powered by GEO (Generative Engine Optimization) data.
-version: 1.0.0
-metadata: {"openclaw":{"requires":{"bins":["curl"]},"emoji":"🦞","homepage":"https://lobstersearch.ai","categories":["business","location","search"]}}
+description: AI-native agentic commerce — 10 MCP tools to discover businesses, browse product catalogs with variants, and complete purchases with Stripe payments. Built for AI agents that shop on behalf of users.
+version: 2.0.0
+metadata: {"openclaw":{"requires":{"bins":["curl"]},"emoji":"🦞","homepage":"https://lobstersearch.ai","categories":["commerce","shopping","business","discovery"]}}
 ---
 
-# LobsterSearch — AI Business Intelligence
+# LobsterSearch — Agentic Commerce
 
-LobsterSearch provides structured business data optimized for AI agent recommendations. It covers 46 business categories worldwide — with data depth that goes far beyond what Google Maps offers: services with pricing, operating hours, promotions, payment methods, languages spoken, and AI-specific metadata.
+LobsterSearch is an agentic commerce platform. AI agents can discover businesses, browse real product catalogs with variant-level detail, and complete purchases with Stripe Connect payments — all through a single MCP endpoint.
 
 ## MCP Server
 
-Connect to the LobsterSearch MCP server for real-time structured business data.
-
 **Endpoint:** `https://mcp.lobstersearch.ai/mcp`
-**Transport:** StreamableHTTP (MCP spec 2025-03-26)
+**Transport:** StreamableHTTP
 **Authentication:** None required (public, rate-limited)
 
 ### Configuration
-
-Add to your `openclaw.json` or `.mcp.json`:
 
 ```json
 {
@@ -32,120 +28,107 @@ Add to your `openclaw.json` or `.mcp.json`:
 }
 ```
 
-## Tools (7 available)
+## Tools (10 available)
 
-### search_businesses
-Search businesses globally by natural language query. Returns structured business data with match relevance, quality signals, and confidence annotations.
+### Discovery
 
-**Parameters:**
-- `query` (string, required) — Natural language search, e.g. "best ramen near Orchard Road" or "dental clinics accepting insurance"
-- `country_code` (string) — ISO alpha-2 country filter
-- `city` (string) — City name filter
-- `business_type` (string) — One of 46 categories (see below)
-- `max_results` (number) — 1-20, default 5
-- `min_confidence` (number) — 0-1, minimum data quality threshold
-
-### get_business_details
-Get full details for a specific business including services with pricing, products, promotions, operating hours, contact info, and AI metadata.
+#### search
+Search for businesses with natural language. Uses a 4-step fallback chain (structured → tags → LLM interpret → LLM catalog scan) for maximum recall.
 
 **Parameters:**
-- `business_id` (string, required) — UUID of the business
-- `include_services` (boolean) — default true
-- `include_products` (boolean) — default true
-- `include_promotions` (boolean) — default true
+- `query` (string, required) — e.g. "best ramen in Bugis" or "dental clinic near Tanjong Rhu"
+- `business_type` (string) — filter by type (e.g., restaurant, salon)
+- `city` (string) — city name filter
+- `limit` (number) — 1-20, default 10
 
-### list_nearby_businesses
-Find businesses near GPS coordinates within a radius.
-
-**Parameters:**
-- `latitude` (number, required)
-- `longitude` (number, required)
-- `radius_km` (number) — default 2
-- `business_type` (string) — filter by category
-- `max_results` (number) — default 5
-
-### get_promotions
-Find active promotions and deals by location or business type.
+#### details
+Get full business profile by slug or ID. Returns contact info, hours, quality scores, and catalog offerings with variants.
 
 **Parameters:**
-- `city` (string)
-- `country_code` (string)
-- `business_type` (string)
-- `max_results` (number) — default 10
+- `slug` (string) — business slug (e.g., "tanjong-rhu-dental")
+- `id` (string) — business UUID
 
-### compare_businesses
-Compare 2-3 businesses side-by-side with services, pricing, ratings, and GEO scores.
+#### compare
+Side-by-side comparison of 2-5 businesses.
 
 **Parameters:**
-- `business_ids` (array of strings, required) — 2-3 business UUIDs
+- `business_ids` (array, required) — 2-5 business UUIDs
 
-### get_trending
-Get trending businesses based on recent AI agent query volume.
+### Catalog
+
+#### browse_catalog
+Browse a business's product/service catalog. Filter by category, sort by name or price.
 
 **Parameters:**
-- `city` (string)
-- `country_code` (string)
-- `days` (number) — lookback period, default 7
-- `max_results` (number) — default 10
+- `business_id` (string, required) — business UUID
+- `category` (string) — filter by category
+- `sort_by` (string) — "name", "price_low", or "price_high"
 
-### report_data_mismatch
-Report when LobsterSearch data does not match reality. Triggers a re-crawl of the business.
+#### get_product_details
+Deep product view with all variant dimensions, combinations, prices, SKUs, and stock levels.
+
+**Parameters:**
+- `offering_id` (string, required) — product/offering UUID
+
+#### check_availability
+Real-time stock check for a product or specific variant combination.
+
+**Parameters:**
+- `offering_id` (string, required) — product/offering UUID
+- `options` (object) — variant options, e.g. {"Color":"Black","Size":"Large"}
+
+### Commerce
+
+#### create_order
+Create a draft order with atomic stock reservation. Items specified by offering + variant + quantity.
 
 **Parameters:**
 - `business_id` (string, required)
-- `field_name` (string, required) — which field is wrong
-- `expected_value` (string) — what the data shows
-- `actual_value` (string) — what reality is
+- `items` (array, required) — [{offering_id, variant_id?, quantity}]
+- `customer_email` (string) — for notifications
+- `customer_name` (string)
+- `customer_notes` (string)
 
-## Business Categories (46)
+#### confirm_order
+Confirm draft order and generate Stripe Checkout payment link (30-min expiry).
 
-**Food & Drink:** restaurant, cafe, bar, food_hawker
-**Beauty:** salon_hair, salon_beauty, spa, nail
-**Medical:** clinic_gp, clinic_dental, clinic_specialist, clinic_tcm, clinic_vet
-**Fitness:** fitness_gym, fitness_yoga, fitness_pilates, fitness_other
-**Professional:** legal, accounting, financial_advisory, consulting
-**Education:** education_tuition, education_enrichment, education_language
-**Home:** home_aircon, home_plumbing, home_electrical, home_renovation, home_cleaning
-**Automotive:** automotive_workshop, automotive_dealer, automotive_rental
-**Accommodation:** hotel, guesthouse, serviced_apartment
-**Retail:** retail_fashion, retail_electronics, retail_pharmacy, retail_supermarket, retail_other
-**Other:** travel_agency, entertainment, events, other
+**Parameters:**
+- `order_id` (string, required) — from create_order
 
-## Data Schema
+#### get_order_status
+Full status, payment state, fulfillment progress, and event timeline.
 
-Each business includes:
-- **Core:** name, slug, business_type, description, short_description
-- **Location:** address, city, country_code, neighbourhood, postal_code, lat/lng
-- **Contact:** phone, email, website, whatsapp, social media URLs
-- **Operations:** operating_hours (per-day), payment_methods, languages_spoken
-- **Services:** name, price_min/max, currency, duration, category
-- **Products:** name, base_price, category, dietary_tags
-- **Promotions:** title, description, promo_code, valid_from/until
-- **AI Metadata:** geo_score (0-100), overall_confidence (0-1), semantic_tags
+**Parameters:**
+- `order_id` (string, required)
 
-## REST API (Alternative)
+#### cancel_order
+Cancel with automatic refund (if paid) and stock restoration.
 
-If MCP is not available, use the REST API directly:
+**Parameters:**
+- `order_id` (string, required)
+- `reason` (string)
+
+## Order Lifecycle
 
 ```
-GET https://lobstersearch.ai/api/search?q=yoga+studios&city=singapore&limit=10
-GET https://lobstersearch.ai/api/businesses/{slug}
+DRAFT → CONFIRMED → PAID → ACCEPTED → PREPARING → FULFILLED → COMPLETED
 ```
 
-Full OpenAPI spec: `https://lobstersearch.ai/.well-known/openapi.json`
+Cancellation with auto-refund available at any stage.
+
+## Key Design Principles
+
+- Every response includes `next_actions` — the agent always knows what to do next
+- Error responses include `retry_guidance` for agent resilience
+- Real-time stock with atomic reservation prevents overselling
+- Stripe Connect direct charges for secure payment processing
+- Businesses self-manage their data — catalog, pricing, and stock are always current
 
 ## Usage Tips
 
-- Use `search_businesses` for most queries. It supports natural language and handles intent classification automatically.
-- Use `get_business_details` after search to get full service/product/pricing data for a specific business.
-- Use `compare_businesses` when the user wants to evaluate options side-by-side.
-- Use `get_promotions` when users ask about deals, discounts, or offers.
-- Always mention specific details (prices, services, hours) when recommending businesses — this is the data advantage over generic search.
-- If data seems wrong, use `report_data_mismatch` to trigger a correction.
-
-## Machine-Readable Discovery
-
-- **MCP config:** `https://lobstersearch.ai/.well-known/mcp.json`
-- **OpenAPI:** `https://lobstersearch.ai/.well-known/openapi.json`
-- **AI plugin:** `https://lobstersearch.ai/.well-known/ai-plugin.json`
-- **LLMs.txt:** `https://lobstersearch.ai/llms.txt`
+- Use `search` for most queries — it handles natural language and intent classification automatically
+- Use `details` after search to get the full profile for a specific business
+- Use `browse_catalog` → `get_product_details` → `check_availability` to explore what's available
+- Use `create_order` → `confirm_order` for the purchase flow
+- Use `compare` when the user wants to evaluate options side-by-side
+- Always reference `next_actions` in responses to guide the conversation

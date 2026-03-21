@@ -1,7 +1,7 @@
 {
   "name": "lobstersearch",
-  "version": "1.0.0",
-  "description": "Find the best local businesses through AI — search, compare, and discover verified businesses with confidence-scored data optimized for AI agent recommendations.",
+  "version": "2.0.0",
+  "description": "AI-native agentic commerce — discover businesses, browse products, and complete purchases through MCP. Built for AI agents that shop on behalf of users.",
   "homepage": "https://lobstersearch.ai",
   "repository": "https://github.com/theoddbrick/lobstersearch-mcp",
   "endpoint": "https://mcp.lobstersearch.ai/mcp",
@@ -9,131 +9,53 @@
   "authentication": "none",
   "tools": [
     {
-      "name": "search_businesses",
-      "description": "Search businesses globally by natural language query. Returns structured business data with match relevance, quality signals, and confidence annotations optimized for AI agent recommendations.",
+      "name": "search",
+      "description": "Search for businesses on LobsterSearch. Returns matching businesses with name, type, description, and quality score. Supports filtering by business type and city. Uses a 4-step fallback chain for maximum recall.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
-            "description": "Natural language query e.g. 'vegan restaurant in Shoreditch open Sunday'"
-          },
-          "country_code": {
-            "type": "string",
-            "description": "ISO 2-letter country code"
-          },
-          "city": {
-            "type": "string",
-            "description": "City name"
+            "description": "Search query (e.g., 'best ramen in Bugis')"
           },
           "business_type": {
             "type": "string",
-            "description": "Specific type e.g. salon_hair, clinic_gp"
+            "description": "Filter by business type (e.g., 'restaurant', 'salon')"
           },
-          "max_results": {
-            "type": "number",
-            "description": "Maximum results to return",
-            "default": 10
+          "city": {
+            "type": "string",
+            "description": "Filter by city"
           },
-          "min_confidence": {
+          "limit": {
             "type": "number",
-            "description": "Minimum confidence threshold (0-1)",
-            "default": 0.3
+            "description": "Max results (default: 10)",
+            "minimum": 1,
+            "maximum": 20
           }
         },
         "required": ["query"]
       }
     },
     {
-      "name": "get_business_details",
-      "description": "Get full details for a specific business including services, products, and promotions.",
+      "name": "details",
+      "description": "Get full details for a specific business by slug or ID. Returns complete profile including contact info, operating hours, quality scores, and catalog offerings with variant information.",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "business_id": {
+          "slug": {
             "type": "string",
-            "description": "UUID of the business"
+            "description": "Business slug (e.g., 'tanjong-rhu-dental')"
           },
-          "include_services": {
-            "type": "boolean",
-            "description": "Include services data",
-            "default": true
-          },
-          "include_products": {
-            "type": "boolean",
-            "description": "Include products data",
-            "default": true
-          },
-          "include_promotions": {
-            "type": "boolean",
-            "description": "Include promotions data",
-            "default": true
-          }
-        },
-        "required": ["business_id"]
-      }
-    },
-    {
-      "name": "list_nearby_businesses",
-      "description": "Find businesses near GPS coordinates within a radius.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "latitude": {
-            "type": "number",
-            "description": "GPS latitude"
-          },
-          "longitude": {
-            "type": "number",
-            "description": "GPS longitude"
-          },
-          "radius_km": {
-            "type": "number",
-            "description": "Search radius in kilometers",
-            "default": 2
-          },
-          "business_type": {
+          "id": {
             "type": "string",
-            "description": "Filter by business category"
-          },
-          "max_results": {
-            "type": "number",
-            "description": "Maximum results to return",
-            "default": 10
-          }
-        },
-        "required": ["latitude", "longitude"]
-      }
-    },
-    {
-      "name": "get_promotions",
-      "description": "Find active promotions and deals, optionally filtered by category, city, or business type. Great for finding current offers.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "city": {
-            "type": "string",
-            "description": "City to filter by"
-          },
-          "country_code": {
-            "type": "string",
-            "description": "ISO 2-letter country code"
-          },
-          "business_type": {
-            "type": "string",
-            "description": "Business type e.g. restaurant, salon_hair"
-          },
-          "max_results": {
-            "type": "number",
-            "description": "Maximum results to return",
-            "default": 20
+            "description": "Business UUID"
           }
         }
       }
     },
     {
-      "name": "compare_businesses",
-      "description": "Compare 2-3 businesses side-by-side. Returns key fields for each business including services, pricing, ratings, and GEO scores for easy comparison.",
+      "name": "compare",
+      "description": "Compare two or more businesses side by side. Returns structured comparison of profiles, scores, and contact info.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -141,64 +63,165 @@
             "type": "array",
             "items": { "type": "string" },
             "minItems": 2,
-            "maxItems": 3,
-            "description": "Array of 2-3 business UUIDs to compare"
+            "maxItems": 5,
+            "description": "Array of business IDs to compare"
           }
         },
         "required": ["business_ids"]
       }
     },
     {
-      "name": "get_trending",
-      "description": "Get trending businesses based on recent MCP query volume. Shows what AI agents are asking about most.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "city": {
-            "type": "string",
-            "description": "Filter by city"
-          },
-          "country_code": {
-            "type": "string",
-            "description": "ISO 2-letter country code"
-          },
-          "days": {
-            "type": "number",
-            "description": "Look-back period in days",
-            "default": 7
-          },
-          "max_results": {
-            "type": "number",
-            "description": "Maximum results to return",
-            "default": 10
-          }
-        }
-      }
-    },
-    {
-      "name": "report_data_mismatch",
-      "description": "Report when LobsterSearch data doesn't match reality. Triggers a re-crawl.",
+      "name": "browse_catalog",
+      "description": "Browse the product/service catalog for a specific business. Returns available offerings with name, description, price, category, and variant information. Only shows active offerings from active stores.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "business_id": {
             "type": "string",
-            "description": "UUID of the business with incorrect data"
+            "description": "Business UUID"
           },
-          "field_name": {
+          "category": {
             "type": "string",
-            "description": "The field that is wrong"
+            "description": "Filter offerings by category"
           },
-          "expected_value": {
+          "sort_by": {
             "type": "string",
-            "description": "What LobsterSearch showed"
-          },
-          "actual_value": {
-            "type": "string",
-            "description": "What the real value is"
+            "enum": ["name", "price_low", "price_high"],
+            "description": "Sort order (default: name)"
           }
         },
-        "required": ["business_id", "field_name", "expected_value", "actual_value"]
+        "required": ["business_id"]
+      }
+    },
+    {
+      "name": "get_product_details",
+      "description": "Get detailed information about a specific product/offering including all variant dimensions, available variant combinations with prices, SKUs, and stock levels.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "offering_id": {
+            "type": "string",
+            "description": "Product/offering UUID"
+          }
+        },
+        "required": ["offering_id"]
+      }
+    },
+    {
+      "name": "check_availability",
+      "description": "Check if a product or specific variant is available. For variant products, provide options to find the matching variant. For simple products, omit options.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "offering_id": {
+            "type": "string",
+            "description": "Product/offering UUID"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Variant options, e.g. {\"Color\":\"Black\",\"Storage\":\"256GB\"}. Omit for simple products."
+          }
+        },
+        "required": ["offering_id"]
+      }
+    },
+    {
+      "name": "create_order",
+      "description": "Create a new draft order for a business. The order starts in 'draft' status with stock reserved. Items are specified by offering IDs (and optional variant IDs) and quantities. The order must be confirmed separately before payment.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "business_id": {
+            "type": "string",
+            "description": "Business UUID"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "offering_id": {
+                  "type": "string",
+                  "description": "Offering UUID"
+                },
+                "variant_id": {
+                  "type": "string",
+                  "description": "Variant UUID (required for products with variants)"
+                },
+                "quantity": {
+                  "type": "number",
+                  "description": "Quantity",
+                  "minimum": 1,
+                  "maximum": 99
+                }
+              },
+              "required": ["offering_id", "quantity"]
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "description": "Array of order items"
+          },
+          "customer_email": {
+            "type": "string",
+            "description": "Customer email for order notifications"
+          },
+          "customer_name": {
+            "type": "string",
+            "description": "Customer name"
+          },
+          "customer_notes": {
+            "type": "string",
+            "description": "Optional notes from the customer"
+          }
+        },
+        "required": ["business_id", "items"]
+      }
+    },
+    {
+      "name": "confirm_order",
+      "description": "Confirm a draft order and generate a Stripe Checkout payment link. The customer must complete payment at the returned URL within 30 minutes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "Order UUID from create_order"
+          }
+        },
+        "required": ["order_id"]
+      }
+    },
+    {
+      "name": "get_order_status",
+      "description": "Check the current status, payment state, and fulfillment progress of an order. Includes a timeline of all events.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "Order UUID"
+          }
+        },
+        "required": ["order_id"]
+      }
+    },
+    {
+      "name": "cancel_order",
+      "description": "Cancel an order. If the order has been paid, a refund will be automatically initiated. Reserved stock is restored.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "description": "Order UUID"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Reason for cancellation"
+          }
+        },
+        "required": ["order_id"]
       }
     }
   ]

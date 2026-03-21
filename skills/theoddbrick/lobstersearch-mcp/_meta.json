@@ -3,11 +3,16 @@
   "slug": "lobstersearch-mcp",
   "displayName": "Lobstersearch",
   "latest": {
-    "version": "0.1.1",
-    "publishedAt": 1773656090822,
-    "commit": "https://github.com/openclaw/skills/commit/55cf65e68bea018c9c9acdfdb2bb2a5e699794df"
+    "version": "0.1.2",
+    "publishedAt": 1773820638734,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.1",
+      "publishedAt": 1773656090822,
+      "commit": "https://github.com/openclaw/skills/commit/55cf65e68bea018c9c9acdfdb2bb2a5e699794df"
+    },
     {
       "version": "0.1.0",
       "publishedAt": 1773655839597,
