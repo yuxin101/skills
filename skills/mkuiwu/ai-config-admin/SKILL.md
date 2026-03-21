@@ -1,8 +1,15 @@
 ---
 name: ai-config-admin
-description: Manage AI configuration for OpenClaw, OpenCode, Codex CLI, and Claude Code. Use when the user wants to add/remove models or providers, switch default or agent models, replace or update OpenClaw/OpenCode/Codex/Claude config files, or convert natural-language / irregular JSON / TOML input into the exact config changes supported by the bundled scripts. Triggers include: openclaw.json, opencode.json, config.toml, auth.json, settings.json, Claude Code, Codex CLI, provider, model, default model, agent model, OPENAI_API_KEY, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL.
+description: >-
+  Manage AI configuration for OpenClaw, OpenCode, Codex CLI, and Claude Code.
+  Use when the user wants to add/remove models or providers, switch default or
+  agent models, replace or update OpenClaw/OpenCode/Codex/Claude config files,
+  or convert natural-language / irregular JSON / TOML input into the exact
+  config changes supported by the bundled scripts. Triggers include:
+  openclaw.json, opencode.json, config.toml, auth.json, settings.json, Claude
+  Code, Codex CLI, provider, model, default model, agent model,
+  OPENAI_API_KEY, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL.
 ---
-
 # AI Config Admin
 
 Identify which target the user wants to modify first: OpenClaw, OpenCode, Codex CLI, or Claude Code. Then use the bundled script for that target.
@@ -40,6 +47,9 @@ Identify which target the user wants to modify first: OpenClaw, OpenCode, Codex 
 
 - Infer supported arguments from user intent.
 - When fields are missing, prefer filling from the current config when safe.
+- Use `add-model` to add a model to an existing provider, or to create/update a provider when the user also supplies the required provider fields.
+- For a brand-new provider, `add-model` needs enough provider config to make it valid: at minimum `--base-url` and `--api`; use `--api-key` and `--auth-header` when appropriate.
+- Use `add-openai-model` only for OpenAI-compatible provider setup flows that require explicit `apiKey` and `api` handling in one step.
 
 ### OpenCode
 
@@ -71,11 +81,19 @@ Use `{baseDir}` as the skill root.
 ```bash
 python3 {baseDir}/scripts/openclaw_config.py --help
 python3 {baseDir}/scripts/openclaw_config.py --file ~/.openclaw/openclaw.json summary
+python3 {baseDir}/scripts/openclaw_config.py --file ~/.openclaw/openclaw.json add-model \
+  --provider-id minimax-cn \
+  --model-id MiniMax-M2.7 \
+  --name 'MiniMax M2.7' \
+  --context-window 200000 \
+  --max-tokens 8192 \
+  --set-default
 ```
 
 Supported operations:
 
 - `summary`
+- `add-model [--provider-id ...] [--model-id ...] [--name ...] [--context-window ...] [--max-tokens ...] [--reasoning true|false] [--allowlist] [--set-default] [--input text|image ...] [--base-url ...] [--api-key ...] [--api ...] [--auth-header true|false]`
 - `add-openai-model ...`
 - `set-openai-provider [--base-url ...] [--api-key ...]`
 - `remove-model <provider/model>`

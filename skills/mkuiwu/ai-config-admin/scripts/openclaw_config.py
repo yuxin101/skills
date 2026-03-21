@@ -104,12 +104,9 @@ def set_openai_provider(
         provider["apiKey"] = api_key
 
 
-def add_openai_model(
+def add_model(
     data: dict,
     provider_id: str,
-    base_url: str,
-    api_key: str,
-    api: str,
     model_id: str,
     name: str | None,
     context_window: int | None,
@@ -117,13 +114,36 @@ def add_openai_model(
     reasoning: bool,
     allowlist: bool,
     set_default: bool,
+    input_types: list[str] | None,
+    base_url: str | None = None,
+    api_key: str | None = None,
+    api: str | None = None,
+    auth_header: bool | None = None,
 ) -> None:
     models = data.setdefault("models", {})
     providers = models.setdefault("providers", {})
-    provider = providers.setdefault(provider_id, {})
-    provider["baseUrl"] = base_url
-    provider["apiKey"] = api_key
-    provider["api"] = api
+    provider = providers.get(provider_id)
+
+    if provider is None:
+        provider = {}
+        providers[provider_id] = provider
+    if not isinstance(provider, dict):
+        raise SystemExit(f"provider config is not an object: {provider_id}")
+
+    if base_url is not None:
+        provider["baseUrl"] = base_url
+    if api_key is not None:
+        provider["apiKey"] = api_key
+    if api is not None:
+        provider["api"] = api
+    if auth_header is not None:
+        provider["authHeader"] = auth_header
+
+    if "baseUrl" not in provider or "api" not in provider:
+        raise SystemExit(
+            "provider must exist with baseUrl and api, or pass --base-url and --api"
+        )
+
     catalog = provider.setdefault("models", [])
     if not isinstance(catalog, list):
         raise SystemExit("provider models must be a list")
@@ -139,7 +159,7 @@ def add_openai_model(
 
     model_entry["name"] = name or model_id
     model_entry["reasoning"] = reasoning
-    model_entry["input"] = ["text"]
+    model_entry["input"] = input_types or model_entry.get("input") or ["text"]
     model_entry["cost"] = model_entry.get("cost") or {
         "input": 0,
         "output": 0,
@@ -157,6 +177,38 @@ def add_openai_model(
         ensure_model_alias(defaults, full_model_id)
     if set_default:
         defaults.setdefault("model", {})["primary"] = full_model_id
+
+
+
+def add_openai_model(
+    data: dict,
+    provider_id: str,
+    base_url: str,
+    api_key: str,
+    api: str,
+    model_id: str,
+    name: str | None,
+    context_window: int | None,
+    max_tokens: int | None,
+    reasoning: bool,
+    allowlist: bool,
+    set_default: bool,
+) -> None:
+    add_model(
+        data,
+        provider_id=provider_id,
+        model_id=model_id,
+        name=name,
+        context_window=context_window,
+        max_tokens=max_tokens,
+        reasoning=reasoning,
+        allowlist=allowlist,
+        set_default=set_default,
+        input_types=["text"],
+        base_url=base_url,
+        api_key=api_key,
+        api=api,
+    )
 
 
 def set_default_model(data: dict, model_id: str) -> None:
@@ -203,10 +255,65 @@ def find_exact_references(node, needle: str, path: str = "$"):
     return refs
 
 
+def find_provider_usage_references(data: dict, provider_id: str) -> list[str]:
+    refs: list[str] = []
+    prefix = f"{provider_id}/"
+
+    auth_profiles = data.get("auth", {}).get("profiles", {})
+    if isinstance(auth_profiles, dict):
+        for profile_key, profile in auth_profiles.items():
+            if isinstance(profile, dict) and profile.get("provider") == provider_id:
+                refs.append(f"$.auth.profiles.{profile_key}.provider")
+
+    defaults = data.get("agents", {}).get("defaults", {})
+    default_model = get_model_primary(defaults.get("model"))
+    if isinstance(default_model, str) and default_model.startswith(prefix):
+        refs.append("$.agents.defaults.model.primary")
+
+    model_aliases = defaults.get("models")
+    if isinstance(model_aliases, dict):
+        for model_ref in model_aliases.keys():
+            if isinstance(model_ref, str) and model_ref.startswith(prefix):
+                refs.append(
+                    f"$.agents.defaults.models[{json.dumps(model_ref, ensure_ascii=False)}]"
+                )
+
+    agents = data.get("agents", {}).get("list", [])
+    if isinstance(agents, list):
+        for idx, agent in enumerate(agents):
+            if not isinstance(agent, dict):
+                continue
+            model_ref = get_model_primary(agent.get("model"))
+            if isinstance(model_ref, str) and model_ref.startswith(prefix):
+                refs.append(f"$.agents.list[{idx}].model.primary")
+
+            model_node = agent.get("model")
+            if isinstance(model_node, dict):
+                fallbacks = model_node.get("fallbacks")
+                if isinstance(fallbacks, list):
+                    for fallback_idx, fallback in enumerate(fallbacks):
+                        if isinstance(fallback, str) and fallback.startswith(prefix):
+                            refs.append(
+                                f"$.agents.list[{idx}].model.fallbacks[{fallback_idx}]"
+                            )
+
+    return refs
+
+
 def cleanup_model_alias(defaults: dict, model_ref: str) -> None:
     model_map = defaults.get("models")
     if isinstance(model_map, dict):
         model_map.pop(model_ref, None)
+
+
+
+def set_model_alias(data: dict, model_ref: str, alias: str | None) -> None:
+    defaults = data.setdefault("agents", {}).setdefault("defaults", {})
+    defaults.setdefault("models", {})
+    if alias is None:
+        defaults["models"].pop(model_ref, None)
+    else:
+        defaults["models"][model_ref] = {"alias": alias}
 
 
 def remove_model(data: dict, model_ref: str) -> list[str]:
@@ -249,7 +356,7 @@ def remove_provider(data: dict, provider_id: str) -> list[str]:
     if provider_id not in providers:
         raise SystemExit(f"provider not found: {provider_id}")
     providers.pop(provider_id)
-    return find_references(data, provider_id)
+    return find_provider_usage_references(data, provider_id)
 
 
 def main() -> int:
@@ -259,20 +366,44 @@ def main() -> int:
 
     sub.add_parser("summary")
 
-    add_model = sub.add_parser("add-openai-model")
-    add_model.add_argument("--provider-id", required=True)
-    add_model.add_argument("--base-url", required=True)
-    add_model.add_argument("--api-key", required=True)
-    add_model.add_argument("--api", default="openai-responses")
-    add_model.add_argument("--model-id", required=True)
-    add_model.add_argument("--name")
-    add_model.add_argument("--context-window", type=int)
-    add_model.add_argument("--max-tokens", type=int)
-    add_model.add_argument(
+    add_model_parser = sub.add_parser("add-model")
+    add_model_parser.add_argument("--provider-id", required=True)
+    add_model_parser.add_argument("--model-id", required=True)
+    add_model_parser.add_argument("--name")
+    add_model_parser.add_argument("--context-window", type=int)
+    add_model_parser.add_argument("--max-tokens", type=int)
+    add_model_parser.add_argument(
         "--reasoning", action=argparse.BooleanOptionalAction, default=True
     )
-    add_model.add_argument("--allowlist", action="store_true")
-    add_model.add_argument("--set-default", action="store_true")
+    add_model_parser.add_argument("--allowlist", action="store_true")
+    add_model_parser.add_argument("--set-default", action="store_true")
+    add_model_parser.add_argument(
+        "--input",
+        dest="input_types",
+        action="append",
+        help="Repeatable input type (for example: --input text --input image)",
+    )
+    add_model_parser.add_argument("--base-url")
+    add_model_parser.add_argument("--api-key")
+    add_model_parser.add_argument("--api")
+    add_model_parser.add_argument(
+        "--auth-header", action=argparse.BooleanOptionalAction, default=None
+    )
+
+    add_openai_model_parser = sub.add_parser("add-openai-model")
+    add_openai_model_parser.add_argument("--provider-id", required=True)
+    add_openai_model_parser.add_argument("--base-url", required=True)
+    add_openai_model_parser.add_argument("--api-key", required=True)
+    add_openai_model_parser.add_argument("--api", default="openai-responses")
+    add_openai_model_parser.add_argument("--model-id", required=True)
+    add_openai_model_parser.add_argument("--name")
+    add_openai_model_parser.add_argument("--context-window", type=int)
+    add_openai_model_parser.add_argument("--max-tokens", type=int)
+    add_openai_model_parser.add_argument(
+        "--reasoning", action=argparse.BooleanOptionalAction, default=True
+    )
+    add_openai_model_parser.add_argument("--allowlist", action="store_true")
+    add_openai_model_parser.add_argument("--set-default", action="store_true")
 
     provider = sub.add_parser("set-openai-provider")
     provider.add_argument("--base-url")
@@ -294,6 +425,10 @@ def main() -> int:
     remove_model_parser = sub.add_parser("remove-model")
     remove_model_parser.add_argument("model_ref")
 
+    set_alias = sub.add_parser("set-model-alias")
+    set_alias.add_argument("model_ref")
+    set_alias.add_argument("alias", nargs="?", default=None)
+
     args = parser.parse_args()
 
     path = Path(args.file).expanduser() if args.file else DEFAULT_OPENCLAW_PATH
@@ -302,6 +437,26 @@ def main() -> int:
 
     if args.cmd == "summary":
         print(json.dumps(summarize(data), ensure_ascii=False, indent=2))
+        return 0
+
+    if args.cmd == "add-model":
+        add_model(
+            data,
+            provider_id=args.provider_id,
+            model_id=args.model_id,
+            name=args.name,
+            context_window=args.context_window,
+            max_tokens=args.max_tokens,
+            reasoning=args.reasoning,
+            allowlist=args.allowlist,
+            set_default=args.set_default,
+            input_types=args.input_types,
+            base_url=args.base_url,
+            api_key=args.api_key,
+            api=args.api,
+            auth_header=args.auth_header,
+        )
+        save_config(path, data)
         return 0
 
     if args.cmd == "add-openai-model":
@@ -339,6 +494,11 @@ def main() -> int:
 
     if args.cmd == "set-agent-model":
         set_agent_model(data, args.agent_id, args.model_id)
+        save_config(path, data)
+        return 0
+
+    if args.cmd == "set-model-alias":
+        set_model_alias(data, args.model_ref, args.alias)
         save_config(path, data)
         return 0
 

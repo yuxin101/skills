@@ -1,11 +1,17 @@
 {
   "owner": "mkuiwu",
   "slug": "ai-config-admin",
-  "displayName": "AI Config Admin",
+  "displayName": "Ai Config Admin",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773825188143,
-    "commit": "https://github.com/openclaw/skills/commit/df8d1fb4cb092e47a3326242becad1c450403714"
+    "version": "1.1.0",
+    "publishedAt": 1773901362538,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773825188143,
+      "commit": "https://github.com/openclaw/skills/commit/df8d1fb4cb092e47a3326242becad1c450403714"
+    }
+  ]
 }
