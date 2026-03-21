@@ -1,11 +1,17 @@
 {
   "owner": "4ier",
   "slug": "claw-use-android",
-  "displayName": "Claw Use Android — Phone Control for AI Agents",
+  "displayName": "Claw Use Android",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773642931993,
-    "commit": "https://github.com/openclaw/skills/commit/4e499a8be0bc40ce63cd56ab20201c7aad224fb6"
+    "version": "2.0.0",
+    "publishedAt": 1773842434127,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773642931993,
+      "commit": "https://github.com/openclaw/skills/commit/4e499a8be0bc40ce63cd56ab20201c7aad224fb6"
+    }
+  ]
 }
