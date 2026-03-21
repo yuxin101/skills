@@ -1,12 +1,11 @@
 {
   "name": "article-publisher",
-  "version": "1.0.0",
+  "version": "1.4.1",
   "description": "自媒体文章多平台发布工具",
   "license": "GPL-3.0",
-  "main": "index.js",
+  "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "postinstall": "node scripts/check-playwright.mjs",
     "install:browser": "npx playwright install chromium",
     "install:browser:cn": "cross-env PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright npx playwright install chromium"
   },
@@ -18,20 +17,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "pkg": {
-    "scripts": [
-      "index.js",
-      "test-publish.js",
-      "test-login.js",
-      "lib/*.js"
-    ],
-    "assets": [
-      "config/**/*"
-    ],
-    "targets": [
-      "node18-win-x64"
-    ],
-    "outputPath": "bin"
   }
 }
