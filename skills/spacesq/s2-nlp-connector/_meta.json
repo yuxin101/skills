@@ -1,0 +1,11 @@
+{
+  "owner": "spacesq",
+  "slug": "s2-nlp-connector",
+  "displayName": "The Semantic Handshake Engine",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774011060096,
+    "commit": null
+  },
+  "history": []
+}
