@@ -1,13 +1,18 @@
 {
   "owner": "ranlywood",
   "slug": "vercel-deploy-pro",
-  "displayName": "Vercel Deploy",
+  "displayName": "Clawhub Publish",
   "latest": {
-    "version": "1.4.1",
-    "publishedAt": 1773823116225,
-    "commit": "https://github.com/openclaw/skills/commit/15f076575b165248227db64a65b77b33599b17ba"
+    "version": "1.4.2",
+    "publishedAt": 1773839148277,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.1",
+      "publishedAt": 1773823116225,
+      "commit": "https://github.com/openclaw/skills/commit/15f076575b165248227db64a65b77b33599b17ba"
+    },
     {
       "version": "1.2.0",
       "publishedAt": 1773822242872,

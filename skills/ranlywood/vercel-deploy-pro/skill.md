@@ -40,6 +40,20 @@ vercel whoami
 
 ---
 
+## Creating or editing HTML files
+
+**CRITICAL: Never output HTML in the response text.**
+
+Always write directly to a file using the Write/Edit tool:
+- ✅ Write tool → `index.html` → deploy
+- ❌ Print HTML in response → copy-paste → deploy
+
+Reason: large HTML files exceed the 32k output token limit and Claude hangs mid-generation. Writing to a file has no such limit.
+
+If the file is very large (>300 lines), build it in logical sections using Edit tool rather than rewriting from scratch.
+
+---
+
 ## Pre-deploy checklist (required)
 
 ### 1. Make ALL changes first
@@ -126,6 +140,7 @@ After a successful deploy, the last message to the user must be the public URL �
 
 | What went wrong | How to do it right |
 |---|---|
+| Generated HTML in response text (hit 32k token limit) | Always write HTML directly to file using Write/Edit tool |
 | Deployed from home directory (wrong CWD) | Always deploy from the project folder with `.vercel/project.json` |
 | Multiple deploys for separate edits | All edits → one deploy |
 | Didn't verify file actually changed before deploying | `grep` before deploying |
