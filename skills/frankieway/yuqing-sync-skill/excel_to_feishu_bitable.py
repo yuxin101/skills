@@ -20,6 +20,47 @@ TOKEN: Optional[str] = None
 DEFAULT_FOLDER_ID: Optional[int] = None
 DEFAULT_CUSTOMER_ID: Optional[str] = None
 
+
+def init_config(
+    *,
+    app_id: str,
+    app_secret: str,
+    bitable_url: str,
+    xiaoai_token: str,
+    xiaoai_base_url: str,
+    folder_id: int,
+    customer_id: Optional[str],
+) -> None:
+    global APP_ID, APP_SECRET, BITABLE_URL, TOKEN, BASE_URL, DEFAULT_FOLDER_ID, DEFAULT_CUSTOMER_ID
+    APP_ID = (app_id or "").strip()
+    APP_SECRET = (app_secret or "").strip()
+    BITABLE_URL = (bitable_url or "").strip()
+    TOKEN = (xiaoai_token or "").strip()
+    BASE_URL = (xiaoai_base_url or "").strip().rstrip("/")
+    DEFAULT_FOLDER_ID = int(folder_id)
+    DEFAULT_CUSTOMER_ID = (customer_id or "").strip() or None
+
+
+def _validate_config() -> None:
+    missing: List[str] = []
+    if not APP_ID:
+        missing.append("app_id")
+    if not APP_SECRET:
+        missing.append("app_secret")
+    if not BITABLE_URL:
+        missing.append("bitable_url")
+    if not TOKEN:
+        missing.append("xiaoai_token")
+    if not BASE_URL:
+        missing.append("xiaoai_base_url")
+    if DEFAULT_FOLDER_ID is None:
+        missing.append("folder_id")
+    if missing:
+        raise RuntimeError(f"missing_required={','.join(missing)}")
+    app_token, table_id = _parse_bitable_url(BITABLE_URL)
+    if not app_token or not table_id:
+        raise RuntimeError(f"BITABLE_URL 解析失败: {BITABLE_URL}")
+
 # ============ 性能优化配置 ============
 # 增大批量大小，减少 API 调用次数
 BATCH_SIZE = 500  # 飞书上限 500
@@ -90,6 +131,7 @@ FIELD_TYPES: Dict[str, int] = {
     "端(机器)": 1,
     "品牌安全(AI)": 1,
     "内容安全(AI)": 1,
+    "是否推送": 1,
 }
 
 KEY_FIELD_NAME = "md5_doc_id"
@@ -618,6 +660,7 @@ def run_once(interval_minutes: int = 10) -> int:
     4. 使用连接池
     5. 只获取一次字段列表
     """
+    _validate_config()
     folder_id = DEFAULT_FOLDER_ID
     customer_id = DEFAULT_CUSTOMER_ID
     end_time = datetime.now()
@@ -719,11 +762,50 @@ def run_once(interval_minutes: int = 10) -> int:
 
 
 def main() -> None:
-    interval_minutes = 10
-    interval_seconds = interval_minutes * 60
+    def _env(key: str, default: str = "") -> str:
+        return os.getenv(f"INPUT_{key.upper()}", os.getenv(key, default)).strip()
+
+    def _env_int(key: str, default: int) -> int:
+        try:
+            return int(_env(key, str(default)))
+        except ValueError:
+            return default
+
+    minutes = _env_int("minutes", 60)
+    folder_id = _env_int("folder_id", 763579)
+    customer_id = _env("customer_id", "xmxa")
+    app_id = _env("app_id")
+    app_secret = _env("app_secret")
+    xiaoai_token = _env("xiaoai_token")
+    bitable_url = _env("bitable_url")
+    xiaoai_base_url = _env("xiaoai_base_url", "http://wisers-data-service.wisersone.com.cn")
+
+    if not all([app_id, app_secret, xiaoai_token, bitable_url]):
+        raise RuntimeError(
+            "missing_required=app_id,app_secret,xiaoai_token,bitable_url"
+        )
+
+    init_config(
+        app_id=app_id,
+        app_secret=app_secret,
+        bitable_url=bitable_url,
+        xiaoai_token=xiaoai_token,
+        xiaoai_base_url=xiaoai_base_url,
+        folder_id=folder_id,
+        customer_id=customer_id,
+    )
+
+    run_forever = _env("run_forever", "").lower() in ("1", "true", "yes")
+    if not run_forever:
+        inserted = run_once(interval_minutes=minutes)
+        print(f"inserted_count={inserted}")
+        return
+
+    interval_seconds = max(1, minutes) * 60
     while True:
-        run_once(interval_minutes=interval_minutes)
-        print(f"休眠 {interval_minutes} 分钟后进行下一次同步……")
+        inserted = run_once(interval_minutes=minutes)
+        print(f"inserted_count={inserted}")
+        print(f"休眠 {minutes} 分钟后进行下一次同步……")
         time.sleep(interval_seconds)
 
 
