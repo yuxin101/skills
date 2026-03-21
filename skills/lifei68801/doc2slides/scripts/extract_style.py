@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """
 Extract design style from existing PowerPoint files.
 Extracts colors, fonts, layout patterns to apply to new slides.

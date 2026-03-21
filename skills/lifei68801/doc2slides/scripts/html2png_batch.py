@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# This script performs LOCAL-ONLY operations. No network requests.
+# Part of doc2slides skill.
 # Security: Only calls local Chrome/Chromium for HTML rendering.
 
 #!/usr/bin/env python3
@@ -34,7 +34,7 @@ def find_chrome():
 
 
 def render_html_to_png(chrome_path: str, html_path: str, png_path: str, 
-                        width: int = 1200, height: int = 675, 
+                        width: int = 1920, height: int = 1080, 
                         wait_ms: int = 2000) -> bool:
     """
     Render HTML file to PNG using Chrome headless
@@ -143,8 +143,8 @@ def main():
     parser = argparse.ArgumentParser(description='Batch convert HTML slides to PNG')
     parser.add_argument('html_dir', help='Directory containing HTML files')
     parser.add_argument('--output', '-o', help='Output directory for PNG files (default: html_dir/../png)')
-    parser.add_argument('--width', type=int, default=1200, help='Viewport width (default: 1200)')
-    parser.add_argument('--height', type=int, default=675, help='Viewport height (default: 675)')
+    parser.add_argument('--width', type=int, default=1920, help='Viewport width (default: 1920)')
+    parser.add_argument('--height', type=int, default=1080, help='Viewport height (default: 1080)')
     
     args = parser.parse_args()
     

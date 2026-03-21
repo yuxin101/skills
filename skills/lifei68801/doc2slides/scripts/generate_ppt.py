@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """
 Generate PowerPoint presentation with consulting style.
 Usage: python generate_ppt.py --output <output.pptx> --title "Title" --content <content.json>

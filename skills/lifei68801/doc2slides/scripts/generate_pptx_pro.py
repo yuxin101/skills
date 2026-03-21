@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """
 Professional PPTX Generator - McKinsey/BCG Style
 Converts document content to polished consulting-style PowerPoint.

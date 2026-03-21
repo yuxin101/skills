@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """
 png2pptx.py - Create PPTX from PNG images (one PNG per slide)
 PNG images are used as slide backgrounds

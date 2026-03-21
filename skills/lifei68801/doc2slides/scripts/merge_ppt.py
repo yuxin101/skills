@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """合并两个 PPT 文件"""
 
 from pptx import Presentation

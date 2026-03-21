@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# This script performs LOCAL-ONLY operations. No network requests.
+# Part of doc2slides skill.
 # Security: subprocess calls are limited to local Chrome/Chromium and Python.
 
 #!/usr/bin/env python3
@@ -27,7 +27,7 @@ sys.path.insert(0, str(CURRENT_DIR))
 
 # 原版模块
 try:
-    from extract_content import smart_extract
+    from read_content import smart_extract
     HAS_EXTRACT = True
 except ImportError:
     HAS_EXTRACT = False

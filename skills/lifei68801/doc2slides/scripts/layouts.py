@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# Part of doc2slides skill.
+
 """
 PPT布局模板库 - 提供多种专业布局参考
 

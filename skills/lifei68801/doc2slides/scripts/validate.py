@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """
 Validate generated PPTX quality.
 Checks content completeness, formatting, readability, visual consistency.

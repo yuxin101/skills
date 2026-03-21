@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """
 workflow_html2pptx.py - Complete workflow: HTML → PNG → PPTX
 
@@ -36,7 +39,7 @@ def workflow(pdf_content: dict, slide_structure: dict, output_path: str,
     Complete workflow: PDF content → HTML → PNG → PPTX
     
     Args:
-        pdf_content: Extracted PDF content (from extract_content.py)
+        pdf_content: Processed PDF content (from read_content.py)
         slide_structure: Slide structure with template assignments
         output_path: Final PPTX output path
         temp_dir: Directory for intermediate files (HTML, PNG)

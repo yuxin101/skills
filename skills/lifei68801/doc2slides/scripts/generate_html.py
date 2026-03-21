@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
 """
 Enhanced HTML Slide Generator with template support.
 Generates consulting-style HTML slides from JSON data.
@@ -93,7 +95,8 @@ def render_problem(data: dict) -> str:
         key_points_html = f'<div class="text-lg text-slate-600">{description}</div>'
     
     # Generate stats cards HTML (right side)
-    stats = data.get('stats', [])
+    # Support both 'stats' and 'data_points' field names
+    stats = data.get('stats', data.get('data_points', []))
     
     color_map = {
         'red': ('bg-red-500', 'text-red-600'),
@@ -111,22 +114,30 @@ def render_problem(data: dict) -> str:
         color_name = stat.get('color', list(color_map.keys())[(i-1) % len(color_map)])
         bg_class, text_class = color_map.get(color_name, color_map['red'])
         
+        # Extract numeric value from string (e.g., "近100" -> 100)
+        import re
+        if isinstance(value, str):
+            numeric_match = re.search(r'[\d.]+', value)
+            numeric_value = float(numeric_match.group()) if numeric_match else 0
+        else:
+            numeric_value = float(value) if value else 0
+        
         # Handle different units
         if unit in ['万亿$', '万亿', '亿']:
             display_value = f"{value}{unit}"
-            bar_width = min(value * 10, 100)  # Scale for visualization
+            bar_width = min(numeric_value * 10, 100)  # Scale for visualization
         elif unit == '+':
             display_value = f"{value}+"
-            bar_width = min(value, 100)
+            bar_width = min(numeric_value, 100)
         elif unit == '%':
             display_value = f"{value}%"
-            bar_width = value
+            bar_width = numeric_value
         elif unit == '万+':
             display_value = f"{value}万+"
-            bar_width = min(value / 50, 100)
+            bar_width = min(numeric_value / 50, 100)
         else:
             display_value = f"{value}{unit}"
-            bar_width = min(value, 100)
+            bar_width = min(numeric_value, 100)
         
         stats_cards_html += f'''
         <div class="bg-slate-50 rounded-xl p-5 border border-slate-100">
@@ -148,7 +159,7 @@ def render_problem(data: dict) -> str:
         </div>
         '''
     
-    # Generate Chart.js data
+    # Generate SVG chart data
     chart_labels = []
     chart_values = []
     for stat in stats:
@@ -156,17 +167,24 @@ def render_problem(data: dict) -> str:
         unit = stat.get('unit', '')
         label = stat.get('label', '指标')
         
+        # Extract numeric value from string (e.g., "近100" -> 100)
+        if isinstance(value, str):
+            numeric_match = re.search(r'[\d.]+', value)
+            numeric_value = float(numeric_match.group()) if numeric_match else 0
+        else:
+            numeric_value = float(value) if value else 0
+        
         # Extract numeric value for chart
         if unit in ['万亿$', '万亿', '亿']:
-            chart_values.append(float(value))
+            chart_values.append(numeric_value)
         elif unit == '+':
-            chart_values.append(float(value))
+            chart_values.append(numeric_value)
         elif unit == '%':
-            chart_values.append(float(value))
+            chart_values.append(numeric_value)
         elif unit == '万+':
-            chart_values.append(float(value) / 10)  # Scale down
+            chart_values.append(numeric_value / 10)  # Scale down
         else:
-            chart_values.append(float(value) if value else 0)
+            chart_values.append(numeric_value if numeric_value else 0)
         
         chart_labels.append(label[:10])  # Truncate label
     
@@ -421,7 +439,27 @@ def render_slide(template_type: str, data: dict) -> str:
         'CLOSING': render_closing
     }
     
-    renderer = renderers.get(template_type.upper(), render_content)
+    # Map layout_suggestion to template types
+    layout_map = {
+        'cover': 'COVER',
+        'dashboard': 'PROBLEM',  # Dashboard uses PROBLEM template (has charts)
+        'big_number': 'PROBLEM',  # Big numbers use PROBLEM template
+        'comparison': 'COMPARE',
+        'card': 'CONTENT',
+        'pyramid': 'SOLUTION',
+        'action_plan': 'SOLUTION',
+        'summary': 'CONTENT',
+        'timeline': 'SOLUTION'
+    }
+    
+    # Normalize template type
+    template_upper = template_type.upper()
+    
+    # Check if it's a layout_suggestion that needs mapping
+    if template_upper not in renderers:
+        template_upper = layout_map.get(template_type.lower(), 'CONTENT')
+    
+    renderer = renderers.get(template_upper, render_content)
     return renderer(data)
 
 
@@ -467,7 +505,8 @@ def main():
         output_dir.mkdir(parents=True, exist_ok=True)
         
         for i, slide in enumerate(slides, 1):
-            template_type = slide.get('template', 'CONTENT')
+            # Use layout_suggestion if available, otherwise template
+            template_type = slide.get('layout_suggestion', slide.get('template', 'CONTENT'))
             html = render_slide(template_type, slide)
             
             output_file = output_dir / f"slide_{i:02d}.html"

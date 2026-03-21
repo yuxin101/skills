@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """
 Smart slide generation - automatically select template based on content.
 Usage: python smart_generate.py --output <dir> --content <content.json>
@@ -91,13 +94,39 @@ def generate_smart_slides(content: str, output_dir: str) -> dict:
         
         # Prepare data based on template type
         if template_type == 'problem':
-            # Extract percentages from content
+            # Extract percentages from content with smart label inference
             stats = []
-            for match in re.finditer(r'(\d+)%\s*(.{2,10})', slide_content):
+            
+            # Pattern: percentage followed by context
+            for match in re.finditer(r'(\d+(?:\.\d+)?)\s*%\s*', slide_content):
+                value = float(match.group(1))
+                
+                # Look back 20 chars for context (what the percentage refers to)
+                start = max(0, match.start() - 20)
+                context = slide_content[start:match.start()].strip()
+                
+                # Infer label from context keywords
+                label = '指标'
+                context_lower = context.lower()
+                
+                if any(kw in context_lower for kw in ['增长', '同比', '环比']):
+                    label = '增长率'
+                elif any(kw in context_lower for kw in ['占', '占比', '份额']):
+                    label = '占比'
+                elif any(kw in context_lower for kw in ['覆盖', '渗透']):
+                    label = '覆盖率'
+                elif any(kw in context_lower for kw in ['满意', '好评']):
+                    label = '满意度'
+                elif any(kw in context_lower for kw in ['用户', '客户', '企业']):
+                    label = '用户增长率'
+                elif any(kw in context_lower for kw in ['营收', '收入', '销售']):
+                    label = '营收增长'
+                
                 stats.append({
-                    'value': int(match.group(1)),
-                    'label': match.group(2).strip(),
-                    'color': 'red' if int(match.group(1)) > 50 else 'orange'
+                    'value': value,
+                    'label': label,
+                    'unit': '%',
+                    'color': 'red' if value > 50 else 'orange'
                 })
             
             data = {
@@ -149,7 +178,7 @@ def generate_smart_slides(content: str, output_dir: str) -> dict:
 
 
 def generate_from_structured_slides(slides_data: dict, output_dir: str) -> dict:
-    """Generate slides from structured JSON (from extract_content.py --slides)."""
+    """Generate slides from structured JSON (from read_content.py --slides)."""
     os.makedirs(output_dir, exist_ok=True)
     
     slides = slides_data.get('slides', [])
@@ -171,15 +200,36 @@ def generate_from_structured_slides(slides_data: dict, output_dir: str) -> dict:
         
         # Prepare data based on template type
         if template_type == 'problem':
-            # Extract percentages from content
+            # Extract percentages from content with smart label inference
             stats = []
-            for item in content if isinstance(content, list) else [content]:
-                match = re.search(r'(\d+)%\s*(.{2,10})', item)
-                if match:
+            content_items = content if isinstance(content, list) else [content]
+            
+            for item in content_items:
+                for match in re.finditer(r'(\d+(?:\.\d+)?)\s*%\s*', str(item)):
+                    value = float(match.group(1))
+                    
+                    # Look back for context
+                    start = max(0, match.start() - 20)
+                    context = str(item)[start:match.start()].strip()
+                    
+                    # Infer label from context
+                    label = '指标'
+                    context_lower = context.lower()
+                    
+                    if any(kw in context_lower for kw in ['增长', '同比', '环比']):
+                        label = '增长率'
+                    elif any(kw in context_lower for kw in ['占', '占比', '份额']):
+                        label = '占比'
+                    elif any(kw in context_lower for kw in ['覆盖', '渗透']):
+                        label = '覆盖率'
+                    elif any(kw in context_lower for kw in ['满意', '好评']):
+                        label = '满意度'
+                    
                     stats.append({
-                        'value': int(match.group(1)),
-                        'label': match.group(2).strip(),
-                        'color': 'red' if int(match.group(1)) > 50 else 'orange'
+                        'value': value,
+                        'label': label,
+                        'unit': '%',
+                        'color': 'red' if value > 50 else 'orange'
                     })
             
             data = {
@@ -252,7 +302,7 @@ def main():
     else:
         data = json.load(sys.stdin)
     
-    # Check if it's structured slides from extract_content.py
+    # Check if it's structured slides from read_content.py
     if 'slides' in data:
         result = generate_from_structured_slides(data, args.output)
     else:

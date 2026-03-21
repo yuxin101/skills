@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Part of doc2slides skill.
+
+#!/usr/bin/env python3
 """提取 PPT 结构"""
 
 from pptx import Presentation
@@ -30,5 +33,8 @@ def extract_ppt_structure(ppt_path):
         print()
 
 if __name__ == "__main__":
-    ppt_path = sys.argv[1] if len(sys.argv) > 1 else "/root/.openclaw/qqbot/downloads/数势科技-Teaser_1773403912517.pptx"
+    ppt_path = sys.argv[1] if len(sys.argv) > 1 else ""
+    if not ppt_path:
+        print("Usage: python extract_ppt_structure.py <pptx_path>")
+        sys.exit(1)
     extract_ppt_structure(ppt_path)

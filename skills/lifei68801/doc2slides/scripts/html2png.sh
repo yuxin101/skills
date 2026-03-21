@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# html2png.sh - HTML to PNG conversion using Chrome headless
+# Part of doc2slides skill.
 # Usage: html2png.sh <input.html> [output.png]
 set -euo pipefail
 
@@ -23,9 +23,14 @@ else
   exit 1
 fi
 
+# HD rendering matching HTML container (1920x1080)
+# Use 2x scale for high-quality PPT (3840x2160 output)
+SCALE="${3:-2}"  # Default 2x, can override with 3rd arg
+
 "$CMD" --headless --disable-gpu --no-sandbox \
   --screenshot="$OUTPUT" \
-  --window-size=1200,675 \
+  --window-size=1920,1080 \
+  --force-device-scale-factor=$SCALE \
   "file://$INPUT" 2>/dev/null
 
 echo "✓ Generated: $OUTPUT"
