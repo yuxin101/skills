@@ -1,0 +1,11 @@
+{
+  "owner": "solomonneas",
+  "slug": "s3-yara-authoring",
+  "displayName": "S³ YARA Rule Authoring",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773938669255,
+    "commit": null
+  },
+  "history": []
+}
