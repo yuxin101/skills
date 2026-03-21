@@ -1,0 +1,11 @@
+{
+  "owner": "bytesagain3",
+  "slug": "firewall-manager",
+  "displayName": "Firewall Manager",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773962343951,
+    "commit": null
+  },
+  "history": []
+}
