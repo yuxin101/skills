@@ -1,0 +1,21 @@
+{
+  "name": "huo15-odoo",
+  "aliases": ["火一五欧度技能", "辉火云odoo", "Odoo接口", "项目任务"],
+  "version": "1.1.0",
+  "description": "火一五欧度技能。辉火云企业套件（Odoo）接口访问完整指南，包括项目、任务、工时、销售、库存等模型的查询和操作方式。开放任务使用 active=True 过滤。",
+  "trigger": {
+    "patterns": [
+      "odoo",
+      "辉火云",
+      "欧度",
+      "项目",
+      "任务",
+      "工时",
+      "库存",
+      "销售",
+      "project",
+      "task"
+    ],
+    "type": "fuzzy"
+  }
+}
