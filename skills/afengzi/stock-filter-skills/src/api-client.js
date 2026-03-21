@@ -46,10 +46,6 @@ export async function apiRequest(path, { method = "GET", params, body } = {}) {
   }
 }
 
-export function handleError(e) {
-  return JSON.stringify({ error: e.message || String(e) }, null, 2);
-}
-
 export function formatJson(data) {
   return JSON.stringify(data, null, 2);
 }

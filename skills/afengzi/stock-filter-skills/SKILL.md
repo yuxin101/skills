@@ -1,6 +1,6 @@
 ---
 name: stock-filter-skills
-description: 股票多条件筛选、热门因子管理、Jiuyan 数据查询和抖音热点分析。提供 15 个 CLI 工具覆盖四大模块。
+description: 股票多条件筛选、热门因子管理、Jiuyan 数据查询和抖音热点分析。提供 17 个 CLI 工具覆盖四大模块。
 metadata: {"openclaw": {"requires": {"bins": ["node"], "env": ["STOCK_API_BASE_URL"]}, "primaryEnv": "STOCK_API_KEY", "emoji": "📈"}}
 ---
 
@@ -8,7 +8,7 @@ metadata: {"openclaw": {"requires": {"bins": ["node"], "env": ["STOCK_API_BASE_U
 
 股票多条件筛选、热门因子管理、Jiuyan 数据查询和抖音热点分析。
 
-当用户提到股票筛选、股票搜索、股票详情、股票分析、热门因子、因子预设、jiuyan/韭研、抖音热点等话题时，使用本技能。
+当用户提到股票筛选、股票搜索、股票详情、股票对比、批量查询、股票分析、热门因子、因子预设、jiuyan/韭研、抖音热点等话题时，使用本技能。
 
 ## Setup
 
@@ -75,6 +75,26 @@ node src/main.js stock_detail '{"code": "600519"}'
 ```
 
 参数: code(string, 必填, 股票代码)
+
+**stock_detail_batch** — 批量获取多只股票详情，并发请求提高效率
+
+```bash
+node src/main.js stock_detail_batch '{"codes": ["600519", "000858", "000333"]}'
+```
+
+参数: codes(array, 必填, 股票代码列表)
+
+需要同时查看多只股票时使用本工具，比逐个调用 stock_detail 更高效。单只股票失败不影响其他结果。
+
+**stock_compare** — 对比多只股票的指标，可指定对比字段
+
+```bash
+node src/main.js stock_compare '{"codes": ["600519", "000858"], "fields": ["pe", "pb", "roe", "gross_margin"]}'
+```
+
+参数: codes(array, 必填, 股票代码列表), fields(array, 可选, 对比字段列表)
+
+不传 fields 则返回所有指标。传入 fields 时仅返回指定字段的对比数据，结果更精简易读。
 
 ### 热门因子模块
 
@@ -176,6 +196,8 @@ node src/main.js douyin_hotspot_detail '{"aweme_id": "xxx"}'
 
 1. 筛选股票：先 stock_filter_options 获取维度 → 再 stock_filter 执行筛选
 2. 查股票：stock_search 搜索 → stock_detail 查详情
-3. 分析股票：jiuyan_stock_analysis 获取分析 → jiuyan_stock_theme 查看主题
-4. 管理预设：hot_factor_list 查看 → hot_factor_create/update/delete 操作
-5. 看热点：douyin_hotspot_list 浏览 → douyin_hotspot_detail 查详情
+3. 批量查询：stock_detail_batch 一次获取多只股票详情
+4. 对比股票：stock_compare 对比多只股票的关键指标
+5. 分析股票：jiuyan_stock_analysis 获取分析 → jiuyan_stock_theme 查看主题
+6. 管理预设：hot_factor_list 查看 → hot_factor_create/update/delete 操作
+7. 看热点：douyin_hotspot_list 浏览 → douyin_hotspot_detail 查详情

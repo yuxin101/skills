@@ -6,19 +6,21 @@
 
 | 模块 | 工具数 | 说明 |
 |------|--------|------|
-| 股票筛选 | 4 | 多条件筛选、搜索、详情查询 |
+| 股票筛选 | 6 | 多条件筛选、搜索、详情、批量查询、对比 |
 | 热门因子 | 6 | 预设的增删改查、排序和使用 |
 | Jiuyan 数据 | 3 | 股票分析、主题、文章查询 |
 | 抖音热点 | 2 | 热点列表和详情 |
 
-共计 **15 个工具**。
+共计 **17 个工具**。
 
 ## 安装
 
 ```bash
 cd stock-filter-skills
-pip install -r requirements.txt
+npm install
 ```
+
+要求 Node.js >= 18.0.0。
 
 ## 配置
 
@@ -61,50 +63,31 @@ openclaw skill publish stock-filter-skills
 
 ```bash
 # 查看所有工具
-python -m src.main --help
+node src/main.js --help
 
 # 搜索股票
-python -m src.main stock_search '{"keyword": "贵州茅台"}'
+node src/main.js stock_search '{"keyword": "贵州茅台"}'
 
 # 筛选股票
-python -m src.main stock_filter '{"filters": {"market": ["sh"]}, "page": 1}'
+node src/main.js stock_filter '{"filters": {"market": ["sh"]}, "page": 1}'
 
 # 获取股票详情
-python -m src.main stock_detail '{"code": "600519"}'
+node src/main.js stock_detail '{"code": "600519"}'
+
+# 批量获取多只股票
+node src/main.js stock_detail_batch '{"codes": ["600519", "000858", "000333"]}'
+
+# 对比股票指标
+node src/main.js stock_compare '{"codes": ["600519", "000858"], "fields": ["pe", "pb", "roe"]}'
 
 # 获取热门因子
-python -m src.main hot_factor_list
+node src/main.js hot_factor_list
 
 # Jiuyan 分析
-python -m src.main jiuyan_stock_analysis '{"stock_code": "300236"}'
+node src/main.js jiuyan_stock_analysis '{"stock_code": "300236"}'
 
 # 抖音热点
-python -m src.main douyin_hotspot_list '{"page": 1}'
-```
-
-### 作为 MCP Server（可选）
-
-如果需要在 Cursor / Claude Desktop 中使用：
-
-```bash
-python server.py
-```
-
-Cursor 配置 (`.cursor/mcp.json`)：
-
-```json
-{
-  "mcpServers": {
-    "stock-filter": {
-      "command": "python",
-      "args": ["d:/fengzi/stock-filter-skills/server.py"],
-      "env": {
-        "STOCK_API_BASE_URL": "http://localhost:8000",
-        "STOCK_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
+node src/main.js douyin_hotspot_list '{"page": 1}'
 ```
 
 ## API Key 认证
@@ -118,19 +101,6 @@ Cursor 配置 (`.cursor/mcp.json`)：
 1. **创建 API Key 管理功能**：生成、存储（哈希）和验证 Key
 2. **添加认证中间件**：检查 `X-API-Key` Header
 3. **权限控制**：不同 Key 绑定不同权限
-
-后端中间件示例（FastAPI）：
-
-```python
-from fastapi import Request, HTTPException, Depends
-
-async def verify_api_key(request: Request):
-    api_key = request.headers.get("X-API-Key")
-    if not api_key:
-        raise HTTPException(status_code=401, detail="缺少 API Key")
-    if not await is_valid_api_key(api_key):
-        raise HTTPException(status_code=401, detail="无效的 API Key")
-```
 
 ### 安全建议
 
@@ -146,20 +116,14 @@ stock-filter-skills/
 ├── SKILL.md               # OpenClaw 技能定义（核心）
 ├── README.md              # 说明文档
 ├── config.json.example    # OpenClaw 配置模板
-├── requirements.txt       # Python 依赖
+├── package.json           # Node.js 依赖与脚本
 ├── .env.example           # 环境变量模板
 ├── .gitignore
-├── server.py              # MCP Server 入口（可选）
 └── src/
-    ├── __init__.py
-    ├── __main__.py         # python -m src 入口
-    ├── main.py             # CLI 工具调度器
-    ├── config.py           # 配置管理
-    ├── api_client.py       # 共享 HTTP 客户端
-    ├── stock_tools.py      # 股票筛选工具
-    ├── hot_factor_tools.py # 热门因子工具
-    ├── jiuyan_tools.py     # Jiuyan 数据工具
-    └── douyin_tools.py     # 抖音热点工具
+    ├── main.js            # CLI 入口与工具调度
+    ├── tools.js           # 15 个工具实现
+    ├── config.js          # 配置与环境变量
+    └── api-client.js      # 共享 HTTP 客户端
 ```
 
 ## 发布到 ClawHub

@@ -10,15 +10,10 @@ export const API_KEY = process.env.STOCK_API_KEY || "";
 export const API_TIMEOUT = Number(process.env.STOCK_API_TIMEOUT || "30") * 1000;
 export const API_PREFIX = "/api/v1";
 
-if (!API_BASE_URL) {
-  console.error("错误: 未设置 STOCK_API_BASE_URL 环境变量。");
-  process.exit(1);
-}
-if (!API_KEY) {
-  console.error("警告: 未设置 STOCK_API_KEY，请求可能因认证失败而被拒绝。");
-}
-
 export function getApiUrl(path) {
+  if (!API_BASE_URL) {
+    throw new Error("未设置 STOCK_API_BASE_URL 环境变量");
+  }
   return `${API_BASE_URL}${API_PREFIX}${path}`;
 }
 

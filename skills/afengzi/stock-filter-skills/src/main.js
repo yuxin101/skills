@@ -17,6 +17,8 @@ const REGISTRY = {
   stock_filter_options: { fn: tools.stock_filter_options,  desc: "获取筛选选项" },
   stock_search:         { fn: tools.stock_search,          desc: "搜索股票" },
   stock_detail:         { fn: tools.stock_detail,          desc: "获取股票详情" },
+  stock_detail_batch:   { fn: tools.stock_detail_batch,    desc: "批量获取股票详情" },
+  stock_compare:        { fn: tools.stock_compare,         desc: "对比多只股票指标" },
   hot_factor_list:      { fn: tools.hot_factor_list,       desc: "获取热门因子预设列表" },
   hot_factor_create:    { fn: tools.hot_factor_create,     desc: "创建因子预设" },
   hot_factor_update:    { fn: tools.hot_factor_update,     desc: "更新因子预设" },
@@ -47,7 +49,7 @@ if (!toolName || ["--help", "-h", "help"].includes(toolName)) {
 }
 
 if (!REGISTRY[toolName]) {
-  console.error(`未知工具: ${toolName}，使用 --help 查看可用工具`);
+  console.log(JSON.stringify({ error: `未知工具: ${toolName}，使用 --help 查看可用工具` }));
   process.exit(1);
 }
 
@@ -56,6 +58,6 @@ try {
   const result = await REGISTRY[toolName].fn(params);
   console.log(result);
 } catch (e) {
-  console.error(JSON.stringify({ error: `${e.name}: ${e.message}` }));
+  console.log(JSON.stringify({ error: e.message || String(e) }));
   process.exit(1);
 }
