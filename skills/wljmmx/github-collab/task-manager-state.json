@@ -1,0 +1,113 @@
+{
+  "timestamp": 1773938612112,
+  "projects": [
+    [
+      "project-1773936282824-0wzhbuuo2",
+      {
+        "id": "project-1773936282824-0wzhbuuo2",
+        "name": "Test Project",
+        "description": "测试项目",
+        "github_url": "https://github.com/test/repo",
+        "created_at": 1773936282824,
+        "updated_at": 1773936282824
+      }
+    ]
+  ],
+  "tasks": [
+    [
+      "task-1773936282824-1mvhe543z",
+      {
+        "id": "task-1773936282824-1mvhe543z",
+        "project_id": "project-1773936282824-0wzhbuuo2",
+        "name": "Test Task",
+        "description": "测试任务",
+        "priority": 10,
+        "status": "pending",
+        "created_at": 1773936282824,
+        "updated_at": 1773936282824,
+        "dependencies": []
+      }
+    ],
+    [
+      "task-1773936282825-5pd9y94os",
+      {
+        "id": "task-1773936282825-5pd9y94os",
+        "name": "Task 1",
+        "description": "Desc 1",
+        "priority": 10,
+        "project_id": "project-1773936282824-0wzhbuuo2",
+        "status": "pending",
+        "created_at": 1773936282825,
+        "updated_at": 1773936282825,
+        "dependencies": []
+      }
+    ],
+    [
+      "task-1773936282825-lt4cgg6md",
+      {
+        "id": "task-1773936282825-lt4cgg6md",
+        "name": "Task 2",
+        "description": "Desc 2",
+        "priority": 9,
+        "project_id": "project-1773936282824-0wzhbuuo2",
+        "status": "pending",
+        "created_at": 1773936282825,
+        "updated_at": 1773936282825,
+        "dependencies": []
+      }
+    ],
+    [
+      "task-1773936282825-oc4gh8p9l",
+      {
+        "id": "task-1773936282825-oc4gh8p9l",
+        "name": "Task 3",
+        "description": "Desc 3",
+        "priority": 8,
+        "project_id": "project-1773936282824-0wzhbuuo2",
+        "status": "pending",
+        "created_at": 1773936282825,
+        "updated_at": 1773936282825,
+        "dependencies": []
+      }
+    ],
+    [
+      "task-1773936282825-e79plokbq",
+      {
+        "id": "task-1773936282825-e79plokbq",
+        "project_id": "project-1773936282824-0wzhbuuo2",
+        "name": "Task A",
+        "priority": 10,
+        "status": "completed",
+        "created_at": 1773936282825,
+        "updated_at": 1773936282826,
+        "dependencies": [],
+        "assignee": "dev-agent",
+        "completed_by": "dev-agent",
+        "completed_at": 1773936282826
+      }
+    ],
+    [
+      "task-1773936282825-h617xrz46",
+      {
+        "id": "task-1773936282825-h617xrz46",
+        "project_id": "project-1773936282824-0wzhbuuo2",
+        "name": "Task B",
+        "priority": 9,
+        "status": "pending",
+        "created_at": 1773936282825,
+        "updated_at": 1773936282825,
+        "dependencies": [
+          "task-1773936282825-e79plokbq"
+        ]
+      }
+    ]
+  ],
+  "dependencies": [],
+  "state": {
+    "pendingTasks": [],
+    "runningTasks": [],
+    "completedTasks": [
+      "task-1773936282825-e79plokbq"
+    ]
+  }
+}

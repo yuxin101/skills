@@ -1,0 +1,38 @@
+{
+  "name": "github-collab-skill",
+  "version": "1.0.0",
+  "description": "GitHub 多 Agent 协作开发技能 - 支持任务管理、多 Agent 协作、STP 任务规划",
+  "main": "core/main-controller.js",
+  "scripts": {
+    "start": "node scripts/main.js",
+    "test": "node tests/test-all.js",
+    "test:basic": "node tests/test-task-manager.js",
+    "test:agent": "node tests/test-agent-binding.js",
+    "test:stp": "node tests/test-stp-integration.js",
+    "example": "node examples/basic-example.js",
+    "example:complete": "node examples/complete-example.js",
+    "example:stp": "node examples/stp-example.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.0.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "github",
+    "agent",
+    "collaboration",
+    "task-management",
+    "multi-agent",
+    "stp",
+    "openclaw"
+  ],
+  "author": "OpenClaw",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openclaw/github-collab"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
