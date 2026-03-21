@@ -15,10 +15,10 @@ This skill is used for querying Chinese holidays, work-shift arrangements, and w
 ## 使用方法 / Usage
 
 ### 1. 查询指定日期 / Query a specific date
-调用 `scripts/holiday_checker.py` 并传入日期（需修改脚本中 `__main__` 部分的测试日期）：
-Call `scripts/holiday_checker.py` and pass the date (you need to modify the test date in the `__main__` section of the script):
+支持通过 `--date` 参数传入日期（格式为 YYYY-MM-DD），若不传入则默认使用当天日期：
+Supports querying a specific date via the `--date` parameter (format: YYYY-MM-DD); defaults to today if not provided:
 ```bash
-python3 cn-holiday-checker/scripts/holiday_checker.py
+python3 cn-holiday-checker/scripts/holiday_checker.py --date "2026-03-19"
 ```
 
 ### 2. 手动更新数据 / Manual Data Update

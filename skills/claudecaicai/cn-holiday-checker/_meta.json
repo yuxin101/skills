@@ -3,9 +3,15 @@
   "slug": "cn-holiday-checker",
   "displayName": "Chinese Holiday Assistant",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773800708033,
-    "commit": "https://github.com/openclaw/skills/commit/1b2c1dd314c14a62edbcf970a6eaa3d4b47ff473"
+    "version": "1.0.1",
+    "publishedAt": 1773900830282,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773800708033,
+      "commit": "https://github.com/openclaw/skills/commit/1b2c1dd314c14a62edbcf970a6eaa3d4b47ff473"
+    }
+  ]
 }

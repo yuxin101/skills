@@ -49,7 +49,16 @@ def check_date(target_date):
         return "休息日", "正常周末"
 
 if __name__ == "__main__":
-    # 测试指定日期: 2026-9-25
-    test_date = datetime.date(2026, 9, 25)
-    status, detail = check_date(test_date)
-    print(f"日期: {test_date}, 状态: {status}, 详情: {detail}")
+    import sys
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", type=str, help="YYYY-MM-DD")
+    args = parser.parse_args()
+    
+    if args.date:
+        target_date = datetime.datetime.strptime(args.date, "%Y-%m-%d").date()
+    else:
+        target_date = datetime.date.today()
+        
+    status, detail = check_date(target_date)
+    print(f"日期: {target_date}, 状态: {status}, 详情: {detail}")
