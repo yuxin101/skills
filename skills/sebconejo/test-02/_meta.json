@@ -1,0 +1,11 @@
+{
+  "owner": "sebconejo",
+  "slug": "test-02",
+  "displayName": "Test",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774139221223,
+    "commit": null
+  },
+  "history": []
+}
