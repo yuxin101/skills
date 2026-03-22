@@ -37,7 +37,24 @@ python3 scripts/publish_skill.py ~/.jvs/.openclaw/workspace/skills/cn-stock-volu
 - Git 提交并推送
 - 发布到 ClawHub
 
-### 示例 2: 发布小版本更新
+### 示例 2: 发布集合仓库中的 skill（Monorepo）
+
+```bash
+# 从 skill 集合仓库发布单个 skill
+python3 scripts/publish_skill.py \
+  ~/.jvs/.openclaw/workspace/skills/cn-stock-volume/cn-stock-volume \
+  --slug cn-stock-volume \
+  --changelog "新增功能" \
+  --collection-root ~/.jvs/.openclaw/workspace/skills/cn-stock-volume
+```
+
+**说明：**
+- `path`: 单个 skill 的目录
+- `collection-root`: 集合仓库根目录（Git 仓库位置）
+- Git 提交会在集合根目录进行
+- 适合 monorepo 结构
+
+### 示例 3: 发布小版本更新
 
 ```bash
 python3 scripts/publish_skill.py ~/.jvs/.openclaw/workspace/skills/my-skill \
@@ -135,14 +152,33 @@ python3 scripts/publish_skill.py ~/.jvs/.openclaw/workspace/skills/my-skill \
 **原因**: slug 已被其他 skill 使用
 **解决**: 更换唯一的 slug 名称
 
-### Q: Git 推送失败
-**原因**: 未配置远程仓库或认证失败
+### Q: Git 推送失败 - 未配置远程仓库
+**原因**: 未配置远程仓库
 **解决**: 
 ```bash
 cd <skill 目录>
 git remote add origin <github-repo-url>
 git push -u origin main
 ```
+
+### Q: Git 推送失败 - 远程仓库已有内容
+**原因**: 远程仓库有独立的历史记录
+**解决**: 
+```bash
+cd <skill 目录>
+# 方法 1: 强制推送（覆盖远程）
+git push -u origin main --force
+
+# 方法 2: 合并远程历史
+git pull origin main --allow-unrelated-histories
+git push -u origin main
+```
+
+### Q: Git 认证失败
+**原因**: 未配置 Git 凭证或 SSH 密钥
+**解决**: 
+- HTTPS: `git config --global credential.helper store` 然后重新输入密码
+- SSH: 配置 SSH 密钥 `ssh-keygen` 并添加到 GitHub
 
 ### Q: ClawHub 发布失败
 **原因**: 未登录或网络问题

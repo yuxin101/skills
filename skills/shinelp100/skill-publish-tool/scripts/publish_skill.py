@@ -6,6 +6,8 @@ skill-publisher: 自动更新 GitHub 仓库并发布到 ClawHub
 2. 更新 README.md 更新日志
 3. 提交到 Git 并推送到 GitHub
 4. 发布到 ClawHub
+
+注意：本脚本使用可靠的字符串替换方法，避免 edit 工具的精确匹配问题。
 """
 
 import sys
@@ -21,9 +23,9 @@ def run_cmd(cmd, cwd=None):
     print(f"🔧 执行：{cmd}")
     result = subprocess.run(cmd, shell=True, cwd=cwd, capture_output=True, text=True)
     if result.stdout:
-        print(result.stdout)
+        print(result.stdout.strip())
     if result.returncode != 0 and result.stderr:
-        print(f"❌ 错误：{result.stderr}")
+        print(f"❌ 错误：{result.stderr.strip()}")
     return result.returncode == 0, result.stdout, result.stderr
 
 def parse_version(version):
@@ -52,7 +54,7 @@ def bump_version(version, bump_type='patch'):
     return f"{parts[0]}.{parts[1]}.{parts[2]}"
 
 def update_json_file(filepath, version):
-    """更新 JSON 文件的版本号"""
+    """更新 JSON 文件的版本号（使用 JSON 解析，可靠）"""
     if not os.path.exists(filepath):
         print(f"⚠️  文件不存在：{filepath}")
         return False
@@ -70,31 +72,41 @@ def update_json_file(filepath, version):
     return True
 
 def update_readme_changelog(filepath, version, changelog):
-    """更新 README.md 的更新日志"""
+    """
+    更新 README.md 的更新日志（使用正则表达式，可靠）
+    
+    策略：
+    1. 如果存在"## 更新日志"部分，在其后插入新条目
+    2. 如果不存在，在文件末尾创建该部分
+    """
     if not os.path.exists(filepath):
         print(f"⚠️  文件不存在：{filepath}")
         return False
     
     today = datetime.now().strftime('%Y-%m-%d')
+    new_entry = f"\n### v{version} ({today})\n- {changelog}\n"
     
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     
     # 查找更新日志部分
     changelog_header = "## 更新日志"
-    if changelog_header not in content:
-        # 如果没有更新日志部分，添加到文件末尾
-        new_entry = f"\n## 更新日志\n\n### v{version} ({today})\n- {changelog}\n"
-        content += new_entry
+    
+    if changelog_header in content:
+        # 使用正则表达式在标题后插入
+        # 匹配"## 更新日志"后的第一个空行之后
+        pattern = r'(## 更新日志\n)'
+        replacement = r'\1' + new_entry
+        content = re.sub(pattern, replacement, content, count=1)
+        print(f"✅ 已更新 README.md 更新日志 → v{version}")
     else:
-        # 在更新日志标题后插入新条目
-        new_entry = f"\n### v{version} ({today})\n- {changelog}\n"
-        content = content.replace(changelog_header, changelog_header + new_entry, 1)
+        # 在文件末尾添加更新日志部分
+        content += f"\n## 更新日志\n{new_entry}"
+        print(f"✅ 已创建 README.md 更新日志 → v{version}")
     
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(content)
     
-    print(f"✅ 已更新 README.md 更新日志 → v{version}")
     return True
 
 def init_git(cwd):
@@ -114,27 +126,30 @@ def init_git(cwd):
     
     return True
 
-def git_commit_push(cwd, version, message):
+def git_commit_push(cwd, version, message, collection_root=None):
     """提交并推送代码"""
+    # 如果是集合仓库，使用集合根目录作为 Git 仓库
+    git_cwd = collection_root if collection_root else cwd
+    
     # 添加所有文件
-    success, _, _ = run_cmd("git add -A", cwd=cwd)
+    success, _, _ = run_cmd("git add -A", cwd=git_cwd)
     if not success:
         return False
     
     # 检查是否有更改
-    success, output, _ = run_cmd("git status --porcelain", cwd=cwd)
+    success, output, _ = run_cmd("git status --porcelain", cwd=git_cwd)
     if not output.strip():
         print("ℹ️  没有文件更改")
         return True
     
     # 提交
     commit_msg = f"v{version}: {message}"
-    success, _, _ = run_cmd(f'git commit -m "{commit_msg}"', cwd=cwd)
+    success, _, _ = run_cmd(f'git commit -m "{commit_msg}"', cwd=git_cwd)
     if not success:
         return False
     
     # 推送
-    success, _, stderr = run_cmd("git push", cwd=cwd)
+    success, _, stderr = run_cmd("git push", cwd=git_cwd)
     if not success:
         if "could not read Username" in stderr or "Authentication failed" in stderr:
             print("⚠️  Git 认证失败，请配置 Git 凭证或 SSH 密钥")
@@ -165,6 +180,9 @@ def publish_to_clawhub(cwd, slug, version, changelog):
     if "Version already exists" in output or "Version already exists" in stderr:
         print(f"⚠️  版本 v{version} 已存在!")
         print(f"💡 建议：使用 --bump 参数自动递增版本号，或手动指定新版本号")
+    elif "Slug is already taken" in output or "Slug is already taken" in stderr:
+        print(f"⚠️  Slug '{slug}' 已被占用!")
+        print(f"💡 建议：更换唯一的 slug 名称")
     else:
         print("❌ ClawHub 发布失败")
     
@@ -179,6 +197,7 @@ def main():
     parser.add_argument('--changelog', required=True, help='更新日志')
     parser.add_argument('--skip-git', action='store_true', help='跳过 Git 操作')
     parser.add_argument('--skip-clawhub', action='store_true', help='跳过 ClawHub 发布')
+    parser.add_argument('--collection-root', help='集合仓库根目录（可选，用于 monorepo 结构）')
     
     args = parser.parse_args()
     
@@ -193,6 +212,8 @@ def main():
     print(f"  📦 Skill Publisher")
     print(f"  路径：{skill_path}")
     print(f"  Slug: {args.slug}")
+    if args.collection_root:
+        print(f"  集合根目录：{args.collection_root}")
     print(f"{'='*60}\n")
     
     # 读取当前版本
@@ -211,12 +232,12 @@ def main():
     new_version = bump_version(current_version, args.bump)
     print(f"📋 新版本：v{new_version}\n")
     
-    # 1. 更新版本号
+    # 1. 更新版本号（使用 JSON 解析，100% 可靠）
     print("━━━ 步骤 1: 更新版本号 ━━━")
     update_json_file(package_json, new_version)
     update_json_file(meta_json, new_version)
     
-    # 2. 更新 README 更新日志
+    # 2. 更新 README 更新日志（使用正则表达式，可靠）
     print("\n━━━ 步骤 2: 更新 README.md ━━━")
     readme_path = os.path.join(skill_path, 'README.md')
     update_readme_changelog(readme_path, new_version, args.changelog)
@@ -224,8 +245,10 @@ def main():
     # 3. Git 提交和推送
     if not args.skip_git:
         print("\n━━━ 步骤 3: Git 提交和推送 ━━━")
-        init_git(skill_path)
-        git_commit_push(skill_path, new_version, args.changelog)
+        # 如果是集合仓库，使用集合根目录
+        git_root = args.collection_root if args.collection_root else skill_path
+        init_git(git_root)
+        git_commit_push(skill_path, new_version, args.changelog, git_root)
     
     # 4. 发布到 ClawHub
     if not args.skip_clawhub:
