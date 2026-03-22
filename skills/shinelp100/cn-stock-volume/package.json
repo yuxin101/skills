@@ -1,6 +1,6 @@
 {
   "name": "cn-stock-volume",
-  "version": "1.2.1",
-  "description": "获取中国 A 股四市（沪市/深市/创业板/北交所）成交金额、增缩量及比例报告",
+  "version": "1.2.2",
+  "description": "\u83b7\u53d6\u4e2d\u56fd A \u80a1\u56db\u5e02\uff08\u6caa\u5e02/\u6df1\u5e02/\u521b\u4e1a\u677f/\u5317\u4ea4\u6240\uff09\u6210\u4ea4\u91d1\u989d\u3001\u589e\u7f29\u91cf\u53ca\u6bd4\u4f8b\u62a5\u544a",
   "license": "MIT"
 }
