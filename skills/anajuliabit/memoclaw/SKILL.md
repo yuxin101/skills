@@ -1,6 +1,6 @@
 ---
 name: memoclaw
-version: 1.23.4
+version: 1.23.5
 description: |
   Memory-as-a-Service for AI agents. Store and recall memories with semantic
   vector search. 100 free calls per wallet, then x402 micropayments.
@@ -21,7 +21,7 @@ Persistent memory for AI agents. Store text, recall it later with semantic searc
 
 No API keys. No registration. Your wallet address is your identity.
 
-Every wallet gets 100 free API calls — just sign and go. After that, x402 micropayments ($0.005/call, USDC on Base).
+Every wallet gets 100 free API calls — just sign and go. After that, embedding-backed calls split into two x402 tiers: store/update/recall/batch update stay at $0.005, while context/extract/ingest/consolidate/migrate cost $0.01 (all paid in USDC on Base).
 
 ---
 
@@ -139,7 +139,7 @@ Need to retrieve memories?
 | `recall` | $0.005 | Semantic vector search (embeddings) | "What did user say about X?" style queries |
 | `context` | $0.01 | GPT assembles an LLM-ready block from relevant memories | Feeding context into a system prompt |
 
-**Cost-saving tip:** Start with `core` + `search` (both free). Only use `recall`/`context` when you need semantic understanding or formatted output.
+**Cost-saving tip:** Start with `core` + `search` (both free). Only use `recall`/`context` when you need semantic understanding or formatted output. See the cost tiers cheat sheet below for the full list of paid commands.
 
 ### When MemoClaw beats local files
 
@@ -477,8 +477,11 @@ memoclaw relations list <memory-id>
 memoclaw relations create <memory-id> <target-id> related_to
 memoclaw relations delete <memory-id> <relation-id>
 
-# Traverse the memory graph
+# Traverse the memory graph (related memories up to N hops)
 memoclaw graph <memory-id>
+memoclaw graph <memory-id> --depth 3                   # max hops (default: 2, max: 5)
+memoclaw graph <memory-id> --limit 100                 # max memories returned (default: 50, max: 200)
+memoclaw graph <memory-id> --depth 2 --relation-types supersedes,contradicts  # filter by relation type
 
 # Assemble context block for LLM prompts
 memoclaw context "user preferences and recent decisions" --limit 10
@@ -516,8 +519,9 @@ memoclaw diff <uuid> --all             # all diffs in sequence
 memoclaw count
 memoclaw count --namespace project-alpha
 
-# Interactive memory browser (REPL)
+# Interactive memory browser (REPL) — search, view, update, delete, relate memories interactively
 memoclaw browse
+memoclaw browse --namespace project-alpha              # start in a specific namespace
 
 # Import memories from JSON export
 memoclaw import memories.json
@@ -644,6 +648,18 @@ The CLI handles both automatically.
 | Ingest | $0.01 |
 | Context | $0.01 |
 | Migrate (per request) | $0.01 |
+
+### Cost tiers cheat sheet
+
+| Tier | Price | Commands and notes |
+|------|-------|--------------------|
+| Free | $0 | list, get, delete, bulk delete, search (text), core, suggested, relations, history, export, namespace list/stats, count, browse, config, tags, watch, alias, snapshot, pin/unpin, lock/unlock, edit, copy, move, whoami, status, upgrade (see note<sup>3</sup>) |
+| Embedding | $0.005 per call<sup>1</sup> | store, store --file, store --batch<sup>2</sup>, update (when content changes), recall, batch update |
+| Workflow | $0.01 per call | context, extract, ingest, consolidate, migrate |
+
+1. Update only bills when you change the stored content (metadata-only edits stay free). Recall and store charges include the embedding regeneration.
+2. Batch store costs $0.04 per request for up to 100 memories and draws from the same $0.005 embedding tier.
+3. The free row highlights the most-used commands; see the "Free commands" section near the top of this file for the full list.
 
 **Free:** List, Get, Delete, Bulk Delete, Search (text), Core, Suggested, Relations, History, Export, Import, Namespace, Stats, Count
 
@@ -826,6 +842,18 @@ Command not found: memoclaw
 → API might be down. Fall back to local files temporarily.
 → Check https://api.memoclaw.com/v1/free-tier/status with curl
 
+`memoclaw recall` or `memoclaw search` immediately returns `Error: Internal server error`
+→ Run `memoclaw list --limit 1` to confirm the API still responds (list is free / non-embedding).
+→ If list works but every recall/search fails, the database migration `003_hybrid_retrieval.sql` (adds `memories.content_tsv`) hasn’t finished. Run the memocloud migrations against Neon (or your Postgres) and redeploy.
+→ As of March 2026 the API auto-detects when `content_tsv` is missing and falls back to inline `to_tsvector('english', content)` so requests keep working, just slower. Make sure you’re on the latest API build to get that safety net.
+→ While waiting on migrations, stick to `memoclaw list --limit 5 --sort-by importance` or jot critical facts in local scratch files so you can backfill once recall is healthy.
+
+`memoclaw search "query"` returns `Error: Invalid memory ID format`
+→ CLI ≤1.9.0 still points `memoclaw search` at `GET /v1/memories/search`, which the API interprets as `/v1/memories/:id` and rejects because "search" isn’t a UUID.
+→ Run `memoclaw --version`. If it’s 1.9.0 or older, upgrade: `npm install -g anajuliabit/memoclaw-cli#fix/search-endpoint` (temporary) or, once published, `npm install -g memoclaw@latest` (≥1.9.1 uses `POST /v1/search`).
+→ Need results immediately? Call the API directly: `curl -s https://api.memoclaw.com/v1/search -H "content-type: application/json" -d '{"query":"meeting notes","limit":5}' | jq`. This endpoint is FREE because it skips embeddings.
+→ OpenClaw automations using the MemoClaw skill keep working because the skill already targets `POST /v1/search`. If your agent has to run locally, swap the failing CLI step for the skill’s `search` tool until you can upgrade the CLI.
+
 Recall returns no results for something you stored
 → Check namespace — recall defaults to "default"
 → Try memoclaw search "keyword" for free text search
@@ -856,7 +884,13 @@ CLI --help shows wrong memory types (e.g. "core, episodic, semantic")
 
 ### Quick health check
 
-Run this sequence to verify everything works:
+Run the automated preflight script to verify everything at once:
+
+```bash
+bash scripts/preflight.sh   # checks CLI, config, API, free tier, memory count
+```
+
+Or check manually:
 
 ```bash
 memoclaw config check    # Wallet configured?

@@ -20,7 +20,7 @@ memoclaw recall "UI preferences"  # semantic search
 3. **Decay** naturally — memory types control half-lives (corrections: 180d, observations: 14d)
 4. **Pin** critical facts so they never decay
 
-Every wallet gets **100 free API calls**. After that, $0.005/call (USDC on Base).
+Every wallet gets **100 free API calls**. After that, embedding-backed commands pay per call: store/update/recall/batch update stay at $0.005 while context/extract/ingest/consolidate/migrate cost $0.01. List/get/search/core/etc remain free. (USDC on Base)
 
 ## What agents get
 
@@ -54,7 +54,20 @@ memoclaw stats                                                     # FREE
 | Moderate (10-20/day) | ~$0.08 | ~$2.40 |
 | Heavy (30-50/day) | ~$0.20 | ~$6.00 |
 
-Many commands are free: list, get, delete, search, core, stats, tags, history, export, and more.
+Many commands are free: list, get, delete, search, core, stats, tags, history, export, and more. Only embedding-backed calls (store/update/recall/context/extract/ingest/consolidate/migrate) incur the paid per-call pricing.
+
+### Cost tiers after the free 100 calls
+
+| Tier | Price | Commands and notes |
+|------|-------|--------------------|
+| Free | $0 | list, get, delete, bulk delete, search (text), core, suggested, relations, history, export, namespace list/stats, count, browse, config, tags, watch, alias, snapshot, pin/unpin, lock/unlock, edit, copy, move, whoami, status, upgrade (see note<sup>3</sup>) |
+| Embedding | $0.005 per call<sup>1</sup> | store, store --file, store --batch<sup>2</sup>, update (when content changes), recall, batch update |
+| Workflow | $0.01 per call | context, extract, ingest, consolidate, migrate |
+
+1. Update only bills when you change the stored content (metadata-only edits stay free). Recall and store charges include the embedding regeneration.
+2. Batch store costs $0.04 per request for up to 100 memories and draws from the same $0.005 embedding tier.
+3. See SKILL.md for the exhaustive list of free commands if you need something beyond the highlights above.
+
 
 ## Resources
 
