@@ -1,0 +1,15 @@
+{
+  "name": "aivideo-api-executor",
+  "displayName": "AIVideoMaker API Executor",
+  "version": "0.1.0",
+  "entry": "SKILL.md",
+  "language": ["en", "zh-CN"],
+  "tags": ["api", "video-generation", "workflow", "automation"],
+  "runtime": {
+    "type": "node",
+    "commands": [
+      "node scripts/run-workflow.mjs --model t2v --input ./examples/t2v-input.json",
+      "node scripts/run-workflow.mjs --action getStatus --taskId <taskId>"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "aivideo-api-skill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "workflow": "node scripts/run-workflow.mjs",
+    "smoke": "node scripts/smoke-test.mjs"
+  }
+}
