@@ -24,19 +24,21 @@ If you manage multiple Pages, each Page gets its own platform ID.
 
 > ⚠️ API video limits are significantly stricter than native.
 
-| Property | API Limit | Native App |
-|----------|-----------|-----------|
-| Text | **63,206 characters** | Same |
-| Images | Up to 10 × 10 MB | JPEG, PNG, GIF, BMP, TIFF |
-| Video | **45 min** / **2 GB** | 240 min / 4 GB |
-| Reels duration | **90 seconds** | 90 seconds |
+| Property | API Limit | Notes |
+|----------|-----------|-------|
+| Text (API) | Up to **63,206 characters** | Publora frontend editor caps at 2,200; API itself has no lower limit |
+| Images | Up to 10 × 10 MB | JPEG, PNG, GIF, BMP, TIFF; WebP auto-converted to JPEG |
+| Video | **45 min** / **512 MB** (Publora server limit) | FB natively allows 2 GB — Publora caps at 512 MB |
+| Reels duration | **3–90 seconds** | Pages only; 30/day |
 | Reels rate limit | 30 Reels/day/Page | — |
 | Reels posting | Pages only (not profiles) | — |
 | Text only | ✅ Yes | — |
 
+**Token management:** Facebook page tokens expire after **59 days**. Publora auto-refreshes, but if refresh fails silently (permission changes), posts will fail without a clear token error — reconnect the page in dashboard.
+
 **Common errors:**
-- `Error 1363026` — video over 40 min → trim to under 45 min
-- `Error 1363023` — file over 2 GB → compress
+- `Error 1363026` — video over 45 min → trim
+- `Error 1363023` — file over 2 GB (Publora's 512 MB limit kicks in first)
 - `Error 1363128` — Reels duration outside 3–90s range
 
 > Posts under 80 characters get 66% more engagement on Facebook.
@@ -104,8 +106,12 @@ Use the same flow but upload a short video file. Reels are posted to Pages only.
 ## Platform Quirks
 
 - **Pages only** — personal profiles are not supported via the Facebook Graph API
-- **Multiple pages** — each Page has a separate platform ID; connect them individually in Publora dashboard
-- **Video limits**: 45 min / 2 GB via API (native allows 240 min / 4 GB)
-- **Reels**: Must be 3–90 seconds; limited to 30 per day per Page
-- **Carousels**: Up to 10 images or videos (cannot mix in the same carousel)
+- **Multiple pages** — each Page has a separate platform ID; include multiple `facebook-{pageId}` in `platforms` array to post to several at once
+- **Video limit**: 45 min / **512 MB** (Publora server cap — FB natively allows 2 GB; Publora's limit kicks in first)
+- **Reels**: Must be 3–90 seconds; Pages only; 30/day per Page
+- **Images only in multi-media**: Multiple videos in one post are not supported — they'll go through the photo path incorrectly. Use one video per post.
+- **No mixed media**: Images + video in same post will fail at Facebook API level (Publora doesn't pre-validate this for Facebook)
+- **WebP auto-converted** to JPEG — no action needed
+- **59-day token**: Publora auto-refreshes page tokens; reconnect dashboard if you see unexplained posting failures
+- **Link previews**: Including a URL in text triggers Facebook's auto link preview — not controllable via API
 - **Rate limit formula**: 200 × users/hour
