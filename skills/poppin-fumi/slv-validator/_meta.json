@@ -3,11 +3,16 @@
   "slug": "slv-validator",
   "displayName": "Slv Validator",
   "latest": {
-    "version": "0.11.9",
-    "publishedAt": 1773942041545,
-    "commit": "https://github.com/openclaw/skills/commit/24b9738795ffb0dc05e5f84c2b167193cef137ff"
+    "version": "0.11.10",
+    "publishedAt": 1774008723099,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.11.9",
+      "publishedAt": 1773942041545,
+      "commit": "https://github.com/openclaw/skills/commit/24b9738795ffb0dc05e5f84c2b167193cef137ff"
+    },
     {
       "version": "0.10.2",
       "publishedAt": 1771951472385,
