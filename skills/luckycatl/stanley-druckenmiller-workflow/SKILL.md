@@ -279,15 +279,25 @@ Purpose:
 - start with what actually happened in the real world
 - identify what the market is truly trading today
 - surface what matters but may still be underpriced or ignored
+- rank overnight events by actual transmission relevance to A-shares
 
 Include:
 - Big Events
 - Main Theme
 - Underpriced / Ignored
 
+A-share ranking priority:
+1. China policy / regulation / domestic macro events
+2. Global central banks and rates (Fed / ECB / BOJ / PBOC / U.S. yields / EUR / JPY)
+3. Geopolitics and commodities (war / sanctions / oil / gas / gold / copper)
+4. HK market / RMB / offshore China assets
+5. Industry-specific catalysts only when they can realistically change today's A-share pricing
+
 Rules:
 - start with real-world events first, then market interpretation
 - include only the 2-4 events that can realistically move pricing
+- do not default to Fed / war / PPI as routine opening items
+- ECB, BOJ, China policy, commodities, HK market, and RMB should be included whenever they matter more than the default U.S. macro trio
 - do not start this section with indicators, ETF tickers, or proxy jargon
 - if no single event dominates, explicitly say the session looks more structure-driven or positioning-driven
 
@@ -602,15 +612,23 @@ Purpose:
 - start with what actually happened in the real world
 - identify what the market is truly trading today
 - surface what matters but may still be underpriced or ignored
+- rank overnight events by actual transmission relevance to U.S. equities
 
 Include:
 - Big Events
 - Main Theme
 - Underpriced / Ignored
 
+U.S. ranking priority:
+1. Fed / Treasury / inflation / labor / growth data
+2. Geopolitics and commodities when they affect inflation or risk premia
+3. Other major central banks and FX when they feed back into U.S. rates, dollar, or global risk appetite
+4. Large-cap earnings / sector catalysts only when they are truly index-relevant
+
 Rules:
 - start with real-world events first, then market interpretation
 - include only the 2-4 events that can realistically move pricing
+- do not default to a fixed news trio; rank by actual market relevance each day
 - do not start this section with indicators, ETF tickers, or proxy jargon
 - if no single event dominates, explicitly say the session looks more structure-driven or positioning-driven
 
