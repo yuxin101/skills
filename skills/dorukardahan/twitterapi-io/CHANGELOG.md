@@ -2,6 +2,34 @@
 
 All notable changes to this skill will be documented in this file.
 
+## [3.7.2] - 2026-03-22
+
+### Fixed
+- Removed outdated "not in the official OpenAPI spec" notes from `tweet_timeline` and `tweets_timeline` — both are now in the live OpenAPI spec
+- Updated endpoint-index.md header note: corrected total OpenAPI path count from 70 to 72
+
+## [3.7.1] - 2026-03-21
+
+### Fixed
+- SKILL.md: read endpoint count corrected from 34 to 33
+- Added missing curl example for `/oapi/my/info` in read-endpoints.md
+- Added curl examples for `join_community_v2` and `leave_community_v2`
+- `delete_rule`: `rule_id` marked as required (was incorrectly "optional")
+- `spaces/detail`: `space_id` marked as required (was incorrectly "optional")
+- `list/add_member` and `list/remove_member`: added note about V1 `auth_session` auth with no V2 alternative
+- `remove_user_to_monitor_tweet`: added note about confusing `_to_` in path name
+- `get_dm_history_by_user_id`: added credential exposure warning (login_cookies in GET query param)
+
+## [3.7.0] - 2026-03-21
+
+### Removed
+- Removed all V3 endpoints (offline, confirmed by TwitterAPI.io team). V3 was taken down due to Twitter actively blocking third-party posting. Recommend official Twitter API for write-heavy use cases.
+
+## [3.6.0] - 2026-03-20
+
+### Changed
+- Documentation refresh before the March 2026 write-path rollback.
+
 ## [3.5.3] - 2026-03-17
 
 ### Fixed
@@ -53,7 +81,6 @@ All notable changes to this skill will be documented in this file.
 - Read endpoints: 31 → 33, Write endpoints: 17 → 19
 
 ### Notes
-- 7 new V3 endpoints detected in OpenAPI (user_login_v3, send_tweet_v3, like_tweet_v3, retweet_v3, update_profile_v3, get_my_x_account_detail_v3, delete_my_x_account_v3). V3 uses async username-based auth instead of login_cookies. Not yet added to skill — monitoring for stability.
 - V1 legacy endpoints (create_tweet, like_tweet, retweet_tweet, login_by_email_or_username, login_by_2fa, upload_image) still present in OpenAPI but remain excluded (deprecated in favor of V2).
 
 ## [3.4.2] - 2026-03-16

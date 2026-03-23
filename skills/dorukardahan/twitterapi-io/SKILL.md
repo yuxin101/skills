@@ -1,13 +1,13 @@
 ---
 name: twitterapi-io
-description: Interact with Twitter/X via TwitterAPI.io — search tweets, get user info, post tweets, like, retweet, follow, send DMs, and more. Covers all 58 endpoints. Use when the user wants to read or write Twitter data.
+description: Interact with Twitter/X via TwitterAPI.io — search tweets, get user info, post tweets, like, retweet, follow, send DMs, and more. Covers all 58 endpoints (V2). Use when the user wants to read or write Twitter data.
 metadata:
-  version: 3.5.4
-  updated: 2026-03-17
+  version: 3.7.2
+  updated: 2026-03-22
   author: dorukardahan
 ---
 
-# TwitterAPI.io skill v3.5.3
+# TwitterAPI.io skill v3.7.2
 
 Access Twitter/X data and perform actions via [TwitterAPI.io](https://twitterapi.io) REST API.
 Use TwitterAPI.io REST API for read, write, webhook, and stream operations.
@@ -60,10 +60,10 @@ Note: If the API returns 0 or 1 item, you are still charged the minimum (15 cred
 
 ---
 
-## API Version Note
+## API Notes
 
-All V1 endpoints have been removed from the API. Use only V2 endpoints (`_v2` suffix) for write operations.
-V2 requires `login_cookies` (from `user_login_v2`) + residential `proxy`.
+All V1 endpoints have been removed from the API. Use V2 (`_v2` suffix) endpoints for write operations.
+V3 endpoints were taken offline by TwitterAPI.io in March 2026. Use V2 for write operations. For mission-critical tweet posting, consider Twitter's official API.
 
 ### login_cookie vs login_cookies -- API Inconsistency
 
@@ -311,7 +311,7 @@ Also available: `twitterapi-docs` MCP server for querying this documentation pro
 
 - **Read endpoints** need only API key. No Twitter account needed.
 - **Write endpoints** need `login_cookies` from v2 login + residential proxy.
-- **V2 cookies only work with v2 endpoints** (`_v2` suffix).
+- **V3 endpoints are offline. Only V2 write endpoints are available.**
 - **2FA strongly recommended** -- use 16-character string `totp_secret` for reliable login.
 - **Proxy mandatory** for all write actions. Use high-quality residential proxies.
 - **Credits never expire** once recharged. Bonus credits valid 30 days.
