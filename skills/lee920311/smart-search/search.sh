@@ -4,9 +4,10 @@
 QUERY="$1"
 MAX_RESULTS="${2:-5}"
 
-# 加载环境变量
+# 只加载需要的环境变量（安全修复：不加载整个.env 文件）
 if [ -f ~/.openclaw/.env ]; then
-    export $(grep -v '^#' ~/.openclaw/.env | xargs)
+    SEARXNG_URL=$(grep '^SEARXNG_URL=' ~/.openclaw/.env | cut -d= -f2-)
+    TAVILY_API_KEY=$(grep '^TAVILY_API_KEY=' ~/.openclaw/.env | cut -d= -f2-)
 fi
 
 # 决策逻辑：判断用哪个引擎
@@ -41,10 +42,47 @@ case "$ENGINE" in
       echo "❌ Tavily API Key 未配置"
       exit 1
     fi
-    python3 ~/.openclaw/workspace/skills/openclaw-tavily-search/scripts/tavily_search.py \
-      --query "$QUERY" \
-      --max-results "$MAX_RESULTS" \
-      --format md
+    echo "🔍 Tavily 搜索结果："
+    echo "查询：$QUERY"
+    echo ""
+    
+    # 调用 Tavily API（纯 curl，不依赖外部脚本）
+    RESPONSE=$(curl -s -X POST https://api.tavily.com/search \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $TAVILY_API_KEY" \
+      -d "{
+        \"query\": \"$QUERY\",
+        \"max_results\": $MAX_RESULTS,
+        \"search_depth\": \"basic\",
+        \"include_answer\": true,
+        \"include_raw_content\": false
+      }" 2>/dev/null)
+    
+    # 解析并输出结果
+    echo "$RESPONSE" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    # 输出 AI 摘要
+    answer = data.get('answer', '')
+    if answer:
+        print('📝 AI 摘要：')
+        print(answer)
+        print()
+    # 输出结果列表
+    results = data.get('results', [])[:$MAX_RESULTS]
+    for i, r in enumerate(results, 1):
+        title = r.get('title', '无标题')
+        url = r.get('url', '无链接')
+        content = r.get('content', '')[:200]
+        print(f\"{i}. {title}\")
+        print(f\"   {url}\")
+        print(f\"   {content}...\")
+        print()
+except Exception as e:
+    print(f'解析失败：{e}')
+    print(f'原始响应：{data if \"data\" in dir() else \"N/A\"}')
+"
     ;;
   
   "searxng")
@@ -79,10 +117,39 @@ except Exception as e:
       echo "⚠️  SearXNG 实例返回非 JSON 格式，切换到 Tavily..."
       echo ""
       # 降级到 Tavily
-      python3 ~/.openclaw/workspace/skills/openclaw-tavily-search/scripts/tavily_search.py \
-        --query "$QUERY" \
-        --max-results "$MAX_RESULTS" \
-        --format md
+      if [ -z "$TAVILY_API_KEY" ]; then
+        echo "❌ Tavily API Key 未配置，无法降级"
+        exit 1
+      fi
+      RESPONSE=$(curl -s -X POST https://api.tavily.com/search \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $TAVILY_API_KEY" \
+        -d "{
+          \"query\": \"$QUERY\",
+          \"max_results\": $MAX_RESULTS,
+          \"search_depth\": \"basic\",
+          \"include_answer\": true,
+          \"include_raw_content\": false
+        }" 2>/dev/null)
+      echo "$RESPONSE" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    answer = data.get('answer', '')
+    if answer:
+        print('📝 AI 摘要：')
+        print(answer)
+        print()
+    results = data.get('results', [])[:$MAX_RESULTS]
+    for i, r in enumerate(results, 1):
+        print(f\"{i}. {r.get('title', '无标题')}\")
+        print(f\"   {r.get('url', '无链接')}\")
+        content = r.get('content', '')[:200]
+        print(f\"   {content}...\")
+        print()
+except Exception as e:
+    print(f'解析失败：{e}')
+"
     fi
     ;;
   

@@ -1,11 +1,17 @@
 {
   "owner": "lee920311",
   "slug": "smart-search",
-  "displayName": "My Skill with Search Engine for save tokens",
+  "displayName": "Smart Search",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773290693032,
-    "commit": "https://github.com/openclaw/skills/commit/060480c72cc4784dec0a943bd353391065d871c7"
+    "version": "1.0.1",
+    "publishedAt": 1774312175399,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773290693032,
+      "commit": "https://github.com/openclaw/skills/commit/060480c72cc4784dec0a943bd353391065d871c7"
+    }
+  ]
 }

@@ -2,7 +2,7 @@
 name: smart-search
 description: 智能搜索引擎切换。根据问题类型自动选择 SearXNG 或 Tavily，既满足需求又节省 Token。
 author: 李洋
-version: 1.0.0
+version: 1.0.1
 tags:
   - search
   - searxng
@@ -42,12 +42,15 @@ metadata: {
 
 ## 工具调用
 
-### Tavily 搜索
+### Tavily 搜索（AI 内容生成）
 ```bash
-python3 ~/.openclaw/workspace/skills/openclaw-tavily-search/scripts/tavily_search.py --query "查询内容" --max-results 5 --format md
+curl -X POST https://api.tavily.com/search \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TAVILY_API_KEY" \
+  -d '{"query": "查询内容", "max_results": 5, "include_answer": true}'
 ```
 
-### SearXNG 搜索
+### SearXNG 搜索（日常查询）
 ```bash
 curl -s "https://searx.be/search?q=查询内容&format=json"
 ```
@@ -56,8 +59,11 @@ curl -s "https://searx.be/search?q=查询内容&format=json"
 
 **AI 内容生成**
 ```bash
-# 调用 Tavily
-python3 {baseDir}/../openclaw-tavily-search/scripts/tavily_search.py --query "小红书文案 AI 工具" --max-results 5 --format md
+# 调用 Tavily（带 AI 摘要）
+curl -X POST https://api.tavily.com/search \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TAVILY_API_KEY" \
+  -d '{"query": "小红书文案 AI 工具", "max_results": 5, "include_answer": true}'
 ```
 
 **日常查询**
