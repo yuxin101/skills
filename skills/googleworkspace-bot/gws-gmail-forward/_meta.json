@@ -3,11 +3,16 @@
   "slug": "gws-gmail-forward",
   "displayName": "Gws Gmail Forward",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773789053324,
-    "commit": "https://github.com/openclaw/skills/commit/2f1147d28894685bfdec82626aafcf83be242e07"
+    "version": "1.0.2",
+    "publishedAt": 1774300459575,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773789053324,
+      "commit": "https://github.com/openclaw/skills/commit/2f1147d28894685bfdec82626aafcf83be242e07"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773393347897,
