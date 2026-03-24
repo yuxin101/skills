@@ -1,9 +1,9 @@
 ---
 name: "websocket-receiver"
-description: "WebSocket data receiver skill for learning and practice. Supports auto-reconnect, batch processing, and AI analysis."
+description: "WebSocket 数据接收练手 skill。支持自动重连、批量处理和 AI 分析集成。"
 ---
 
-# WebSocket Receiver v1.1.2
+# WebSocket 接收器 v1.1.2
 
 🎓 这是一个 WebSocket 对接的练手 skill，适合学习如何：
 - 建立和维护 WebSocket 长连接
@@ -13,9 +13,9 @@ description: "WebSocket data receiver skill for learning and practice. Supports 
 
 可作为模板，修改后对接你自己的 WebSocket 数据源。
 
-## 特性
+## 功能特点
 
-- 🔌 自动重连（指数退避）
+- 🔌 自动重连（指数退避算法）
 - 📦 批量数据处理
 - 🤖 可选 AI 分析集成
 - 📊 日志轮转
@@ -28,7 +28,7 @@ description: "WebSocket data receiver skill for learning and practice. Supports 
 # 安装依赖
 pip install websockets
 
-# 或使用 venv
+# 或使用虚拟环境
 ~/clawd/venv/bin/pip install websockets
 ```
 
@@ -72,14 +72,14 @@ websocket-receiver stop
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `WEBSOCKET_URL` | WebSocket 服务器地址 | (需配置) |
+| `WEBSOCKET_URL` | WebSocket 服务器地址 | （需配置） |
 | `WEBSOCKET_BATCH` | 批次大小 | `10` |
 | `WEBSOCKET_DATA_DIR` | 数据目录 | `~/clawd/data/websocket` |
 | `WEBSOCKET_CONFIG` | 配置文件路径 | `~/.openclaw/websocket-config.json` |
 
 ### 配置文件
 
-创建 `~/.openclaw/websocket-config.json`（替换为你申请到的地址）：
+创建 `~/.openclaw/websocket-config.json`：
 
 ```json
 {
@@ -97,7 +97,7 @@ websocket-receiver stop
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `ws_url` | WebSocket URL | (需配置) |
+| `ws_url` | WebSocket 地址 | （需配置） |
 | `batch_size` | 触发批量处理的消息数 | `10` |
 | `auto_analyze` | 是否自动 AI 分析 | `true` |
 | `data_dir` | 数据存储目录 | `~/clawd/data/websocket` |
@@ -116,7 +116,7 @@ websocket-receiver stop     # 停止
 websocket-receiver restart  # 重启
 websocket-receiver status   # 查看状态
 websocket-receiver logs     # 实时日志
-websocket-receiver config   # 查看/创建配置
+websocket-receiver config   # 查看或创建配置
 websocket-receiver test     # 前台测试
 ```
 
@@ -144,11 +144,11 @@ websocket-receiver test     # 前台测试
 
 ```
 ~/clawd/data/websocket/
-├── receiver.pid          # PID 文件
-├── receiver.log          # 日志（自动轮转）
-├── data_20260312_14.jsonl  # 按小时分割的数据
+├── receiver.pid              # 进程 ID 文件
+├── receiver.log              # 日志文件（自动轮转）
+├── data_20260312_14.jsonl   # 按小时分割的数据文件
 ├── data_20260312_15.jsonl
-└── analysis_20260312.md  # AI 分析报告
+└── analysis_20260312.md    # AI 分析报告
 ```
 
 ## 自定义处理
@@ -158,16 +158,16 @@ from receiver import WebSocketReceiver
 
 receiver = WebSocketReceiver(config)
 
-# 自定义消息处理
+# 自定义消息处理函数
 def my_handler(data):
-    print(f"Received: {data}")
+    print(f"收到数据: {data}")
     return True  # 返回 True 表示处理成功
 
 receiver.on_message = my_handler
 
-# 自定义批量处理（支持 async）
+# 自定义批量处理函数（支持 async）
 async def my_batch_handler(batch):
-    # 自定义分析逻辑
+    # 在这里编写自定义分析逻辑
     return "分析结果"
 
 receiver.on_batch = my_batch_handler
@@ -196,6 +196,6 @@ receiver.run()
 ### v1.0.0
 - 初始版本
 
-## License
+## 许可证
 
 MIT
