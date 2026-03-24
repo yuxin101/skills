@@ -3,11 +3,16 @@
   "slug": "gws-sheets",
   "displayName": "Gws Sheets",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774300502092,
-    "commit": "https://github.com/openclaw/skills/commit/b23ede088663d797e5084678d559b633cd857723"
+    "version": "1.0.2",
+    "publishedAt": 1774375353670,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774300502092,
+      "commit": "https://github.com/openclaw/skills/commit/b23ede088663d797e5084678d559b633cd857723"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772757037063,
