@@ -3,11 +3,16 @@
   "slug": "huo15-doc-template",
   "displayName": "火一五文档模板",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1773897663110,
-    "commit": "https://github.com/openclaw/skills/commit/39679791234c53c0948d3096f28b45c18d7b04d6"
+    "version": "1.2.2",
+    "publishedAt": 1773927070001,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1773897663110,
+      "commit": "https://github.com/openclaw/skills/commit/39679791234c53c0948d3096f28b45c18d7b04d6"
+    },
     {
       "version": "1.0.6",
       "publishedAt": 1773584620969,
