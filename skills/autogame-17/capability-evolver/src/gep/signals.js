@@ -11,6 +11,8 @@ var OPPORTUNITY_SIGNALS = [
   'evolution_stagnation_detected',
   'repair_loop_detected',
   'force_innovation_after_repair_loop',
+  'tool_bypass',
+  'curriculum_target',
 ];
 
 function hasOpportunitySignal(signals) {
@@ -175,7 +177,9 @@ function extractSignals({ recentSessionTranscript, todayLog, memorySnippet, user
   if (lower.includes('user.md missing')) signals.push('user_missing');
   if (lower.includes('key missing')) signals.push('integration_key_missing');
   if (lower.includes('no session logs found') || lower.includes('no jsonl files')) signals.push('session_logs_missing');
-  // if (lower.includes('pgrep') || lower.includes('ps aux')) signals.push('windows_shell_incompatible');
+  if (process.platform === 'win32' && (lower.includes('pgrep') || lower.includes('ps aux') || lower.includes('cat >') || lower.includes('heredoc'))) {
+    signals.push('windows_shell_incompatible');
+  }
   if (lower.includes('path.resolve(__dirname, \'../../../')) signals.push('path_outside_workspace');
 
   // Protocol-specific drift signals
@@ -309,6 +313,27 @@ function extractSignals({ recentSessionTranscript, todayLog, memorySnippet, user
       signals.push('repeated_tool_usage:exec');
     }
   });
+
+  // --- Tool bypass detection ---
+  // When the agent uses shell/exec to run ad-hoc scripts instead of registered tools,
+  // it indicates a tool integrity issue (bypassing the tool layer).
+  var bypassPatterns = [
+    /node\s+\S+\.m?js/,
+    /npx\s+/,
+    /curl\s+.*api/i,
+    /python\s+\S+\.py/,
+  ];
+  var execContent = corpus.match(/exec:.*$/gm) || [];
+  for (var bpi = 0; bpi < execContent.length; bpi++) {
+    var line = execContent[bpi];
+    for (var bpj = 0; bpj < bypassPatterns.length; bpj++) {
+      if (bypassPatterns[bpj].test(line)) {
+        signals.push('tool_bypass');
+        bpi = execContent.length;
+        break;
+      }
+    }
+  }
 
   // --- Signal prioritization ---
   // Remove cosmetic signals when actionable signals exist

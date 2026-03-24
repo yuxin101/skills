@@ -109,7 +109,7 @@ async function main() {
     String(process.env.EVOLVER_VERBOSE || '').toLowerCase() === 'true';
   if (isVerbose) process.env.EVOLVER_VERBOSE = 'true';
 
-  if (command === 'run' || command === '/evolve' || isLoop) {
+  if (!command || command === 'run' || command === '/evolve' || isLoop) {
     if (isLoop) {
         const originalLog = console.log;
         const originalWarn = console.warn;
@@ -120,7 +120,7 @@ async function main() {
         console.error = (...args) => { originalError.call(console, ts(), ...args); };
     }
 
-    console.log('Starting capability evolver...');
+    console.log('Starting evolver...');
     
     if (isLoop) {
         // Internal daemon loop (no wrapper required).
@@ -202,6 +202,31 @@ async function main() {
             currentSleepMs = minSleepMs;
           }
 
+          // OMLS-inspired idle scheduling: adjust sleep and trigger aggressive
+          // operations (distillation, reflection) during detected idle windows.
+          let omlsMultiplier = 1;
+          try {
+            const { getScheduleRecommendation } = require('./src/gep/idleScheduler');
+            const schedule = getScheduleRecommendation();
+            if (schedule.enabled && schedule.sleep_multiplier > 0) {
+              omlsMultiplier = schedule.sleep_multiplier;
+              if (schedule.should_distill) {
+                try {
+                  const { shouldDistillFromFailures: shouldDF, autoDistillFromFailures: autoDF } = require('./src/gep/skillDistiller');
+                  if (shouldDF()) {
+                    const dfResult = autoDF();
+                    if (dfResult && dfResult.ok) {
+                      console.log('[OMLS] Idle-window failure distillation: ' + dfResult.gene.id);
+                    }
+                  }
+                } catch (e) {}
+              }
+              if (isVerbose && schedule.idle_seconds >= 0) {
+                console.log(`[OMLS] idle=${schedule.idle_seconds}s intensity=${schedule.intensity} multiplier=${omlsMultiplier}`);
+              }
+            }
+          } catch (e) {}
+
           // Suicide check (memory leak protection)
           if (suicideEnabled) {
             const memMb = process.memoryUsage().rss / 1024 / 1024;
@@ -239,7 +264,7 @@ async function main() {
 
           // Jitter to avoid lockstep restarts.
           const jitter = Math.floor(Math.random() * 250);
-          const totalSleepMs = (currentSleepMs + jitter) * saturationMultiplier;
+          const totalSleepMs = Math.max(minSleepMs, (currentSleepMs + jitter) * saturationMultiplier * omlsMultiplier);
           if (isVerbose) {
             const memMb = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
             console.log(`[Verbose] cycle=${cycleCount} ok=${ok} dt=${dt}ms sleep=${totalSleepMs}ms (base=${currentSleepMs} jitter=${jitter} sat=${saturationMultiplier}x) rss=${memMb}MB signals=[${(function() { try { var st = readJsonSafe(solidifyStatePath); return st && st.last_run && Array.isArray(st.last_run.signals) ? st.last_run.signals.join(',') : ''; } catch(e) { return ''; } })()}]`);
@@ -263,8 +288,8 @@ async function main() {
 
     // Post-run hint
     console.log('\n' + '=======================================================');
-    console.log('Capability evolver finished. If you use this project, consider starring the upstream repository.');
-    console.log('Upstream: https://github.com/autogame-17/capability-evolver');
+    console.log('Evolver finished. If you use this project, consider starring the upstream repository.');
+    console.log('Upstream: https://github.com/EvoMap/evolver');
     console.log('=======================================================\n');
     
   } else if (command === 'solidify') {
@@ -290,7 +315,7 @@ async function main() {
 
       if (res && res.ok && !dryRun) {
         try {
-          const { shouldDistill, prepareDistillation, autoDistill } = require('./src/gep/skillDistiller');
+          const { shouldDistill, prepareDistillation, autoDistill, shouldDistillFromFailures, autoDistillFromFailures } = require('./src/gep/skillDistiller');
           const { readStateForSolidify } = require('./src/gep/solidify');
           const solidifyState = readStateForSolidify();
           const count = solidifyState.solidify_count || 0;
@@ -313,6 +338,13 @@ async function main() {
                 console.log('Prompt file: ' + dr.promptPath);
                 console.log('[/DISTILL_REQUEST]');
               }
+            }
+          }
+
+          if (shouldDistillFromFailures()) {
+            const failureResult = autoDistillFromFailures();
+            if (failureResult && failureResult.ok && failureResult.gene) {
+              console.log('[Distiller] Repair gene distilled from failures: ' + failureResult.gene.id);
             }
           }
         } catch (e) {
