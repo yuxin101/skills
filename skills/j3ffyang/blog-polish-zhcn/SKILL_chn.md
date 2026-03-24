@@ -2,11 +2,10 @@
 name: blog-polish-zhcn
 description: Polish and translate a technical blog draft into a 1000–1200 word, 4-5 section Markdown article in Simplified Chinese (zh-CN), preserving technical terms and code blocks.
 author: Jeff Yang
-version: 1.0.12
+version: 1.0.9
 tags: [openclaw, clawhub, blog, polish, translate, zh-cn, markdown]
 metadata:
   openclaw:
-    type: "skill"
     requires: ["jq"]
     platforms: ["linux", "darwin"]
   entrypoint: skill
@@ -59,10 +58,8 @@ workflow:
       save_state outputPath "$outputPath"
 
   - name: read_draft
-    description: Load draft file content into memory
-    run: |
-      draftText=$(cat "$draftPath")
-      save_state draftText "$draftText"
+    inputs: ["draftPath"]
+    outputs: ["draftText"]
 
   - name: polish_and_translate
     description: "LLM: Polish grammar → Translate zh-CN → Save to ${outputDir}/${ts}-polished.md"
@@ -75,7 +72,7 @@ workflow:
     description: Emit polished path only
     run: |
       outputPath=$(load_state outputPath)
-      jq -nc --arg outputPath "$outputPath" '{ outputPath: $outputPath }'
+      jq -n --arg outputPath "$outputPath" '{ outputPath: $outputPath }'
 ---
 
 # Blog Polish (zh-CN)
@@ -106,8 +103,5 @@ Use when the user asks to polish/translate a technical blog draft to zh-CN **wit
 ## Example
 
 **Input**: `~/.openclaw/workspace/contentDraft/latestDraft.md`  
-**Example Output**
-```json
 { "outputPath": "~/.openclaw/workspace/contentPolished/2603142134-openclaw-skills.md" }
-```
 

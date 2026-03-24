@@ -3,11 +3,16 @@
   "slug": "blog-polish-zhcn",
   "displayName": "blog-polish-zhcn",
   "latest": {
-    "version": "1.0.9",
-    "publishedAt": 1773753594773,
-    "commit": "https://github.com/openclaw/skills/commit/535752d64e15c46aee826f00b53fcd68db16d964"
+    "version": "1.0.12",
+    "publishedAt": 1774185013908,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.9",
+      "publishedAt": 1773753594773,
+      "commit": "https://github.com/openclaw/skills/commit/535752d64e15c46aee826f00b53fcd68db16d964"
+    },
     {
       "version": "1.0.8",
       "publishedAt": 1773578533095,
