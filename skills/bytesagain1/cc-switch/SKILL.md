@@ -1,47 +1,35 @@
 ---
-version: "2.0.0"
-name: Cc Switch
-description: "A cross-platform desktop All-in-One assistant tool for Claude Code, Codex, OpenCode, openclaw & Gemi cc switch, rust, ai-tools, claude-code, codex, desktop-app, mcp. Use when you need cc switch capabilities. Triggers on: cc switch."
-author: BytesAgain
+name: "cc-switch"
+version: "3.0.1"
+description: "Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Cc Switch concepts, best practices, and implementation patterns."
+author: "BytesAgain"
+homepage: "https://bytesagain.com"
+source: "https://github.com/bytesagain/ai-skills"
+tags: [cc,switch, reference]
+category: "devtools"
 ---
 
 # Cc Switch
 
-A cross-platform desktop All-in-One assistant tool for Claude Code, Codex, OpenCode, openclaw & Gemini CLI. ## Commands
+Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Cc Switch concepts, best practices, and implementation patterns. No API keys or credentials required.
 
-- `help` - Help
-- `run` - Run
-- `info` - Info
-- `status` - Status
+## Commands
 
-## Features
+| Command | Description |
+|---------|-------------|
+| `intro` | intro reference |
+| `quickstart` | quickstart reference |
+| `patterns` | patterns reference |
+| `debugging` | debugging reference |
+| `performance` | performance reference |
+| `security` | security reference |
+| `migration` | migration reference |
+| `cheatsheet` | cheatsheet reference |
 
-- Core functionality from farion1231/cc-switch
+## Output Format
 
-## Usage
+All commands output plain-text reference documentation via heredoc. No external API calls, no credentials needed, no network access.
 
-Run any command: `cc-switch <command> [args]`
 ---
-💬 Feedback & Feature Requests: https://bytesagain.com/feedback
-Powered by BytesAgain | bytesagain.com
 
-## Examples
-
-```bash
-# Show help
-cc-switch help
-
-# Run
-cc-switch run
-```
-
-- Run `cc-switch help` for commands
-- No API keys needed
-
-- Run `cc-switch help` for all commands
-
-- Run `cc-switch help` for all commands
-
-## Configuration
-
-Set `CC_SWITCH_DIR` to change data directory. Default: `~/.local/share/cc-switch/`
+*Powered by BytesAgain | bytesagain.com | hello@bytesagain.com*
