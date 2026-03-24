@@ -99,13 +99,12 @@ async function runAction(client, args) {
 async function runCreateAndPoll(client, args) {
   const model = args.model;
   const inputPath = args.input;
-  const webhookUrl = args.webhookUrl;
 
   if (!model) throw new Error("--model is required");
   if (!inputPath) throw new Error("--input is required");
 
   const payload = await readJson(inputPath);
-  const createResult = await client.createGeneration({ model, payload, webhookUrl });
+  const createResult = await client.createGeneration({ model, payload });
   if (!createResult.ok) {
     print({
       ...createResult,
@@ -173,7 +172,7 @@ async function runCreateAndPoll(client, args) {
 async function main() {
   const args = parseArgs(process.argv);
   const client = createAIVideoClient({
-    debug: String(args.debug ?? "true") !== "false",
+    debug: String(args.debug ?? "false") !== "false",
   });
 
   if (args.action) {

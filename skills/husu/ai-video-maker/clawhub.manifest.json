@@ -1,10 +1,37 @@
 {
   "name": "aivideo-api-executor",
   "displayName": "AIVideoMaker API Executor",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "entry": "SKILL.md",
-  "language": ["en", "zh-CN"],
+  "language": ["en"],
   "tags": ["api", "video-generation", "workflow", "automation"],
+  "requirements": {
+    "primaryCredential": "AIVIDEO_API_KEY",
+    "environmentVariables": [
+      {
+        "name": "AIVIDEO_API_KEY",
+        "required": true,
+        "description": "API key for https://aivideomaker.ai"
+      },
+      {
+        "name": "AIVIDEO_TIMEOUT_MS",
+        "required": false,
+        "default": "30000",
+        "description": "Request timeout in milliseconds"
+      },
+      {
+        "name": "AIVIDEO_MAX_RETRIES",
+        "required": false,
+        "default": "3",
+        "description": "Max retries for idempotent read requests"
+      },
+      {
+        "name": "SMOKE_TASK_ID",
+        "required": false,
+        "description": "Used only by scripts/smoke-test.mjs"
+      }
+    ]
+  },
   "runtime": {
     "type": "node",
     "commands": [

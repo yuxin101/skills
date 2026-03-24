@@ -1,7 +1,7 @@
 import { normalizeResult, validateCreatePayload } from "./contract.mjs";
 
 const DEFAULTS = {
-  baseUrl: process.env.AIVIDEO_BASE_URL || "https://aivideomaker.ai",
+  baseUrl: "https://aivideomaker.ai",
   apiKey: process.env.AIVIDEO_API_KEY || "",
   timeoutMs: Number(process.env.AIVIDEO_TIMEOUT_MS || 30000),
   maxRetries: Number(process.env.AIVIDEO_MAX_RETRIES || 3),
@@ -62,6 +62,8 @@ function createLogger(enabled = true) {
         url: meta.url ? sanitizeUrl(meta.url) : undefined,
         headers: meta.headers ? sanitizeHeaders(meta.headers) : undefined,
       };
+      // Remove headers from default logs to reduce sensitive surface.
+      delete safeMeta.headers;
       // eslint-disable-next-line no-console
       console.log(`[aivideo-client] ${message}`, safeMeta);
     },
@@ -191,7 +193,7 @@ export function createAIVideoClient(options = {}) {
   }
 
   return {
-    async createGeneration({ model, payload, webhookUrl }) {
+    async createGeneration({ model, payload }) {
       const validation = validateCreatePayload(model, payload);
       if (!validation.ok) {
         return normalizeResult({
@@ -203,15 +205,11 @@ export function createAIVideoClient(options = {}) {
         });
       }
 
-      const extraHeaders = {};
-      if (webhookUrl) extraHeaders.webhookUrl = webhookUrl;
-
       return request({
         method: "POST",
         path: `/api/v1/generate/${model}`,
         body: payload,
         idempotent: false,
-        extraHeaders,
       });
     },
 
