@@ -1,11 +1,17 @@
 {
   "owner": "sweesama",
   "slug": "mz-minimax-img-gen",
-  "displayName": "AI Text-to-Image Tool · MiniMax image-01",
+  "displayName": "AI 文生图工具 · MiniMax image-01",
   "latest": {
-    "version": "1.3.6",
-    "publishedAt": 1774372582740,
-    "commit": "https://github.com/openclaw/skills/commit/b09b3372fba0b6366d5cc0fb78359b719aa45531"
+    "version": "1.3.7",
+    "publishedAt": 1774372919566,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.3.6",
+      "publishedAt": 1774372582740,
+      "commit": "https://github.com/openclaw/skills/commit/b09b3372fba0b6366d5cc0fb78359b719aa45531"
+    }
+  ]
 }
