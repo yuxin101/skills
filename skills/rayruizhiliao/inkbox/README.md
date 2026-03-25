@@ -1,11 +1,12 @@
 # inkbox — OpenClaw Skill
 
-An [OpenClaw](https://openclaw.ai) skill for email and phone via [Inkbox](https://www.inkbox.ai) agent identities.
+An [OpenClaw](https://openclaw.ai) skill for email, phone, and vault via [Inkbox](https://inkbox.ai) agent identities.
 
 ## What it does
 
 Once installed, your OpenClaw agent can:
 
+- **Manage identities** — create, list, rename, pause, and delete agent identities; assign and unlink channels
 - **Send emails** — compose and send from an Inkbox agent mailbox, with optional CC/BCC
 - **Reply to emails** — thread replies using a message ID
 - **Read inbox** — list recent messages or unread messages only
@@ -14,11 +15,12 @@ Once installed, your OpenClaw agent can:
 - **Place calls** — make outbound phone calls from an Inkbox phone number (with optional WebSocket audio bridge)
 - **List call history** — review past inbound and outbound calls
 - **Get transcripts** — retrieve per-segment call transcripts
+- **Vault** — store and retrieve encrypted credentials (logins, API keys, key pairs, SSH keys) with per-identity access rules
 
 ## Requirements
 
 - Node.js ≥ 18
-- An [Inkbox](https://www.inkbox.ai) account with an API key
+- An [Inkbox](https://inkbox.ai) account with an API key
 
 ## Setup
 
