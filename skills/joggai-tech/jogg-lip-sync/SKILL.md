@@ -1,6 +1,6 @@
 ---
 name: jogg-lip-sync
-description: Runs Jogg lip sync tasks with video and audio inputs, reuses existing tasks when possible, and polls task status until completion when needed. Use when the user wants to generate or check a lip sync result from video and audio.
+description: Runs Jogg lip sync using video and audio inputs, reuses tasks when available, and monitors status until completion. Use to generate or check lip sync results.
 license: Proprietary
 compatibility: Requires curl, jq, a local shell environment, and JOGG_API_KEY to call the Jogg API.
 metadata: { "author": "JoggAI", "version": "0.1.0", "openclaw": { "emoji": "🎙️", "requires": { "bins": ["curl", "jq"], "env": ["JOGG_API_KEY"] }, "primaryEnv": "JOGG_API_KEY", "os": ["darwin", "linux"], "install": [ { "id": "brew-jq", "kind": "brew", "formula": "jq", "bins": ["jq"], "label": "Install jq (brew)", "os": ["darwin", "linux"] } ] } }
@@ -15,10 +15,6 @@ All paths in this document are relative to the current skill root directory.
 Runner:
 
 - `sh "run.sh"`
-
-Default env file:
-
-- `.env`
 
 ## Trigger
 
@@ -41,21 +37,16 @@ Optional:
 
 If any required input is missing, ask only for the missing item.
 
-`.env` loading rules:
+Default values used when unset:
+- `JOGG_BASE_URL=https://api.jogg.ai`
+- `JOGG_API_PLATFORM=openclaw`
+- `JOGG_LIP_SYNC_DEFAULT_PLAYBACK_TYPE=normal`
+- `JOGG_LIP_SYNC_DEFAULT_POLL_INTERVAL_SECONDS=10`
+- `JOGG_LIP_SYNC_DEFAULT_MAX_WAIT_SECONDS=1800`
 
-- The runner automatically loads `.env`.
-- Values in `.env` act as defaults only.
-- Explicit environment variables from the current shell or tool call take precedence and are not overwritten.
-- Keep `JOGG_API_KEY` empty in the checked-in `.env`; fill it locally when needed.
-- Default values used when unset:
-  - `JOGG_BASE_URL=https://api.jogg.ai`
-  - `JOGG_API_PLATFORM=openclaw`
-  - `JOGG_LIP_SYNC_DEFAULT_PLAYBACK_TYPE=normal`
-  - `JOGG_LIP_SYNC_DEFAULT_POLL_INTERVAL_SECONDS=10`
-  - `JOGG_LIP_SYNC_DEFAULT_MAX_WAIT_SECONDS=1800`
 - `JOGG_API_KEY` is required.
 - Other current environment variables are optional.
-- If `JOGG_API_KEY` is empty, the runner stops immediately and returns a message telling the agent to update `.env` or provide environment variables.
+- If `JOGG_API_KEY` is empty, stop and tell the user to purchase an API plan at `https://www.jogg.ai/api-pricing/` and obtain an API key before continuing.
 
 ## Hard Rules
 
@@ -125,7 +116,7 @@ Useful flags:
 
 - Uses the native shell implementation directly.
 - Requires `curl` and `jq`.
-- Automatically loads `.env` defaults before execution.
+- Uses the system default values when optional environment variables are unset.
 
 ## Decision Rules
 
