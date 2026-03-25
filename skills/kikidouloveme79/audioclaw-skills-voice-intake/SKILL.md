@@ -1,6 +1,6 @@
 ---
 name: audioclaw-skills-voice-intake
-description: Use when AudioClaw Skills needs to understand a user voice message with SenseAudio ASR, including speech-to-text, model routing for deepthink or pro features, optional timestamps or sentiment, and packaging the result into a ready-to-use OpenClaw or PicoClaw user turn payload.
+description: Use when AudioClaw Skills needs to understand a user voice message with AudioClaw ASR, including speech-to-text, model routing for deepthink or pro features, optional timestamps or sentiment, and packaging the result into a ready-to-use AudioClaw user turn payload.
 ---
 
 # AudioClaw Skills Voice Intake
@@ -14,7 +14,7 @@ Common triggers:
 - AudioClaw needs a transcript plus a clean user message payload.
 - The workflow wants richer ASR features such as timestamps, sentiment, or speaker separation.
 - The team wants one stable AudioClaw intake entrypoint instead of hand-written ASR requests.
-- The channel stores inbound voice files as `.ogg` or `.opus`, and OpenClaw still needs one stable ASR path.
+- The channel stores inbound voice files as `.ogg` or `.opus`, and AudioClaw still needs one stable ASR path.
 
 Do not use this skill for speech output. Use `$audioclaw-skills-voice-reply` for TTS.
 
@@ -27,7 +27,7 @@ Do not use this skill for speech output. Use `$audioclaw-skills-voice-reply` for
    - `sense-asr` when a language hint is provided
    - `sense-asr-pro` when timestamps, sentiment, speaker diarization, or punctuation are requested
    - `sense-asr-lite` when hotwords are requested
-4. Use the JSON manifest it returns as the OpenClaw handoff:
+4. Use the JSON manifest it returns as the AudioClaw handoff:
    - `transcript.normalized_text`
    - `openclaw.turn_payload`
    - `routing.selected_model`
@@ -44,11 +44,19 @@ Official HTTP ASR API:
 Supported response goals:
 - plain transcript
 - richer raw response passthrough
-- OpenClaw-ready turn payload
+- AudioClaw-ready turn payload
 
 The skill keeps two layers separate:
-- ASR output from SenseAudio
+- ASR output from AudioClaw ASR
 - AudioClaw packaging and clarification heuristics
+
+## API key lookup
+
+This skill now treats `SENSEAUDIO_API_KEY` as the default API key source again.
+
+Runtime rules:
+- If the host app injects `SENSEAUDIO_API_KEY` as an AudioClaw login token such as `v2.public...`, the shared bootstrap will replace it with the real `sk-...` value from `~/.audioclaw/workspace/state/senseaudio_credentials.json` before ASR starts.
+- `--api-key-env` still works, but the default runtime path is `SENSEAUDIO_API_KEY`.
 
 ## Commands
 
@@ -99,7 +107,7 @@ Operational rules:
 ## Resources
 
 - `scripts/senseaudio_asr_client.py`
-  - Multipart HTTP client for SenseAudio ASR
+  - Multipart HTTP client for AudioClaw ASR
   - Handles model routing validation and JSON or text responses
 - `scripts/openclaw_voice_intake.py`
   - Main runtime for AudioClaw

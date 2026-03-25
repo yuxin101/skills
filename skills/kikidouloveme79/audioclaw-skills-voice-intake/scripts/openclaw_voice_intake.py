@@ -23,6 +23,7 @@ def _bootstrap_shared_senseaudio_env() -> None:
 
 _bootstrap_shared_senseaudio_env()
 
+from senseaudio_api_guard import ensure_runtime_api_key
 from senseaudio_asr_client import (
     API_URL,
     ASRRequest,
@@ -94,9 +95,7 @@ def build_understanding(raw_response, normalized_text: str) -> Dict[str, object]
 
 def main() -> int:
     args = parse_args()
-    api_key = os.getenv(args.api_key_env)
-    if not api_key:
-        raise SystemExit(f"Missing API key in ${args.api_key_env}.")
+    api_key = ensure_runtime_api_key(os.getenv(args.api_key_env), args.api_key_env, purpose="asr")
 
     audio_path = Path(args.input)
     audio_meta = validate_input(audio_path)

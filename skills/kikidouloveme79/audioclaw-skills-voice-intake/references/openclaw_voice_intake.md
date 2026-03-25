@@ -22,7 +22,7 @@ Important public limits and recommendations:
 - single file `<=10MB`
 - long audio should be chunked
 - recommended preprocessing: `16kHz`, mono, reduced background noise
-- in Feishu or OpenClaw integrations, incoming voice messages may already be stored as `.ogg` or `.opus`
+- in Feishu or AudioClaw integrations, incoming voice messages may already be stored as `.ogg` or `.opus`
 
 # Model routing notes
 
@@ -63,7 +63,7 @@ Use `sense-asr-lite` when hotwords matter more than deeper understanding.
   - does not support punctuation, sentiment, diarization, or timestamps
   - supports `target_language`
 
-# OpenClaw handoff pattern
+# AudioClaw handoff pattern
 
 The main script returns:
 - `transcript.raw_text`
@@ -71,4 +71,4 @@ The main script returns:
 - `understanding.clarification_needed`
 - `openclaw.turn_payload`
 
-OpenClaw should treat `turn_payload.content` as the user message text for the next reasoning step.
+AudioClaw should treat `turn_payload.content` as the user message text for the next reasoning step.
