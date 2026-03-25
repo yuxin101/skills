@@ -12,7 +12,12 @@ from .config import AppConfig, ensure_directories, load_config, load_mal_secrets
 from .crunchyroll_auth import load_crunchyroll_credentials, resolve_crunchyroll_state_paths
 from .hidive_auth import load_hidive_credentials, resolve_hidive_state_paths
 from .mal_client import MalApiError, MalClient
-from .request_tracking import estimate_budget_recovery_seconds, prune_api_request_events, summarize_recent_api_usage
+from .request_tracking import (
+    estimate_budget_recovery_seconds,
+    estimate_budget_recovery_seconds_for_ratio,
+    prune_api_request_events,
+    summarize_recent_api_usage,
+)
 
 
 @dataclass(slots=True)
@@ -23,6 +28,7 @@ class TaskSpec:
 
 
 _BUDGET_GATE_WINDOW_SECONDS = 3600
+_FAILURE_BACKOFF_MIN_SECONDS = 300
 
 
 def _now_iso() -> str:
@@ -78,7 +84,9 @@ def _run_subprocess(config: AppConfig, args: list[str], *, label: str) -> dict[s
         "PYTHONPATH": str(config.project_root / "src"),
     }
     result = subprocess.run(args, cwd=config.project_root, text=True, capture_output=True, check=False, env=env)
+    status = "ok" if result.returncode == 0 else "error"
     payload = {
+        "status": status,
         "label": label,
         "returncode": result.returncode,
         "stdout": result.stdout,
@@ -175,6 +183,13 @@ def _budget_gate(config: AppConfig, provider: str | None) -> tuple[bool, str | N
     usage = summarize_recent_api_usage(provider=provider, window_seconds=_BUDGET_GATE_WINDOW_SECONDS, config=config).as_dict()
     limit = config.service.hourly_limit_for(provider)
     ratio = 0.0 if limit <= 0 else float(usage.get("request_count", 0)) / float(limit)
+    warn_recovery_seconds = estimate_budget_recovery_seconds_for_ratio(
+        provider=provider,
+        limit=limit,
+        target_ratio=config.service.warn_ratio,
+        window_seconds=_BUDGET_GATE_WINDOW_SECONDS,
+        config=config,
+    )
     recovery_seconds = estimate_budget_recovery_seconds(
         provider=provider,
         limit=limit,
@@ -182,14 +197,89 @@ def _budget_gate(config: AppConfig, provider: str | None) -> tuple[bool, str | N
         window_seconds=_BUDGET_GATE_WINDOW_SECONDS,
         config=config,
     )
+    warn_floor_seconds = config.service.backoff_floor_seconds_for(provider, level="warn")
+    critical_floor_seconds = config.service.backoff_floor_seconds_for(provider, level="critical")
+    warn_cooldown_seconds = max(warn_recovery_seconds, warn_floor_seconds)
+    critical_cooldown_seconds = max(recovery_seconds, critical_floor_seconds)
     usage["limit"] = limit
     usage["ratio"] = ratio
     usage["warn_ratio"] = config.service.warn_ratio
     usage["critical_ratio"] = config.service.critical_ratio
+    usage["warn_recovery_seconds"] = warn_recovery_seconds
     usage["recovery_seconds"] = recovery_seconds
+    usage["warn_backoff_floor_seconds"] = warn_floor_seconds
+    usage["critical_backoff_floor_seconds"] = critical_floor_seconds
+    usage["warn_cooldown_seconds"] = warn_cooldown_seconds
+    usage["critical_cooldown_seconds"] = critical_cooldown_seconds
     if ratio >= config.service.critical_ratio:
-        return False, f"{provider}_budget_critical ratio={ratio:.3f} cooldown={recovery_seconds}s", usage
+        usage["backoff_level"] = "critical"
+        usage["cooldown_seconds"] = critical_cooldown_seconds
+        if critical_floor_seconds > recovery_seconds:
+            usage["cooldown_source"] = "provider_floor"
+        return False, f"{provider}_budget_critical ratio={ratio:.3f} cooldown={critical_cooldown_seconds}s", usage
+    if ratio >= config.service.warn_ratio and warn_cooldown_seconds > 0:
+        usage["backoff_level"] = "warn"
+        usage["cooldown_seconds"] = warn_cooldown_seconds
+        if warn_floor_seconds > warn_recovery_seconds:
+            usage["cooldown_source"] = "provider_floor"
+        return False, f"{provider}_budget_warn ratio={ratio:.3f} cooldown={warn_cooldown_seconds}s", usage
     return True, None, usage
+
+
+def _failure_backoff_seconds(config: AppConfig, spec: TaskSpec, task_state: dict[str, Any]) -> int:
+    provider = spec.budget_provider
+    configured_floor = 0
+    if provider:
+        configured_floor = config.service.backoff_floor_seconds_for(provider, level="critical")
+    base_seconds = max(_FAILURE_BACKOFF_MIN_SECONDS, configured_floor)
+    consecutive_failures = int(task_state.get("failure_backoff_consecutive_failures", 0)) + 1
+    max_seconds = max(base_seconds, int(spec.every_seconds))
+    cooldown_seconds = min(max_seconds, base_seconds * (2 ** max(0, consecutive_failures - 1)))
+    return max(0, int(cooldown_seconds))
+
+
+def _clear_failure_backoff(task_state: dict[str, Any]) -> None:
+    task_state.pop("failure_backoff_until_epoch", None)
+    task_state.pop("failure_backoff_until", None)
+    task_state.pop("failure_backoff_remaining_seconds", None)
+    task_state.pop("failure_backoff_reason", None)
+    task_state.pop("failure_backoff_consecutive_failures", None)
+
+
+def _set_failure_backoff(
+    config: AppConfig,
+    spec: TaskSpec,
+    task_state: dict[str, Any],
+    *,
+    now: float,
+    reason: str,
+) -> dict[str, Any]:
+    cooldown_seconds = _failure_backoff_seconds(config, spec, task_state)
+    consecutive_failures = int(task_state.get("failure_backoff_consecutive_failures", 0)) + 1
+    task_state["failure_backoff_consecutive_failures"] = consecutive_failures
+    task_state["failure_backoff_reason"] = reason
+    task_state["failure_backoff_until_epoch"] = now + cooldown_seconds
+    task_state["failure_backoff_until"] = _iso_after_seconds(cooldown_seconds)
+    task_state["failure_backoff_remaining_seconds"] = cooldown_seconds
+    return {
+        "failure_backoff_until": task_state["failure_backoff_until"],
+        "failure_backoff_remaining_seconds": cooldown_seconds,
+        "failure_backoff_reason": reason,
+        "failure_backoff_consecutive_failures": consecutive_failures,
+    }
+
+
+def _summarize_task_failure(result: dict[str, Any]) -> str | None:
+    reason = result.get("reason")
+    if isinstance(reason, str) and reason.strip():
+        return reason.strip()
+    stderr = result.get("stderr")
+    if isinstance(stderr, str) and stderr.strip():
+        return stderr.strip().splitlines()[0]
+    stdout = result.get("stdout")
+    if isinstance(stdout, str) and stdout.strip():
+        return stdout.strip().splitlines()[0]
+    return None
 
 
 def run_pending_tasks(config: AppConfig | None = None) -> dict[str, Any]:
@@ -229,23 +319,60 @@ def run_pending_tasks(config: AppConfig | None = None) -> dict[str, Any]:
                     "reason": f"budget_backoff_active remaining={remaining}s",
                     "budget_backoff_until": task_state.get("budget_backoff_until"),
                     "budget_backoff_remaining_seconds": remaining,
+                    "budget_backoff_level": task_state.get("budget_backoff_level"),
+                }
+            )
+            continue
+        failure_backoff_until_epoch = float(task_state.get("failure_backoff_until_epoch", 0))
+        if failure_backoff_until_epoch > now:
+            remaining = max(0, int(failure_backoff_until_epoch - now))
+            task_state.update(
+                {
+                    "last_status": "skipped",
+                    "last_skipped_at": _now_iso(),
+                    "last_skip_reason": f"failure_backoff_active remaining={remaining}s",
+                    "failure_backoff_remaining_seconds": remaining,
+                }
+            )
+            results.append(
+                {
+                    "task": spec.name,
+                    "status": "skipped",
+                    "reason": f"failure_backoff_active remaining={remaining}s",
+                    "failure_backoff_until": task_state.get("failure_backoff_until"),
+                    "failure_backoff_remaining_seconds": remaining,
+                    "failure_backoff_reason": task_state.get("failure_backoff_reason"),
+                    "failure_backoff_consecutive_failures": task_state.get("failure_backoff_consecutive_failures"),
                 }
             )
             continue
         allowed, reason, usage = _budget_gate(config, spec.budget_provider)
         if not allowed:
-            recovery_seconds = int(usage.get("recovery_seconds", 0)) if isinstance(usage, dict) else 0
+            backoff_level = usage.get("backoff_level") if isinstance(usage, dict) else None
+            recovery_seconds = int(usage.get("cooldown_seconds", 0)) if isinstance(usage, dict) else 0
+            backoff_floor_seconds = 0
+            cooldown_source = None
+            if isinstance(usage, dict):
+                floor_key = "warn_backoff_floor_seconds" if backoff_level == "warn" else "critical_backoff_floor_seconds"
+                backoff_floor_seconds = int(usage.get(floor_key, 0))
+                cooldown_source = usage.get("cooldown_source")
             skipped_at = _now_iso()
             task_state.update(
                 {
                     "last_status": "skipped",
                     "last_skipped_at": skipped_at,
                     "last_skip_reason": reason,
+                    "budget_backoff_level": backoff_level,
                     "budget_backoff_until_epoch": now + recovery_seconds,
                     "budget_backoff_until": _iso_after_seconds(recovery_seconds),
                     "budget_backoff_remaining_seconds": recovery_seconds,
+                    "budget_backoff_floor_seconds": backoff_floor_seconds,
                 }
             )
+            if isinstance(cooldown_source, str) and cooldown_source:
+                task_state["budget_backoff_cooldown_source"] = cooldown_source
+            else:
+                task_state.pop("budget_backoff_cooldown_source", None)
             _mark_task_decision(task_state, decision_at=skipped_at)
             _set_task_next_due(task_state, base_epoch=now, every_seconds=spec.every_seconds)
             results.append(
@@ -254,8 +381,11 @@ def run_pending_tasks(config: AppConfig | None = None) -> dict[str, Any]:
                     "status": "skipped",
                     "reason": reason,
                     "api_usage": usage,
+                    "budget_backoff_level": backoff_level,
                     "budget_backoff_until": task_state.get("budget_backoff_until"),
                     "budget_backoff_remaining_seconds": recovery_seconds,
+                    "budget_backoff_floor_seconds": backoff_floor_seconds,
+                    "budget_backoff_cooldown_source": task_state.get("budget_backoff_cooldown_source"),
                 }
             )
             _append_log(config, f"task={spec.name} status=skipped reason={reason}")
@@ -276,15 +406,30 @@ def run_pending_tasks(config: AppConfig | None = None) -> dict[str, Any]:
                 result = {"status": "skipped", "reason": "unknown_task"}
             finished_epoch = time.time()
             finished_at = datetime.fromtimestamp(finished_epoch, tz=timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-            task_state.update({"last_run_epoch": now, "last_run_at": finished_at, "last_status": result.get("status", "ok"), "last_result": result})
+            task_status = result.get("status", "ok")
+            task_state.update({"last_run_epoch": now, "last_run_at": finished_at, "last_status": task_status, "last_result": result})
             _record_task_timing(task_state, started_epoch=started_epoch, finished_epoch=finished_epoch, started_at=started_at, finished_at=finished_at)
             _set_task_next_due(task_state, base_epoch=now, every_seconds=spec.every_seconds)
-            task_state.pop("last_error", None)
             task_state.pop("last_skip_reason", None)
             task_state.pop("last_skipped_at", None)
+            task_state.pop("budget_backoff_level", None)
             task_state.pop("budget_backoff_until_epoch", None)
             task_state.pop("budget_backoff_until", None)
             task_state.pop("budget_backoff_remaining_seconds", None)
+            task_state.pop("budget_backoff_floor_seconds", None)
+            task_state.pop("budget_backoff_cooldown_source", None)
+            if task_status == "error":
+                failure_reason = _summarize_task_failure(result) or "subprocess_error"
+                task_state["last_error"] = failure_reason
+                failure_backoff = _set_failure_backoff(config, spec, task_state, now=now, reason=failure_reason)
+                results.append({"task": spec.name, **result, **failure_backoff})
+                _append_log(
+                    config,
+                    f"task={spec.name} status=error failure_backoff={failure_backoff['failure_backoff_remaining_seconds']}s reason={failure_reason}",
+                )
+                continue
+            task_state.pop("last_error", None)
+            _clear_failure_backoff(task_state)
             results.append({"task": spec.name, **result})
         except (MalApiError, OSError, subprocess.SubprocessError) as exc:
             finished_epoch = time.time()
@@ -294,11 +439,18 @@ def run_pending_tasks(config: AppConfig | None = None) -> dict[str, Any]:
             _set_task_next_due(task_state, base_epoch=now, every_seconds=spec.every_seconds)
             task_state.pop("last_skip_reason", None)
             task_state.pop("last_skipped_at", None)
+            task_state.pop("budget_backoff_level", None)
             task_state.pop("budget_backoff_until_epoch", None)
             task_state.pop("budget_backoff_until", None)
             task_state.pop("budget_backoff_remaining_seconds", None)
-            results.append({"task": spec.name, "status": "error", "error": f"{type(exc).__name__}: {exc}"})
-            _append_log(config, f"task={spec.name} status=error error={type(exc).__name__}: {exc}")
+            task_state.pop("budget_backoff_floor_seconds", None)
+            task_state.pop("budget_backoff_cooldown_source", None)
+            failure_backoff = _set_failure_backoff(config, spec, task_state, now=now, reason=f"{type(exc).__name__}: {exc}")
+            results.append({"task": spec.name, "status": "error", "error": f"{type(exc).__name__}: {exc}", **failure_backoff})
+            _append_log(
+                config,
+                f"task={spec.name} status=error error={type(exc).__name__}: {exc} failure_backoff={failure_backoff['failure_backoff_remaining_seconds']}s",
+            )
 
     state["last_loop_at"] = _now_iso()
     tracked_providers = {"mal", "crunchyroll", *config.service.provider_hourly_limits.keys(), *_available_source_providers(config)}

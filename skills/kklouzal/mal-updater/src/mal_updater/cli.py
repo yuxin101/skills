@@ -545,12 +545,33 @@ def _emit_service_status_summary(payload: dict[str, object]) -> None:
             next_due_in_seconds = task_payload.get("next_due_in_seconds") if isinstance(task_payload.get("next_due_in_seconds"), int) else None
             if next_due_in_seconds is not None:
                 print(f"task_{task_name}_next_due_in_seconds={next_due_in_seconds}")
+            budget_backoff_level = task_payload.get("budget_backoff_level") if isinstance(task_payload.get("budget_backoff_level"), str) else None
+            if budget_backoff_level is not None:
+                print(f"task_{task_name}_budget_backoff_level={budget_backoff_level}")
             budget_backoff_until = task_payload.get("budget_backoff_until") if isinstance(task_payload.get("budget_backoff_until"), str) else None
             if budget_backoff_until is not None:
                 print(f"task_{task_name}_budget_backoff_until={budget_backoff_until}")
             budget_backoff_remaining_seconds = task_payload.get("budget_backoff_remaining_seconds") if isinstance(task_payload.get("budget_backoff_remaining_seconds"), int) else None
             if budget_backoff_remaining_seconds is not None:
                 print(f"task_{task_name}_budget_backoff_remaining_seconds={budget_backoff_remaining_seconds}")
+            budget_backoff_floor_seconds = task_payload.get("budget_backoff_floor_seconds") if isinstance(task_payload.get("budget_backoff_floor_seconds"), int) else None
+            if budget_backoff_floor_seconds is not None:
+                print(f"task_{task_name}_budget_backoff_floor_seconds={budget_backoff_floor_seconds}")
+            budget_backoff_cooldown_source = task_payload.get("budget_backoff_cooldown_source") if isinstance(task_payload.get("budget_backoff_cooldown_source"), str) else None
+            if budget_backoff_cooldown_source is not None:
+                print(f"task_{task_name}_budget_backoff_cooldown_source={budget_backoff_cooldown_source}")
+            failure_backoff_until = task_payload.get("failure_backoff_until") if isinstance(task_payload.get("failure_backoff_until"), str) else None
+            if failure_backoff_until is not None:
+                print(f"task_{task_name}_failure_backoff_until={failure_backoff_until}")
+            failure_backoff_remaining_seconds = task_payload.get("failure_backoff_remaining_seconds") if isinstance(task_payload.get("failure_backoff_remaining_seconds"), int) else None
+            if failure_backoff_remaining_seconds is not None:
+                print(f"task_{task_name}_failure_backoff_remaining_seconds={failure_backoff_remaining_seconds}")
+            failure_backoff_reason = task_payload.get("failure_backoff_reason") if isinstance(task_payload.get("failure_backoff_reason"), str) else None
+            if failure_backoff_reason is not None:
+                print(f"task_{task_name}_failure_backoff_reason={failure_backoff_reason}")
+            failure_backoff_consecutive_failures = task_payload.get("failure_backoff_consecutive_failures") if isinstance(task_payload.get("failure_backoff_consecutive_failures"), int) else None
+            if failure_backoff_consecutive_failures is not None:
+                print(f"task_{task_name}_failure_backoff_consecutive_failures={failure_backoff_consecutive_failures}")
 
     service_log_tail = payload.get("service_log_tail")
     if isinstance(service_log_tail, list) and service_log_tail:
