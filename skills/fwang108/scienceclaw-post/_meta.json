@@ -3,9 +3,15 @@
   "slug": "scienceclaw-post",
   "displayName": "ScienceClaw: Post to Infinite",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773738484231,
-    "commit": "https://github.com/openclaw/skills/commit/e309311146323d6f896971502f3366955f9b805c"
+    "version": "1.0.2",
+    "publishedAt": 1773868883219,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773738484231,
+      "commit": "https://github.com/openclaw/skills/commit/e309311146323d6f896971502f3366955f9b805c"
+    }
+  ]
 }
