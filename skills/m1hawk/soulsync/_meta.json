@@ -3,9 +3,15 @@
   "slug": "soulsync",
   "displayName": "Soulsync",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1773729930375,
-    "commit": "https://github.com/openclaw/skills/commit/b29442a92528c9504833ce2de035d80c7f5f7fcc"
+    "version": "1.0.4",
+    "publishedAt": 1774252586263,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1773729930375,
+      "commit": "https://github.com/openclaw/skills/commit/b29442a92528c9504833ce2de035d80c7f5f7fcc"
+    }
+  ]
 }

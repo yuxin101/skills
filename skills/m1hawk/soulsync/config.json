@@ -5,5 +5,7 @@
   "decayThresholdDays": 14,
   "personalityType": "warm",
   "language": "en",
-  "customLevels": {}
+  "customLevels": {},
+  "signalGardenUrl": "https://signal-garden.vercel.app",
+  "signalApiUrl": "https://signal-garden.vercel.app/api"
 }
