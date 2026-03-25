@@ -151,15 +151,17 @@ class OpenClawMCPServer:
             safe_message = sanitize_message(message)
             
             # Build command safely using list (no shell=True)
-            cmd = ['timeout', '180', 'openclaw', 'agent', '--message', safe_message, '--deliver']
+            # 正确顺序: openclaw agent --to SESSION --message MSG --deliver
+            cmd = ['timeout', '180', 'openclaw', 'agent']
             
             # Get target session from config if available
             target_session = get_target_session()
             if target_session:
                 # Validate target_session format (basic check)
                 if re.match(r'^[a-z]+:[a-z0-9]+:[A-Za-z0-9]+$', target_session):
-                    cmd.insert(-2, '--to')
-                    cmd.insert(-2, target_session)
+                    cmd.extend(['--to', target_session])
+            
+            cmd.extend(['--message', safe_message, '--deliver'])
             
             # Run without shell=True for security
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=200)

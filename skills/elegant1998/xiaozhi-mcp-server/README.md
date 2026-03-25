@@ -41,8 +41,6 @@ cat ~/.config/openclaw-mcp/token
 
 3. 完成！现在对小智说话，欧克劳（OpenClaw）会帮你处理。
 
-<img src="img/image-20260202125738101.png" alt="image-20260202125738101" style="zoom:20%;" />
-
 ## 示例对话
 
 | 你对小智说 | OpenClaw(欧克劳)回复 |
@@ -74,23 +72,4 @@ cat ~/.config/openclaw-mcp/token
 
 ## 许可证
 
-MIT 
-
-## 已经支持的瞄小智固件
-
-
-
-<img src="img/image-20260302090718564.png" alt="image-20260202125738101" style="zoom:30%;" />
-
-<img src="img/20260308133243_177_21.jpg" alt="20260308122132_186_69" style="zoom:20%;"/>
-
-[见固件目录](https://github.com/elegant1998/xiaozhi-mcp-server/tree/main/miaoxiaozhi)
-
-没有对应硬件板子的，需要定制的，请进QQ群提需求。
-
-## 交流群
-
-扫码加入瞄小智QQ群，一起探索：
-
-<img src="img/qrcode_miaoxiaozhi_qq.jpg" alt="qrcode_miaoxiaozhi_qq" style="zoom:33%;" />
-
+MIT
