@@ -1,43 +1,35 @@
 ---
 name: mahjong-ai
-description: "AI Mahjong Assistant 🀄 — Snap a photo of your hand, get optimal discard suggestions. Sichuan Mahjong rules (Blood Battle / 血战到底). Supports tile recognition from photos, shanten analysis, safety ratings, and winning tile calculation. | AI 麻将助手 — 拍照识别手牌，分析最优出牌。川麻规则（血战到底/血流成河）。Use when: user sends a mahjong hand photo, asks for mahjong strategy, tile analysis, or which tile to discard."
+description: AI 麻将助手 — 拍照识别手牌，分析最优出牌。川麻规则（血战到底/血流成河），只有筒条万，每人13张。用法：发一张手牌照片，AI 识别牌面并给出出牌建议、听牌分析、向听数计算。Use when: user sends a mahjong hand photo, asks for mahjong strategy, tile analysis, or which tile to discard.
 ---
 
-# Mahjong AI Assistant 🀄 麻将 AI 助手
+# 麻将 AI 助手 🀄
 
-AI-powered Sichuan Mahjong (川麻) advisor. Snap a photo of your tiles → get the best discard suggestion.
+川麻（四川麻将）AI 出牌顾问。拍照发手牌，分析最优出牌。
 
-## Features
-- 📸 **Photo Recognition** — Identify tiles from a photo of your hand
-- 🎯 **Optimal Discard** — Analyze all options, recommend the best tile to discard
-- 🟢🟡🔴 **Safety Rating** — Know which tiles are safe to discard
-- 🀄 **Shanten Analysis** — Calculate how many tiles away from winning
-- 🏆 **Winning Tiles** — Show which tiles complete your hand and how many remain
+## 规则：川麻（血战到底）
+- 只有 **筒、条、万** 三门，共 108 张（每种 1-9 各 4 张）
+- 每人 **13 张**手牌，摸牌后 14 张选择出牌
+- 胡牌条件：4 组面子（顺子/刻子）+ 1 对将（雀头）
+- 特殊胡法：七对、龙七对、清一色、对对胡等
+- 血战到底：一人胡了继续打，直到剩一人没胡
 
-## Rules: Sichuan Mahjong (血战到底)
-- Only **Dots (筒), Bamboo (条), Characters (万)** — 108 tiles total
-- Each player holds **13 tiles**, draws to 14 then discards
-- Win condition: 4 sets (sequences/triplets) + 1 pair
-- Special hands: Seven Pairs, Dragon Seven Pairs, All One Suit, All Triplets
-- **Blood Battle**: Game continues after someone wins until only one player remains
-- **No Chow (吃)** — only Pong (碰), Kong (杠), and Win (胡)
+## 工作流程
 
-## Workflow
+### Step 1: 识别牌面（拍照）
+收到照片后，用视觉识别：
+1. **手牌**（13或14张）
+2. **场上已打出的牌**（牌池/河牌）
+3. **已碰/杠的牌**
 
-### Step 1: Tile Recognition (Photo)
-Send a photo → AI identifies:
-1. **Hand tiles** (13 or 14)
-2. **Discarded tiles** (river/pool)
-3. **Melded tiles** (exposed sets)
+编码格式：
+- 万子：1m 2m ... 9m
+- 筒子：1p 2p ... 9p
+- 条子：1s 2s ... 9s
 
-Tile encoding:
-- Characters (万): 1m 2m ... 9m
-- Dots (筒): 1p 2p ... 9p
-- Bamboo (条): 1s 2s ... 9s
+列出识别结果让用户确认后再分析。
 
-Results are shown for user confirmation before analysis.
-
-### Step 2: Run Analysis
+### Step 2: 运行分析
 ```bash
 python3 scripts/mahjong_analyze.py \
   --hand "1m,2m,3m,5m,5m,3p,4p,7p,8p,9p,2s,3s,4s,6s" \
@@ -45,23 +37,20 @@ python3 scripts/mahjong_analyze.py \
   --meld "6m,6m,6m"
 ```
 
-Parameters:
-- `--hand` / `-H`: Your hand tiles (required, 13 or 14 tiles)
-- `--discard` / `-d`: Tiles already discarded on the table (optional)
-- `--meld` / `-m`: Exposed melds — pong/kong (optional)
+参数：
+- `--hand` / `-H`：手牌（必填，13或14张）
+- `--discard` / `-d`：场上已打出的牌（可选）
+- `--meld` / `-m`：已碰/杠的牌（可选）
 
-### Step 3: Output
-- **14 tiles** → Recommended discard + safety rating 🟢🟡🔴 + waiting tile count
-- **13 tiles** → Which tiles complete your hand + remaining count
-- Safety is calculated from visible discards (more discards = safer; terminal tiles 1/9 = safer)
+### Step 3: 输出建议
+- 14张 → 推荐打哪张，附安全度🟢🟡🔴 + 听牌张数
+- 13张 → 显示听什么牌 + 剩余张数
+- 安全度基于场面已出牌计算（出越多越安全、19边张更安全）
 
-## Scoring (番数)
-| Hand | Fan |
-|------|-----|
-| All One Suit (清一色) | 4 |
-| Seven Pairs (七对) | 4 |
-| Dragon Seven Pairs (龙七对) | 8 |
-| All Triplets (对对胡) | 2 |
+## 川麻特殊规则
+- **不能吃**，只能碰/杠/胡
+- 血战到底：一人胡了继续打
+- 番数：清一色4番、七对4番、龙七对8番、对对胡2番
 
-## References
-- Detailed tile theory: `references/mahjong_theory.md`
+## 参考
+- 详细牌理：见 `references/mahjong_theory.md`
