@@ -1,0 +1,11 @@
+{
+  "owner": "samber",
+  "slug": "golang-performance",
+  "displayName": "Golang Performance",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774234568462,
+    "commit": null
+  },
+  "history": []
+}
