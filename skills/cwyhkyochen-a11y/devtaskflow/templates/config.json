@@ -21,13 +21,15 @@
     "deploy": "shell",
     "archive": "local-copy",
     "orchestration": "local_llm",
-    "publish": "github"
+    "publish": "clawhub"
   },
   "openclaw": {
+    "base_url": "",
+    "api_key": "",
+    "model": "",
     "agent_id": "skill-runner",
     "mode": "run",
-    "timeout_seconds": 900,
-    "model": "Opus"
+    "timeout_seconds": 900
   },
   "deploy": {
     "build_command": "",

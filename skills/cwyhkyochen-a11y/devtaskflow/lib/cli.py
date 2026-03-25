@@ -37,6 +37,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / 'templates'
 
 
+def _mask_host(host: str) -> str:
+    """对主机地址进行脱敏，保留前缀和后缀，中间用 * 替代。"""
+    if not host:
+        return ''
+    # IP 地址：保留第一段
+    parts = host.split('.')
+    if len(parts) == 4:
+        return f'{parts[0]}.*.*.{parts[3]}'
+    # 域名：保留首尾字符
+    if len(host) <= 4:
+        return host[0] + '***'
+    return host[:2] + '***' + host[-2:]
+
+
 def list_projects(start: Path):
     workspace_root = find_workspace_root(start)
     return load_projects(workspace_root / DEFAULT_PROJECTS_FILE)
@@ -165,6 +179,14 @@ def cmd_start(args):
             return 0
         if args.deploy:
             return 0 if auto_advance(project_root, action='deploy')['status'] != 'failed' else 1
+        if args.final_review:
+            return 0 if auto_advance(project_root, action='final_review')['status'] != 'failed' else 1
+        if args.deploy_skip_review:
+            return 0 if auto_advance(project_root, action='deploy-skip-review')['status'] != 'failed' else 1
+        if args.final_review:
+            return 0 if auto_advance(project_root, action='final_review')['status'] != 'failed' else 1
+        if args.deploy_skip_review:
+            return 0 if auto_advance(project_root, action='deploy-skip-review')['status'] != 'failed' else 1
 
         # 默认：自动推进
         result = auto_advance(project_root, action='continue')
@@ -265,12 +287,13 @@ def cmd_board(args):
                     print(f'   进度：{explanation}')
                     print(f'   下一步：{next_step}')
 
-                    # 部署信息
+                    # 部署信息（脱敏显示）
                     deploy = config.get('deploy', {})
                     host = deploy.get('host', '')
                     deploy_path = deploy.get('path', '')
                     if host or deploy_path:
-                        print(f'   部署：{deploy.get("user", "")}@{host}:{deploy_path}' if deploy.get('user') else f'   部署：{host}:{deploy_path}')
+                        masked_host = _mask_host(host)
+                        print(f'   部署：{masked_host}（已配置）' if host else f'   部署：已配置')
         except Exception:
             pass
 
@@ -350,15 +373,17 @@ def cmd_board_query(args):
             if last_error:
                 print(f'\n⚠️ 最近错误：{last_error}')
 
-        # 部署信息
+        # 部署信息（脱敏显示）
         deploy = config.get('deploy', {})
         host = deploy.get('host', '')
         if host:
+            masked_host = _mask_host(host)
             print(f'\n📦 部署信息')
-            print(f'  服务器：{deploy.get("user", "")}@{host}')
-            print(f'  路径：{deploy.get("path", "")}')
-            print(f'  构建：{deploy.get("build_command", "") or "未配置"}')
-            print(f'  部署：{deploy.get("deploy_command", "") or "未配置"}')
+            print(f'  服务器：{masked_host}')
+            build_cmd = deploy.get('build_command', '')
+            print(f'  构建：{"已配置" if build_cmd else "未配置"}')
+            deploy_cmd = deploy.get('deploy_command', '')
+            print(f'  部署：{"已配置" if deploy_cmd else "未配置"}')
 
         # 需求摘要
         req_path = vd / 'docs' / 'REQUIREMENTS.md'
@@ -394,7 +419,7 @@ def cmd_advanced(args):
     print('  dtflow advanced fix             手动修复问题')
     print('  dtflow advanced deploy          手动部署')
     print('  dtflow advanced seal            手动封版')
-    print('  dtflow advanced publish         发布到 GitHub')
+    print('  dtflow advanced publish         发布到 GitHub / ClawHub')
     print('  dtflow advanced next-version    计算下一个版本号')
     print('  dtflow advanced project-list    项目列表（原始格式）')
     print('  dtflow advanced project-status  单项目状态')
@@ -736,6 +761,8 @@ def main():
     p_start.add_argument('--run', action='store_true', help='本地预览')
     p_start.add_argument('--stop', action='store_true', help='停止本地预览')
     p_start.add_argument('--deploy', action='store_true', help='部署上线并封版')
+    p_start.add_argument('--final-review', action='store_true', help='执行上线前综合审查')
+    p_start.add_argument('--deploy-skip-review', action='store_true', help='跳过综合审查直接部署')
     p_start.set_defaults(func=cmd_start)
 
     p_board = subparsers.add_parser('board', help='查看所有项目状态')
@@ -781,8 +808,8 @@ def main():
     p_adv_seal = advanced_sub.add_parser('seal', help='手动封版')
     p_adv_seal.set_defaults(func=cmd_adv_seal)
 
-    p_adv_publish = advanced_sub.add_parser('publish', help='发布到 GitHub')
-    p_adv_publish.add_argument('--target', default='github', choices=['github'])
+    p_adv_publish = advanced_sub.add_parser('publish', help='发布到 GitHub / ClawHub')
+    p_adv_publish.add_argument('--target', default='github', choices=['github', 'clawhub'])
     p_adv_publish.add_argument('--allow-dirty', action='store_true')
     p_adv_publish.add_argument('--force-tag', action='store_true')
     p_adv_publish.add_argument('--replace-release', action='store_true')

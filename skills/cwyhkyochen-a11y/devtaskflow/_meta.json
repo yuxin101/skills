@@ -1,13 +1,18 @@
 {
   "owner": "cwyhkyochen-a11y",
   "slug": "devtaskflow",
-  "displayName": "DevTaskFlow",
+  "displayName": "Devtaskflow",
   "latest": {
-    "version": "0.5.1",
-    "publishedAt": 1773933151564,
-    "commit": "https://github.com/openclaw/skills/commit/1121a79dbb0410d3cd99aec0290021ccc063147b"
+    "version": "0.8.0",
+    "publishedAt": 1774367758982,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.5.1",
+      "publishedAt": 1773933151564,
+      "commit": "https://github.com/openclaw/skills/commit/1121a79dbb0410d3cd99aec0290021ccc063147b"
+    },
     {
       "version": "0.1.1",
       "publishedAt": 1773850466827,
