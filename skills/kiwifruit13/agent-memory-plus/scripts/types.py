@@ -43,6 +43,80 @@ class MemoryType(str, Enum):
     EMOTIONAL = "emotional"
 
 
+class MemoryCategory(str, Enum):
+    """8种记忆分类体系
+
+    注意：上下文（Context）是动态的、会话级别的，由短期记忆和上下文重构器管理，
+    不属于长期记忆的持久化范畴。
+    """
+
+    # 核心层（持久化，跨会话稳定）
+    CORE_IDENTITY = "core_identity"  # 核心身份 → UserProfileMemory.identity
+    CORE_PREFERENCE = "core_preference"  # 核心偏好 → UserProfileMemory.preferences
+    CORE_SKILL = "core_skill"  # 核心技能 → ProceduralMemory（工具使用、决策模式）
+    # 扩展层（动态更新，跨会话积累）
+    EXTENDED_BEHAVIOR = "extended_behavior"  # 扩展行为 → ProceduralMemory.operation_preferences
+    EXTENDED_EMOTION = "extended_emotion"  # 扩展情感 → EmotionalMemory
+    EXTENDED_KNOWLEDGE = "extended_knowledge"  # 扩展知识 → SemanticMemory
+    EXTENDED_NARRATIVE = "extended_narrative"  # 扩展叙事 → NarrativeMemory
+    # 反思层（链式推理增强）
+    EXTENDED_REFLECTION = "extended_reflection"  # 反思记忆 → 元学习训练数据
+
+
+class SemanticBucketType(str, Enum):
+    """语义分类桶类型"""
+
+    TASK_CONTEXT = "task_context"  # 任务上下文桶
+    USER_INTENT = "user_intent"  # 用户意图桶
+    KNOWLEDGE_GAP = "knowledge_gap"  # 知识缺口桶
+    EMOTIONAL_TRACE = "emotional_trace"  # 情感痕迹桶
+    DECISION_CONTEXT = "decision_context"  # 决策上下文桶
+
+
+class QualityDimension(str, Enum):
+    """六维质量评估维度"""
+
+    RELEVANCE = "relevance"  # 相关性
+    COMPLETENESS = "completeness"  # 完整性
+    COHERENCE = "coherence"  # 连贯性
+    TIMELINESS = "timeliness"  # 时效性
+    DIVERSITY = "diversity"  # 多样性
+    ACTIONABILITY = "actionability"  # 可操作性
+
+
+class ScenarioType(str, Enum):
+    """场景类型"""
+
+    CODING = "coding"  # 编码场景
+    DEBUGGING = "debugging"  # 调试场景
+    DESIGN = "design"  # 设计场景
+    ANALYSIS = "analysis"  # 分析场景
+    LEARNING = "learning"  # 学习场景
+    PLANNING = "planning"  # 规划场景
+    REVIEW = "review"  # 审查场景
+
+
+class PhaseType(str, Enum):
+    """阶段类型"""
+
+    EXPLORATION = "exploration"  # 探索阶段
+    DESIGN = "design"  # 设计阶段
+    IMPLEMENTATION = "implementation"  # 实现阶段
+    VERIFICATION = "verification"  # 验证阶段
+    REFINEMENT = "refinement"  # 优化阶段
+
+
+class UserStateType(str, Enum):
+    """用户状态类型"""
+
+    FOCUSED = "focused"  # 专注状态
+    CONFUSED = "confused"  # 困惑状态
+    EXPLORATORY = "exploratory"  # 探索状态
+    DECISIVE = "decisive"  # 决断状态
+    FRUSTRATED = "frustrated"  # 挫败状态
+    SATISFIED = "satisfied"  # 满意状态
+
+
 class HeatLevel(str, Enum):
     """冷热度层级"""
 
@@ -58,6 +132,11 @@ class ConflictType(str, Enum):
     TEMPORAL_EVOLUTION = "temporal_evolution"
     CONTEXT_DEPENDENCY = "context_dependency"
     CONFIDENCE_CONFLICT = "confidence_conflict"
+    DATA_INCONSISTENCY = "data_inconsistency"
+    CONCEPT_AMBIGUITY = "concept_ambiguity"
+    STRATEGY_CONFLICT = "strategy_conflict"
+    EMOTIONAL_INCONSISTENCY = "emotional_inconsistency"
+    TEMPORAL_INVALIDATION = "temporal_invalidation"
 
 
 class ResolutionMode(str, Enum):
@@ -66,6 +145,11 @@ class ResolutionMode(str, Enum):
     LOGIC_DOMINANT = "logic_dominant"
     BALANCED = "balanced"
     NEUROTICISM_DOMINANT = "neuroticism_dominant"
+    RECENCY = "recency"
+    FREQUENCY = "frequency"
+    USER_CONFIRMATION = "user_confirmation"
+    SOURCE_TRUST = "source_trust"
+    CONTEXTUAL = "contextual"
 
 
 class TriggerDimension(str, Enum):
@@ -89,6 +173,86 @@ class SignalType(str, Enum):
     TOOL_RECOMMENDATION = "tool_recommendation"
 
 
+class InsightType(str, Enum):
+    """洞察类型"""
+
+    USER_PREFERENCE = "user_preference"
+    BEHAVIORAL_PATTERN = "behavioral_pattern"
+    BEST_PRACTICE = "best_practice"
+    EFFICIENCY_OPPORTUNITY = "efficiency_opportunity"
+    KNOWLEDGE_GAP = "knowledge_gap"
+    PROCESS_IMPROVEMENT = "process_improvement"
+    ERROR_PREVENTION = "error_prevention"
+    EMOTIONAL_PATTERN = "emotional_pattern"
+    IDENTITY_EVOLUTION = "identity_evolution"
+
+
+# ============================================================================
+# 链式推理增强 - 反思类型
+# ============================================================================
+
+
+class ReflectionTriggerType(str, Enum):
+    """反思触发类型"""
+
+    SELF_DETECTED = "self_detected"  # 模型自检测
+    RULE_TRIGGERED = "rule_triggered"  # 规则触发（备用）
+    MILESTONE = "milestone"  # 关键节点
+    RESOURCE_WARNING = "resource_warning"  # 资源预警
+
+
+class ReflectionOutcome(str, Enum):
+    """反思结果类型（元学习标签）"""
+
+    CORRECTED = "corrected"  # 纠正了错误
+    CONFIRMED = "confirmed"  # 确认无误
+    FALSE_POSITIVE = "false_positive"  # 误报（无需反思）
+    UNRESOLVED = "unresolved"  # 未解决
+
+
+class LearningValue(str, Enum):
+    """元学习价值评估"""
+
+    HIGH = "high"  # 高价值：发现真实问题并解决
+    MEDIUM = "medium"  # 中价值：确认无误但过程有意义
+    LOW = "low"  # 低价值：误报
+
+
+class ReflectionSeverity(str, Enum):
+    """反思问题严重程度"""
+
+    CRITICAL = "critical"  # 严重：需要立即回退
+    HIGH = "high"  # 高：需要验证
+    MEDIUM = "medium"  # 中：需要注意
+    LOW = "low"  # 低：可忽略
+
+
+class InsightPriority(str, Enum):
+    """洞察优先级"""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class SignalStrength(str, Enum):
+    """信号强度"""
+
+    STRONG = "strong"
+    MODERATE = "moderate"
+    WEAK = "weak"
+
+
+class DecisionType(str, Enum):
+    """决策类型"""
+
+    TOOL_CHOICE = "tool_choice"
+    APPROACH_SELECTION = "approach_selection"
+    PREFERENCE_EXPRESSION = "preference_expression"
+    CONFIRMATION = "confirmation"
+    REJECTION = "rejection"
+
+
 class TaskType(str, Enum):
     """任务类型"""
 
@@ -99,6 +263,7 @@ class TaskType(str, Enum):
     PROBLEM_SOLVING = "problem_solving"
     BRAINSTORMING = "brainstorming"
     DATA_ANALYSIS = "data_analysis"
+    KNOWLEDGE_QUERY = "knowledge_query"
 
 
 # ============================================================================
@@ -126,6 +291,225 @@ class HeatMixin(BaseModel):
     heat_level: HeatLevel = Field(default=HeatLevel.WARM)
     last_accessed_at: datetime = Field(default_factory=datetime.now)
     access_count: int = Field(default=0)
+
+
+# ============================================================================
+# 链式推理增强 - 反思数据模型
+# ============================================================================
+
+
+class ReflectionSignal(BaseModel):
+    """模型自检测的反思信号（嵌入推理输出中）"""
+
+    need_reflect: bool = Field(default=False, description="是否需要反思")
+    reflect_reason: str | None = Field(default=None, description="反思原因")
+    reflect_confidence: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="反思置信度"
+    )
+
+
+class ReasoningStepWithReflection(BaseModel):
+    """带反思信号的推理步骤"""
+
+    thought: str = Field(description="推理思考")
+    action: str | None = Field(default=None, description="执行动作")
+    action_input: dict[str, Any] | None = Field(default=None, description="动作输入")
+    final_answer: str | None = Field(default=None, description="最终答案")
+
+    # 反思信号（模型自检测）
+    reflection_signal: ReflectionSignal = Field(
+        default_factory=ReflectionSignal, description="反思信号"
+    )
+
+
+class ReflectionTriggerRecord(BaseModel):
+    """反思触发记录（存储到短期记忆）"""
+
+    record_id: str = Field(default_factory=lambda: f"refl_trig_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+    trigger_type: ReflectionTriggerType = Field(description="触发类型")
+    trigger_reason: str = Field(description="触发原因")
+    trigger_confidence: float = Field(ge=0.0, le=1.0, description="触发置信度")
+    step_index: int = Field(description="推理步骤索引")
+    task_type: str = Field(description="任务类型")
+    context_snapshot: dict[str, Any] = Field(default_factory=dict, description="状态快照")
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class ReflectionProcessResult(BaseModel):
+    """反思执行结果"""
+
+    passed: bool = Field(description="是否通过")
+    issues: list[str] = Field(default_factory=list, description="发现的问题")
+    severity: ReflectionSeverity = Field(
+        default=ReflectionSeverity.LOW, description="严重程度"
+    )
+    suggestion: str | None = Field(default=None, description="修正建议")
+    need_verification: bool = Field(default=False, description="是否需要验证")
+    corrected_step: ReasoningStepWithReflection | None = Field(
+        default=None, description="修正后的步骤"
+    )
+
+
+class VerificationResult(BaseModel):
+    """验证结果"""
+
+    triggered: bool = Field(default=False, description="是否触发验证")
+    result: str | None = Field(default=None, description="验证结果")
+    resolution: str | None = Field(default=None, description="解决方案")
+    evidence: list[str] = Field(default_factory=list, description="证据链")
+
+
+class ReflectionMemoryItem(BaseModel):
+    """反思记忆项（持久化到长期记忆）"""
+
+    memory_id: str = Field(
+        default_factory=lambda: f"refl_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    )
+    category: MemoryCategory = Field(
+        default=MemoryCategory.EXTENDED_REFLECTION, description="记忆分类"
+    )
+
+    # 触发信息
+    trigger_type: ReflectionTriggerType = Field(description="触发类型")
+    trigger_reason: str = Field(description="触发原因")
+    trigger_confidence: float = Field(ge=0.0, le=1.0, description="触发置信度")
+    step_index: int = Field(description="推理步骤索引")
+    task_type: str = Field(description="任务类型")
+
+    # 状态快照
+    context_snapshot: dict[str, Any] = Field(default_factory=dict, description="状态快照")
+
+    # 反思过程
+    reflection_issues: list[str] = Field(default_factory=list, description="发现的问题")
+    reflection_severity: ReflectionSeverity = Field(
+        default=ReflectionSeverity.LOW, description="问题严重程度"
+    )
+    reflection_suggestion: str | None = Field(default=None, description="修正建议")
+
+    # 验证结果
+    verification_triggered: bool = Field(default=False, description="是否触发验证")
+    verification_result: str | None = Field(default=None, description="验证结果")
+    verification_resolution: str | None = Field(default=None, description="解决方案")
+
+    # 最终结果（元学习标签）
+    outcome: ReflectionOutcome = Field(description="反思结果")
+    learning_value: LearningValue = Field(description="元学习价值")
+
+    # 元数据
+    timestamp: datetime = Field(default_factory=datetime.now)
+    user_id: str = Field(default="")
+    session_id: str = Field(default="")
+
+
+class MetaLearningSample(BaseModel):
+    """元学习训练样本"""
+
+    sample_id: str = Field(
+        default_factory=lambda: f"ml_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    )
+
+    # 输入特征
+    context_snapshot: dict[str, Any] = Field(description="状态快照")
+    step_index: int = Field(description="步骤索引")
+    task_type: str = Field(description="任务类型")
+    recent_thoughts: list[str] = Field(default_factory=list, description="最近推理")
+
+    # 输出标签
+    should_reflect: bool = Field(description="是否应该反思")
+    reflect_reason: str | None = Field(default=None, description="反思原因")
+    reflect_confidence: float | None = Field(default=None, description="反思置信度")
+
+    # 学习标签
+    outcome: ReflectionOutcome = Field(description="实际结果")
+    was_correct: bool = Field(description="反思判断是否正确")
+
+    # 元数据
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
+# 短期记忆类型
+# ============================================================================
+
+
+class ShortTermMemoryItem(BaseModel):
+    """短期记忆项
+    
+    语义分类和话题标签由智能体判断后传入，而非脚本内部关键词匹配。
+    """
+
+    item_id: str
+    content: str
+    bucket_type: SemanticBucketType  # 语义桶类型（智能体指定）
+    topic_label: str = ""             # 话题标签（智能体指定，用于聚合）
+    relevance_score: float = Field(ge=0.0, le=1.0, default=0.5)
+    source_turn: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.now)
+    expires_at: Optional[datetime] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ShortTermMemoryBucket(BaseModel):
+    """短期记忆语义分类桶"""
+
+    bucket_type: SemanticBucketType
+    items: list[ShortTermMemoryItem] = Field(default_factory=list)
+    capacity: int = Field(default=20)
+    priority: float = Field(ge=0.0, le=1.0, default=0.5)
+    created_at: datetime = Field(default_factory=datetime.now)
+    last_updated: datetime = Field(default_factory=datetime.now)
+
+
+class ExtractionTrigger(BaseModel):
+    """提炼触发条件"""
+
+    trigger_type: str  # capacity, time_interval, pattern_detected, user_request
+    threshold: float
+    current_value: float
+    triggered: bool = Field(default=False)
+
+
+# ============================================================================
+# 上下文包类型
+# ============================================================================
+
+
+class QualityScores(BaseModel):
+    """六维质量分数"""
+
+    relevance: float = Field(ge=0.0, le=1.0, default=0.5)
+    completeness: float = Field(ge=0.0, le=1.0, default=0.5)
+    coherence: float = Field(ge=0.0, le=1.0, default=0.5)
+    timeliness: float = Field(ge=0.0, le=1.0, default=0.5)
+    diversity: float = Field(ge=0.0, le=1.0, default=0.5)
+    actionability: float = Field(ge=0.0, le=1.0, default=0.5)
+    overall_score: float = Field(ge=0.0, le=1.0, default=0.5)
+
+
+class WeightConfig(BaseModel):
+    """权重配置"""
+
+    relevance_weight: float = Field(ge=0.0, le=1.0, default=0.20)
+    completeness_weight: float = Field(ge=0.0, le=1.0, default=0.15)
+    coherence_weight: float = Field(ge=0.0, le=1.0, default=0.15)
+    timeliness_weight: float = Field(ge=0.0, le=1.0, default=0.15)
+    diversity_weight: float = Field(ge=0.0, le=1.0, default=0.15)
+    actionability_weight: float = Field(ge=0.0, le=1.0, default=0.20)
+
+
+class ContextPackage(BaseModel):
+    """上下文包"""
+
+    package_id: str
+    task_context: dict[str, Any]
+    user_state: dict[str, Any]
+    activated_memories: list[str]
+    quality_scores: QualityScores
+    weight_config: WeightConfig
+    scenario: ScenarioType
+    phase: PhaseType
+    created_at: datetime = Field(default_factory=datetime.now)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # ============================================================================
@@ -212,6 +596,11 @@ class ToolUsageRecord(BaseModel):
     effectiveness_score: float = Field(ge=0.0, le=1.0)
     outcome: str
     user_feedback: Optional[float] = None
+    # 状态关联字段（P0: 工具调用状态关联）
+    checkpoint_id: Optional[str] = None      # 关联的状态快照ID
+    phase: Optional[str] = None              # 调用时的阶段
+    scenario: Optional[str] = None           # 调用时的场景
+    user_state: Optional[str] = None         # 调用时的用户状态
 
 
 class ToolOptimalContext(BaseModel):
@@ -753,6 +1142,186 @@ class AsyncTask(BaseModel):
 
 
 # ============================================================================
+# 状态同步类型（LangGraph集成）
+# ============================================================================
+
+
+class StateEventType(str, Enum):
+    """状态事件类型"""
+
+    STATE_CHANGE = "state_change"           # 通用状态变化
+    PHASE_CHANGE = "phase_change"           # 阶段变化
+    TASK_COMPLETE = "task_complete"         # 任务完成
+    TASK_SWITCH = "task_switch"             # 任务切换
+    CHECKPOINT_CREATED = "checkpoint_created"  # 检查点创建
+    CHECKPOINT_RESTORED = "checkpoint_restored"  # 检查点恢复
+    USER_STATE_CHANGE = "user_state_change"  # 用户状态变化
+
+
+class CheckpointRecord(BaseModel):
+    """检查点记录"""
+
+    checkpoint_id: str
+    thread_id: str
+    node_name: str                          # 创建检查点的节点名
+    timestamp: datetime = Field(default_factory=datetime.now)
+    state_hash: str                         # 状态哈希（用于快速比较）
+    state_diff: dict[str, Any] = Field(default_factory=dict)  # 增量差异
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    ttl_hours: int = Field(default=168)     # TTL，默认7天
+
+
+class StateChangeEvent(BaseModel):
+    """状态变化事件"""
+
+    event_id: str
+    event_type: StateEventType
+    checkpoint_id: str
+    thread_id: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    changes: dict[str, Any] = Field(default_factory=dict)    # 变化内容
+    previous_state: dict[str, Any] = Field(default_factory=dict)  # 变化前状态
+    current_state: dict[str, Any] = Field(default_factory=dict)   # 变化后状态
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class StateSubscription(BaseModel):
+    """状态订阅配置"""
+
+    subscription_id: str
+    event_types: list[StateEventType]       # 订阅的事件类型
+    callback_name: str                      # 回调函数名（用于序列化）
+    active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
+# 洞察池类型
+# ============================================================================
+
+
+class InsightSignal(BaseModel):
+    """洞察信号"""
+
+    signal_id: str
+    signal_type: InsightType
+    confidence: float = Field(ge=0.0, le=1.0)
+    data: dict[str, Any] = Field(default_factory=dict)
+    raw_observation: str
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class Insight(BaseModel):
+    """洞察"""
+
+    insight_id: str
+    insight_type: InsightType
+    title: str
+    content: str
+    priority: InsightPriority
+    created_at: datetime = Field(default_factory=datetime.now)
+    signal_strength: SignalStrength = SignalStrength.MODERATE
+    affected_memories: list[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    actionable: bool = Field(default=False)
+    actions: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class InsightPoolData(BaseModel):
+    """洞察池数据"""
+
+    active_insights: list[Insight] = Field(default_factory=list)
+    pending_insights: list[Insight] = Field(default_factory=list)
+    archived_insights: list[Insight] = Field(default_factory=list)
+    max_active: int = Field(default=5)
+
+
+class UserDecision(BaseModel):
+    """用户决策"""
+
+    decision_id: str
+    decision_type: DecisionType
+    context: str
+    chosen_option: str
+    alternative_options: list[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
+# 场景识别类型
+# ============================================================================
+
+
+class SceneContext(BaseModel):
+    """场景上下文"""
+
+    scenario: ScenarioType
+    phase: PhaseType
+    user_state: UserStateType
+    confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    indicators: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class GlobalStateSnapshot(BaseModel):
+    """全局状态快照"""
+
+    snapshot_id: str
+    user_id: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    current_task: str
+    task_phase: str
+    user_intent: str
+    active_memories: list[str] = Field(default_factory=list)
+    decision_context: dict[str, Any] = Field(default_factory=dict)
+    emotion_state: str = Field(default="neutral")
+    mental_model: str = Field(default="")
+    conversation_turn: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# ============================================================================
+# 冲突解决扩展类型
+# ============================================================================
+
+
+class ConflictSeverity(str, Enum):
+    """冲突严重程度"""
+
+    LOW = "low"
+    MODERATE = "moderate"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class MemoryConflictExtended(BaseModel):
+    """扩展的记忆冲突"""
+
+    conflict_id: str
+    conflict_type: ConflictType
+    severity: ConflictSeverity = ConflictSeverity.MODERATE
+    involved_memories: list[str] = Field(default_factory=list)
+    description: str
+    detected_at: datetime = Field(default_factory=datetime.now)
+    resolution_mode: ResolutionMode = ResolutionMode.BALANCED
+
+
+class ResolutionResult(BaseModel):
+    """解决结果"""
+
+    conflict_id: str
+    resolution_mode: ResolutionMode
+    winning_memory: str
+    losing_memories: list[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0, default=0.5)
+    rationale: str = ""
+    user_required: bool = Field(default=False)
+    alternatives: list[str] = Field(default_factory=list)
+
+
+# ============================================================================
 # 长期记忆统一容器
 # ============================================================================
 
@@ -766,7 +1335,110 @@ class LongTermMemoryContainer(BaseModel):
     narrative: Optional[NarrativeMemory] = None
     semantic: Optional[SemanticMemory] = None
     emotional: Optional[EmotionalMemory] = None
+    # 反思记忆索引（P0: 链式推理增强）
+    reflection_index: list[dict[str, Any]] = Field(default_factory=list)
     last_updated: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
+# 短期记忆到长期记忆的映射工具
+# ============================================================================
+
+
+class ExtractionMapping:
+    """
+    提炼映射工具
+    
+    定义短期记忆语义桶到长期记忆7分类的映射关系
+    """
+    
+    # 核心映射表
+    BUCKET_TO_CATEGORY: dict[SemanticBucketType, list[str]] = {
+        # 用户意图 → 核心偏好（首选）/ 核心身份（备选）
+        SemanticBucketType.USER_INTENT: [
+            MemoryCategory.CORE_PREFERENCE.value,
+            MemoryCategory.CORE_IDENTITY.value,
+        ],
+        # 决策上下文 → 上下文重构器（非线性激活），不存储到长期记忆
+        SemanticBucketType.DECISION_CONTEXT: [
+            "CONTEXT_ACTIVATION",  # 特殊标记：传递给上下文重构器
+        ],
+        # 任务上下文 → 扩展叙事 + 同时用于上下文激活
+        SemanticBucketType.TASK_CONTEXT: [
+            MemoryCategory.EXTENDED_NARRATIVE.value,
+            "CONTEXT_ACTIVATION",  # 同时传递给上下文重构器
+        ],
+        # 知识缺口 → 扩展知识
+        SemanticBucketType.KNOWLEDGE_GAP: [
+            MemoryCategory.EXTENDED_KNOWLEDGE.value,
+        ],
+        # 情感痕迹 → 扩展情感
+        SemanticBucketType.EMOTIONAL_TRACE: [
+            MemoryCategory.EXTENDED_EMOTION.value,
+        ],
+    }
+    
+    # 分类层级
+    CORE_CATEGORIES: set[MemoryCategory] = {
+        MemoryCategory.CORE_IDENTITY,
+        MemoryCategory.CORE_PREFERENCE,
+        MemoryCategory.CORE_SKILL,
+    }
+    
+    EXTENDED_CATEGORIES: set[MemoryCategory] = {
+        MemoryCategory.EXTENDED_BEHAVIOR,
+        MemoryCategory.EXTENDED_EMOTION,
+        MemoryCategory.EXTENDED_KNOWLEDGE,
+        MemoryCategory.EXTENDED_NARRATIVE,
+    }
+    
+    @classmethod
+    def get_target_category(
+        cls,
+        bucket_type: SemanticBucketType,
+        confidence: float = 0.5,
+    ) -> str:
+        """
+        根据桶类型和置信度确定目标分类
+        
+        Args:
+            bucket_type: 语义桶类型
+            confidence: 置信度（用于选择首选或备选分类）
+            
+        Returns:
+            目标记忆分类（字符串，可能是 MemoryCategory 或特殊标记）
+        """
+        categories = cls.BUCKET_TO_CATEGORY.get(bucket_type, [])
+        
+        if not categories:
+            # 默认归类为扩展叙事
+            return MemoryCategory.EXTENDED_NARRATIVE.value
+        
+        # 高置信度选首选，低置信度选备选（如果有）
+        if confidence >= 0.7 or len(categories) == 1:
+            return categories[0]
+        else:
+            return categories[-1]
+    
+    @classmethod
+    def is_for_context_activation(cls, target: str) -> bool:
+        """判断是否需要传递给上下文重构器"""
+        return target == "CONTEXT_ACTIVATION"
+    
+    @classmethod
+    def is_for_long_term_storage(cls, target: str) -> bool:
+        """判断是否需要存储到长期记忆"""
+        return target in [c.value for c in cls.CORE_CATEGORIES | cls.EXTENDED_CATEGORIES]
+    
+    @classmethod
+    def is_core_category(cls, category: MemoryCategory) -> bool:
+        """判断是否为核心层分类"""
+        return category in cls.CORE_CATEGORIES
+    
+    @classmethod
+    def is_extended_category(cls, category: MemoryCategory) -> bool:
+        """判断是否为扩展层分类"""
+        return category in cls.EXTENDED_CATEGORIES
 
 
 # ============================================================================
@@ -777,16 +1449,49 @@ class LongTermMemoryContainer(BaseModel):
 __all__ = [
     # 枚举
     "MemoryType",
+    "MemoryCategory",
+    "SemanticBucketType",
+    "QualityDimension",
+    "ScenarioType",
+    "PhaseType",
+    "UserStateType",
     "HeatLevel",
     "ConflictType",
     "ResolutionMode",
     "TriggerDimension",
     "SignalType",
+    "InsightType",
+    "InsightPriority",
+    "SignalStrength",
+    "DecisionType",
     "TaskType",
+    "ConflictSeverity",
+    # 反思类型
+    "ReflectionTriggerType",
+    "ReflectionOutcome",
+    "LearningValue",
+    "ReflectionSeverity",
+    "ReflectionSignal",
+    "ReasoningStepWithReflection",
+    "ReflectionTriggerRecord",
+    "ReflectionProcessResult",
+    "VerificationResult",
+    "ReflectionMemoryItem",
+    "MetaLearningSample",
+    # 映射工具
+    "ExtractionMapping",
     # 混入
     "TimestampMixin",
     "ConfidenceMixin",
     "HeatMixin",
+    # 短期记忆
+    "ShortTermMemoryItem",
+    "ShortTermMemoryBucket",
+    "ExtractionTrigger",
+    # 上下文包
+    "QualityScores",
+    "WeightConfig",
+    "ContextPackage",
     # 用户画像
     "TechnicalBackground",
     "CommunicationStyle",
@@ -850,13 +1555,26 @@ __all__ = [
     "TimingHintSignal",
     "InsightSignalUnion",
     "ContextEnhancement",
+    "InsightSignal",
+    "Insight",
+    "InsightPoolData",
+    "UserDecision",
+    # 状态同步（LangGraph集成）
+    "StateEventType",
+    "CheckpointRecord",
+    "StateChangeEvent",
+    "StateSubscription",
     # 冲突
     "MemoryConflict",
     "ConflictResolution",
+    "MemoryConflictExtended",
+    "ResolutionResult",
     # 状态
     "ModuleState",
     "GlobalState",
     "AsyncTask",
+    "GlobalStateSnapshot",
+    "SceneContext",
     # 容器
     "LongTermMemoryContainer",
 ]

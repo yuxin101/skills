@@ -43,10 +43,14 @@ from .types import (
     MemoryType,
     ToolUsageRecord,
     ToolOptimalContext,
+    ToolCombinationPattern,
     NeuroticismTendency,
     GrowthMilestone,
     EmotionState,
     ConceptDefinition,
+    # 反思类型
+    ReflectionMemoryItem,
+    MemoryCategory,
 )
 from .heat_manager import HeatManager
 
@@ -244,6 +248,11 @@ class LongTermMemoryManager:
         outcome: str,
         user_feedback: float | None = None,
         effectiveness_score: float = 0.5,
+        # P0: 工具调用状态关联参数
+        checkpoint_id: str | None = None,
+        phase: str | None = None,
+        scenario: str | None = None,
+        user_state: str | None = None,
     ) -> str:
         """
         更新工具使用记忆
@@ -254,6 +263,10 @@ class LongTermMemoryManager:
             outcome: 结果（success/failure）
             user_feedback: 用户反馈评分
             effectiveness_score: 有效度分数
+            checkpoint_id: 关联的状态快照ID（来自GlobalStateCapture）
+            phase: 调用时的阶段
+            scenario: 调用时的场景
+            user_state: 调用时的用户状态
 
         Returns:
             记录ID
@@ -274,6 +287,10 @@ class LongTermMemoryManager:
             effectiveness_score=effectiveness_score,
             outcome=outcome,
             user_feedback=user_feedback,
+            checkpoint_id=checkpoint_id,
+            phase=phase,
+            scenario=scenario,
+            user_state=user_state,
         )
 
         self._container.procedural.data.tool_effectiveness_records.append(record)
@@ -282,46 +299,93 @@ class LongTermMemoryManager:
         return record.record_id
 
     def get_tool_recommendation(
-        self, task_type: str, constraints: list[str] | None = None
+        self,
+        task_type: str,
+        constraints: list[str] | None = None,
+        # P0: 状态感知过滤参数
+        phase: str | None = None,
+        scenario: str | None = None,
+        user_state: str | None = None,
+        state_weight: float = 0.3,  # 状态匹配的权重
     ) -> dict[str, Any]:
         """
-        获取工具推荐
+        获取工具推荐（状态感知增强版）
 
         Args:
             task_type: 任务类型
             constraints: 约束条件
+            phase: 当前阶段（用于状态感知过滤）
+            scenario: 当前场景（用于状态感知过滤）
+            user_state: 当前用户状态（用于状态感知过滤）
+            state_weight: 状态匹配的权重系数 (0.0-1.0)
 
         Returns:
             推荐结果
         """
+        default_result: dict[str, Any] = {
+            "tool": "代码解释器",
+            "confidence": 0.5,
+            "reasons": ["无历史记录，使用默认推荐"],
+            "all_candidates": [],
+            "state_filtered": False,
+        }
+
         if self._container.procedural is None:
-            return {
-                "tool": "代码解释器",
-                "confidence": 0.5,
-                "reasons": ["无历史记录，使用默认推荐"],
-            }
+            return default_result
+
+        records: list[ToolUsageRecord] = self._container.procedural.data.tool_effectiveness_records
+
+        # 按任务类型过滤
+        filtered_records: list[ToolUsageRecord] = [
+            r for r in records if r.task_type == task_type or task_type == ""
+        ]
+
+        if not filtered_records:
+            return default_result
+
+        # 状态感知过滤：如果有状态参数，优先考虑状态匹配的记录
+        state_filtered_records: list[ToolUsageRecord] = []
+        has_state_filter: bool = phase is not None or scenario is not None or user_state is not None
+
+        if has_state_filter:
+            for record in filtered_records:
+                match_score: float = 0.0
+                match_count: int = 0
+
+                if phase is not None and record.phase == phase:
+                    match_score += 1.0
+                    match_count += 1
+                if scenario is not None and record.scenario == scenario:
+                    match_score += 1.0
+                    match_count += 1
+                if user_state is not None and record.user_state == user_state:
+                    match_score += 1.0
+                    match_count += 1
+
+                if match_count > 0:
+                    state_filtered_records.append(record)
+
+        # 如果有状态匹配的记录，优先使用；否则使用全部记录
+        effective_records: list[ToolUsageRecord] = (
+            state_filtered_records if state_filtered_records else filtered_records
+        )
 
         # 统计各工具的成功率
         tool_stats: dict[str, dict[str, float]] = {}
 
-        for record in self._container.procedural.data.tool_effectiveness_records:
-            if record.task_type == task_type or task_type == "":
-                tool: str = record.tool_name
-                if tool not in tool_stats:
-                    tool_stats[tool] = {"total": 0.0, "success": 0.0, "feedback": 0.0}
+        for record in effective_records:
+            tool: str = record.tool_name
+            if tool not in tool_stats:
+                tool_stats[tool] = {"total": 0.0, "success": 0.0, "feedback": 0.0}
 
-                tool_stats[tool]["total"] += 1
-                if record.outcome == "success":
-                    tool_stats[tool]["success"] += 1
-                if record.user_feedback:
-                    tool_stats[tool]["feedback"] += record.user_feedback
+            tool_stats[tool]["total"] += 1
+            if record.outcome == "success":
+                tool_stats[tool]["success"] += 1
+            if record.user_feedback:
+                tool_stats[tool]["feedback"] += record.user_feedback
 
         if not tool_stats:
-            return {
-                "tool": "代码解释器",
-                "confidence": 0.5,
-                "reasons": ["无相关历史记录"],
-            }
+            return default_result
 
         # 计算综合分数
         best_tool: str = ""
@@ -331,10 +395,15 @@ class LongTermMemoryManager:
             success_rate: float = stats["success"] / stats["total"] if stats["total"] > 0 else 0
             avg_feedback: float = stats["feedback"] / stats["total"] if stats["total"] > 0 else 0
 
-            score: float = success_rate * 0.5 + avg_feedback / 5.0 * 0.3 + stats["total"] / 10 * 0.2
+            # 基础分数
+            base_score: float = success_rate * 0.5 + avg_feedback / 5.0 * 0.3 + stats["total"] / 10 * 0.2
 
-            if score > best_score:
-                best_score = score
+            # 如果是状态过滤的结果，增加权重
+            if state_filtered_records:
+                base_score = base_score * (1 + state_weight)
+
+            if base_score > best_score:
+                best_score = base_score
                 best_tool = tool
 
         return {
@@ -344,6 +413,258 @@ class LongTermMemoryManager:
                 f"历史成功率: {tool_stats[best_tool]['success'] / tool_stats[best_tool]['total']:.0%}" if tool_stats[best_tool]["total"] > 0 else "无历史记录",
                 f"使用次数: {int(tool_stats[best_tool]['total'])}",
             ],
+            "all_candidates": [
+                {
+                    "tool": t,
+                    "success_rate": s["success"] / s["total"] if s["total"] > 0 else 0,
+                    "usage_count": int(s["total"]),
+                    "avg_feedback": s["feedback"] / s["total"] if s["total"] > 0 and s["feedback"] > 0 else None,
+                }
+                for t, s in sorted(tool_stats.items(), key=lambda x: x[1]["success"] / max(x[1]["total"], 1), reverse=True)
+            ],
+            "state_filtered": has_state_filter and len(state_filtered_records) > 0,
+            "state_match_count": len(state_filtered_records) if has_state_filter else 0,
+        }
+
+    def get_tool_effectiveness_summary(
+        self,
+        tool_name: str | None = None,
+        task_type: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        获取工具效果汇总统计
+
+        Args:
+            tool_name: 工具名称（可选，不指定则返回所有工具）
+            task_type: 任务类型（可选，不指定则返回所有任务类型）
+
+        Returns:
+            工具效果汇总数据
+        """
+        if self._container.procedural is None:
+            return {"tools": [], "total_records": 0}
+
+        records: list[ToolUsageRecord] = self._container.procedural.data.tool_effectiveness_records
+
+        # 过滤条件
+        if tool_name:
+            records = [r for r in records if r.tool_name == tool_name]
+        if task_type:
+            records = [r for r in records if r.task_type == task_type]
+
+        # 按工具分组统计
+        tool_summary: dict[str, dict[str, Any]] = {}
+        for record in records:
+            tool: str = record.tool_name
+            if tool not in tool_summary:
+                tool_summary[tool] = {
+                    "tool_name": tool,
+                    "total_uses": 0,
+                    "success_count": 0,
+                    "failure_count": 0,
+                    "total_effectiveness": 0.0,
+                    "feedback_sum": 0.0,
+                    "feedback_count": 0,
+                    "task_types": set(),
+                }
+
+            tool_summary[tool]["total_uses"] += 1
+            tool_summary[tool]["total_effectiveness"] += record.effectiveness_score
+            tool_summary[tool]["task_types"].add(record.task_type)
+
+            if record.outcome == "success":
+                tool_summary[tool]["success_count"] += 1
+            else:
+                tool_summary[tool]["failure_count"] += 1
+
+            if record.user_feedback is not None:
+                tool_summary[tool]["feedback_sum"] += record.user_feedback
+                tool_summary[tool]["feedback_count"] += 1
+
+        # 计算最终统计
+        result: dict[str, Any] = {
+            "tools": [],
+            "total_records": len(records),
+        }
+
+        for tool, stats in tool_summary.items():
+            success_rate: float = stats["success_count"] / stats["total_uses"] if stats["total_uses"] > 0 else 0
+            avg_effectiveness: float = stats["total_effectiveness"] / stats["total_uses"] if stats["total_uses"] > 0 else 0
+            avg_feedback: float = stats["feedback_sum"] / stats["feedback_count"] if stats["feedback_count"] > 0 else 0
+
+            result["tools"].append({
+                "tool_name": stats["tool_name"],
+                "total_uses": stats["total_uses"],
+                "success_rate": round(success_rate, 3),
+                "failure_rate": round(1 - success_rate, 3),
+                "avg_effectiveness": round(avg_effectiveness, 3),
+                "avg_user_feedback": round(avg_feedback, 2) if stats["feedback_count"] > 0 else None,
+                "task_types": list(stats["task_types"]),
+            })
+
+        # 按成功率排序
+        result["tools"].sort(key=lambda x: x["success_rate"], reverse=True)
+
+        return result
+
+    def record_tool_combination(
+        self,
+        tool_sequence: list[str],
+        task_pattern: str,
+        effectiveness: float,
+    ) -> str:
+        """
+        记录工具组合使用模式
+
+        Args:
+            tool_sequence: 工具使用序列，如 ["web_search", "code_interpreter", "file_write"]
+            task_pattern: 任务模式描述，如 "研究并实现功能"
+            effectiveness: 整体效果评分 (0.0-1.0)
+
+        Returns:
+            模式ID
+        """
+        if self._container.procedural is None:
+            self._container.procedural = ProceduralMemory(
+                memory_id=f"procedural_{uuid.uuid4().hex[:12]}",
+                user_id=self.user_id,
+                data=ProceduralMemoryData(),
+            )
+
+        # 检查是否已存在相同序列
+        for pattern in self._container.procedural.data.tool_combination_patterns:
+            if pattern.sequence == tool_sequence and pattern.task_pattern == task_pattern:
+                # 更新已有模式的统计数据
+                new_count: int = pattern.usage_count + 1
+                new_avg: float = (pattern.effectiveness_avg * pattern.usage_count + effectiveness) / new_count
+                pattern.usage_count = new_count
+                pattern.effectiveness_avg = new_avg
+                self._save_to_storage()
+                return f"updated_{pattern.sequence[0]}_{pattern.usage_count}"
+
+        # 创建新模式
+        pattern_id: str = f"combo_{uuid.uuid4().hex[:8]}"
+        new_pattern: ToolCombinationPattern = ToolCombinationPattern(
+            sequence=tool_sequence,
+            task_pattern=task_pattern,
+            effectiveness_avg=effectiveness,
+            usage_count=1,
+        )
+
+        self._container.procedural.data.tool_combination_patterns.append(new_pattern)
+        self._save_to_storage()
+
+        return pattern_id
+
+    def get_tool_combination_patterns(
+        self,
+        task_pattern: str | None = None,
+        min_effectiveness: float = 0.0,
+    ) -> list[dict[str, Any]]:
+        """
+        获取工具组合模式
+
+        Args:
+            task_pattern: 任务模式过滤（可选）
+            min_effectiveness: 最小效果阈值（可选）
+
+        Returns:
+            工具组合模式列表
+        """
+        if self._container.procedural is None:
+            return []
+
+        patterns: list[ToolCombinationPattern] = self._container.procedural.data.tool_combination_patterns
+
+        # 过滤
+        if task_pattern:
+            patterns = [p for p in patterns if task_pattern.lower() in p.task_pattern.lower()]
+        if min_effectiveness > 0:
+            patterns = [p for p in patterns if p.effectiveness_avg >= min_effectiveness]
+
+        # 按效果排序
+        patterns = sorted(patterns, key=lambda x: x.effectiveness_avg, reverse=True)
+
+        return [
+            {
+                "sequence": p.sequence,
+                "task_pattern": p.task_pattern,
+                "effectiveness_avg": round(p.effectiveness_avg, 3),
+                "usage_count": p.usage_count,
+            }
+            for p in patterns
+        ]
+
+    def get_optimal_tool_context(self, tool_name: str) -> dict[str, Any]:
+        """
+        获取工具最优使用场景
+
+        Args:
+            tool_name: 工具名称
+
+        Returns:
+            最优场景和规避场景信息
+        """
+        if self._container.procedural is None:
+            return {"optimal_scenarios": [], "avoid_scenarios": [], "has_data": False}
+
+        # 从 tool_optimal_contexts 获取
+        if tool_name in self._container.procedural.data.tool_optimal_contexts:
+            context: ToolOptimalContext = self._container.procedural.data.tool_optimal_contexts[tool_name]
+            return {
+                "optimal_scenarios": context.optimal_scenarios,
+                "avoid_scenarios": context.avoid_scenarios,
+                "has_data": True,
+            }
+
+        # 基于历史记录推导
+        records: list[ToolUsageRecord] = [
+            r for r in self._container.procedural.data.tool_effectiveness_records
+            if r.tool_name == tool_name
+        ]
+
+        if not records:
+            return {"optimal_scenarios": [], "avoid_scenarios": [], "has_data": False}
+
+        # 分析成功和失败的场景
+        optimal: list[dict[str, Any]] = []
+        avoid: list[dict[str, Any]] = []
+
+        success_records: list[ToolUsageRecord] = [r for r in records if r.outcome == "success"]
+        failure_records: list[ToolUsageRecord] = [r for r in records if r.outcome != "success"]
+
+        # 成功场景聚合
+        task_success: dict[str, list[float]] = {}
+        for r in success_records:
+            if r.task_type not in task_success:
+                task_success[r.task_type] = []
+            task_success[r.task_type].append(r.effectiveness_score)
+
+        for task_type, scores in task_success.items():
+            if len(scores) >= 2:  # 至少2次成功才纳入
+                optimal.append({
+                    "task_type": task_type,
+                    "success_count": len(scores),
+                    "avg_effectiveness": round(sum(scores) / len(scores), 3),
+                })
+
+        # 失败场景聚合
+        task_failure: dict[str, int] = {}
+        for r in failure_records:
+            task_failure[r.task_type] = task_failure.get(r.task_type, 0) + 1
+
+        for task_type, count in task_failure.items():
+            if count >= 2:  # 至少2次失败才规避
+                avoid.append({
+                    "task_type": task_type,
+                    "failure_count": count,
+                })
+
+        return {
+            "optimal_scenarios": sorted(optimal, key=lambda x: x["success_count"], reverse=True),
+            "avoid_scenarios": sorted(avoid, key=lambda x: x["failure_count"], reverse=True),
+            "has_data": True,
+            "derived_from_history": True,
         }
 
     def update_neuroticism_tendency(
@@ -698,6 +1019,158 @@ class LongTermMemoryManager:
         """
         self._container = LongTermMemoryContainer(user_id=self.user_id)
         self._save_to_storage()
+
+    # ========================================================================
+    # 反思记忆管理（P0: 链式推理增强）
+    # ========================================================================
+
+    def store_reflection(
+        self,
+        item: ReflectionMemoryItem,
+    ) -> str:
+        """
+        存储反思记忆到长期记忆
+
+        反思记忆被持久化到 EXTENDED_REFLECTION 分类，
+        作为元学习训练数据使用。
+
+        Args:
+            item: 反思记忆项
+
+        Returns:
+            memory_id
+        """
+        # 构建存储路径
+        reflection_dir: Path = self.storage_path / "reflections"
+        reflection_dir.mkdir(parents=True, exist_ok=True)
+
+        # 存储为独立文件
+        storage_file: Path = reflection_dir / f"{item.memory_id}.json"
+
+        with open(storage_file, "w", encoding="utf-8") as f:
+            json.dump(item.model_dump(mode="json"), f, ensure_ascii=False, indent=2)
+
+        # 更新索引
+        self._container.reflection_index.append({
+            "memory_id": item.memory_id,
+            "timestamp": item.timestamp.isoformat(),
+            "trigger_type": item.trigger_type.value,
+            "outcome": item.outcome.value,
+            "learning_value": item.learning_value.value,
+            "step_index": item.step_index,
+            "task_type": item.task_type,
+        })
+
+        self._save_to_storage()
+        return item.memory_id
+
+    def get_memories_by_category(
+        self,
+        category: str,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        按分类获取记忆
+
+        Args:
+            category: 记忆分类（如 EXTENDED_REFLECTION）
+            limit: 最大返回数量
+
+        Returns:
+            记忆列表
+        """
+        if category == MemoryCategory.EXTENDED_REFLECTION.value:
+            return self._get_reflection_memories(limit)
+
+        # 其他分类（可扩展）
+        return []
+
+    def _get_reflection_memories(
+        self,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        获取反思记忆列表
+
+        Args:
+            limit: 最大返回数量
+
+        Returns:
+            反思记忆列表
+        """
+        reflection_dir: Path = self.storage_path / "reflections"
+
+        if not reflection_dir.exists():
+            return []
+
+        # 读取所有反思文件
+        memories: list[dict[str, Any]] = []
+        for file_path in reflection_dir.glob("*.json"):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data: dict[str, Any] = json.load(f)
+                    memories.append(data)
+            except (json.JSONDecodeError, IOError):
+                continue
+
+        # 按时间排序（最新的在前）
+        memories.sort(
+            key=lambda x: x.get("timestamp", ""),
+            reverse=True,
+        )
+
+        return memories[:limit]
+
+    def get_reflection_statistics(self) -> dict[str, Any]:
+        """
+        获取反思记忆统计信息
+
+        Returns:
+            统计信息
+        """
+        reflections: list[dict[str, Any]] = self._get_reflection_memories(limit=1000)
+
+        if not reflections:
+            return {
+                "total_count": 0,
+                "outcome_distribution": {},
+                "learning_value_distribution": {},
+                "trigger_type_distribution": {},
+                "task_type_distribution": {},
+            }
+
+        # 统计分布
+        outcome_dist: dict[str, int] = {}
+        learning_dist: dict[str, int] = {}
+        trigger_dist: dict[str, int] = {}
+        task_dist: dict[str, int] = {}
+
+        for r in reflections:
+            # 结果分布
+            outcome: str = r.get("outcome", "unknown")
+            outcome_dist[outcome] = outcome_dist.get(outcome, 0) + 1
+
+            # 学习价值分布
+            lv: str = r.get("learning_value", "low")
+            learning_dist[lv] = learning_dist.get(lv, 0) + 1
+
+            # 触发类型分布
+            tt: str = r.get("trigger_type", "unknown")
+            trigger_dist[tt] = trigger_dist.get(tt, 0) + 1
+
+            # 任务类型分布
+            task_type: str = r.get("task_type", "unknown")
+            task_dist[task_type] = task_dist.get(task_type, 0) + 1
+
+        return {
+            "total_count": len(reflections),
+            "outcome_distribution": outcome_dist,
+            "learning_value_distribution": learning_dist,
+            "trigger_type_distribution": trigger_dist,
+            "task_type_distribution": task_dist,
+            "high_value_count": learning_dist.get("high", 0),
+            "correction_rate": outcome_dist.get("corrected", 0) / len(reflections) if reflections else 0,
+        }
 
 
 # ============================================================================
