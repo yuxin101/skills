@@ -1,11 +1,17 @@
 {
   "owner": "frankready2025",
   "slug": "readdy-website-builder",
-  "displayName": "Readdy WebSite Builder",
+  "displayName": "Readdy.ai WebSite Builder",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774005386323,
-    "commit": "https://github.com/openclaw/skills/commit/0218d12d93b66516be1d76c50ad7c62e81aa3d0e"
+    "version": "1.0.5",
+    "publishedAt": 1774402800979,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774005386323,
+      "commit": "https://github.com/openclaw/skills/commit/0218d12d93b66516be1d76c50ad7c62e81aa3d0e"
+    }
+  ]
 }
