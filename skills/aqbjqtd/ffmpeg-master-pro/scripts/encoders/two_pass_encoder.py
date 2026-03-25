@@ -4,6 +4,7 @@
 """
 
 import os
+import shlex
 import subprocess
 import tempfile
 from typing import Optional, Callable, Tuple, List
@@ -314,8 +315,8 @@ class TwoPassEncoder:
         try:
             # 执行命令
             process = subprocess.Popen(
-                command,
-                shell=True,
+                shlex.split(command),
+                shell=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True,

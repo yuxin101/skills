@@ -97,7 +97,7 @@ class PresetManager:
                             "metadata": metadata,
                         }
                 except Exception as e:
-                    print(f"警告: 无法加载预设 {preset_file}: {e}")
+                    print(f"警告: 无法加载预设 {preset_file.name}: {e}")
 
         # 加载用户预设
         if include_custom and self.USER_PRESETS_DIR.exists():
@@ -111,7 +111,7 @@ class PresetManager:
                             "metadata": metadata,
                         }
                 except Exception as e:
-                    print(f"警告: 无法加载预设 {preset_file}: {e}")
+                    print(f"警告: 无法加载预设 {preset_file.name}: {e}")
 
         return presets
 
@@ -191,7 +191,7 @@ class PresetManager:
                 use_cases=data.get("use_cases", []),
             )
         except Exception as e:
-            print(f"错误: 无法加载预设文件 {preset_file}: {e}")
+            print(f"错误: 无法加载预设文件 {preset_file.name}: {e}")
             return None
 
     def create_custom_preset(self, preset_name: str, config: PresetConfig) -> bool:
@@ -217,7 +217,7 @@ class PresetManager:
             with open(preset_file, "w", encoding="utf-8") as f:
                 json.dump(config_dict, f, ensure_ascii=False, indent=2)
 
-            print(f"成功: 自定义预设已保存到 {preset_file}")
+            print(f"成功: 自定义预设已保存: {preset_file.name}")
             return True
         except Exception as e:
             print(f"错误: 无法创建自定义预设: {e}")

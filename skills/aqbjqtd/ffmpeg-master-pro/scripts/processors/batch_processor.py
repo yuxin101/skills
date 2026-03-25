@@ -4,6 +4,7 @@
 """
 
 import os
+import shlex
 import subprocess
 import threading
 import sys
@@ -241,7 +242,7 @@ class BatchProcessor:
         try:
             # 执行 FFmpeg 命令
             result = subprocess.run(
-                task.command, shell=True, capture_output=True, text=True, check=True
+                shlex.split(task.command), shell=False, capture_output=True, text=True, check=True
             )
 
             # 获取输出文件大小

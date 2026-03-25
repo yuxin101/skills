@@ -1,41 +1,41 @@
 ---
 name: ffmpeg-master-pro
-description: "FFmpeg Master Pro - 全能视频处理技能。当用户需要视频处理时使用，支持视频转换、视频压缩、视频编辑等。当用户要求视频处理, 视频转换, 视频压缩, FFmpeg, 视频编辑, 视频转码, 视频剪辑, 字幕处理, 视频优化, 批量视频处理, GIF转换, 视频翻转, 速度调节, 音频提取, 视频合并, 宽高比, 水印, 截图, 抽帧时使用此技能。"
-metadata:
-  {
-    "openclaw":
-      {
-        "emoji": "🎬",
-        "requires":
-          { "bins": ["ffmpeg", "ffprobe", "python3"] },
-        "install":
-          [
-            {
-              "id": "apt-ffmpeg",
-              "kind": "apt",
-              "packages": ["ffmpeg", "python3"],
-              "bins": ["ffmpeg", "ffprobe", "python3"],
-              "label": "Install FFmpeg + Python (apt)",
-            },
-            {
-              "id": "brew-ffmpeg",
-              "kind": "brew",
-              "formula": "ffmpeg",
-              "bins": ["ffmpeg", "ffprobe"],
-              "label": "Install FFmpeg (brew)",
-            },
-          ],
-      },
-  }
+description: FFmpeg Master Pro - 全能视频处理技能。当用户需要视频处理时使用，支持视频转换、视频压缩、视频编辑等。当用户要求视频处理, 视频转换, 视频压缩, FFmpeg, 视频编辑, 视频转码, 视频剪辑, 字幕处理, 视频优化, 批量视频处理, GIF转换, 视频翻转, 速度调节, 音频提取, 视频合并, 宽高比, 水印, 截图, 抽帧时使用此技能。
 ---
 
-# FFmpeg Master Pro
+## 环境要求
 
-全能视频处理技能，提供 14 个核心工作流和智能决策系统。
+- **必装**：`ffmpeg` 和 `ffprobe`（建议从 [ffmpeg.org](https://ffmpeg.org) 或 via winget/choco 安装）
+- **可选**：`nvidia-smi`（NVIDIA 加速）、`vainfo`（Intel QSV）、`amdgpu-info`（AMD 加速）
 
-## 快速开始
+首次使用前验证：`ffmpeg -version` 和 `ffprobe -version`。
 
-首次使用前，确认 FFmpeg 已安装：`ffmpeg -version`。详见 [快速入门](references/quickstart.md)。
+## 执行建议
+
+### 执行方式
+
+FFmpeg 处理推荐使用 `exec background:true` 避免长时间阻塞会话。示例：
+
+```bash
+exec background:true command:"ffmpeg -i input.mp4 -c:v libx264 -crf 23 output.mp4"
+```
+
+### 完成后通知（可选）
+
+任务完成后推荐使用 `message` 工具通知用户：
+
+```
+✅ 视频处理完成
+文件：output.mp4 | 操作：转码压缩
+```
+
+> 注意：仅发送文件名即可，避免暴露完整路径。
+
+### 文件路径处理
+
+- 输入/输出路径直接使用用户提供的位置，不做跨分区复制
+- Windows 路径（如 `C:\Users\...`）和 Unix 路径（如 `/mnt/c/...`）均支持
+- 临时文件处理：如有需要可使用系统临时目录，任务结束后清理
 
 ## 核心工作流
 
