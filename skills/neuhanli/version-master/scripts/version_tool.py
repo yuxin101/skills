@@ -117,6 +117,24 @@ class VersionMaster:
         dir_path.mkdir(parents=True, exist_ok=True)
         return dir_path
 
+    def _validate_path(self, rel_path: str) -> Path:
+        """
+        验证文件路径安全性，防止路径穿越攻击。
+
+        将 rel_path 解析为绝对路径后，确认其位于 workspace_path 内部。
+        返回解析后的安全绝对路径，若路径越界则抛出 ValueError。
+        """
+        # 先规范化，再 resolve 消除 ../ 等
+        candidate = (self.workspace_path / rel_path).resolve()
+        try:
+            candidate.relative_to(self.workspace_path.resolve())
+        except ValueError:
+            raise ValueError(
+                f"不安全的文件路径 '{rel_path}'：路径必须位于工作区目录内，"
+                f"不允许使用 '../' 等路径穿越序列。"
+            )
+        return candidate
+
     def _file_key(self, rel_path: str) -> str:
         """将文件相对路径转为安全的存储 key，加入工作区标识避免不同工作区同名文件冲突"""
         normalized = rel_path.replace("\\", "/")
@@ -251,7 +269,10 @@ class VersionMaster:
 
     def _save_single_file(self, rel_path: str, message: Optional[str] = None) -> Dict[str, Any]:
         """保存单个文件的版本"""
-        full_path = self.workspace_path / rel_path
+        try:
+            full_path = self._validate_path(rel_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
         if not full_path.exists():
             return {"success": False, "error": f"文件不存在: {rel_path}"}
 
@@ -478,7 +499,10 @@ class VersionMaster:
                 return {"success": False, "error": "版本数据不完整，缺少文件内容"}
 
             # 备份当前文件
-            full_path = self.workspace_path / file_path
+            try:
+                full_path = self._validate_path(file_path)
+            except ValueError as e:
+                return {"success": False, "error": str(e)}
             if full_path.exists():
                 backup_dir = self.workspace_path / ".version_backup"
                 backup_dir.mkdir(exist_ok=True)
@@ -537,7 +561,10 @@ class VersionMaster:
             # 加载版本1（或当前文件）
             if version1 is None:
                 # 对比当前文件
-                full_path = self.workspace_path / file_path
+                try:
+                    full_path = self._validate_path(file_path)
+                except ValueError as e:
+                    return {"success": False, "error": str(e)}
                 if not full_path.exists():
                     return {"success": False, "error": f"文件不存在: {file_path}"}
                 v1_hash = self._get_content_hash(full_path)
@@ -783,7 +810,7 @@ if __name__ == "__main__":
                         v1_entry = tool._find_version_entry(file_index.get("versions", []), args.v1)
                         v1_data = tool._load_version_content(v1_entry) if v1_entry else None
                     else:
-                        v1_data = tool._read_file_content(tool.workspace_path / args.file)
+                        v1_data = tool._read_file_content(tool._validate_path(args.file))
                     if v1_data and v1_data.get("type") == "text":
                         lines1 = v1_data["content"].splitlines()
                         lines2 = v2_data["content"]["content"].splitlines()

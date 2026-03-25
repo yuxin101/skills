@@ -1,19 +1,16 @@
 ---
-name: "version-master"
-version: "3.0.0"
+name: version-master
+version: "2.1.0"
 description: "Intelligent single-file version management. Save, restore, diff, and clean file snapshots with per-file version history. Activate when users need version control, file snapshot management, or project state recovery."
 
 keywords: ["version snapshot", "version control", "snapshot save", "version restore", "version diff", "快照保存", "版本管理", "版本恢复", "版本对比"]
-
-install:
-  type: none
 ---
 
-# Version-Master 3.0.0
+# Version-Master 2.1.0
 
 ## Purpose
 
-Version-Master 3.0.0 is a **single-file level** version management skill. Unlike full-workspace snapshots, it maintains **independent version history for each file**, so users can clearly see what changes each document has gone through.
+Version-Master 2.1.0 is a **single-file level** version management skill. Unlike full-workspace snapshots, it maintains **independent version history for each file**, so users can clearly see what changes each document has gone through.
 
 ## Core Features
 
@@ -123,6 +120,9 @@ Before calling these operations, the AI must:
 1. Show operation details and risks / 显示操作详情和风险
 2. Wait for explicit user confirmation / 等待用户明确确认
 3. Set `confirm=True` parameter / 设置 `confirm=True` 参数
+
+**Path Security / 路径安全：**
+All `file_path` parameters are validated server-side to stay within the workspace boundary. Paths containing `../` or absolute paths outside the workspace are rejected with an error. The AI must **never** pass system-level paths (e.g., `../../etc/passwd`, `C:\Windows\...`) as `file_path`.
 
 ## Technical Implementation
 
