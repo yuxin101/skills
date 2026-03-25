@@ -1,13 +1,18 @@
 {
   "owner": "eamanc-lab",
   "slug": "openclaw-persona-forge",
-  "displayName": "龙虾灵魂锻造炉",
+  "displayName": "OpenClaw 龙虾灵魂锻造炉",
   "latest": {
-    "version": "1.3.2",
-    "publishedAt": 1773906300543,
-    "commit": "https://github.com/openclaw/skills/commit/8f2728481899466645b11d341265fa93060fafa2"
+    "version": "2.2.0",
+    "publishedAt": 1774178309322,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.3.2",
+      "publishedAt": 1773906300543,
+      "commit": "https://github.com/openclaw/skills/commit/8f2728481899466645b11d341265fa93060fafa2"
+    },
     {
       "version": "1.3.0",
       "publishedAt": 1773832758927,

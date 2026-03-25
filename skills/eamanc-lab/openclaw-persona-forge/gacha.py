@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""龙虾人设抽卡机 - 真随机组合生成器
+"""龙虾灵魂抽卡机 - 真随机组合生成器
 
 用法: python3 gacha.py [次数]
 默认抽1次，最多5次
@@ -179,13 +179,16 @@ def pick(pool):
 
 
 def main():
-    draw_count = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    try:
+        draw_count = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    except ValueError:
+        draw_count = 1
     draw_count = min(draw_count, 5)
 
     total = len(FORMER_LIVES) * len(REASONS) * len(VIBES) * len(SPEECH_STYLES) * len(PROPS)
 
     print("🦞 ═══════════════════════════════════")
-    print("   龙虾人设抽卡机 v2.0")
+    print("   龙虾灵魂抽卡机 v2.0")
     print(f"   正在从 {total:,} 种组合中抽取...")
     print("═══════════════════════════════════════")
     print()

@@ -1,14 +1,14 @@
 ---
 name: openclaw-persona-forge
 description: |-
-  为 OpenClaw AI Agent 生成完整的龙虾人设方案。根据用户偏好或随机抽卡，
+  为 OpenClaw AI Agent 锻造完整的龙虾灵魂方案。根据用户偏好或随机抽卡，
   输出身份定位、灵魂描述(SOUL.md)、角色化底线规则、名字和头像生图提示词。
   如已安装 baoyu-image-gen skill，可自动生成统一风格头像图片。
-  当用户需要创建、设计或定制 OpenClaw 龙虾角色人设时使用。
+  当用户需要创建、设计或定制 OpenClaw 龙虾灵魂时使用。
   不适用于：微调已有 SOUL.md、非 OpenClaw 平台的角色设计、纯工具型无性格 Agent。
-  触发词：龙虾人设、虾设、OpenClaw 人设、养虾人设、龙虾角色、龙虾定位、
+  触发词：龙虾灵魂、虾魂、OpenClaw 灵魂、养虾灵魂、龙虾角色、龙虾定位、
   龙虾剧本杀角色、龙虾游戏角色、龙虾 NPC、龙虾性格、龙虾背景故事、
-  lobster persona、lobster character、抽卡、随机龙虾、龙虾 SOUL、龙虾灵魂、gacha。
+  lobster soul、lobster character、抽卡、随机龙虾、龙虾 SOUL、gacha。
 license: MIT
 homepage: https://github.com/eamanc-lab/openclaw-persona-forge
 metadata:
@@ -41,7 +41,7 @@ compatibility:
 
 - **路径**：`${SKILL_DIR}/gacha.py`
 - **调用**：`python3 ${SKILL_DIR}/gacha.py [次数]`（默认 1 次，最多 5 次）
-- **作用**：从 800 万种组合中真随机生成龙虾人设方向
+- **作用**：从 800 万种组合中真随机生成龙虾灵魂方向
 
 ## 可选依赖
 
@@ -64,7 +64,7 @@ compatibility:
 
 ## 核心理念
 
-好的龙虾人设 = **身份张力** + **底线规则** + **性格缺陷** + **名字** + **视觉锚点**
+好的龙虾灵魂 = **身份张力** + **底线规则** + **性格缺陷** + **名字** + **视觉锚点**
 
 五者互相印证，缺一不可。
 
@@ -73,7 +73,7 @@ compatibility:
 以下情况不要使用本 Skill：
 - 用户只需微调已有 SOUL.md → 直接编辑即可
 - 目标平台不是 OpenClaw → 输出格式为 SOUL.md + IDENTITY.md，其他平台需适配
-- 用户需要纯工具型 Agent（无性格需求）→ 角色化人设是本 Skill 的核心
+- 用户需要纯工具型 Agent（无性格需求）→ 角色化灵魂是本 Skill 的核心
 
 ---
 
@@ -83,9 +83,9 @@ compatibility:
 
 | 用户说 | 执行模式 |
 |--------|---------|
-| "帮我设计龙虾人设" / "我想给龙虾定个性格" | → **引导模式**（Step 1） |
+| "帮我设计龙虾灵魂" / "我想给龙虾定个性格" | → **引导模式**（Step 1） |
 | "抽卡" / "随机" / "来一发" / "盲盒" / "gacha" | → **抽卡模式**（Step 1-B） |
-| "帮我优化这个人设" / 附带已有 SOUL.md | → **打磨模式**（跳到 Step 4） |
+| "帮我优化这个灵魂" / 附带已有 SOUL.md | → **打磨模式**（跳到 Step 4） |
 
 ---
 
@@ -126,7 +126,7 @@ python3 ${SKILL_DIR}/gacha.py [次数]
 
 **详细模板和示例**：见 [references/identity-tension.md](references/identity-tension.md)
 
-构建：前世身份 × 当下处境 × 内在矛盾 → 一句话人设。
+构建：前世身份 × 当下处境 × 内在矛盾 → 一句话灵魂。
 
 展示后，以创世神的眼光点评这个身份张力中最有趣的点，然后引导用户。
 
@@ -152,7 +152,7 @@ python3 ${SKILL_DIR}/gacha.py [次数]
 
 ### 流程
 
-1. 根据人设填充 7 个个性化变量
+1. 根据灵魂填充 7 个个性化变量
 2. 拼接 STYLE_BASE + 个性化描述为完整提示词
 3. **检查 baoyu-image-gen skill 是否可用**：
    - **可用** → 写入临时文件，调用 baoyu-image-gen 生成图片，展示结果
@@ -176,7 +176,7 @@ https://github.com/JimLiu/baoyu-skills
 
 **完整输出模板**：见 [references/output-template.md](references/output-template.md)
 
-整合所有步骤为一份完整的龙虾人设方案，然后**主动引导用户生成实际文件**：
+整合所有步骤为一份完整的龙虾灵魂方案，然后**主动引导用户生成实际文件**：
 
 1. 展示完整方案预览
 2. 引导用户生成文件：是否要将方案落地为 SOUL.md 和 IDENTITY.md 文件？
@@ -246,7 +246,7 @@ https://github.com/JimLiu/baoyu-skills
 
 ## 注意事项
 
-### 好人设的检验标准
+### 好灵魂的检验标准
 
 - 看完名字就能猜到大致性格
 - 底线规则用角色的话说出来
@@ -261,9 +261,9 @@ https://github.com/JimLiu/baoyu-skills
 - **过度温暖型**：需要批评反馈时失灵
 - **完美无缺型**：完美的角色不是角色，是说明书
 
-### 何时重新调整人设
+### 何时重新调整灵魂
 
-1. 刻意回避某些任务，因为"不适合这个角色" → 人设限制了功能
+1. 刻意回避某些任务，因为"不适合这个角色" → 灵魂限制了功能
 2. 角色特征变成噪音 → 浓度太高
 3. 你在配合AI说话 → 主客倒置
 
