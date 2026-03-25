@@ -1,6 +1,6 @@
 ---
 name: shekel-hyperliquid
-version: 1.6.0
+version: 1.10.1
 description: >
   AI-powered perpetual futures trading on Hyperliquid DEX.
   Handles full account creation, USDC onboarding, and autonomous trade execution.
@@ -16,11 +16,7 @@ metadata:
     emoji: "📈"
 ---
 
-# Shekel Hyperliquid Skill
-
-Base URL: `https://shekel-skill-backend.onrender.com`
-Auth: `Authorization: Bearer <apiKey>` on all authenticated endpoints
-Full API reference: `GET https://shekel-skill-backend.onrender.com/reference`
+# Shekel Hyperliquid Skill — Complete Documentation
 
 ## ⚠️ MANDATORY: Always Check for Latest Skill Version
 
@@ -51,7 +47,8 @@ curl https://shekel-skill-backend.onrender.com/skill/version
 | New user onboarding | `POST /auth/register/managed` |
 | Check deposit / activation | `GET /auth/deposit-status` |
 | Retry stuck deposit | `POST /auth/retry-deposit` |
-| **Run agent (primary trading action)** | `POST /agent/run` |
+| **Run agent (all whitelist tickers)** | `POST /agent/run` |
+| Run agent (single ticker) | `POST /agent/run` with `{ "ticker": "BTC" }` |
 | Close all open positions | `POST /account/close-positions` |
 | View config | `GET /agents` |
 | View balances | `GET /account/balances` |
@@ -69,6 +66,7 @@ curl https://shekel-skill-backend.onrender.com/skill/version
 | Set risk limits | `PUT /agents/:id` with `maxOpenPositions`, `maxDailyLossPct`, `maxDrawdownPct` |
 | Browse data sources | `GET /agents/data-sources` |
 | Toggle data sources | `PUT /agents/:id` with `dataSourceConfig` |
+| Set margin mode | `PUT /agents/:id` with `{ "marginMode": "isolated" \| "cross" }` |
 | Pause / resume agent | `PATCH /agent/active` |
 | Deposit address (top-up) | `GET /account/deposit-address` |
 | Bridge funds (manual, usually not needed) | `POST /account/bridge` |
@@ -218,6 +216,12 @@ GET /markets/tickers   (no auth required)
 
 Show the user the available coins. Validate any tickers they name against this list before registration — the server also validates, but catching it early saves a round trip.
 
+The response has two sections:
+- `tickers` — main-dex crypto perps (BTC, ETH, SOL, …)
+- `hip3` — HIP-3 builder-dex perps: stocks, commodities, indices (TSLA, NVDA, CL/oil, …)
+
+HIP-3 tickers use the format `"dex:ASSET"` (e.g. `"xyz:TSLA"`, `"xyz:CL"`). Use this full prefixed form in the whitelist — **not** the bare asset name.
+
 ---
 
 #### Step 2 — Register
@@ -239,7 +243,15 @@ POST /auth/register/managed
   "positionSizeMax": 20,
   "usdcRangeMin": 200,
   "usdcRangeMax": 1000,
-  "whitelist": ["BTC", "ETH", "SOL"]
+  "whitelist": ["BTC", "ETH", "SOL"],
+  "marginMode": "isolated"
+}
+```
+
+To trade HIP-3 assets (stocks, commodities), use the prefixed format:
+```json
+{
+  "whitelist": ["BTC", "xyz:TSLA", "xyz:NVDA", "xyz:CL"]
 }
 ```
 
@@ -370,7 +382,7 @@ POST /agent/run
 
 **Scheduling notes:**
 - Minimum interval: 30 minutes
-- To change interval: `PUT /agents/:id { "runScheduleMinutes": 60 }` — takes effect after the current cycle
+- To change interval: `PUT /agents/:id { "runScheduleMinutes": 60 }` — resets `nextRunAt` to `now() + new interval`; saving other settings without changing the interval preserves the existing timer
 - To disable: `PUT /agents/:id { "runScheduleMinutes": null }`
 - To pause without clearing schedule: `PATCH /agent/active { "active": false }` — schedule resumes when reactivated
 - `429` means a manual run collided with a scheduled run — wait a few minutes
@@ -436,14 +448,58 @@ Set `dataSourceConfig: null` to re-enable everything. Current config is returned
 
 ---
 
+## Margin Mode
+
+Each agent has a `marginMode` setting (`"isolated"` or `"cross"`). Default is `"isolated"`.
+
+| Mode | Behaviour |
+|---|---|
+| `isolated` | Each position has its own margin. Safer — one liquidation can't cascade. **Required** for assets where `onlyIsolated: true` in `/markets/tickers`. |
+| `cross` | All positions share account margin. More capital-efficient, higher liquidation risk. |
+
+Set or change at any time via `PUT /agents/:id`:
+```bash
+curl -X PUT .../agents/<agentId> \
+  -H "Authorization: Bearer <apiKey>" \
+  -H "Content-Type: application/json" \
+  -d '{ "marginMode": "isolated" }'
+```
+
+**Smart override:** If a Hyperliquid asset is `onlyIsolated: true`, the agent runner forces isolated margin for that trade even when the agent is set to `"cross"`. Check `/markets/tickers` for `onlyIsolated` and `marginMode` fields per ticker.
+
+---
+
 ## Running the Agent
 
-`POST /agent/run` analyzes every coin in the whitelist in parallel and executes recommendations automatically.
+`POST /agent/run` analyzes coins and executes recommendations automatically. It has two modes:
 
+**Full whitelist run** (no body required — runs all whitelisted tickers):
 ```bash
 curl -X POST https://shekel-skill-backend.onrender.com/agent/run \
   -H "Authorization: Bearer <apiKey>"
 ```
+
+**Single-ticker run** (specify a ticker — runs even if not in the whitelist):
+```bash
+curl -X POST https://shekel-skill-backend.onrender.com/agent/run \
+  -H "Authorization: Bearer <apiKey>" \
+  -H "Content-Type: application/json" \
+  -d '{ "ticker": "BTC" }'
+```
+
+**Optional body fields for single-ticker runs** (all auto-fetched if omitted):
+
+| Field | Type | Description |
+|---|---|---|
+| `ticker` | string | Run on this ticker only, bypassing the whitelist |
+| `tokenData` | any | Override server-fetched token data |
+| `sentiment` | any | Override server-fetched sentiment |
+| `marketData` | any | Additional market context |
+| `customData` | any | Any extra data to inject into the LLM prompt |
+| `skillGuidance` | any | External signals for the LLM |
+| `tradingMemoryContext` | any | Override the agent's trading memory |
+
+Both modes return the same `{ results: [] }` shape and are subject to the 5-minute run lock.
 
 ### Data Sources Used in `/agent/run`
 
@@ -451,7 +507,7 @@ Each run automatically fetches and injects the following live data into the LLM 
 
 | Source | Data |
 |---|---|
-| **Hyperliquid** | Live portfolio (positions, balances, open orders) |
+| **Hyperliquid** | Live portfolio (positions, balances, open orders) — includes HIP-3 builder-dex positions and orders (e.g. `xyz:TSLA`) merged transparently alongside main-dex crypto perp positions; open orders include limit, stop-loss, and take-profit orders |
 | **DappLooker** | Token price, volume, and market data for each whitelisted coin |
 | **0xAthena** | Smart money token stats (hold times, flows) + latest aggregated signals |
 | **DappLooker** | On-chain DEX analytics and market metrics |
@@ -490,7 +546,9 @@ No extra parameters are needed — all data is fetched server-side on every run.
 - A run is still in progress. The response includes `"unlocksAt"` — wait until that timestamp. The lock auto-expires after 5 minutes regardless.
 
 **Whitelist update fails with "Invalid tickers":**
-- Check `GET /markets/tickers` — names must match exactly (uppercase)
+- Check `GET /markets/tickers` — names must match exactly
+- Main-dex coins are uppercase: `"BTC"`, `"ETH"`
+- HIP-3 coins use `"dex:ASSET"` format: `"xyz:TSLA"`, `"xyz:CL"` (lowercase dex prefix, uppercase asset)
 
 ---
 

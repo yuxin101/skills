@@ -3,9 +3,15 @@
   "slug": "shekel-hyperliquid",
   "displayName": "Shekel Hyperliquid Trading",
   "latest": {
-    "version": "1.6.0",
-    "publishedAt": 1773871028159,
-    "commit": "https://github.com/openclaw/skills/commit/eb21ae72afbd4d2bd13c522f206a90a15a87d0a9"
+    "version": "1.10.1",
+    "publishedAt": 1774112578989,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.6.0",
+      "publishedAt": 1773871028159,
+      "commit": "https://github.com/openclaw/skills/commit/eb21ae72afbd4d2bd13c522f206a90a15a87d0a9"
+    }
+  ]
 }
