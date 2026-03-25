@@ -1,0 +1,7 @@
+display_name: LegalGo Trade Search
+short_description: Search LegalGo trade datasets with a trade_search API key.
+default_prompt: Search LegalGo trade data, summarize the best leads first, and avoid dumping raw payloads unless requested.
+required_environment_variables:
+  - LEGALGO_API_BASE_URL
+  - LEGALGO_TRADE_SEARCH_KEY
+primary_credential: LEGALGO_TRADE_SEARCH_KEY
