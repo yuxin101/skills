@@ -1,11 +1,17 @@
 {
   "owner": "lv-saharan",
   "slug": "xhs-ts",
-  "displayName": "xiaohongshu  skill ts source",
+  "displayName": "多用户的小红书ts版本，openclaw 可以自行修改增加功能。feishu & wechat",
   "latest": {
-    "version": "0.0.2",
-    "publishedAt": 1774157144535,
-    "commit": "https://github.com/openclaw/skills/commit/e0978984901c22594ca2164c1b8b6e93283ade15"
+    "version": "0.0.4",
+    "publishedAt": 1774418883851,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.0.2",
+      "publishedAt": 1774157144535,
+      "commit": "https://github.com/openclaw/skills/commit/e0978984901c22594ca2164c1b8b6e93283ade15"
+    }
+  ]
 }

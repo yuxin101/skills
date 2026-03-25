@@ -19,8 +19,7 @@ import { buildSearchUrl, getFilterSelectors } from './url-builder';
 import { extractSearchResults } from './result-extractor';
 import { XhsError, XhsErrorCode } from '../shared';
 import { TIMEOUTS } from '../shared';
-import type { BrowserInstance } from '../browser';
-import { createBrowserInstance, closeBrowserInstance } from '../browser';
+import { withSession } from '../browser';
 import { loadCookies, validateCookies } from '../cookie';
 import { XHS_URLS, config, debugLog, delay, randomDelay } from '../utils/helpers';
 import { humanClick, humanScroll, checkCaptcha, checkLoginStatus } from '../utils/anti-detect';
@@ -37,7 +36,10 @@ const SEARCH_CONTAINER_SELECTOR = '.feeds-container';
 const NOTE_ITEM_SELECTOR = '.note-item';
 
 /** Default search limit */
-const DEFAULT_SEARCH_LIMIT = 20;
+const DEFAULT_SEARCH_LIMIT = 10;
+
+/** Maximum search limit */
+const MAX_SEARCH_LIMIT = 100;
 
 /** Maximum notes to extract per scroll */
 const NOTES_PER_SCROLL = 20;
@@ -176,7 +178,7 @@ async function clickFilterButton(page: Page, selector: string, filterName: strin
  * Extract note links by hovering on note items
  * This triggers the generation of xsec_token in URLs
  */
-async function hoverNotesForTokens(page: Page, count: number): Promise<void> {
+async function hoverNotesForTokens(page: Page, count: number, skip: number = 0): Promise<void> {
   const noteLocator = page.locator(`${SEARCH_CONTAINER_SELECTOR} ${NOTE_ITEM_SELECTOR}`);
   const elementCount = await noteLocator.count();
 
@@ -187,10 +189,20 @@ async function hoverNotesForTokens(page: Page, count: number): Promise<void> {
 
   debugLog(`Found ${elementCount} note elements`);
 
-  const hoverCount = Math.min(elementCount, count);
-  debugLog(`Hovering on ${hoverCount} notes to extract URLs`);
+  // Need to hover from skip to skip + count
+  const startIndex = skip;
+  const endIndex = Math.min(elementCount, skip + count);
+  const hoverCount = endIndex - startIndex;
 
-  for (let i = 0; i < hoverCount; i++) {
+  if (hoverCount <= 0) {
+    debugLog(`No notes to hover (skip=${skip}, count=${count}, available=${elementCount})`);
+    return;
+  }
+  debugLog(
+    `Hovering on notes ${startIndex + 1} to ${endIndex} (total ${hoverCount}) to extract URLs`
+  );
+
+  for (let i = startIndex; i < endIndex; i++) {
     try {
       await noteLocator.nth(i).hover({ timeout: 5000 });
       await randomDelay(100, 300);
@@ -247,6 +259,7 @@ async function performSearch(
   page: Page,
   keyword: string,
   limit: number,
+  skip: number,
   filters: SearchFilters
 ): Promise<SearchResult> {
   debugLog('Starting performSearch...');
@@ -280,21 +293,24 @@ async function performSearch(
     debugLog(`Alternative selector count: ${altCount}`);
   }
 
+  // Calculate total results needed (skip + limit)
+  const totalNeeded = skip + limit;
+
   // Load more results if needed
-  if (limit > NOTES_PER_SCROLL) {
-    await loadMoreResults(page, limit);
+  if (totalNeeded > NOTES_PER_SCROLL) {
+    await loadMoreResults(page, totalNeeded);
   }
 
   // Hover on notes to trigger URL generation with xsec_token
   debugLog('Starting hover phase...');
-  await hoverNotesForTokens(page, limit);
+  await hoverNotesForTokens(page, limit, skip);
 
   // Wait after hovering for any dynamic content to load
   await delay(1000);
 
   // Extract results
   debugLog('Starting extraction phase...');
-  const notes = await extractSearchResults(page, limit);
+  const notes = await extractSearchResults(page, limit, skip);
 
   debugLog(`performSearch complete, found ${notes.length} notes`);
 
@@ -311,14 +327,22 @@ async function performSearch(
 export async function executeSearch(options: SearchOptions): Promise<void> {
   const {
     keyword,
-    limit = DEFAULT_SEARCH_LIMIT,
+    limit: rawLimit = DEFAULT_SEARCH_LIMIT,
+    skip = 0,
     sort = 'general',
     noteType = 'all',
     timeRange = 'all',
     scope = 'all',
     location = 'all',
     headless,
+    user,
   } = options;
+
+  // Validate and clamp limit
+  const limit = Math.min(Math.max(1, rawLimit), MAX_SEARCH_LIMIT);
+  if (rawLimit !== limit) {
+    debugLog(`Limit adjusted from ${rawLimit} to ${limit} (max: ${MAX_SEARCH_LIMIT})`);
+  }
 
   const filters: SearchFilters = {
     sort,
@@ -329,68 +353,61 @@ export async function executeSearch(options: SearchOptions): Promise<void> {
   };
 
   debugLog(
-    `Search command: keyword="${keyword}", limit=${limit}, filters=${JSON.stringify(filters)}`
+    `Search command: keyword="${keyword}", limit=${limit}, skip=${skip}, filters=${JSON.stringify(filters)}, user=${user || 'default'}`
   );
   debugLog(`Headless mode: ${headless ?? config.headless}`);
 
-  let instance: BrowserInstance | null = null;
+  await withSession(
+    async (session) => {
+      // Validate cookies
+      debugLog(`Loading and validating cookies for user: ${user || 'default'}...`);
+      const cookies = await loadCookies(user);
+      validateCookies(cookies);
 
-  try {
-    // Validate cookies
-    debugLog('Loading and validating cookies...');
-    const cookies = await loadCookies();
-    validateCookies(cookies);
+      // Add cookies to context
+      debugLog('Adding cookies to context...');
+      await session.context.addCookies(cookies);
 
-    // Create browser instance
-    const isHeadless = headless ?? config.headless;
-    debugLog('Creating browser instance...');
-    instance = await createBrowserInstance({ headless: isHeadless });
-    debugLog('Browser instance created');
+      // Verify login status
+      debugLog('Verifying login status...');
+      await session.page.goto(XHS_URLS.home, { timeout: TIMEOUTS.PAGE_LOAD });
+      await delay(2000); // Wait for page to fully load
 
-    // Add cookies to context
-    debugLog('Adding cookies to context...');
-    await instance.context.addCookies(cookies);
+      const isLoggedIn = await checkLoginStatus(session.page);
+      debugLog(`Login status: ${isLoggedIn}`);
 
-    // Verify login status
-    debugLog('Verifying login status...');
-    await instance.page.goto(XHS_URLS.home, { timeout: TIMEOUTS.PAGE_LOAD });
-    await delay(2000); // Wait for page to fully load
+      if (!isLoggedIn) {
+        debugLog('Login check failed: checking for login modal...');
 
-    const isLoggedIn = await checkLoginStatus(instance.page);
-    debugLog(`Login status: ${isLoggedIn}`);
+        // Check specifically for login modal
+        const hasLoginModal = await session.page
+          .locator('[class*="login"], [class*="qrcode"], [class*="QRCode"]')
+          .first()
+          .isVisible()
+          .catch(() => false);
 
-    if (!isLoggedIn) {
-      debugLog('Login check failed: checking for login modal...');
+        if (hasLoginModal) {
+          debugLog('Login modal detected - user needs to login');
+        }
 
-      // Check specifically for login modal
-      const hasLoginModal = await instance.page
-        .locator('[class*="login"], [class*="qrcode"], [class*="QRCode"]')
-        .first()
-        .isVisible()
-        .catch(() => false);
-
-      if (hasLoginModal) {
-        debugLog('Login modal detected - user needs to login');
+        throw new XhsError(
+          'Not logged in or session expired. Please run "xhs login" first.',
+          XhsErrorCode.NOT_LOGGED_IN
+        );
       }
 
-      throw new XhsError(
-        'Not logged in or session expired. Please run "xhs login" first.',
-        XhsErrorCode.NOT_LOGGED_IN
-      );
-    }
+      // Perform search
+      debugLog('Starting search...');
+      const result = await performSearch(session.page, keyword, limit, skip, filters);
+      result.user = user;
 
-    // Perform search
-    debugLog('Starting search...');
-    const result = await performSearch(instance.page, keyword, limit, filters);
-
-    debugLog('Search complete, outputting result...');
-    outputSuccess(result, 'PARSE:notes');
-    debugLog('Result output complete');
-  } catch (error) {
+      debugLog('Search complete, outputting result...');
+      outputSuccess(result, 'PARSE:notes');
+      debugLog('Result output complete');
+    },
+    { headless: headless ?? config.headless }
+  ).catch((error) => {
     debugLog('Search error:', error);
     outputFromError(error);
-  } finally {
-    debugLog('Closing browser...');
-    await closeBrowserInstance(instance);
-  }
+  });
 }

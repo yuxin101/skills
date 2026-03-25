@@ -5,7 +5,8 @@
  * @description SMS authentication flow
  */
 
-import type { BrowserInstance } from '../browser';
+import type { BrowserSession } from '../browser';
+import type { UserName } from '../user';
 import { XhsError, XhsErrorCode } from '../shared';
 import { saveCookies, extractCookies } from '../cookie';
 import { XHS_URLS, debugLog, delay, randomDelay, waitForCondition } from '../utils/helpers';
@@ -16,9 +17,10 @@ import type { LoginResult } from './types';
  * Perform SMS login (interactive)
  */
 export async function smsLogin(
-  instance: BrowserInstance,
+  instance: BrowserSession,
   timeout: number,
-  browserClosedRef: { closed: boolean }
+  browserClosedRef: { closed: boolean },
+  user?: UserName
 ): Promise<LoginResult> {
   const { page } = instance;
 
@@ -70,11 +72,12 @@ export async function smsLogin(
 
   // Save cookies
   const cookies = await extractCookies(instance.context);
-  await saveCookies(cookies);
+  await saveCookies(cookies, user);
 
   return {
     success: true,
     message: 'Login successful. Cookies saved.',
     cookieSaved: true,
+    user,
   };
 }

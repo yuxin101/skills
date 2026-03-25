@@ -1,13 +1,14 @@
 ---
 name: xhs-ts
 description: |
-  Xiaohongshu (小红书) automation — search notes, publish content, data scraping.
-  Use when user mentions 小红书, xhs, Xiaohongshu, Red, 笔记发布, 搜索笔记, 小红书数据.
-  Supports content creation, data analysis, competitive monitoring.
+  Automate Xiaohongshu (小红书/Red) — search notes, publish content, manage multiple accounts.
+  Use when user mentions 小红书, xhs, Xiaohongshu, Red, 小红书账号, 笔记发布, 搜索笔记, 
+  小红书数据, 红书, RedNote, 小红书运营, 小红书自动化, or wants to login/search/publish on Xiaohongshu.
+  Supports content creation, competitive monitoring, multi-account management.
 license: MIT
 compatibility: opencode
 metadata:
-  version: "0.0.2"
+  version: "0.0.4"
   openclaw:
     emoji: "📕"
     requires:
@@ -25,31 +26,92 @@ metadata:
 
 | Task | Command | Status |
 |------|---------|--------|
-| Login | `npm run login` | ✅ Implemented |
-| Search | `npm run search -- "<keyword>"` | ✅ Implemented |
-| Publish | `npm run publish -- [options]` | ✅ Implemented |
+| Login | `npm run login [-- --user <name>]` | ✅ Implemented |
+| Search | `npm run search -- "<keyword>" [-- --user <name>]` | ✅ Implemented |
+| Publish | `npm run publish -- [options] [-- --user <name>]` | ✅ Implemented |
+| User Management | `npm run user` | ✅ Implemented |
 | Like | `npm run like -- "<url>"` | ❌ Not implemented |
 | Collect | `npm run collect -- "<url>"` | ❌ Not implemented |
 | Comment | `npm run comment -- "<url>" "text"` | ❌ Not implemented |
 | Follow | `npm run follow -- "<url>"` | ❌ Not implemented |
 | Scrape note/user | `npm run start -- scrape-note/user "<url>"` | ❌ Not implemented |
 
+> All commands support `--user <name>` for multi-account operations.
+
 ---
 
 ## Gotchas
 
-1. **Publish requires creator login** — Run `npm run login -- --creator` separately from main site login
-2. **Headless auto-detection** — Linux servers (no DISPLAY) automatically force headless mode
-3. **QR code file path** — In headless mode, QR code saved to `{baseDir}/tmp/qr_login_*.png`
-4. **Rate limiting** — Keep 2-5 second intervals between operations to avoid detection
-5. **Search `--scope following`** — Requires login to access followed users' notes
-6. **Search filters** — Filters are applied via URL params; some may require UI interaction on page load
+1. **Headless auto-detection** — Linux servers (no DISPLAY) automatically force headless mode
+2. **QR code file path** — In headless mode, QR code saved to `users/{user}/tmp/qr_login_*.png`
+3. **Rate limiting** — Keep 2-5 second intervals between operations to avoid detection
+4. **Search `--scope following`** — Requires login to access followed users' notes
+5. **Search filters** — Filters are applied via URL params; some may require UI interaction on page load
+6. **Multi-user support** — Use `--user <name>` to operate with different accounts
+
+---
+
+## Multi-User Management
+
+xhs-ts supports multiple Xiaohongshu accounts with isolated cookies and temporary files.
+
+### Directory Structure
+
+```
+xhs-ts/
+├── users/                    # Multi-user directory
+│   ├── users.json            # User metadata (current user)
+│   ├── default/              # Default user
+│   │   ├── cookies.json      # Cookies
+│   │   └── tmp/              # Temporary files (QR codes)
+│   ├── 小号/                 # User "小号"
+│   │   ├── cookies.json
+│   │   └── tmp/
+│   └── ...
+├── cookies.json              # Legacy (migrated on first run)
+└── tmp/                      # Legacy (migrated on first run)
+```
+
+### User Selection Priority
+
+```
+--user <name>  >  users.json current  >  default
+```
+
+### Commands
+
+```bash
+# List all users
+npm run user
+
+# Set current user (shortcut)
+npm run user:use -- "小号"
+
+# Set current user (full command)
+npm run user -- --set-current "小号"
+
+# Reset to default user
+npm run user -- --set-default
+
+# Login with specific user
+npm run login -- --user "小号"
+
+# Search with specific user
+npm run search -- "美食" --user "小号"
+
+# Publish with specific user
+npm run publish -- ... --user "主号"
+```
+
+### Migration
+
+On first run after upgrade, existing `cookies.json` and `tmp/` are automatically migrated to `users/default/`. Original files are deleted after successful migration.
 
 ---
 
 ## Output Format
 
-All commands output JSON to stdout. The `toAgent` field provides **actionable instructions** for the agent.
+All commands output JSON to stdout. The `toAgent` field provides **actionable instructions**.
 
 ### toAgent Format
 
@@ -57,50 +119,34 @@ All commands output JSON to stdout. The `toAgent` field provides **actionable in
 ACTION[:TARGET][:HINT]
 ```
 
-| Action | Meaning | Example |
-|--------|---------|---------|
-| `DISPLAY_IMAGE` | Show image to user | `DISPLAY_IMAGE:qrPath` |
-| `RELAY` | Relay message to user | `RELAY:发布成功` |
-| `WAIT` | Wait for user action | `WAIT:扫码` |
-| `PARSE` | Parse and present data | `PARSE:notes` |
+| Action | Agent 行为 |
+|--------|-----------|
+| `DISPLAY_IMAGE` | 使用 `look_at` 读取图片，根据 Channel 类型发送 |
+| `RELAY` | 直接转发消息给用户 |
+| `WAIT` | 等待用户操作，提示 HINT 文本 |
+| `PARSE` | 格式化 `data` 内容并展示 |
 
-### Success Response
+**字段引用：** `TARGET` 若匹配同层 JSON 字段名，则取该字段值（如 `DISPLAY_IMAGE:qrPath` 读取 `qrPath` 字段）。
 
-```json
-{
-  "success": true,
-  "data": { ... },
-  "toAgent": "RELAY:操作成功"
-}
-```
+**Channel 适配：** Agent 应根据接入的 Channel（飞书/企业微信/CLI）选择合适的消息格式发送。详见 [Channel Integration Guide](references/channel-integration.md)。
 
-### Error Response
+### Response Examples
 
 ```json
-{
-  "error": true,
-  "message": "Error description",
-  "code": "ERROR_CODE"
-}
-```
-
-### QR Code (Headless Login)
-
-```json
+// QR 码登录
 {
   "type": "qr_login",
-  "status": "waiting_scan",
-  "qrPath": "/absolute/path/to/tmp/qr_login_YYYYMMDD_HHmmss.png",
-  "message": "请使用小红书 App 扫描二维码登录",
+  "qrPath": "/absolute/path/to/qr.png",
   "toAgent": "DISPLAY_IMAGE:qrPath:WAIT:扫码"
 }
-```
 
-**Agent handling:**
-1. Parse `toAgent`: `DISPLAY_IMAGE:qrPath:WAIT:扫码`
-2. Use `look_at` tool to read the image at `qrPath`
-3. Display to user
-4. Wait for scan
+// 搜索结果
+{
+  "success": true,
+  "data": { "notes": [...] },
+  "toAgent": "PARSE:notes"
+}
+```
 
 ---
 
@@ -127,14 +173,14 @@ ACTION[:TARGET][:HINT]
 # 二维码登录（默认）
 npm run login
 
-# 短信登录
-npm run login -- --sms
+# 无头模式登录（二维码保存到文件）
+npm run login:headless
 
-# 无头模式（二维码保存到文件）
+# 或使用参数方式
 npm run login -- --headless
 
-# 登录创作者中心（发布笔记必需）
-npm run login -- --creator
+# 短信登录
+npm run login -- --sms
 ```
 
 **参数说明：**
@@ -145,7 +191,7 @@ npm run login -- --creator
 | `--sms` | 短信登录 | — |
 | `--headless` | 无头模式运行 | `false` |
 | `--timeout` | 登录超时时间（毫秒） | `120000` |
-| `--creator` | 登录创作者中心 | — |
+| `--user` | 指定用户 | 当前用户 |
 
 ### Search
 
@@ -181,6 +227,7 @@ npm run search -- "旅游攻略" --limit 20 --sort hot --note-type video --time-
 | `--scope` | 搜索范围 | `all`（全部）、`following`（我关注的） | `all` |
 | `--location` | 位置距离 | `all`（不限）、`nearby`（附近）、`city`（同城） | `all` |
 | `--headless` | 无头模式运行 | — | `false` |
+| `--user` | 指定用户 | 用户名 | 当前用户 |
 
 **注意事项：**
 - `--scope following` 需要先登录
@@ -209,6 +256,7 @@ npm run publish -- --title "标题" --content "正文" --images "img1.jpg" --tag
 | `--video` | 视频路径（最大500MB） | * | — |
 | `--tags` | 标签，逗号分隔（最多10个） | ❌ | — |
 | `--headless` | 无头模式运行 | ❌ | `false` |
+| `--user` | 指定用户 | ❌ | 当前用户 |
 
 > `--images` 与 `--video` 二选一，不可同时使用
 
@@ -269,4 +317,5 @@ Built-in protection:
 - [Installation Guide](references/installation.md)
 - [Configuration](references/configuration.md)
 - [Command Reference](references/commands.md)
+- [Channel Integration](references/channel-integration.md) — toAgent 处理与消息格式适配
 - [Troubleshooting](references/troubleshooting.md)
