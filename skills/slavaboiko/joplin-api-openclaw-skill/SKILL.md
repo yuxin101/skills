@@ -2,7 +2,7 @@
 name: joplin
 description: Manage Joplin notes via Server API - create, read, edit, search notes, notebooks, todos, and kanban boards
 allowed-tools: Bash(node *, op *)
-metadata: {"openclaw": {"requires": {"bins": ["node"], "config": ["~/.joplin-server-config"]}, "emoji": "📓", "homepage": "https://joplinapp.org"}}
+metadata: {"openclaw": {"requires": {"bins": ["node"], "optional_bins": ["op"], "config": ["~/.joplin-server-config"]}, "emoji": "📓", "homepage": "https://joplinapp.org"}}
 ---
 
 # Joplin Server API Skill
@@ -30,6 +30,8 @@ Create `~/.joplin-server-config`:
 JOPLIN_SERVER_URL=https://your-joplin-server.com
 JOPLIN_EMAIL=your-email@example.com
 JOPLIN_PASSWORD=your-password
+# Optional: skip TLS verification for self-signed certificates (security risk!)
+# JOPLIN_SKIP_TLS_VERIFY=true
 ```
 
 ### Option B: 1Password

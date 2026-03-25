@@ -12,11 +12,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// Allow self-signed certificates
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-
 // Configuration
 const CONFIG_FILE = path.join(process.env.HOME, '.joplin-server-config');
+
+// TLS certificate validation - disable only if explicitly set (for self-signed certs)
+const SKIP_TLS_VERIFY = process.env.JOPLIN_SKIP_TLS_VERIFY === '1' ||
+                        process.env.JOPLIN_SKIP_TLS_VERIFY === 'true';
 const SESSION_FILE = path.join(process.env.HOME, '.joplin-session');
 const TIMEOUT_MS = 30000;
 
@@ -53,7 +54,8 @@ function loadConfig() {
   let config = {
     url: process.env.JOPLIN_SERVER_URL,
     email: process.env.JOPLIN_EMAIL,
-    password: process.env.JOPLIN_PASSWORD
+    password: process.env.JOPLIN_PASSWORD,
+    skipTlsVerify: SKIP_TLS_VERIFY
   };
 
   if (!config.url && fs.existsSync(CONFIG_FILE)) {
@@ -64,6 +66,9 @@ function loadConfig() {
       if (key.trim() === 'JOPLIN_SERVER_URL') config.url = value;
       if (key.trim() === 'JOPLIN_EMAIL') config.email = value;
       if (key.trim() === 'JOPLIN_PASSWORD') config.password = value;
+      if (key.trim() === 'JOPLIN_SKIP_TLS_VERIFY') {
+        config.skipTlsVerify = value === '1' || value === 'true';
+      }
     }
   }
 
@@ -232,9 +237,11 @@ function removeSuffix(id) {
  */
 class ServerApi {
   constructor(config = {}) {
-    this.url = (config.url || loadConfig().url || '').replace(/\/$/, '');
-    this.email = config.email || loadConfig().email;
-    this.password = config.password || loadConfig().password;
+    const loaded = loadConfig();
+    this.url = (config.url || loaded.url || '').replace(/\/$/, '');
+    this.email = config.email || loaded.email;
+    this.password = config.password || loaded.password;
+    this.skipTlsVerify = config.skipTlsVerify !== undefined ? config.skipTlsVerify : loaded.skipTlsVerify;
     this.clientId = generateId();
     this.cookies = {};
     this.currentSyncLock = null;
@@ -263,7 +270,7 @@ class ServerApi {
           ...(cookieHeader && { 'Cookie': cookieHeader }),
           ...options.headers
         },
-        rejectUnauthorized: false
+        rejectUnauthorized: !this.skipTlsVerify
       };
 
       const req = protocol.request(reqOptions, (res) => {

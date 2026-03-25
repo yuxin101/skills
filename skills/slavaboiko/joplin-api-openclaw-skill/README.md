@@ -49,6 +49,8 @@ Create `~/.joplin-server-config`:
 JOPLIN_SERVER_URL=https://your-joplin-server.com
 JOPLIN_EMAIL=your-email@example.com
 JOPLIN_PASSWORD=your-password
+# Optional: skip TLS verification for self-signed certificates
+# JOPLIN_SKIP_TLS_VERIFY=true
 ```
 
 Secure the file:
@@ -117,9 +119,9 @@ The skill bundles a standalone JavaScript API client (`scripts/joplin-server-api
 
 ## Security
 
-- Credentials are stored locally in `~/.joplin-server-config`
-- The config file should have restricted permissions (`chmod 600`)
-- With 1Password integration, secrets are fetched at runtime and never stored in plaintext
+- Credentials are stored locally in `~/.joplin-server-config` (with `chmod 600` permissions)
+- With 1Password integration, secrets are fetched from 1Password and written to the config file
+- TLS certificate validation is enabled by default; set `JOPLIN_SKIP_TLS_VERIFY=true` only for self-signed certificates
 - All communication with your Joplin Server uses HTTPS
 - No data is sent to third parties
 
