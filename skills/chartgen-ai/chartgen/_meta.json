@@ -1,0 +1,11 @@
+{
+  "owner": "chartgen-ai",
+  "slug": "chartgen",
+  "displayName": "Chart Gen (Data Analysis & Diagram)",
+  "latest": {
+    "version": "1.0.9",
+    "publishedAt": 1774362721404,
+    "commit": null
+  },
+  "history": []
+}
