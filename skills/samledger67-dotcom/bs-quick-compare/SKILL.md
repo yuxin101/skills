@@ -13,7 +13,6 @@ tags:
   - balance-sheet
   - qbo
   - excel
-  - precisionledger
 negative_boundaries:
   - P&L variance analysis → use pl-quick-compare skill
   - Cash flow analysis → use scf-quick-compare skill
@@ -55,8 +54,8 @@ scripts/pipelines/bs-quick-compare.py
 ## Requirements
 
 - `pip install openpyxl` (already installed in workspace)
-- Node.js `qbo-client` at `integrations/qbo-client/` with valid auth token
-- `.env.wallet` containing QBO credentials
+- Node.js QBO client with valid auth token
+- QBO credentials configured
 
 ## Usage
 
@@ -204,10 +203,6 @@ Stores the flat map of all BS line names → balances for the most recent run. O
 ## Decimal Math
 
 All calculations use Python `Decimal` with `ROUND_HALF_UP` — no floating-point rounding errors in financial outputs.
-
-## Pipeline Number
-
-Pipeline #16 in the PrecisionLedger Deterministic Pipeline Build.
 
 ## Related Pipelines
 
