@@ -28,13 +28,14 @@ A full readiness report with:
 
 ## Works With
 
-Designed as the **first step** in an AI deployment pipeline:
+Designed as the **first step** in the **Enterprise AI Deployment Pipeline**:
 
-1. **AI Adoption Readiness** (this) → Where do you stand?
-2. **Compliance Readiness** → Are you regulatory-ready?
-3. **Change Management Plan** → How do you roll it out?
-4. **Vendor Risk Assessment** → Which AI vendor to pick?
-5. **Incident Response Plan** → What if it breaks?
+1. **AI Adoption Readiness** (this) → Are you ready for AI?
+2. **[Compliance Readiness](https://clawhub.com/skills/afrexai-compliance-readiness)** → Are you regulatory-ready?
+3. **[Change Management Plan](https://clawhub.com/skills/afrexai-change-management-plan)** → How do you roll it out?
+4. **[Vendor Risk Assessment](https://clawhub.com/skills/afrexai-vendor-risk-assessment)** → Which AI vendor to pick?
+5. **[Incident Response Plan](https://clawhub.com/skills/afrexai-incident-response-plan)** → What if it breaks?
+6. **[SLA Monitor](https://clawhub.com/skills/afrexai-sla-monitor)** → How do you keep it running?
 
 ## Usage
 
