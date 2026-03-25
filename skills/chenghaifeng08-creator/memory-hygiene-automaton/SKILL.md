@@ -8,7 +8,22 @@ homepage: https://github.com/xdylanbaker/memory-hygiene
 
 Keep vector memory lean. Prevent token waste from junk memories.
 
-## Quick Commands
+---
+
+## 💰 付费服务
+
+**记忆系统优化咨询**:
+
+| 服务 | 价格 | 交付 |
+|------|------|------|
+| 记忆系统审计 | ¥800/次 | 完整分析报告 + 优化建议 |
+| 向量数据库清理 | ¥500/次 | 清理 + 重新索引 |
+| 记忆架构设计 | ¥2000/次 | 定制记忆系统架构 |
+| 月度维护顾问 | ¥1500/月 | 每周清理 + 性能监控 |
+
+**联系**: 微信/Telegram 私信，备注"记忆优化"
+
+---
 
 **Audit:** Check what's in memory
 ```
