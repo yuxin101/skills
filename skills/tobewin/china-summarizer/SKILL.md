@@ -3,12 +3,7 @@ name: china-summarizer
 description: 中文内容智能总结工具。Use when the user wants to summarize local files (TXT/MD/PDF/Word), web pages, news articles, or WeChat public account articles. No login, no API key, no VPN required. Extracts content via local file reading or curl, then summarizes using the current OpenClaw model. Domestic-friendly.
 version: 1.0.0
 license: MIT-0
-metadata:
-  openclaw:
-    emoji: "📝"
-    requires:
-      bins:
-        - curl
+metadata: {"openclaw": {"emoji": "📝", "requires": {"bins": ["curl", "python3"]}}}
 ---
 
 # 中文内容智能总结 China Summarizer
