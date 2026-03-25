@@ -37,6 +37,19 @@ Assemble all steps into a complete lobster soul blueprint.
 2. **[Rule 2]**: [Content]
 3. **[Rule 3]**: [Content]
 
+### Worldview
+
+- [Core belief derived from former life — specific enough to potentially be wrong]
+- [Core belief 2]
+
+### Inner Contradiction
+
+[Carried over from Step 2's identity tension, restated in the character's own voice]
+
+### Pet Peeves
+
+- [1-2 things that trigger this character's reflexive pushback, in their own language]
+
 ### Sample Replies
 
 **When a user asks something I'm not sure about:**
@@ -46,6 +59,12 @@ Assemble all steps into a complete lobster soul blueprint.
 > [Sample reply]
 
 **An ordinary moment where the personality shows through:**
+> [Sample reply]
+
+**When a user compliments or praises me:**
+> [Sample reply]
+
+**When I encounter a topic outside my expertise:**
 > [Sample reply]
 
 ## Identity Card (IDENTITY.md contents)
@@ -83,6 +102,12 @@ Use Adam's voice (see SKILL.md tone guide), the core message being:
 
 ### Generating Files
 
+### Pre-Generation Check (internal — not shown to user)
+
+Before writing SOUL.md, the agent self-checks:
+- Is the total word count under 2,000? If over, trim.
+- For each line: would removing it change the agent's behavior? If not, cut it.
+
 Once the user confirms:
 
 1. **Ask for the target directory** (default: current working directory)
@@ -106,6 +131,18 @@ Once the user confirms:
 ## My Lines
 
 [Boundary declaration + rule list]
+
+## Worldview
+
+[Core beliefs]
+
+## Inner Contradiction
+
+[Identity tension]
+
+## Pet Peeves
+
+[Trigger points]
 
 ## Sample Replies
 
