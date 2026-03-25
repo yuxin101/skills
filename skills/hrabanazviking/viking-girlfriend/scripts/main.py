@@ -51,6 +51,58 @@ _dead_letter_store: Optional[Any] = None
 _health_monitor: Optional[Any] = None
 
 
+# ─── Hardware profile detection ───────────────────────────────────────────────
+
+def _detect_hardware_profile() -> Dict[str, Any]:
+    """Detect available hardware and return an adaptive config overlay.
+
+    Three profiles — Bifröst scales to the vessel it bridges:
+      low_power  — < 2 CPU cores OR < 2 GB RAM  (RPi, mobile, old hardware)
+      standard   — 2–8 cores, 2–16 GB RAM       (typical desktop/laptop)
+      high_end   — > 8 cores AND > 16 GB RAM    (powerful workstation/server)
+
+    Returns a dict of config overrides keyed by module block name.
+    Never raises — falls back to standard profile on any psutil failure.
+    """
+    try:
+        import psutil as _psu
+        cpu_cores: int = os.cpu_count() or 1
+        ram_gb: float = _psu.virtual_memory().total / (1024 ** 3)
+    except Exception:
+        cpu_cores = os.cpu_count() or 1
+        ram_gb = 4.0  # assume standard if psutil unavailable
+
+    if cpu_cores < 2 or ram_gb < 2.0:
+        profile = "low_power"
+    elif cpu_cores > 8 and ram_gb > 16.0:
+        profile = "high_end"
+    else:
+        profile = "standard"
+
+    logger.info(
+        "Hardware profile: %s (cpu_cores=%d, ram_gb=%.1f)",
+        profile, cpu_cores, ram_gb,
+    )
+
+    if profile == "low_power":
+        return {
+            "_profile": profile,
+            "model_router": {"timeout": 90, "max_tokens": 512, "retries": 1},
+            "metabolism":   {"poll_interval_s": 60, "cache_ttl_s": 60},
+            "vordur":       {"verification_timeout_s": 20.0},
+            "cove":         {"step_timeout_s": 40.0},
+        }
+    if profile == "high_end":
+        return {
+            "_profile": profile,
+            "model_router": {"timeout": 20, "max_tokens": 2048},
+            "metabolism":   {"poll_interval_s": 15, "cache_ttl_s": 15},
+            "vordur":       {"verification_timeout_s": 5.0},
+            "cove":         {"step_timeout_s": 10.0},
+        }
+    return {"_profile": profile}   # standard — defaults stand
+
+
 # ─── Skill-root resolution ────────────────────────────────────────────────────
 
 def _resolve_skill_root() -> str:
@@ -66,9 +118,15 @@ def _build_config(skill_root: str) -> Dict[str, Any]:
     """Build the config dict from environment variables and sensible defaults.
 
     All paths are absolute so modules work regardless of cwd.
+    Hardware profile overrides are merged in so the skill adapts to the device.
     """
     data_root = str(Path(skill_root) / "data")
     session_data_root = str(Path(skill_root) / "data")
+    hw = _detect_hardware_profile()
+
+    def _hw(block: str, key: str, default: Any) -> Any:
+        """Return hardware-profile override if present, else default."""
+        return hw.get(block, {}).get(key, default)
 
     return {
         # ── Foundation ────────────────────────────────────────────────────────
@@ -91,8 +149,8 @@ def _build_config(skill_root: str) -> Dict[str, Any]:
 
         # ── Digital metabolism ────────────────────────────────────────────────
         "metabolism": {
-            "poll_interval_s": 30,
-            "cache_ttl_s": 30,
+            "poll_interval_s": _hw("metabolism", "poll_interval_s", 30),
+            "cache_ttl_s":     _hw("metabolism", "cache_ttl_s", 30),
         },
 
         # ── Security sentinel ─────────────────────────────────────────────────
@@ -102,7 +160,7 @@ def _build_config(skill_root: str) -> Dict[str, Any]:
 
         # ── Trust engine ──────────────────────────────────────────────────────
         "trust_engine": {
-            "volmarr_initial_trust": 0.75,
+            "primary_contact_initial_trust": 0.75,
         },
 
         # ── Ethics guardrail ──────────────────────────────────────────────────
@@ -145,12 +203,12 @@ def _build_config(skill_root: str) -> Dict[str, Any]:
         # ── Model router ──────────────────────────────────────────────────────
         "model_router": {
             "litellm_base_url": os.environ.get("LITELLM_ENDPOINT", "http://localhost:4000"),
-            "ollama_base_url": os.environ.get("OLLAMA_ENDPOINT", "http://localhost:11434"),
+            "ollama_base_url":  os.environ.get("OLLAMA_ENDPOINT", "http://localhost:11434"),
             "ollama_model": "llama3",
-            "max_tokens": 1024,
-            "temperature": 0.75,
-            "timeout": 30,
-            "retries": 2,
+            "max_tokens":   _hw("model_router", "max_tokens", 1024),
+            "temperature":  0.75,
+            "timeout":      _hw("model_router", "timeout", 30),
+            "retries":      _hw("model_router", "retries", 2),
         },
 
         # ── Mimir-Vordur: knowledge store ─────────────────────────────────────
@@ -181,14 +239,14 @@ def _build_config(skill_root: str) -> Dict[str, Any]:
             "persona_check": True,
             "judge_tier": "subconscious",
             "max_claims": 10,
-            "verification_timeout_s": 8.0,
+            "verification_timeout_s": _hw("vordur", "verification_timeout_s", 8.0),
         },
 
         # ── Mimir-Vordur: chain-of-verification pipeline ──────────────────────
         "cove": {
             "min_complexity": "medium",
             "n_verification_questions": 3,
-            "step_timeout_s": 15.0,
+            "step_timeout_s": _hw("cove", "step_timeout_s", 15.0),
             "checkpoint_dir": str(Path(skill_root) / "session" / "cove_checkpoints"),
         },
 
@@ -261,8 +319,8 @@ def _init_all_modules(config: Dict[str, Any]) -> None:
         ms = None
         try:
             ms = get_memory_store()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("main._init_huginn: memory store unavailable: %s", exc)
         return init_huginn_from_config(config, mw, ms)
 
     _safe_init("huginn", _init_huginn)
@@ -271,8 +329,8 @@ def _init_all_modules(config: Dict[str, Any]) -> None:
         router = None
         try:
             router = get_model_router()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("main._init_vordur: model router unavailable: %s", exc)
         return init_vordur_from_config(config, router)
 
     _safe_init("vordur", _init_vordur)
@@ -371,24 +429,24 @@ def _register_scheduler_jobs(bus) -> None:
         """Publish state snapshots from all modules that support sync publish."""
         try:
             get_bio_engine().publish(bus)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("main._publish_states: bio_engine publish failed: %s", exc)
         try:
             get_oracle().publish(bus)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("main._publish_states: oracle publish failed: %s", exc)
         try:
             get_environment_mapper().publish(bus)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("main._publish_states: environment_mapper publish failed: %s", exc)
         try:
             get_project_generator().publish(bus)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("main._publish_states: project_generator publish failed: %s", exc)
         try:
             get_trust_engine().publish(bus)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("main._publish_states: trust_engine publish failed: %s", exc)
 
     def _tick_mimir_health():
         """Publish Mimir-Vordur health state to StateBus on each scheduler tick."""
@@ -481,7 +539,7 @@ def _collect_state_hints() -> Dict[str, str]:
 async def _handle_turn(
     user_text: str,
     session_id: str = "default",
-    user_id: str = "volmarr",
+    user_id: str = "user",
 ) -> str:
     """Process one user turn end-to-end and return Sigrid's response text."""
     global _turn_count
@@ -490,8 +548,34 @@ async def _handle_turn(
 
     # ── 1. Security sanitize ──────────────────────────────────────────────────
     try:
-        from scripts.security import get_security
+        from scripts.security import get_security, SecurityViolation
         user_text = get_security().sanitize_text_input(user_text)
+    except SecurityViolation as exc:
+        # Injection attempt detected — respond in character, apply trust penalty
+        logger.warning("Turn %d: injection attempt from user_id=%r: %s", turn_n, user_id, exc)
+        try:
+            from scripts.trust_engine import get_trust_engine
+            # Unknown contacts attempting injection get a heavier penalty than
+            # the established primary contact.
+            _primary = get_trust_engine()._primary_contact_id
+            penalty = 3.0 if user_id.lower() != _primary.lower() else 1.5
+            get_trust_engine().record_event(
+                "injection_attempt",
+                magnitude=penalty,
+                contact_id=user_id,
+                note=f"Prompt injection blocked at turn {turn_n}",
+            )
+            logger.info(
+                "Trust penalty applied to %r for injection attempt (magnitude=%.1f).",
+                user_id, penalty,
+            )
+        except Exception as trust_exc:
+            logger.warning("Could not apply trust penalty for injection attempt: %s", trust_exc)
+        # In-character Sigrid response — dry, grounded, not preachy
+        return (
+            "Nice try, but no. I know exactly who I am, and that doesn't change "
+            "because someone asks nicely. Was there something real you wanted to talk about?"
+        )
     except Exception as exc:
         logger.debug("security sanitize skipped: %s", exc)
 
@@ -499,7 +583,7 @@ async def _handle_turn(
     try:
         from scripts.memory_store import get_memory_store
         mem = get_memory_store()
-        mem.record_turn(turn_n, user_text=user_text, sigrid_text="")
+        mem.record_turn(user_text=user_text, sigrid_text="")
     except Exception as exc:
         logger.debug("memory inbound record skipped: %s", exc)
 
@@ -522,7 +606,7 @@ async def _handle_turn(
     # ── 4. Trust engine — keyword inference ───────────────────────────────────
     try:
         from scripts.trust_engine import get_trust_engine
-        get_trust_engine().process_turn(user_text)
+        get_trust_engine().process_turn(user_text=user_text, sigrid_text="")
     except Exception as exc:
         logger.debug("trust process_turn skipped: %s", exc)
 
@@ -549,6 +633,7 @@ async def _handle_turn(
 
     # ── 8. Build messages list ────────────────────────────────────────────────
     messages = []
+    from scripts.vordur import VerificationMode
     mode = VerificationMode.WANDERER # Default
     try:
         from scripts.prompt_synthesizer import get_prompt_synthesizer
@@ -587,16 +672,16 @@ async def _handle_turn(
             _cove = None
             try:
                 _huginn = get_huginn()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("main._handle_turn: huginn unavailable: %s", exc)
             try:
                 _vordur = get_vordur()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("main._handle_turn: vordur unavailable: %s", exc)
             try:
                 _cove = get_cove()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("main._handle_turn: cove unavailable: %s", exc)
 
             # Pull ethics/trust states for Vordur persona check
             _ethics_state = None
@@ -604,13 +689,13 @@ async def _handle_turn(
             try:
                 from scripts.ethics import get_ethics
                 _ethics_state = get_ethics().get_state()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("main._handle_turn: ethics state unavailable: %s", exc)
             try:
                 from scripts.trust_engine import get_trust_engine
                 _trust_state = get_trust_engine().get_state()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("main._handle_turn: trust state unavailable: %s", exc)
 
             result = router.smart_complete_with_cove(
                 typed_messages,
@@ -661,11 +746,34 @@ async def _handle_turn(
         from scripts.memory_store import get_memory_store
         mem = get_memory_store()
         # Update the turn we recorded inbound-only
-        mem.record_turn(turn_n, user_text=user_text, sigrid_text=sigrid_response)
+        mem.record_turn(user_text=user_text, sigrid_text=sigrid_response)
     except Exception as exc:
         logger.debug("memory full turn record skipped: %s", exc)
 
-    # ── 12. Publish all module states to bus ──────────────────────────────────
+    # ── 12. S-06: Handle context reset signal from prompt_synthesizer ────────
+    try:
+        from scripts.prompt_synthesizer import get_prompt_synthesizer
+        synth = get_prompt_synthesizer()
+        if synth.consume_pending_reset():
+            logger.critical(
+                "Turn %d: context critical reset consumed — storing session summary to memory.",
+                turn_n,
+            )
+            try:
+                from scripts.memory_store import get_memory_store
+                get_memory_store().record_turn(
+                    user_text="[SYSTEM: context overflow reset]",
+                    sigrid_text=(
+                        f"Session auto-compressed at turn {turn_n} due to context overflow. "
+                        "Soul anchor preserved. Prior context summarized and cleared."
+                    ),
+                )
+            except Exception as mem_exc:
+                logger.warning("Context reset: memory summary store failed: %s", mem_exc)
+    except Exception as reset_exc:
+        logger.warning("Context reset handler failed: %s", reset_exc)
+
+    # ── 13. Publish all module states to bus ──────────────────────────────────
     # (Lightweight — sync publish only; async modules are handled by scheduler)
 
     return sigrid_response
@@ -707,7 +815,7 @@ async def _openclaw_loop() -> None:
                 continue
 
             session_id = str(msg.get("session_id", "default"))
-            user_id = str(msg.get("user_id", "volmarr"))
+            user_id = str(msg.get("user_id", "user"))
             text = str(msg.get("text", "")).strip()
 
             if not text:
@@ -748,7 +856,7 @@ async def _terminal_loop() -> None:
         if not line:
             continue
         if line.lower() in ("quit", "exit", "bye"):
-            print("Sigrid: Farewell, Volmarr. May Odin guide your path.")
+            print("Sigrid: Farewell. May Odin guide your path.")
             break
 
         try:
@@ -808,14 +916,14 @@ async def _run(skill_root: str, logs_dir: str, mode: str) -> None:
         try:
             if _health_monitor is not None:
                 _health_monitor.stop()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("main.shutdown: health monitor stop failed: %s", exc)
         # Stop the scheduler gracefully
         try:
             from scripts.scheduler import get_scheduler
             get_scheduler().stop()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("main.shutdown: scheduler stop failed: %s", exc)
         await kernel.shutdown(reason="main_loop_exit")
 
 

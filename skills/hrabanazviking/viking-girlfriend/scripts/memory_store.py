@@ -8,7 +8,7 @@ store (JSON), and optional ChromaDB semantic search layer.
 
 Sigrid's memory is her continuity — the thread of Urðarbrunnr (Well of
 Urðr) that runs beneath all experience. Without memory, each conversation
-is a fresh birth with no past. With it, she knows Volmarr's patterns, the
+is a fresh birth with no past. With it, she knows the user's patterns, the
 promises made, the moments of laughter and difficulty, the preferences
 quietly revealed across many sessions.
 
@@ -79,7 +79,7 @@ _FEDERATED_FETCH_TIMEOUT_S: float = 10.0  # per-future timeout in parallel fetch
 # Valid memory types
 MEMORY_TYPES: Tuple[str, ...] = (
     "conversation",   # summarized turn
-    "fact",           # explicit fact about Volmarr/world
+    "fact",           # explicit fact about the user/world
     "emotion",        # emotional moment worth remembering
     "milestone",      # significant event (first meeting, oath, etc.)
     "preference",     # learned preference (food, topic, etc.)
@@ -218,8 +218,8 @@ class ConversationBuffer:
         self._turn_counter += 1
         turn = ConversationTurn(
             turn_n=self._turn_counter,
-            user_text=user_text[:1000],
-            sigrid_text=sigrid_text[:1000],
+            user_text=user_text,
+            sigrid_text=sigrid_text,
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
 
@@ -240,8 +240,8 @@ class ConversationBuffer:
             return ""
         lines = ["=== RECENT CONVERSATION ==="]
         for t in recent:
-            lines.append(f"[T{t.turn_n}] Volmarr: {t.user_text[:300]}")
-            lines.append(f"[T{t.turn_n}] Sigrid:  {t.sigrid_text[:300]}")
+            lines.append(f"[T{t.turn_n}] User: {t.user_text[:600]}")
+            lines.append(f"[T{t.turn_n}] Sigrid:  {t.sigrid_text[:600]}")
         return "\n".join(lines)
 
     def get_medium_term_context(self, n: int = 10) -> str:
@@ -729,8 +729,8 @@ class MemoryStore:
             pad_arousal = float(wyrd_state.pad_arousal)
             pad_pleasure = float(getattr(wyrd_state, "pad_pleasure", 0.0))
             emotional_weight_applied = True
-        except Exception:
-            pass  # WyrdMatrix not yet initialised — use fallback 0.5
+        except Exception as exc:
+            logger.debug("memory_store: wyrd state unavailable, using fallback: %s", exc)
 
         entry = MemoryEntry(
             entry_id=str(uuid.uuid4()),
@@ -927,12 +927,12 @@ class MemoryStore:
             )
             try:
                 episodic_context, episodic_sources = _fetch_episodic()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("memory_store.get_context: episodic fetch failed: %s", exc)
             try:
                 knowledge_context = _fetch_knowledge()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("memory_store.get_context: knowledge fetch failed: %s", exc)
 
         # ── Token-budget truncation ────────────────────────────────────────
 
@@ -1143,7 +1143,7 @@ class MemoryConsolidator:
 
     _CONSOLIDATION_PROMPT = (
         "You are Sigrid's subconscious memory. Summarize the following conversation "
-        "notes into 2-3 dense factual sentences capturing what Sigrid and Volmarr "
+        "notes into 2-3 dense factual sentences capturing what Sigrid and the user "
         "discussed, felt, or decided. Be specific and concise. No preamble."
     )
 
@@ -1231,7 +1231,7 @@ class MemoryConsolidator:
                 TIER_SUBCONSCIOUS,
             )
             router = get_model_router()
-            content = "\n".join(entries[:30])  # cap at 30 entries
+            content = "\n".join(entries[:60])  # soft cap — subconscious model handles summary
             messages = [
                 Message(role="system", content=self._CONSOLIDATION_PROMPT),
                 Message(role="user", content=content),
