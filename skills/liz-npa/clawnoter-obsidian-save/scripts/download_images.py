@@ -9,10 +9,56 @@ import re
 import hashlib
 import urllib.request
 import urllib.error
+import asyncio
+import importlib.util
 from urllib.parse import urljoin, urlparse
 from html import unescape
 import sys
 import json
+
+KNOWN_IMAGE_HOST_TOKENS = (
+    'mmbiz',
+    'qpic.cn',
+    'wx.qq.com',
+    'wximg.qq.com',
+    'twimg.com',
+)
+
+KNOWN_NON_CONTENT_IMAGE_HOST_TOKENS = (
+    'abs.twimg.com',
+    'abs-0.twimg.com',
+    'abs-1.twimg.com',
+    'abs-2.twimg.com',
+)
+
+KNOWN_IMAGE_QUERY_KEYS = (
+    'image',
+    'img',
+    'wx_fmt=',
+    'format=',
+    'mime=',
+)
+
+IMG_ATTRIBUTE_CANDIDATES = (
+    'src',
+    'data-src',
+    'data-original',
+    'data-url',
+    'data-lazy-src',
+    'data-actualsrc',
+    'data-backsrc',
+    'data-fail',
+    'data-orig-src',
+)
+
+BROWSER_ARTICLE_SELECTORS = (
+    '#js_content',
+    '.rich_media_content',
+    '#img-content',
+    'article',
+    'main',
+    '[role="main"]',
+)
 
 def strip_html_tags(html):
     """Remove remaining HTML tags."""
@@ -28,6 +74,12 @@ def extract_title_from_html(html):
 
     title = unescape(strip_html_tags(match.group(1)))
     return re.sub(r'\s+', ' ', title).strip()
+
+def normalize_browser_title(title):
+    """Drop common chrome/page wrappers from browser-rendered titles."""
+    cleaned = re.sub(r'\s*[-|_]\s*微信公众平台\s*$', '', (title or '')).strip()
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    return cleaned.strip()
 
 def html_to_basic_markdown(html):
     """
@@ -81,6 +133,75 @@ def html_to_basic_markdown(html):
 
     return '\n'.join(cleaned_lines).strip()
 
+def looks_like_low_quality_markdown(markdown):
+    """Detect obviously noisy fallback markdown."""
+    if not markdown:
+        return True
+
+    lines = [line.strip() for line in markdown.splitlines()]
+    non_empty = [line for line in lines if line]
+    if len(non_empty) < 8:
+        return True
+
+    sample = non_empty[:120]
+    dash_lines = sum(1 for line in sample if line in {'-', '—', '–'})
+    if dash_lines >= 20:
+        return True
+
+    joined = '\n'.join(sample[:40]).lower()
+    noise_tokens = (
+        '微信公众平台',
+        '在小说阅读器中沉浸阅读',
+        '喜欢就关注我哦',
+    )
+    if sum(token in joined for token in noise_tokens) >= 2:
+        return True
+
+    return False
+
+async def _fetch_rendered_article_async(url, timeout_ms=60000):
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        try:
+            await page.goto(url, wait_until='networkidle', timeout=timeout_ms)
+            title = normalize_browser_title(await page.title())
+
+            best_html = ""
+            best_selector = ""
+            for selector in BROWSER_ARTICLE_SELECTORS:
+                locator = page.locator(selector)
+                if await locator.count():
+                    html = await locator.first.inner_html(timeout=10000)
+                    if len(html) > len(best_html):
+                        best_html = html
+                        best_selector = selector
+
+            if not best_html:
+                best_html = await page.locator('body').inner_html(timeout=10000)
+                best_selector = 'body'
+
+            return {
+                'title': title,
+                'html': best_html,
+                'selector': best_selector,
+            }
+        finally:
+            await browser.close()
+
+def fetch_rendered_article(url, timeout_ms=60000):
+    """Fetch rendered article HTML via local browser when static fallbacks are poor."""
+    if importlib.util.find_spec("playwright") is None:
+        print("Browser fallback skipped: playwright is not installed", file=sys.stderr)
+        return None
+    try:
+        return asyncio.run(_fetch_rendered_article_async(url, timeout_ms=timeout_ms))
+    except Exception as e:
+        print(f"Browser fallback failed: {e}", file=sys.stderr)
+        return None
+
 def get_url_hash(url):
     """Generate a short hash for URL to use as filename."""
     return hashlib.md5(url.encode()).hexdigest()[:12]
@@ -95,8 +216,42 @@ def is_valid_image_url(url):
     # Check for image extension or Content-Type hint
     parsed = urlparse(url)
     path = parsed.path.lower()
+    host = parsed.netloc.lower()
+    query = parsed.query.lower()
     image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico')
-    return any(path.endswith(ext) for ext in image_extensions) or 'image' in parsed.query
+    if any(path.endswith(ext) for ext in image_extensions):
+        return True
+    if any(token in host for token in KNOWN_IMAGE_HOST_TOKENS):
+        return True
+    return any(token in query for token in KNOWN_IMAGE_QUERY_KEYS)
+
+def should_skip_image_url(url):
+    """Filter obvious spacer or tracking images."""
+    lowered = url.lower()
+    parsed = urlparse(lowered)
+    host = parsed.netloc
+    skip_tokens = (
+        'pic_blank.gif',
+        'transparent.gif',
+        'spacer.',
+        'pixel.',
+        '1x1',
+        'blank.',
+    )
+    if any(token in host for token in KNOWN_NON_CONTENT_IMAGE_HOST_TOKENS):
+        return True
+    return any(token in lowered for token in skip_tokens)
+
+def extract_img_candidates(tag_html):
+    """Extract candidate image URLs from common lazy-load attributes."""
+    candidates = []
+    for attr in IMG_ATTRIBUTE_CANDIDATES:
+        pattern = re.compile(rf'{attr}\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
+        for match in pattern.finditer(tag_html):
+            value = unescape(match.group(1).strip())
+            if value and value not in candidates:
+                candidates.append(value)
+    return candidates
 
 def download_image(url, save_dir, timeout=10):
     """
@@ -152,14 +307,15 @@ def extract_images_from_html(html_content, base_url):
     """
     image_urls = set()
     
-    # Pattern to find img tags
-    img_pattern = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+    # Pattern to find img tags and common lazy-load attributes.
+    img_pattern = re.compile(r'<img\b[^>]*>', re.IGNORECASE)
     
     for match in img_pattern.finditer(html_content):
-        src = match.group(1)
-        # Resolve relative URLs
-        full_url = urljoin(base_url, unescape(src))
-        image_urls.add(full_url)
+        tag_html = match.group(0)
+        for src in extract_img_candidates(tag_html):
+            full_url = urljoin(base_url, src)
+            if full_url and not should_skip_image_url(full_url):
+                image_urls.add(full_url)
     
     # Also find images in style="background-image: url(...)"
     bg_pattern = re.compile(r'background-image:\s*url\(["\']?([^"\')]+)["\']?\)', re.IGNORECASE)
@@ -171,6 +327,24 @@ def extract_images_from_html(html_content, base_url):
     
     return list(image_urls)
 
+def extract_images_from_markdown(markdown_content, base_url):
+    """
+    Extract image URLs from markdown, including images nested inside links.
+    """
+    image_urls = []
+    if not markdown_content:
+        return image_urls
+
+    img_pattern = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
+    for match in img_pattern.finditer(markdown_content):
+        img_url = match.group(2).strip()
+        if img_url.startswith('data:'):
+            continue
+        full_url = urljoin(base_url, img_url)
+        if full_url not in image_urls:
+            image_urls.append(full_url)
+    return image_urls
+
 def process_article(url, output_dir, images_subdir='images'):
     """
     Main function to fetch article, extract images, and prepare for markdown conversion.
@@ -181,6 +355,7 @@ def process_article(url, output_dir, images_subdir='images'):
     - markdown: HTML converted to markdown (images as local refs)
     """
     print(f"Fetching article from: {url}", file=sys.stderr)
+    preferred_title = ""
     
     # First, try to fetch raw HTML for image extraction
     html_content = None
@@ -199,6 +374,7 @@ def process_article(url, output_dir, images_subdir='images'):
     
     # Also get markdown content via Jina.ai
     markdown_content = ""
+    generated_from_raw_html = False
     try:
         jina_url = f"https://r.jina.ai/{url}"
         req = urllib.request.Request(jina_url, headers={
@@ -218,23 +394,43 @@ def process_article(url, output_dir, images_subdir='images'):
         if body_markdown:
             markdown_parts.append(body_markdown)
         markdown_content = "\n\n".join(part for part in markdown_parts if part).strip()
+        generated_from_raw_html = True
         print("Generated fallback markdown from raw HTML", file=sys.stderr)
-    
+
+    should_try_browser = generated_from_raw_html or looks_like_low_quality_markdown(markdown_content)
+    rendered_html = None
+    if should_try_browser:
+        rendered = fetch_rendered_article(url)
+        if rendered and rendered.get('html'):
+            rendered_html = rendered['html']
+            preferred_title = rendered.get('title', '') or preferred_title
+            rendered_markdown = html_to_basic_markdown(rendered_html)
+            if rendered_markdown and (
+                not markdown_content or
+                looks_like_low_quality_markdown(markdown_content)
+            ):
+                markdown_content = rendered_markdown
+                print(f"Used browser fallback content from selector: {rendered.get('selector')}", file=sys.stderr)
+
     # Extract images from HTML
     image_urls = []
     if html_content:
-        image_urls = extract_images_from_html(html_content, url)
-        print(f"Found {len(image_urls)} images from HTML", file=sys.stderr)
-    else:
-        # Fallback: try to extract from markdown
-        import re
-        img_pattern = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
-        for match in img_pattern.finditer(markdown_content):
-            img_url = match.group(2)
-            if not img_url.startswith('data:'):
-                full_url = urljoin(url, img_url)
-                image_urls.append(full_url)
-        print(f"Found {len(image_urls)} images from Markdown", file=sys.stderr)
+        html_image_urls = extract_images_from_html(html_content, url)
+        image_urls.extend(html_image_urls)
+        print(f"Found {len(html_image_urls)} images from HTML", file=sys.stderr)
+    if rendered_html:
+        rendered_image_urls = extract_images_from_html(rendered_html, url)
+        for img_url in rendered_image_urls:
+            if img_url not in image_urls:
+                image_urls.append(img_url)
+        print(f"Found {len(rendered_image_urls)} images from browser HTML", file=sys.stderr)
+
+    markdown_image_urls = extract_images_from_markdown(markdown_content, url)
+    for img_url in markdown_image_urls:
+        if img_url not in image_urls:
+            image_urls.append(img_url)
+    if markdown_content:
+        print(f"Found {len(markdown_image_urls)} images from Markdown", file=sys.stderr)
     
     # Create images directory
     images_dir = os.path.join(output_dir, images_subdir)
@@ -243,7 +439,7 @@ def process_article(url, output_dir, images_subdir='images'):
     # Download images
     downloaded_images = []
     for img_url in image_urls:
-        if is_valid_image_url(img_url):
+        if is_valid_image_url(img_url) and not should_skip_image_url(img_url):
             local_name = download_image(img_url, images_dir)
             if local_name:
                 downloaded_images.append((img_url, local_name))
@@ -251,9 +447,11 @@ def process_article(url, output_dir, images_subdir='images'):
     
     # Replace image URLs in markdown with local paths
     final_markdown = replace_image_urls_in_markdown(markdown_content, downloaded_images, url, images_subdir)
+    final_markdown = ensure_downloaded_images_present(final_markdown, downloaded_images, images_subdir)
     
     return {
         'html': html_content or '',
+        'title': preferred_title,
         'images': downloaded_images,
         'markdown': final_markdown or markdown_content
     }
@@ -300,40 +498,78 @@ def replace_image_urls_in_markdown(markdown, downloaded_images, base_url, images
         normalized_orig = orig_url
         url_to_local[normalized_orig] = local_name
         
+    def resolve_local_ref(img_url):
+        full_url = urljoin(base_url, img_url)
+        if full_url in url_to_local:
+            return f'{images_subdir}/{url_to_local[full_url]}'
+        if img_url in url_to_local:
+            return f'{images_subdir}/{url_to_local[img_url]}'
+        return None
+
     # Replace markdown image syntax: ![alt](url)
     def replace_markdown_img(match):
         alt_text = match.group(1) or ''
         img_url = match.group(2)
-        
-        # Resolve relative URL
-        full_url = urljoin(base_url, img_url)
-        
-        # Check if we have a local version
-        if full_url in url_to_local:
-            local_name = url_to_local[full_url]
-            return f'![{alt_text}]({images_subdir}/{local_name})'
-        
-        # Also try the original URL without resolution
-        if img_url in url_to_local:
-            local_name = url_to_local[img_url]
-            return f'![{alt_text}]({images_subdir}/{local_name})'
-        
+        local_ref = resolve_local_ref(img_url)
+        if local_ref:
+            return f'![{alt_text}]({local_ref})'
         return match.group(0)
-    
-    result = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_markdown_img, markdown)
+
+    # Replace linked-image syntax: [![alt](url)](target)
+    def replace_linked_markdown_img(match):
+        alt_text = match.group(1) or ''
+        img_url = match.group(2)
+        local_ref = resolve_local_ref(img_url)
+        if local_ref:
+            return f'![{alt_text}]({local_ref})'
+        return match.group(0)
+
+    result = re.sub(r'\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)', replace_linked_markdown_img, markdown)
+    result = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_markdown_img, result)
     return result
+
+def ensure_downloaded_images_present(markdown, downloaded_images, images_subdir):
+    """
+    If the source markdown does not expose any image syntax at all, prepend
+    downloaded images as a last-resort fallback.
+    """
+    if not downloaded_images:
+        return markdown
+
+    local_refs = [f'{images_subdir}/{local_name}' for _orig_url, local_name in downloaded_images]
+    markdown = markdown or ''
+    if re.search(r'(\[)?!\[[^\]]*\]\(([^)]+)\)', markdown):
+        return markdown
+
+    existing_refs = set(re.findall(r'!\[[^\]]*\]\(([^)]+)\)', markdown))
+    missing_refs = [ref for ref in local_refs if ref not in existing_refs]
+
+    if not missing_refs:
+        return markdown
+
+    image_block = '\n'.join(f'![]({ref})' for ref in missing_refs)
+    if not markdown:
+        return image_block
+    return f'{image_block}\n\n{markdown.lstrip()}'
 
 def clean_html_to_markdown(html):
     """Simple HTML to Markdown conversion."""
     return html_to_basic_markdown(html)
 
 if __name__ == '__main__':
-    # Example usage: python script.py <url> <output_dir>
-    if len(sys.argv) >= 3:
-        url = sys.argv[1]
-        output_dir = sys.argv[2]
+    # This script is now an internal helper. The public entrypoint is save_article.py.
+    if len(sys.argv) >= 2 and sys.argv[1] == '--internal-ok':
+        if len(sys.argv) < 4:
+            print("Usage: python download_images.py --internal-ok <url> <output_dir>", file=sys.stderr)
+            sys.exit(1)
+        url = sys.argv[2]
+        output_dir = sys.argv[3]
         result = process_article(url, output_dir)
         print(json.dumps(result))
     else:
-        print("Usage: python script.py <url> <output_dir>", file=sys.stderr)
-        sys.exit(1)
+        print(
+            "download_images.py is an internal helper. "
+            "Use: python save_article.py <url> <output_dir> [page_comment]",
+            file=sys.stderr,
+        )
+        sys.exit(2)
