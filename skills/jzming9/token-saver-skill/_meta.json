@@ -3,9 +3,15 @@
   "slug": "token-saver-skill",
   "displayName": "Token Saver Skill",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773994887992,
-    "commit": "https://github.com/openclaw/skills/commit/f5c9515d8cd5cf0f8b568b9613aa95535ab2793d"
+    "version": "1.0.2",
+    "publishedAt": 1774238759574,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773994887992,
+      "commit": "https://github.com/openclaw/skills/commit/f5c9515d8cd5cf0f8b568b9613aa95535ab2793d"
+    }
+  ]
 }

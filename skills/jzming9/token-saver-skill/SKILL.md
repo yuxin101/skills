@@ -1,6 +1,6 @@
 ---
 name: tokensaver
-description: "Smart token cost optimization for OpenClaw/Copaw. Automatically reduces AI token consumption by 50-80% through intelligent context compression, semantic caching, and adaptive optimization while maintaining response quality."
+description: "Smart token cost optimization for OpenClaw. Automatically reduces AI token consumption by 50-80% through intelligent context compression, semantic caching, and adaptive optimization while maintaining response quality."
 metadata:
   emoji: "💰"
   requires: {}

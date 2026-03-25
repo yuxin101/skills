@@ -2,7 +2,7 @@
   "$schema": "https://clawhub.io/schemas/plugin-manifest.json",
   "id": "tokensaver",
   "name": "TokenSaver",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Smart Token Cost Optimization for OpenClaw - Save 50-80% on AI token usage with intelligent context compression and semantic caching",
   "author": {
     "name": "TokenSaver Team"
