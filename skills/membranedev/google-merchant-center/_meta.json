@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "google-merchant-center",
+  "displayName": "Google Merchant Center",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774296152069,
+    "commit": null
+  },
+  "history": []
+}
