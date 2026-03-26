@@ -1,0 +1,11 @@
+{
+  "owner": "rockets-cn",
+  "slug": "unihiker-k10-micropython",
+  "displayName": "Unihiker K10 MicroPython",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774255276009,
+    "commit": null
+  },
+  "history": []
+}
