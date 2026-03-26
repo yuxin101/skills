@@ -1,0 +1,11 @@
+{
+  "owner": "demo112",
+  "slug": "ab-test-runner",
+  "displayName": "Ab Test Runner",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774402677585,
+    "commit": null
+  },
+  "history": []
+}
