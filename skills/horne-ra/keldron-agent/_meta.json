@@ -1,0 +1,11 @@
+{
+  "owner": "horne-ra",
+  "slug": "keldron-agent",
+  "displayName": "Keldron — GPU & Hardware Monitor Agent",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1774489944810,
+    "commit": null
+  },
+  "history": []
+}
