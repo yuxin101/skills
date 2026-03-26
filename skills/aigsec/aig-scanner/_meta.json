@@ -1,0 +1,11 @@
+{
+  "owner": "aigsec",
+  "slug": "aig-scanner",
+  "displayName": "AIG Scanner",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774339167569,
+    "commit": null
+  },
+  "history": []
+}
