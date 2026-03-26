@@ -1,0 +1,11 @@
+{
+  "owner": "shawn92",
+  "slug": "ftshare-index-data",
+  "displayName": "Skills of A-share index data released by ft.tech.",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774329560323,
+    "commit": null
+  },
+  "history": []
+}
