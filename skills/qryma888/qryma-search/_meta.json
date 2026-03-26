@@ -3,9 +3,15 @@
   "slug": "qryma-search",
   "displayName": "Qryma Search",
   "latest": {
-    "version": "1.1.4",
-    "publishedAt": 1774491364851,
-    "commit": "https://github.com/openclaw/skills/commit/71cd87fa7eb21db35ab92cbd21c5bb41435a37eb"
+    "version": "1.1.5",
+    "publishedAt": 1774514538383,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.4",
+      "publishedAt": 1774491364851,
+      "commit": "https://github.com/openclaw/skills/commit/71cd87fa7eb21db35ab92cbd21c5bb41435a37eb"
+    }
+  ]
 }
