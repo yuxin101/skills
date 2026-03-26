@@ -1,0 +1,27 @@
+{
+  "id": "soundai-asr-provider",
+  "providers": ["soundai"],
+  "providerAuthEnvVars": {
+    "soundai": ["SOUNDAI_API_KEY"]
+  },
+  "providerAuthChoices": [
+    {
+      "provider": "soundai",
+      "method": "api-key",
+      "choiceId": "soundai-api-key",
+      "choiceLabel": "SoundAI API key",
+      "groupId": "soundai",
+      "groupLabel": "SoundAI",
+      "groupHint": "API key",
+      "optionKey": "soundaiApiKey",
+      "cliFlag": "--soundai-api-key",
+      "cliOption": "--soundai-api-key <key>",
+      "cliDescription": "SoundAI API key"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

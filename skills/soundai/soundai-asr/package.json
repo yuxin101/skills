@@ -1,0 +1,20 @@
+{
+  "name": "soundai-asr-provider",
+  "version": "2026.3.14",
+  "private": true,
+  "description": "OpenClaw SoundAI media-understanding provider",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "compat": {
+      "pluginApi": "^1.0.0"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.27.4",
+    "typescript": "^6.0.2"
+  }
+}
