@@ -1,0 +1,11 @@
+{
+  "owner": "bdonglobal",
+  "slug": "tokenview-address-balance",
+  "displayName": "Blockchain Balance Checker",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1774356258558,
+    "commit": null
+  },
+  "history": []
+}
