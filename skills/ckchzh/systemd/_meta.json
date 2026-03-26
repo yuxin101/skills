@@ -1,0 +1,11 @@
+{
+  "owner": "ckchzh",
+  "slug": "systemd",
+  "displayName": "Systemd",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774304288156,
+    "commit": null
+  },
+  "history": []
+}
