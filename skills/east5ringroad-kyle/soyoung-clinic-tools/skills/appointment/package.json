@@ -1,0 +1,7 @@
+{
+  "name": "appointment",
+  "version": "2.1.0",
+  "description": "新氧诊所门店查询、预约审批与预约管理技能",
+  "author": "锦鲤（彭胜锴）",
+  "license": "MIT"
+}
