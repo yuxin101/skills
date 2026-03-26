@@ -1,0 +1,11 @@
+{
+  "owner": "azimao",
+  "slug": "cmdb-test",
+  "displayName": "Cmdb Test",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774452682312,
+    "commit": null
+  },
+  "history": []
+}
