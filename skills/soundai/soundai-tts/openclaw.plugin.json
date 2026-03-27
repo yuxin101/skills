@@ -1,0 +1,17 @@
+{
+  "id": "soundai-tts-provider",
+  "providers": ["soundai-tts"],
+  "providerAuthEnvVars": {
+    "soundai-tts": {
+      "SOUNDAI_API_KEY": "SoundAI API Key for TTS authorization"
+    }
+  },
+  "configSchema": {
+    "properties": {
+      "baseUrl": {
+        "type": "string",
+        "description": "Optional custom base URL for the SoundAI TTS API."
+      }
+    }
+  }
+}
