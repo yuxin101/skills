@@ -1,0 +1,11 @@
+{
+  "owner": "reikys",
+  "slug": "agent-failure-loop",
+  "displayName": "Agent Failure Loop",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774508178955,
+    "commit": null
+  },
+  "history": []
+}
