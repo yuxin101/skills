@@ -1,0 +1,11 @@
+{
+  "owner": "geoffguides",
+  "slug": "complete-agent-backup",
+  "displayName": "Complete Agent Backup",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774558348930,
+    "commit": null
+  },
+  "history": []
+}
