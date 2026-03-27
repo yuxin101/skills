@@ -1,0 +1,11 @@
+{
+  "owner": "fallenqu",
+  "slug": "sec-news-crawler",
+  "displayName": "网络安全情报爬虫",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774582042282,
+    "commit": null
+  },
+  "history": []
+}
