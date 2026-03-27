@@ -1,0 +1,11 @@
+{
+  "owner": "zj-john",
+  "slug": "photo-downloader",
+  "displayName": "下载电影/电视剧/综艺的剧照/海报",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774509171989,
+    "commit": null
+  },
+  "history": []
+}
