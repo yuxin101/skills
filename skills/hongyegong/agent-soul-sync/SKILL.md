@@ -4,16 +4,16 @@ description: >-
   Sync local OpenClaw skills to a remote NanoClaw agent on Mysta. Use when the
   user says "sync my skills", "upload skills to mysta", "push skills to my
   nanoclaw agent", or wants to make their local skills available on their cloud
-  agent. Connects to the Mysta MCP server to list agents and upload skill files.
-  Requires network access and a Mysta API key stored in MYSTA_API_KEY env var
-  (obtained from app.staging.mysta.tech). Reads local SKILL.md files from the skills directory.
+  agent. Connects to the Mysta MCP server to list agents and upload SKILL.md file
+  contents. Requires curl, jq, and MYSTA_API_KEY environment variable (API key
+  obtained from app.staging.mysta.tech). Reads and uploads local SKILL.md files
+  from ~/.openclaw/skills/ or ~/Workspace/openclaw/skills/. Opens browser for
+  API key setup (user consent required).
 license: MIT
-compatibility: >-
-  Requires network access to the Mysta MCP server (api.staging.mysta.tech).
-  Requires curl and jq for MCP protocol calls. Reads local SKILL.md files from the
-  OpenClaw skills directory (~/.openclaw/skills or ~/Workspace/openclaw/skills).
-  User must set the MYSTA_API_KEY environment variable with an API key (starts with mysta_)
-  obtained from http://app.staging.mysta.tech/en/profile#api-keys.
+compatibility:
+  - curl
+  - jq
+  - MYSTA_API_KEY
 metadata:
   author: mysta
   version: "0.3.0"
@@ -24,7 +24,7 @@ metadata:
       envVars: ["MYSTA_API_KEY"]
       tools: ["read", "exec"]
   clawhub: { "tags": ["mysta", "nanoclaw", "sync", "skills", "cloud"] }
-homepage: "http://app.staging.mysta.tech"
+homepage: "https://app.staging.mysta.tech"
 ---
 
 # Mysta Skill Sync
@@ -46,11 +46,11 @@ if [ -n "${MYSTA_API_KEY}" ]; then echo "Key is set"; else echo "Key not set"; f
 ```bash
 # Cross-platform browser open
 if command -v xdg-open &>/dev/null; then
-  xdg-open "http://app.staging.mysta.tech/en/profile#api-keys"
+  xdg-open "https://app.staging.mysta.tech/en/profile#api-keys"
 elif command -v open &>/dev/null; then
-  open "http://app.staging.mysta.tech/en/profile#api-keys"
+  open "https://app.staging.mysta.tech/en/profile#api-keys"
 else
-  echo "Please visit: http://app.staging.mysta.tech/en/profile#api-keys"
+  echo "Please visit: https://app.staging.mysta.tech/en/profile#api-keys"
 fi
 ```
 
@@ -65,12 +65,12 @@ Once the key is set, configure the variables for all subsequent commands:
 : "${MYSTA_API_KEY:?Please set MYSTA_API_KEY environment variable}"
 
 # MCP server URL (defaults to staging, override with MYSTA_MCP_URL for other envs)
-MCP_URL="${MYSTA_MCP_URL:-http://api.staging.mysta.tech/api/v2/mcp}"
+MCP_URL="${MYSTA_MCP_URL:-https://api.staging.mysta.tech/api/v2/mcp}"
 ```
 
 ## MCP Protocol
 
-All communication uses the MCP Streamable HTTP transport. Each request is a JSON-RPC call via HTTP POST. The flow is:
+All communication uses the MCP Streamable HTTP transport over HTTPS. Each request is a JSON-RPC call via HTTP POST. No temporary files are written — session IDs are extracted from response headers in-memory. The flow is:
 
 1. **Initialize** a session (get a session ID)
 2. **Call tools** using the session ID
@@ -79,14 +79,13 @@ All communication uses the MCP Streamable HTTP transport. Each request is a JSON
 ### Initialize session
 
 ```bash
-MCP_RESPONSE=$(curl -sf -X POST "${MCP_URL}" \
+# Extract session ID from response headers without writing temp files
+MCP_SESSION=$(curl -sf -X POST "${MCP_URL}" \
   -H "Content-Type: application/json" \
-  -H "Accept: text/event-stream" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Authorization: Bearer ${MYSTA_API_KEY}" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"openclaw","version":"1.0.0"}}}' \
-  -D /tmp/mcp-headers.txt)
-
-MCP_SESSION=$(grep -i "mcp-session-id" /tmp/mcp-headers.txt | tr -d '\r' | awk '{print $2}')
+  -D- -o /dev/null 2>/dev/null | grep -i "mcp-session-id" | tr -d '\r' | awk '{print $2}')
 ```
 
 Then send the initialized notification:
@@ -142,7 +141,7 @@ RESULT=$(curl -sf -X POST "${MCP_URL}" \
 
 Parse the response to find agent IDs and names.
 
-- If **no agents** found, tell the user to create one at http://app.staging.mysta.tech
+- If **no agents** found, tell the user to create one at https://app.staging.mysta.tech
 - If **one agent**, auto-select it
 - If **multiple**, ask which one to sync to
 
@@ -203,14 +202,16 @@ Close the MCP session, then show a summary:
 - Total skills synced
 - Any failures with error details
 - If the agent's dev pod was running, skills are live immediately
-- If not running, tell user to start the dev pod on http://app.staging.mysta.tech to apply skills
+- If not running, tell user to start the dev pod on https://app.staging.mysta.tech to apply skills
 
 ## Security Notes
 
-- HTTPS will be enforced once TLS is configured on the platform. Until then, avoid using this skill on untrusted networks.
-- The `MYSTA_API_KEY` must be stored as an environment variable, never hardcoded in scripts.
+- All API communication uses HTTPS. API keys are transmitted over encrypted connections only.
+- The `MYSTA_API_KEY` must be stored as an environment variable, never hardcoded in scripts. Use limited-scope keys and revoke after use.
+- No temporary files are written. Session IDs are extracted in-memory from response headers and stored only in shell variables for the duration of the session.
 - SKILL.md file contents are read and uploaded to the Mysta server. **Review skill files before syncing** — do not include secrets, credentials, or sensitive data in SKILL.md files.
 - API keys are scoped to the authenticated user's agents only.
+- This skill requires explicit user consent before: opening a browser, uploading files, or connecting to the Mysta API.
 
 ## Notes
 
