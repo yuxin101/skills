@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "google-postmaster-tools",
+  "displayName": "Google Postmaster Tools",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774587908794,
+    "commit": null
+  },
+  "history": []
+}
