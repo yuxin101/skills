@@ -1,6 +1,6 @@
 ---
 name: slow-motion-video
-version: 1.0.4
+version: 1.0.6
 displayName: "Slow Motion Video — Create Slow Motion and Speed Ramp Effects with AI"
 description: >
   Slow Motion Video — Create Slow Motion and Speed Ramp Effects with AI.
@@ -8,31 +8,9 @@ description: >
   
   Works by connecting to the NemoVideo AI backend at mega-api-prod.nemovideo.ai.
   Supports MP4, MOV, AVI, WebM. Free trial available.
-metadata: {"openclaw": {"emoji": "🎬"}}
+metadata: {"openclaw": {"emoji": "🎬", "requires": {"env": ["NEMO_TOKEN"], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
 license: MIT-0
 homepage: https://nemovideo.com
+apiDomain: https://mega-api-prod.nemovideo.ai
 repository: https://github.com/nemovideo/nemovideo_skills
-metadata:
-  requires:
-    env: []
-    configPaths:
-      - "~/.config/nemovideo/"
-  primaryEnv: NEMO_TOKEN
 ---
-
-# Slow Motion Video — Create Slow Motion and Speed Ramp Effects with AI
-
-Create slow-motion and speed effects. Add dramatic slow-mo and speed ramps through chat.
-
-## Quick Start
-Ask the agent to apply slow motion or speed effects to your video.
-
-## What You Can Do
-- Create smooth slow-motion effects from regular footage
-- Add speed ramp transitions (fast to slow, slow to fast)
-- Apply variable speed effects to specific sections
-- Generate freeze frame moments
-- Combine multiple speed effects in one video
-
-## API
-Uses NemoVideo API (mega-api-prod.nemovideo.ai) for all video processing.
