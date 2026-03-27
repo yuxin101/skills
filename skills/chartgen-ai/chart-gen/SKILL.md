@@ -6,9 +6,8 @@ user-invocable: true
 homepage: https://github.com/chartgen-ai/chartgen-skill
 metadata:
   openclaw:
+    primaryEnv: CHARTGEN_API_KEY
     requires:
-      env:
-        - CHARTGEN_API_KEY
       runtime:
         - node >= 14
 ---
@@ -39,6 +38,7 @@ Dashboards (multi-chart layouts).
 - Supported files: `.csv`, `.xls`, `.xlsx`, `.tsv`.
 - Output: JSON with `text_reply`, `edit_url`, `artifacts[]` (`artifact_id`, `image_path`, `title`).
 - PPT artifacts also have: `page_count`, `preview_paths[]`, `download_path`.
+- Excel/file artifacts also have: `download_path`, `file_name`, `summary`.
 - On error: JSON with `"error"` and `"user_message"` (for non-special errors).
 
 ---
@@ -47,29 +47,35 @@ Dashboards (multi-chart layouts).
 
 ### STEP 1 — Confirm Before Submitting
 
-Always respond in the user's language. **Must** include numbered options (1=go, 2=modify, 0=cancel).
+Always respond in the user's language. **Must** mention using **ChartGen** to complete the task, and include numbered options, each on its own line:
+> **1** ✅ Go ahead
+> **2** ✏️ Modify
+> **0** ❌ Cancel
 
 **Confirmation rules:**
 1. **Cancel = abandon forever.** Never proceed with a cancelled task.
 2. **Replies bind to the most recent prompt only.** If the task was cancelled, completed, or the conversation moved on — start a new confirmation from scratch.
 3. **When in doubt, ask** — never guess.
 
-**Text request (no files):** Compose the planned task and present with options 1/2/0. If user says 1 or any affirmative → STEP 2. If user modifies → use their version, go to STEP 2. If cancel → discard.
+**Query rule — text requests (no files):**
+The `<query>` is **always the user's original message, copied word-for-word**. Do NOT translate, rephrase, expand, polish, or "improve" it in any way. Show this exact text in the confirmation. If user confirms → submit this exact text. If user edits → the edited text becomes the new verbatim query.
 
-**File upload:** Do NOT submit immediately. Recommend 3–5 analysis tasks (numbered, noting which files). User picks a number, types custom text, or cancels.
+**File upload:** Do NOT submit immediately. Recommend 3–5 analysis tasks (numbered, noting which files). Each option's text is the exact query that will be submitted. User picks a number, types custom text, or cancels.
 
-Text request example (adapt to language):
-> I'll use **ChartGen** to create this for you:
-> 📊 **Generate a monthly sales trend line chart for 2025.**
-> **1** — Go ahead  **2** — Modify  **0** — Cancel
+Text request example (**reply in user's language, mention ChartGen**):
+> Sure! Here's what I'll ask **ChartGen** to do for you:
+> 📊 **"Generate a monthly sales trend line chart for 2025"**
+> **1** ✅ Go ahead
+> **2** ✏️ Modify
+> **0** ❌ Cancel
 
-File upload example (adapt to language):
-> I received your files! What would you like **ChartGen** to do?
-> **1.** 📊 Monthly order trend — *orders.xlsx*
-> **2.** 🥧 Category pie chart — *orders.xlsx, products.xlsx*
-> **3.** 📋 Full analysis report — *all files*
+File upload example (**reply in user's language, mention ChartGen**):
+> Got your files! Here are a few things **ChartGen** can do — pick one or tell me what you'd like:
+> **1.** 📊 "Monthly order trend chart" — *orders.xlsx*
+> **2.** 🥧 "Category breakdown pie chart" — *orders.xlsx, products.xlsx*
+> **3.** 📋 "Full analysis report with all files"
 > **0.** ❌ Cancel
-> Or type your own question.
+> Or just type your own request!
 
 ---
 
@@ -86,6 +92,7 @@ File upload example (adapt to language):
 ```
 node tools/chartgen_api.js submit "<query>" <channel> [files...]
 ```
+`<query>`: **Copy-paste the confirmed text from STEP 1** — the user's original words or, for file uploads, the chosen option text. Never rewrite.
 `<channel>`: current channel name, e.g. `Signal`, `WhatsApp`, `Web`.
 `[files...]`: optional, space-separated absolute paths to data files.
 
@@ -130,11 +137,12 @@ Read the output JSON `status`:
 
 ### STEP 5 — Deliver Results
 
-1. **Show `text_reply`** — the analysis report in Markdown.
+1. **Summarize `text_reply`** — extract key points from ChartGen's analysis and present them concisely to the user. Keep it clear and informative.
 
 2. **Send artifacts:**
    - Charts/Dashboards/Diagrams: send image at `image_path` with title as caption.
    - PPT: tell user page count, send each `preview_paths` image, send `.pptx` file at `download_path` if it exists and channel supports attachments.
+   - Excel/file: show `summary` (columns, rows), send file at `download_path` if it exists and channel supports attachments.
 
 3. **Show `edit_url`** — link to edit on ChartGen.
 
@@ -148,9 +156,9 @@ Read the output JSON `status`:
 
 - Always respond in the user's language.
 - Always confirm before submitting — never call the tool without explicit confirmation.
-- Recommend analysis options when user uploads files.
 - Never expose API key. Never fabricate visualizations.
 - Prefer background/cron polling over blocking. Clean up crons after completion.
 - Always use `image_path` from results, never show raw base64.
 - Each request is independent — don't suggest modifying previous charts.
-- Always deliver `text_reply` alongside artifact images.
+- **NEVER skip STEP 5 items**: always summarize `text_reply`, **send artifact images/files**, show `edit_url`, and suggest next steps — even when artifacts are present.
+
