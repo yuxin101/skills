@@ -1,0 +1,11 @@
+{
+  "owner": "mssteuer",
+  "slug": "openclaw-plugin-edicts",
+  "displayName": "Edicts — Ground Truth for AI Agents",
+  "latest": {
+    "version": "1.0.6",
+    "publishedAt": 1774579758179,
+    "commit": null
+  },
+  "history": []
+}
