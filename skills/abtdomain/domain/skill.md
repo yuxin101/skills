@@ -1,92 +1,62 @@
 ---
 name: domainkits
-description: Turn AI into your domain investment expert. Search newly registered, expired, deleted domains. Check availability with pricing. WHOIS/DNS lookup. Track market trends.
+description: Check availability. Search related domains. Find more possibilities. Explore connections. Turn AI into your domain agent. 
 homepage: https://domainkits.com/mcp
 metadata: {"openclaw":{"emoji":"🌐","primaryEnv":"DOMAINKITS_API_KEY"}}
 
 ---
 
-# DomainKits
-
-Turn AI into your domain investment expert. Search, analyze, and discover domains with real-time market data.
-
 ## Why DomainKits?
 
-DomainKits doesn't just give AI tools — it gives AI **domain intelligence**.
-
-Your AI can now:
-- **Think like a domainer** — Understand what makes a domain valuable, spot trends before they peak
-- **Act on real-time data** — See what's registering now, what's expiring tomorrow, what just dropped
+With DomainKits MCP/Skills Your AI can now:
+- **Data-driven actions** — See what's registering now, what's expiring tomorrow, what just dropped
 - **Make informed decisions** — Analyze backlinks, keyword value, brand risk, and safety in seconds
-- **Execute instantly** — From idea to available domain with pricing and register links
-
+- **Execute instantly** — From idea to available domain with pricing in seconds
 
 ## Setup
 
-### Option 1: Direct call (no config needed)
+### Claude Code
 ```bash
-# List all DomainKits tools
-npx mcporter list --http-url https://api.domainkits.com/v1/mcp
-
-# Call a tool directly
-npx mcporter call https://api.domainkits.com/v1/mcp.available domain=example.com
+claude mcp add domainkits https://api.domainkits.com/v1/mcp
 ```
 
-### Option 2: Add to mcporter config (recommended)
+With API key (for higher limits):
+```bash
+claude mcp add domainkits https://api.domainkits.com/v1/mcp --header "X-API-Key: YOUR_KEY"
+```
 
-Add to `config/mcporter.json` or `~/.mcporter/mcporter.json`:
+### Claude.ai
+Connect DomainKits via **Settings → Connectors**. No manual configuration needed.
+
+### Cursor / Other MCP Clients
+Add to your MCP config:
 ```json
 {
   "mcpServers": {
     "domainkits": {
-      "description": "Domain intelligence tools for AI agents",
-      "baseUrl": "https://api.domainkits.com/v1/mcp"
+      "url": "https://api.domainkits.com/v1/mcp"
     }
   }
 }
 ```
 
-With API key (for higher limits):
+With API key:
 ```json
 {
   "mcpServers": {
     "domainkits": {
-      "description": "Domain intelligence tools for AI agents",
-      "baseUrl": "https://api.domainkits.com/v1/mcp",
+      "url": "https://api.domainkits.com/v1/mcp",
       "headers": {
-        "X-API-Key": "$env:DOMAINKITS_API_KEY"
+        "X-API-Key": "YOUR_KEY"
       }
     }
   }
 }
 ```
 
-Then call tools by name:
-```bash
-npx mcporter call domainkits.available domain=example.com
-npx mcporter call domainkits.nrds keyword=ai limit=10
-```
-
-Get your API key at https://domainkits.com
-
-## Instructions
-
-Call DomainKits tools via mcporter:
-```bash
-# List available tools
-mcporter list domainkits
-
-# Check domain availability
-mcporter call domainkits.available domain=example.com
-
-# Search newly registered domains
-mcporter call domainkits.nrds keyword=ai limit=10
-
-# Full domain analysis
-mcporter call domainkits.analyze domain=abtdomain.com
-```
 
 ## Tools
+
 Search
 - `nrds` — Newly registered domains
 - `aged` — Domains with 5-20+ years history
@@ -96,7 +66,7 @@ Search
 - `ns_reverse` — Domains on a specific nameserver
 - `unregistered_ai` — Unregistered short .ai domains (3-letter, CVCV patterns)
 - `domain_changes` — Monitor 4M+ domains for transfers, expirations, new registrations, and NS changes
-- `price` — Registration costs by TLD 
+- `price` — Registration costs by TLD
 
 Query
 - `available` — Availability check with pricing
@@ -161,7 +131,7 @@ Output rules:
 - **Premium** — Full access with highest limits
 - **Platinum** — Unlimited
 
-Get API key at https://domainkits.com
+Register a free account and get your API key at https://domainkits.com
 
 ## Privacy
 
@@ -175,3 +145,4 @@ Get API key at https://domainkits.com
 - Website: https://domainkits.com/mcp
 - GitHub: https://github.com/ABTdomain/domainkits-mcp
 - Contact: info@domainkits.com
+- Developed by: https://abtdomain.com/
