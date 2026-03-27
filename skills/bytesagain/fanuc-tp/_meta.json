@@ -1,0 +1,11 @@
+{
+  "owner": "bytesagain",
+  "slug": "fanuc-tp",
+  "displayName": "Fanuc Tp",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774532140101,
+    "commit": null
+  },
+  "history": []
+}
