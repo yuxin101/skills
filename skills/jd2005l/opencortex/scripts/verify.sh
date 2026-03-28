@@ -150,7 +150,12 @@ if [ -f "$WORKSPACE/MEMORY.md" ]; then
   if [ "$MEM_SIZE" -le 5120 ]; then
     check "MEMORY.md size: ${MEM_KB}KB (within 5KB target)" "ok"
   elif [ "$MEM_SIZE" -le 8192 ]; then
-    check "MEMORY.md size: ${MEM_KB}KB — consider moving lessons to memory/lessons.md" "warn"
+    LESSONS_FILE="$WORKSPACE/memory/lessons.md"
+    if [ -f "$LESSONS_FILE" ] && [ "$(wc -l < "$LESSONS_FILE" 2>/dev/null)" -gt 5 ]; then
+      check "MEMORY.md size: ${MEM_KB}KB (lessons already in memory/lessons.md — size is ok)" "ok"
+    else
+      check "MEMORY.md size: ${MEM_KB}KB — consider moving lessons to memory/lessons.md" "warn"
+    fi
   else
     check "MEMORY.md size: ${MEM_KB}KB — too large, will slow every session boot" "fail"
   fi
@@ -199,11 +204,17 @@ if command -v openclaw >/dev/null 2>&1; then
 
   # Check MEMORY.md size (should stay small for boot performance)
   if [ -f "$WORKSPACE/MEMORY.md" ]; then
-    MEM_SIZE_KB=$(du -k "$WORKSPACE/MEMORY.md" 2>/dev/null | cut -f1)
+    MEM_SIZE_KB=$(( $(wc -c < "$WORKSPACE/MEMORY.md" 2>/dev/null | tr -d ' ') / 1024 ))
     if [ "$MEM_SIZE_KB" -le 5 ]; then
       check "MEMORY.md is ${MEM_SIZE_KB}KB (target: < 5KB)" "ok"
     elif [ "$MEM_SIZE_KB" -le 8 ]; then
-      check "MEMORY.md is ${MEM_SIZE_KB}KB — consider moving lessons to memory/lessons.md" "warn"
+      # Check if lessons are already split out before warning
+      LESSONS_FILE="$WORKSPACE/memory/lessons.md"
+      if [ -f "$LESSONS_FILE" ] && [ "$(wc -l < "$LESSONS_FILE" 2>/dev/null)" -gt 5 ]; then
+        check "MEMORY.md is ${MEM_SIZE_KB}KB (lessons already in memory/lessons.md — size is ok)" "ok"
+      else
+        check "MEMORY.md is ${MEM_SIZE_KB}KB — consider moving lessons to memory/lessons.md" "warn"
+      fi
     else
       check "MEMORY.md is ${MEM_SIZE_KB}KB — too large, will slow every session boot" "fail"
     fi
