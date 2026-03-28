@@ -1,25 +1,18 @@
 ---
 name: workflowy
 description: Workflowy outliner CLI for reading, searching, and editing nodes. Use when the user wants to interact with their Workflowy outline — searching, adding items, viewing trees, marking complete, bulk operations, or usage reports. Also use whenever the user shares a workflowy.com URL (e.g. https://workflowy.com/#/...).
-homepage: https://github.com/mholzen/workflowy
 metadata:
-  {
-    "openclaw":
-      {
-        "emoji": "📝",
-        "requires": { "bins": ["workflowy"] },
-        "install":
-          [
-            {
-              "id": "brew",
-              "kind": "brew",
-              "formula": "mholzen/workflowy/workflowy-cli",
-              "bins": ["workflowy"],
-              "label": "Install workflowy-cli (brew)",
-            },
-          ],
-      },
-  }
+  openclaw:
+    emoji: 📝
+    homepage: https://github.com/mholzen/workflowy
+    requires:
+      bins: [workflowy]
+      config: [~/.workflowy/api.key]
+    install:
+      - kind: brew
+        formula: mholzen/workflowy/workflowy-cli
+        bins: [workflowy]
+    primaryEnv: WORKFLOWY_API_KEY
 ---
 
 # workflowy
@@ -34,6 +27,12 @@ Get your API key at https://workflowy.com/api-key/, save it to `~/.workflowy/api
 mkdir -p ~/.workflowy
 echo "your-api-key-here" > ~/.workflowy/api.key
 chmod 600 ~/.workflowy/api.key
+```
+
+Alternatively, set the `WORKFLOWY_API_KEY` environment variable:
+
+```bash
+export WORKFLOWY_API_KEY="your-api-key-here"
 ```
 
 ## Common commands
