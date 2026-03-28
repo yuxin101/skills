@@ -1,4 +1,74 @@
+## 3.12.0 — Capture Quality & Contradiction Detection
+
+### Fix 1: Capture Filter
+- Only store **reusable** procedures (≥3 meaningful steps + at least one "action" command)
+- Skip noise: health checks, diagnostics, log inspections, status checks
+- Double-check LLM-assigned names against noise patterns
+
+### Fix 2: Duplicate Detection
+- `findSimilarProcedure()` — word-overlap matching on name + goal (threshold 50%)
+- Before creating a new procedure, check if a similar one exists → reinforce instead of duplicate
+- Applied at both `extractProcedure()` and `after_tool_call` hook levels
+
+### Fix 3: Contradiction Check on Facts
+- Widened entity search from 5 to 10 candidates
+- Version-containing facts prioritized in contradiction search
+- Enhanced contradiction prompt: version changes, status changes, quantity changes = explicit contradictions
+- Prevents stale facts (e.g., "Sol = v2.7.0") from persisting when newer facts arrive ("Sol = v3.11.0")
+
+## 3.10.0 (2026-03-27)
+
+### Features
+- **FTS5 procedural search**: `procedures_fts` virtual table with LIKE fallback — fast full-text search on procedures (name, goal, context, gotchas, steps)
+- **Configurable thresholds**: `ProceduralConfig` interface with `qualityWeights`, `degradationStep`, `healingStep`, `reflectEvery`, `degradedThreshold`, `defaultSafety`
+- **FTS auto-sync**: index created at boot, rebuilt if empty, kept in sync on every `storeProcedure` call
+- **Plugin schema**: procedural config exposed in `openclaw.plugin.json` for wizard/UI configuration
+
+### Fixes
+- `kg` → `graph` variable reference (runtime crash)
+- Feedback proc IDs removed (was querying wrong table)
+- Procedure objects fully typed (no more `as any` partial objects)
+
 # Changelog
+
+## [3.9.0] - 2026-03-27
+### Added — Reflective Procedural Learning
+- **Quality dimensions** — each procedure scored on speed, reliability, elegance, safety
+  - Weighted composite: reliability (35%) > safety (25%) > speed (25%) > elegance (15%)
+  - Quality evolves with each execution, not static
+- **Post-execution reflection** — every 3rd success triggers LLM review
+  - "Was this the best approach?" → suggestions, quality reassessment
+  - Blends new assessment (70%) with accumulated wisdom (30%)
+  - Tracks gotchas/workarounds learned
+- **Alternatives** — same goal, different approaches
+  - `getAlternatives()` finds competing procedures
+  - `setPreferred()` marks the best approach
+  - Search prioritizes preferred procedures
+- **Version tracking** — procedures evolve: version increments on each improvement
+- **Personal best** — tracks fastest execution, speed quality improves when beaten
+- **Schema auto-migration** — new quality columns added seamlessly on boot
+
+### Why
+"Un humain n'enregistre pas un savoir en rentrant chez lui le soir — 
+il apprend sur le tas, il améliore en direct. La qualité passe par 
+une meilleure réflexion, et c'est en améliorant la qualité qu'on 
+gagne en vitesse d'exécution car on la reproduit plus souvent."
+
+## [3.8.0] - 2026-03-27
+### Added — Real-time Procedural Learning
+- **`after_tool_call` hook** — captures procedures in real-time, not at end of session
+  - Buffers tool calls during conversation (last 30)
+  - On success signal (Published, ✅, deployed, committed, etc.) → immediately assembles procedure via LLM
+  - If similar procedure exists → reinforces it (success_count++) and adds improvements
+  - If new → creates new procedure with steps, goal, trigger patterns, gotchas
+  - 60s cooldown between assemblies to avoid spam
+  - Fingerprint dedup to avoid duplicate captures
+- `agent_end` remains as safety net for any uncaptured sequences
+
+### Why this change
+- Humans learn on-the-fly, not at the end of the day
+- `agent_end` only fires at conversation end → in long-running sessions, procedures were never captured
+- Real-time learning means knowledge is available immediately for the next similar task
 
 ## [3.7.2] - 2026-03-27
 ### Fixed — 3 Critical Memory Issues
@@ -414,3 +484,33 @@
 - Phase 1: Core SQLite + FTS5, temporal scoring, perception hooks
 - `MemoriaDB` class, migration from facts.json (423 facts)
 - Provider abstraction (Ollama, OpenAI-compat, LM Studio)
+
+## v3.14.0 — Smarter Extraction + Consolidation + Contextual Procedures
+
+### Extraction Quality
+- Rewritten prompt: demands CONCRETE DETAILS (who, what, when, why)
+- Bad: "Neto had an important meeting" / Good: "Neto met client CCOG on 28/03 at 2pm about site redesign"
+- Bad: "Sol was restarted" / Good: "Sol restarted on 28/03 at 18h25, cause: better-sqlite3 node version mismatch, fix: npm rebuild"
+- Eliminated meta-facts ("this fact complements the previous one")
+
+### Cluster-Aware Recall
+- Facts that are members of an active cluster get 40% score reduction in auto-recall
+- The cluster summary represents them more concisely
+- Original facts still accessible on explicit/deep queries
+
+### Procedures: First Success = Valid
+- Lowered capture threshold from 3 meaningful steps to 1
+- Philosophy: "I learned to open this foreign door handle on the first try"
+- Procedures prove value through repeated use, not arbitrary minimums
+- Added failure_reasons tracking: records WHY a procedure failed (context/conditions)
+- Like noting "Route A has traffic at 6pm" — helps choose alternatives intelligently
+
+## v3.14.1 — Error Detection: Touch fire once, remember forever
+
+### Automatic Error/Danger Capture
+- New prompt section 🔥 ERREURS ET DANGERS with explicit signal detection
+- When something causes a REAL problem (crash, service dead, manual intervention needed)
+  → automatically extracted as category "erreur" with confidence 0.95+
+- Detects danger signals: "ne fais plus ça", "c'est la 2ème fois", frustration keywords, service failures
+- Like touching fire: noted as critical on the FIRST occurrence, not after the second burn
+- Each error fact includes: what happened + why it's dangerous + what to NEVER do again + the safe alternative
