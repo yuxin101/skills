@@ -1,13 +1,18 @@
 {
   "owner": "hxy9243",
   "slug": "zettel-brainstormer",
-  "displayName": "Zettel Brainstormer",
+  "displayName": "zettel-brainstormer",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1772267682531,
-    "commit": "https://github.com/openclaw/skills/commit/02c4ad64cb88dd70864f2d04929a24e91e2ea246"
+    "version": "1.1.2",
+    "publishedAt": 1774463801358,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1772267682531,
+      "commit": "https://github.com/openclaw/skills/commit/02c4ad64cb88dd70864f2d04929a24e91e2ea246"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1771194912314,
