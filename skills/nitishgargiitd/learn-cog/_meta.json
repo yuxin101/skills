@@ -1,13 +1,18 @@
 {
   "owner": "nitishgargiitd",
   "slug": "learn-cog",
-  "displayName": "learn-cog",
+  "displayName": "Learn Cog",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1770774214755,
-    "commit": "https://github.com/openclaw/skills/commit/9440b4bcc8ab4c6ae0e65b44aa728a14cea36472"
+    "version": "1.0.3",
+    "publishedAt": 1774585053802,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1770774214755,
+      "commit": "https://github.com/openclaw/skills/commit/9440b4bcc8ab4c6ae0e65b44aa728a14cea36472"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1770419850637,
