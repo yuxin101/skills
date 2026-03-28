@@ -13,7 +13,7 @@ import re
 import os
 import subprocess
 
-SERPER_API_KEY = os.environ.get('SERPER_API_KEY') or '380883ffc186cebf26d0681c1a65482f499f5fe7'
+SERPER_API_KEY = os.environ.get('SERPER_API_KEY', '')
 
 
 def search_xiaohongshu(query: str, max_results: int = 30) -> list:
