@@ -1,11 +1,17 @@
 {
   "owner": "ajingmiao",
   "slug": "slonaide",
-  "displayName": "slonaide-skill",
+  "displayName": "SlonAide",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1774506095754,
-    "commit": "https://github.com/openclaw/skills/commit/bebc7c3c7610378724725a34e83cceabd7d3d923"
+    "version": "3.0.0",
+    "publishedAt": 1774668242280,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1774506095754,
+      "commit": "https://github.com/openclaw/skills/commit/bebc7c3c7610378724725a34e83cceabd7d3d923"
+    }
+  ]
 }

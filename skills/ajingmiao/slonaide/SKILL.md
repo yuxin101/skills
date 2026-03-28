@@ -1,121 +1,138 @@
 ---
-name: SlonAide 录音笔记
-description: 智能录音笔记管理助手 - AI 自动转写和总结录音，支持知识库管理和语义搜索
-version: 2.0.0
-author: SlonAide Team
-capabilities:
-  - 查询和搜索录音笔记
-  - 获取转写文本和 AI 总结
-  - 知识库管理和语义检索
-  - 文件夹分类和标签管理
+name: slonaide
+description: Query and manage SlonAide voice recording notes - list recordings, get transcriptions and AI summaries.
+version: 1.0.0
+metadata:
+  openclaw:
+    requires:
+      env:
+        - SLONAIDE_API_KEY
+      bins:
+        - curl
+    primaryEnv: SLONAIDE_API_KEY
+    emoji: "\U0001F399"
+    homepage: https://h5.aidenote.cn/
 ---
 
-# SlonAide 录音笔记技能 v2.0
+# SlonAide 录音笔记
 
-## 🚀 快速开始
+管理 SlonAide 录音笔记：查询列表、获取转写文本和 AI 总结。使用 `exec` 工具运行 curl 命令调用 SlonAide API。
 
-### 1. 安装技能
+## 认证流程
+
+SlonAide 使用两步认证：先用 API Key 换取 Token，再用 Token 调用业务接口。
+
+### 获取 Token
+
 ```bash
-openclaw skills install slonaide
-```
-或通过 ClawHub:
-```bash
-npx clawhub install slonaide
-```
-
-### 2. 获取 API Key
-1. 访问 https://h5.aidenote.cn/ 并登录
-2. 进入"我的"页面 → 点击"API Key"
-3. 输入密钥名称（如：OpenClaw）
-4. 点击"生成访问密钥"
-5. 复制生成的 API Key（格式：`sk-xxxxxxxx...`）
-
-### 3. 配置 API Key
-```bash
-openclaw config set slonaide.apiKey "sk-你的API密钥"
+curl -s -X POST "https://api.aidenote.cn/api/userapikeyMstr/getToken/$SLONAIDE_API_KEY" \
+  -H "Content-Type: application/json"
 ```
 
-### 4. 测试连接
-```bash
-# 在 OpenClaw 会话中使用
-slonaide_test_connection
-```
-
-## 🛠️ 可用工具
-
-### 1. 统一获取笔记（推荐）
-```bash
-slonaide_get_notes view="list"
-```
-**参数：**
-- `view`: 输出视图（`list` 或 `summary`，默认: `list`）
-- `page`: 页码（仅 `view=list` 生效，默认: 1）
-- `pageSize`: 每页数量（1-50，默认: 10）
-- `count`: 摘要数量（1-10，仅 `view=summary`）
-- `keyword`: 搜索关键词（仅 `view=list`）
-
-**示例：**
-```bash
-# 列表视图
-slonaide_get_notes view="list"
-
-# 列表视图 + 搜索
-slonaide_get_notes view="list" keyword="会议"
-
-# 摘要视图
-slonaide_get_notes view="summary" count=5
-```
-
-### 2. 获取录音笔记列表（兼容）
-```bash
-slonaide_get_list
-```
-**参数：**
-- `page`: 页码（默认: 1）
-- `pageSize`: 每页数量（1-50，默认: 10）
-- `keyword`: 搜索关键词（可选）
-
-**示例：**
-```bash
-slonaide_get_list
-slonaide_get_list keyword="会议"
-slonaide_get_list page=2 pageSize=20
-```
-
-### 3. 获取最新笔记摘要（兼容）
-```bash
-slonaide_get_summary
-```
-**参数：**
-- `count`: 要获取的记录数量（1-10，默认: 3）
-
-**示例：**
-```bash
-slonaide_get_summary
-slonaide_get_summary count=5
-```
-
-### 4. 测试连接
-```bash
-slonaide_test_connection
-```
-测试 API 连接和配置状态。
-
-## 🔧 配置说明
-
-### 配置文件位置
-`~/.openclaw/openclaw.json`
-
-### 配置示例
+成功返回：
 ```json
 {
-  "plugins": {
+  "code": 200,
+  "result": {
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "userId": "13000000001xx"
+  }
+}
+```
+
+提取 `result.token`，后续所有请求携带 Header：`Authorization: Bearer <token>`
+
+Token 有效期约 7 天。返回 401 或认证失败时重新获取。
+
+## 操作
+
+### 获取录音笔记列表
+
+```bash
+curl -s -X POST "https://api.aidenote.cn/api/audiofileMstr/audiofileseleUserAllList" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order": "descending",
+    "orderField": "createTime",
+    "page": 1,
+    "pageSize": 10
+  }'
+```
+
+可选：请求体加 `"keyword": "搜索词"` 进行关键词搜索。
+
+返回字段说明：
+- `result.items`：笔记数组
+- `result.total`：总条数
+- 每条笔记关键字段：
+  - `audiofileFileid`：文件 ID（字符串），用于获取转写详情
+  - `audiofileTitle`：标题
+  - `audiofileFileName`：文件名
+  - `createTime`：创建时间（格式 `"2026-02-28 20:27:08"`）
+  - `audiofileTimeLength`：时长（毫秒）
+  - `audiofileTranscription`：转写状态（0=未开始, 1=进行中, 2=已完成）
+  - `audiofileSummaryStatus`：总结状态（0=未开始, 1=进行中, 2=已完成）
+  - `audiofileText`：转写文本（列表中可能为 null）
+  - `audiofileSummary`：AI 总结文本
+  - `audiofileTag`：标签
+
+### 获取录音转写详情
+
+用列表中的 `audiofileFileid` 获取完整转写：
+
+```bash
+curl -s -X POST "https://api.aidenote.cn/api/audiofileMstr/audiofileToText" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "audiototextFileid": "<audiofileFileid>",
+    "audiototextLanguage": "zh"
+  }'
+```
+
+参数：
+- `audiototextFileid`：必填，从列表的 `audiofileFileid` 获取
+- `audiototextLanguage`：语言，默认 `"zh"`
+
+返回的转写分段包含：
+- `audiototextContent`：该段文本
+- `audiototextParaNum`：段落号
+- `audiototextStartSecond` / `audiototextEndSecond`：时间范围（秒）
+- `audiototextRoleName`：说话人
+
+## 输出格式
+
+列表展示：
+```
+📋 SlonAide 录音笔记（共 N 条）
+
+1. [标题]
+   时间：[createTime]  时长：[X分X秒]
+   转写：[✅ 已完成 / ⏳ 未开始]  总结：[✅ 已完成 / ⏳ 未开始]
+```
+
+转写详情：按段落顺序拼接 `audiototextContent`，标注说话人。
+
+## 错误处理
+
+- Token 获取失败（code != 200）：提示检查 API Key
+- 业务接口返回 401：Token 过期，重新获取
+- 网络失败：提示检查网络
+- 列表为空：告知暂无录音笔记
+
+## 配置
+
+用户需在 `~/.openclaw/openclaw.json` 中配置：
+
+```json
+{
+  "skills": {
     "entries": {
       "slonaide": {
         "enabled": true,
-        "config": {
-          "apiKey": "sk-你的API密钥",
-          "baseUrl": "https://api.aidenote.cn"
+        "env": {
+          "SLONAIDE_API_KEY": "sk-你的API密钥"
         }
       }
     }
@@ -123,183 +140,4 @@ slonaide_test_connection
 }
 ```
 
-### 配置参数
-- `apiKey`: SlonAide API Key（必填）
-- `baseUrl`: API 基础地址（默认: `https://api.aidenote.cn`）
-
-## 🔒 安全规则
-
-### 隐私保护
-- 笔记数据属于用户隐私，不在群聊中主动展示完整内容
-- 转写文本默认只显示前500字符
-- 敏感信息自动脱敏处理
-
-### API 安全
-- API Key 加密存储
-- 令牌自动缓存和刷新
-- 请求失败时自动重试（最多3次）
-- 连接超时保护（15秒）
-
-## 🐛 故障排除
-
-### 常见问题
-
-#### 1. "未配置 API Key"
-**解决方案：**
-```bash
-openclaw config set slonaide.apiKey "你的API密钥"
-```
-
-#### 2. "认证失败"
-**可能原因：**
-- API Key 无效或已过期
-- 网络连接问题
-- API 服务暂时不可用
-
-**解决方案：**
-1. 重新生成 API Key
-2. 检查网络连接
-3. 等待服务恢复
-
-#### 3. "获取列表失败"
-**可能原因：**
-- 令牌过期
-- API 响应格式变化
-- 服务器错误
-
-**解决方案：**
-```bash
-# 测试连接
-slonaide_test_connection
-
-# 如果测试失败，重新配置
-openclaw config set slonaide.apiKey "新API密钥"
-```
-
-### 调试模式
-启用详细日志：
-```bash
-openclaw config set slonaide.debug true
-```
-
-## 📊 使用场景
-
-### 场景1：日常笔记管理
-```bash
-# 查看最新笔记
-slonaide_get_summary count=5
-
-# 查看某条笔记详情
-slonaide_get_detail fileId="笔记ID"
-```
-
-### 场景2：会议记录整理
-```bash
-# 搜索会议相关笔记
-slonaide_get_list keyword="会议"
-
-# 获取未转写的会议记录
-slonaide_get_list keyword="会议" pageSize=20
-```
-
-### 场景3：问题跟踪
-```bash
-# 查看异常记录
-slonaide_get_list keyword="异常"
-
-# 获取技术问题记录
-slonaide_get_list keyword="系统" keyword="错误"
-```
-
-## 🔄 更新日志
-
-### v2.0.0 (2026-03-26)
-**重大改进：**
-- ✅ 完整的 OpenClaw 工具实现
-- ✅ 自动令牌管理和缓存
-- ✅ 完善的错误处理和用户提示
-- ✅ 优化的输出格式和可读性
-- ✅ 连接测试工具
-- ✅ 摘要统计功能
-- ✅ 类型分析和建议
-
-### v1.0.0 (初始版本)
-- 基础技能框架
-- Python 辅助脚本
-- API 文档
-
-## 📝 技术细节
-
-### API 端点
-- **Base URL**: `https://api.aidenote.cn`
-- **认证**: `POST /api/UserapikeyMstr/GetToken/{apiKey}`
-- **列表**: `POST /api/audiofileMstr/audiofileseleUserAllList`
-- **详情**: `POST /api/audiofileMstr/audiofileToText`
-- **详情请求体**:
-```json
-{
-  "audiototextFileid": "787781184155717",
-  "audiototextLanguage": "zh"
-}
-```
-
-### 数据格式
-```json
-{
-  "code": 200,
-  "message": "成功",
-  "result": {
-    "total": 111,
-    "records": [
-      {
-        "id": "文件ID",
-        "audiofileTitle": "标题",
-        "audiofileFileName": "文件名",
-        "createTime": "时间戳",
-        "audiofileTimeLength": "时长(毫秒)",
-        "transcriptStatus": 2,
-        "summaryStatus": 2,
-        "transcriptText": "转写文本",
-        "aiSummary": "AI总结",
-        "tags": ["标签1", "标签2"]
-      }
-    ]
-  }
-}
-```
-
-### 状态码
-- `transcriptStatus`: 0=未开始, 1=进行中, 2=已完成
-- `summaryStatus`: 0=未开始, 1=进行中, 2=已完成
-
-## 🤝 贡献指南
-
-### 报告问题
-在 GitHub Issues 中报告问题，包括：
-1. 问题描述
-2. 复现步骤
-3. 错误信息
-4. 环境信息
-
-### 提交改进
-1. Fork 仓库
-2. 创建功能分支
-3. 提交更改
-4. 创建 Pull Request
-
-## 📞 支持
-
-### 官方支持
-- 网站: https://h5.aidenote.cn/
-- API 文档: 内置文档
-
-### 社区支持
-- GitHub Issues: 问题反馈
-- OpenClaw 社区: 使用讨论
-
-## 📄 许可证
-MIT License - 详见 LICENSE 文件
-
----
-
-**提示**: 首次使用前请务必配置 API Key，否则工具无法正常工作。
+API Key 获取：访问 https://h5.aidenote.cn/ → 登录 → 我的 → API Key → 生成访问密钥。
