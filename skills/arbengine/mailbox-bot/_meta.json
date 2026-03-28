@@ -3,11 +3,16 @@
   "slug": "mailbox-bot",
   "displayName": "mailbox.bot",
   "latest": {
-    "version": "2.0.1",
-    "publishedAt": 1770912167138,
-    "commit": "https://github.com/openclaw/skills/commit/ba7c2b28db3e226a73bcb9f68d5a0cbbb66eaad5"
+    "version": "4.0.0",
+    "publishedAt": 1774461162029,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.0.1",
+      "publishedAt": 1770912167138,
+      "commit": "https://github.com/openclaw/skills/commit/ba7c2b28db3e226a73bcb9f68d5a0cbbb66eaad5"
+    },
     {
       "version": "1.0.5",
       "publishedAt": 1770702397266,
