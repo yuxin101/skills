@@ -5,6 +5,8 @@ description: |
 
   🇨🇳 AI产品全球发布行动指南 | 🇯🇵 AIプロダクトローンチガイド | 🇰🇷 AI 제품 런칭 플레이북
 
+  Website: https://www.gingiris.com
+
   Keywords: go-to-market, GTM strategy, product launch, Product Hunt, startup launch, launch strategy, viral marketing, KOL outreach, influencer marketing, Reddit marketing, HackerNews, growth hacking, 出海运营, 产品发布
 ---
 
