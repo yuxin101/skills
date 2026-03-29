@@ -1,9 +1,9 @@
 #!/bin/bash
 # MiniMax Token Plan 余额查询
-# 认证：使用环境变量 MINIMAX_API_KEY（通过 openclaw config set 配置）
-# 用法: bash query.sh [api_key]
+# 认证：使用环境变量 MINIMAX_API_KEY
+# 注意：从不通过命令行参数接收 Key，避免 ps aux 泄露
 
-AUTH_VALUE="${1:-$MINIMAX_API_KEY}"
+AUTH_VALUE="${MINIMAX_API_KEY:-}"
 
 if [[ -z "$AUTH_VALUE" ]]; then
     echo "错误：未找到 API Key"
@@ -26,5 +26,21 @@ URL="https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains"
 RESULT=$(curl -s -X GET "$URL" \
     -H "Authorization: Bearer $AUTH_VALUE" \
     -H "Content-Type: application/json")
+
+# 检查是否是错误响应
+ERROR_CODE=$(echo "$RESULT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('base_resp',{}).get('status_code',0))" 2>/dev/null)
+
+if [[ "$ERROR_CODE" != "0" ]]; then
+    ERROR_MSG=$(echo "$RESULT" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('base_resp',{}).get('status_msg','未知错误'))" 2>/dev/null)
+    echo "查询失败：$ERROR_MSG"
+    echo ""
+    echo "可能原因："
+    echo "  - API Key 无效或已过期"
+    echo "  - Key 类型不是 Token Plan 类型"
+    echo "  - 额度已用完"
+    echo ""
+    echo "请到 https://platform.minimaxi.com/user-center/basic-information/interface-key 检查 Key 是否正确"
+    exit 1
+fi
 
 echo "$RESULT"
