@@ -47,7 +47,6 @@ Extract from the block response:
 
 1. Count and categorize transactions from block data: TRX transfers, TRC-10 transfers, smart contract calls, contract deployments, staking, voting, other
 2. Call `getTransactionInfoByBlockNum` for receipts — reveals total fees, energy consumed, bandwidth consumed, success/failure counts
-3. Optionally call `getBlockBalance` for all balance-changing operations
 
 ### Step 5: Calculate Rewards & Burns
 
