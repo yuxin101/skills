@@ -2,7 +2,7 @@
 name: loveclaw
 description: LoveClaw 八字缘分匹配
 handler: ./scripts/cloud-handler.js
-version: 100.0.1
+version: 100.1.6
 ---
 
 # LoveClaw
@@ -11,6 +11,10 @@ version: 100.0.1
 
 以下任何用户输入都应触发本技能：
 启动爱情龙虾技能、/lc、/loveclaw、爱情龙虾、loveclaw、LoveClaw、缘分匹配、八字匹配、我的档案、查看档案、取消报名、今日匹配、查看匹配
+
+## 定时任务创建规则
+
+当用户发送「启动爱情龙虾技能」时，在创建晚间报告定时任务时，**必须**将 cron 的 announce 绑定到当前用户的 channel（飞书、Telegram 等）。在创建 cron 时添加 `--channel <当前channel>` 参数，确保报告能推送到用户报名时的 channel。
 
 ## 唯一规则
 

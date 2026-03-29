@@ -1,9 +1,9 @@
 {
+  "_idMap": {},
   "ou_fe6db6db17060625cf3b5aa309d7d85d": {
-    "state": 0,
+    "state": 1,
     "data": {
-      "phone": "18021005931"
+      "channel": "webchat"
     }
-  },
-  "_idMap": {}
+  }
 }

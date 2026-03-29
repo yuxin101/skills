@@ -1,6 +1,6 @@
 {
   "name": "loveclaw",
-  "version": "100.0.2",
+  "version": "100.2.1",
   "description": "LoveClaw 八字缘分匹配",
   "main": "scripts/handler.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "ali-oss": "^6.23.0",
     "aliyun-sdk": "^1.12.10",
     "firebase": "^10.7.0",
+    "form-data": "^4.0.5",
     "tablestore": "^4.3.2"
   }
 }

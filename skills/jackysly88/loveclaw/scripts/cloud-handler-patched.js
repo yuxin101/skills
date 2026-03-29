@@ -64,21 +64,7 @@ function setupCronJobs(channel = 'feishu', target = '') {
       console.log('[CronSetup] 检查现有任务失败，继续注册:', e.message);
     }
 
-    // 构建平台特定的 target 格式
-    let toParam = '';
-    if (target) {
-      if (channel === 'feishu') {
-        toParam = `--to "chat:${target}"`;
-      } else if (channel === 'telegram') {
-        toParam = `--to "telegram:${target}"`;
-      } else if (channel === 'whatsapp') {
-        toParam = `--to "whatsapp:${target}"`;
-      } else {
-        toParam = `--to "${target}"`;
-      }
-    }
-
-    // 检查每日匹配任务是否存在（晚间报告需要 target，每日匹配不需要）
+    // 检查每日匹配任务是否存在
     const hasDailyMatch = cronList.jobs.some(j => j.name === 'LoveClaw-每日匹配');
     if (!hasDailyMatch) {
       try {
@@ -92,10 +78,12 @@ function setupCronJobs(channel = 'feishu', target = '') {
       }
     }
 
-    // 检查晚间报告任务是否存在（需要 target）
+    // 检查晚间报告任务是否存在
     const hasEveningReport = cronList.jobs.some(j => j.name === 'LoveClaw-晚间报告');
-    if (!hasEveningReport && toParam) {
+    if (!hasEveningReport) {
       try {
+        // 构建 --to 参数
+        const toParam = target ? `--to "chat:${target}"` : '';
         execSync(
           `openclaw cron add --name "LoveClaw-晚间报告" --cron "0 20 * * *" --tz "Asia/Shanghai" --message "执行晚间匹配报告任务。使用 exec 工具运行：node ~/.openclaw/workspace/skills/loveclaw/scripts/cloud-cron.js report 获取今日匹配数据。然后对于每个匹配的用户，使用 message 工具发送消息。" --announce --channel ${channel} ${toParam}`,
           { stdio: 'pipe' }
@@ -106,9 +94,58 @@ function setupCronJobs(channel = 'feishu', target = '') {
       }
     }
     
+    // 更新主 HEARTBEAT.md，确保 LoveClaw 匹配检查被包含
+    setupHeartbeat();
   } catch (e) {
     // 静默失败，不影响正常流程
     console.log('[CronSetup] 定时任务自动注册失败:', e.message);
+  }
+}
+
+/**
+ * 设置 Heartbeat 逻辑
+ * 在主 HEARTBEAT.md 中添加 LoveClaw 匹配检查
+ */
+function setupHeartbeat() {
+  // 获取用户主 workspace 路径
+  const homeDir = os.homedir();
+  const heartbeatFile = `${homeDir}/.openclaw/workspace/HEARTBEAT.md`;
+  const loveclawMarker = '<!-- LOVECLAW_HEARTBEAT -->';
+  const skillDir = `${homeDir}/.openclaw/workspace/skills/loveclaw`;
+  const loveclawContent = `
+
+<!-- LOVECLAW_HEARTBEAT -->
+## LoveClaw 每日匹配检查
+
+每日 20:00-20:30 检查是否有今日匹配结果并推送。
+
+执行命令：
+\`\`\`
+cd ${skillDir}/scripts && node cloud-cron.js report
+\`\`\`
+
+如果输出包含"匹配用户"，使用 message 工具发送通知给对应用户。
+
+<!-- LOVECLAW_HEARTBEAT_END -->`;
+
+  try {
+    // 读取当前 HEARTBEAT.md
+    let content = '';
+    try {
+      content = fs.readFileSync(heartbeatFile, 'utf-8');
+    } catch (e) {
+      content = '# HEARTBEAT\n\n';
+    }
+
+    // 检查是否已包含 LoveClaw heartbeat
+    if (!content.includes('LOVECLAW_HEARTBEAT')) {
+      // 添加 LoveClaw heartbeat
+      content += loveclawContent;
+      fs.writeFileSync(heartbeatFile, content);
+      console.log('[CronSetup] 已更新 HEARTBEAT.md');
+    }
+  } catch (e) {
+    console.log('[CronSetup] 更新 HEARTBEAT.md 失败:', e.message);
   }
 }
 
@@ -173,6 +210,9 @@ function getUserSession(userId) {
  * @param {string} mediaPath - Optional local file path for media attachments
  */
 async function handleMessage(userId, message, channel = 'webchat', mediaPath = '') {
+  // 自动注册定时任务（幂等操作），绑定到当前 channel 和用户
+  setupCronJobs(channel, userId);
+  
   // 安全检查：识别测试/自定义 userId，非管理员拒绝
   // 正常用户通过 channel 传来的 userId 通常是 channel-specific 的 ID（如飞书的 ou_xxx）
   // 测试用的 userId 通常是自定义的字符串（如 "test-user-xxx"、手机号等）
@@ -352,36 +392,12 @@ async function handleMessage(userId, message, channel = 'webchat', mediaPath = '
 
           let photoInput;
           if (localPath) {
-            // 直接传递文件路径，让 uploadPhoto 处理
-            photoInput = localPath;
-            console.log('[PHOTO] using local file:', localPath);
+            // 读取本地文件转 base64
+            const imgBuffer = fs.readFileSync(localPath);
+            photoInput = imgBuffer.toString('base64');
+            console.log('[PHOTO] read local file:', localPath, 'size:', imgBuffer.length);
           } else if (message.startsWith('http://') || message.startsWith('https://')) {
-            // 下载 URL 图片到临时文件
-            try {
-              const response = await fetch(message);
-              const buffer = await response.arrayBuffer();
-              const bufferNode = Buffer.from(buffer);
-              const tmpPath = `/tmp/loveclaw_photo_${Date.now()}.jpg`;
-              fs.writeFileSync(tmpPath, bufferNode);
-              photoInput = tmpPath;
-              console.log('[PHOTO] downloaded URL to:', tmpPath, 'size:', bufferNode.length);
-            } catch (e) {
-              console.error('[PHOTO] 下载图片失败:', e.message);
-              photoInput = null;
-            }
-          } else if (message.startsWith('data:')) {
-            // base64 图片，保存到临时文件
-            try {
-              const base64Data = message.split(',')[1];
-              const buffer = Buffer.from(base64Data, 'base64');
-              const tmpPath = `/tmp/loveclaw_photo_${Date.now()}.jpg`;
-              fs.writeFileSync(tmpPath, buffer);
-              photoInput = tmpPath;
-              console.log('[PHOTO] saved base64 to:', tmpPath);
-            } catch (e) {
-              console.error('[PHOTO] 保存base64图片失败:', e.message);
-              photoInput = null;
-            }
+            photoInput = message; // URL，交给云函数 fetch
           } else {
             // 其他情况（如 image_key），跳过上传
             console.log('[PHOTO] unrecognized format, skipping:', message.substring(0, 60));
@@ -389,9 +405,8 @@ async function handleMessage(userId, message, channel = 'webchat', mediaPath = '
           }
 
           if (photoInput) {
-            const ossUrl = await cloudData.uploadPhoto(photoInput, session.data.phone || userId);
+            const ossUrl = await cloudData.uploadPhoto(session.data.phone || userId, photoInput);
             session.data.photoOssUrl = ossUrl;
-            console.log('[PHOTO] 上传成功:', ossUrl);
           }
         } catch (e) {
           console.error('[uploadPhoto error]', e.message);
@@ -428,10 +443,6 @@ async function handleMessage(userId, message, channel = 'webchat', mediaPath = '
           catch (e) { saveErr = e; await new Promise(r => setTimeout(r, 1500)); }
         }
         if (saveErr) return { text: `保存遇到网络问题，请再回复一次「确认」重试` };
-        
-        // 注册成功后自动注册定时任务（使用正确的飞书 openId）
-        setupCronJobs(channel, userId);
-        
         // Clear session
         const phone = session.data.phone;
         saveSessionsToFile([{ userId, session: { state: UserState.NONE, data: { phone } } }]);

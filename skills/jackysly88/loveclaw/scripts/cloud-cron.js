@@ -135,17 +135,157 @@ async function runDailyMatching() {
 }
 
 /**
- * 发送通知
+ * 发送通知 - 通过飞书 API 直接发送
  */
-async function notifyUser(channel, target, text) {
+const FEISHU_APP_ID = 'cli_a919f24117389bc0';
+const FEISHU_APP_SECRET = 'l64HJwZvSq8FzGggmfe14g8hdWjJBW3Q';
+let feishuAccessToken = null;
+
+async function getFeishuAccessToken() {
+  if (feishuAccessToken) return feishuAccessToken;
+  const resp = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: FEISHU_APP_ID, app_secret: FEISHU_APP_SECRET }),
+  });
+  const data = await resp.json();
+  if (data.code !== 0) throw new Error('Failed to get Feishu access token: ' + data.msg);
+  feishuAccessToken = data.tenant_access_token;
+  return feishuAccessToken;
+}
+
+async function notifyUser(channel, target, textOrOptions) {
   try {
-    const { message } = require('openclaw');
-    if (channel && target) {
-      await message({ action: 'send', channel, target, message: text });
+    if (!channel || !target) return;
+    
+    const text = typeof textOrOptions === 'string' ? textOrOptions : textOrOptions.message || '';
+    const mediaUrl = typeof textOrOptions === 'object' ? textOrOptions.media : null;
+    
+    switch (channel) {
+      case 'feishu':
+        await notifyFeishu(target, text, mediaUrl);
+        break;
+      case 'telegram':
+        await notifyTelegram(target, text, mediaUrl);
+        break;
+      case 'whatsapp':
+        await notifyWhatsApp(target, text, mediaUrl);
+        break;
+      default:
+        console.log('[通知跳过] 不支持的 channel:', channel);
     }
   } catch(e) {
     console.error('[通知失败]', e.message);
   }
+}
+
+async function notifyFeishu(target, text, mediaUrl) {
+  const token = await getFeishuAccessToken();
+  if (mediaUrl) {
+    // 发送图片消息
+    const resp = await fetch('https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+      body: JSON.stringify({
+        receive_id: target,
+        msg_type: 'image',
+        content: JSON.stringify({ image_key: mediaUrl }),
+      }),
+    });
+    const data = await resp.json();
+    if (data.code !== 0 && data.code !== '0') {
+      console.error('[飞书图片发送失败]', data.msg);
+    }
+    // 再发文字
+    if (text) {
+      await sendFeishuText(token, target, text);
+    }
+  } else {
+    await sendFeishuText(token, target, text);
+  }
+}
+
+async function sendFeishuText(token, target, text) {
+  const resp = await fetch('https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token,
+    },
+    body: JSON.stringify({
+      receive_id: target,
+      msg_type: 'text',
+      content: JSON.stringify({ text }),
+    }),
+  });
+  const data = await resp.json();
+  if (data.code !== 0 && data.code !== '0') {
+    console.error('[飞书通知失败]', data.msg);
+  }
+}
+
+async function notifyTelegram(target, text, mediaUrl) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
+    console.log('[Telegram通知跳过] 未配置 TELEGRAM_BOT_TOKEN');
+    return;
+  }
+  
+  if (mediaUrl) {
+    // 发送图片
+    await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: target,
+        photo: mediaUrl,
+        caption: text,
+      }),
+    });
+  } else {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: target,
+        text: text,
+      }),
+    });
+  }
+}
+
+async function notifyWhatsApp(target, text, mediaUrl) {
+  const phoneId = process.env.WHATSAPP_PHONE_ID;
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneId || !accessToken) {
+    console.log('[WhatsApp通知跳过] 未配置 WHATSAPP_PHONE_ID 或 WHATSAPP_ACCESS_TOKEN');
+    return;
+  }
+  
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: target,
+    type: mediaUrl ? 'image' : 'text',
+  };
+  
+  if (mediaUrl) {
+    payload.image = { link: mediaUrl };
+    if (text) payload.caption = text;
+  } else {
+    payload.text = { body: text };
+  }
+  
+  await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 /**
@@ -167,15 +307,19 @@ async function runEveningReports() {
         continue;
       }
 
+      // 先发送照片（如果有）
+      if (m.partnerPhotoOssUrl) {
+        await notifyUser(m.channel, target, { media: m.partnerPhotoOssUrl, message: '' });
+        await new Promise(r => setTimeout(r, 500)); // 稍等一下让消息顺序正确
+      }
+
       // 构建报告文本
-      const photoLine = m.partnerPhotoOssUrl ? `📸 照片：${m.partnerPhotoOssUrl}\n` : '';
       const report = `🌟 今日缘分报告\n\n` +
-        `你好 ${m.name || ''}，今日为你找到了一位缘分匹配！\n\n` +
+        `已为你找到缘分匹配！\n\n` +
         `📍 城市：${m.city || '未知'}\n` +
         `💕 对方姓名：${m.partnerName || '未知'}\n` +
-        `📱 对方手机：${m.partnerPhone || '未知'}\n` +
-        `${photoLine}` +
-        `\n快去联系ta吧！祝你们有美好的缘分 🍀`;
+        `📱 对方手机：${m.partnerPhone || '未知'}\n\n` +
+        `快去联系ta吧！祝你们有美好的缘分 🍀`;
 
       await notifyUser(m.channel, target, report);
       console.log(`[报告任务] 已发送给 ${m.name}(${m.userId}) -> ${m.partnerName}`);
@@ -190,7 +334,7 @@ async function runEveningReports() {
       }
 
       const noMatchReport = `🌟 今日缘分报告\n\n` +
-        `你好 ${u.name || ''}，爱情龙虾今日未匹配成功～\n\n` +
+        `爱情龙虾今日未匹配成功～\n\n` +
         `🍀 命运的齿轮持续转动，期待明日月老的光临！\n\n` +
         `💡 用户无需重复报名即可享受每日自动匹配`;
 

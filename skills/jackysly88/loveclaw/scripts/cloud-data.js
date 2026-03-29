@@ -173,22 +173,69 @@ async function getRecentMatches() {
 /**
  * 上传照片（委托云函数处理 OSS，skill 侧不直连 OSS）
  */
-async function uploadPhoto(phone, photoData) {
-  let body;
-  if (typeof photoData === 'string' && (photoData.startsWith('http://') || photoData.startsWith('https://'))) {
-    // 飞书等渠道传来的图片 URL，让云函数去 fetch 后上传 OSS
-    body = { userId: phone, photoUrl: photoData };
-  } else if (typeof photoData === 'string' && photoData.startsWith('data:')) {
-    body = { userId: phone, photoData: photoData.split(',')[1] };
-  } else if (typeof photoData === 'string') {
-    body = { userId: phone, photoData };
-  } else {
-    body = { userId: phone, photoData: photoData.toString('base64') };
+async function uploadPhoto(filePath, userId) {
+  try {
+    // 使用 multipart/form-data 上传（与后端 /upload 端点匹配）
+    const fs = require('fs');
+    const path = require('path');
+    
+    const fileContent = fs.readFileSync(filePath);
+    const filename = path.basename(filePath);
+    const boundary = '----LoveClawBoundary' + Date.now();
+    
+    // 构建 multipart body
+    const parts = [];
+    parts.push(Buffer.from(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="userId"\r\n\r\n` +
+      `${userId}`
+    ));
+    parts.push(Buffer.from(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="photo"; filename="${filename}"\r\n` +
+      `Content-Type: image/jpeg\r\n\r\n`
+    ));
+    parts.push(fileContent);
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+    
+    const body = Buffer.concat(parts);
+    const hostname = API_BASE.replace('https://', '').split('/')[0];
+    
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: hostname,
+        path: '/upload',
+        method: 'POST',
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': body.length
+        }
+      };
+      
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            if (result.success) {
+              resolve(result.url);
+            } else {
+              reject(new Error(result.error || '上传失败'));
+            }
+          } catch (e) {
+            reject(new Error('解析响应失败: ' + data));
+          }
+        });
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
+    });
+  } catch (error) {
+    console.error('上传照片失败:', error);
+    throw error;
   }
-
-  const data = await apiRequest('/api/photo', { method: 'POST', body });
-  if (!data.success) throw new Error(data.error || '照片上传失败');
-  return data.url;
 }
 
 /**
