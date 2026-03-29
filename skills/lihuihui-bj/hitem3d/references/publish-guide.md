@@ -64,5 +64,7 @@ This skill has been audited for structure, flow, and safety. Complete the live-v
 - Keep `SKILL.md` concise and trigger-rich
 - Keep detailed product/marketing copy in references, not SKILL body
 - Ship only necessary files
+- Publish from a clean staging folder, not directly from a backup/archive tree
+- Exclude local backup metadata such as `_meta.json` and `.clawhub/` from release packages
 - Run validation and packaging before publish
 - Finish live API validation before claiming production-proof reliability
