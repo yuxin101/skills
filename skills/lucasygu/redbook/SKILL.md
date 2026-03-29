@@ -53,10 +53,19 @@ Use the `redbook` CLI to search notes, read content, analyze creators, automate 
 | Post a comment | `redbook comment <url> --content "text"` |
 | Reply to comment | `redbook reply <url> --comment-id <id> --content "text"` |
 | Batch reply (preview) | `redbook batch-reply <url> --strategy questions --dry-run` |
+| Like a note | `redbook like <url>` |
+| Unlike a note | `redbook like <url> --undo` |
 | List favorites | `redbook favorites --json` or `redbook favorites <userId> --json` |
 | Collect a note | `redbook collect <url>` |
 | Remove from collection | `redbook uncollect <url>` |
+| List followers | `redbook followers <userId> --json` |
+| List following | `redbook following <userId> --json` |
+| Delete own note | `redbook delete <url>` |
+| Check note health | `redbook health --json` or `redbook health --all --json` |
+| List user boards | `redbook boards` or `redbook boards <userId> --json` |
+| List album notes | `redbook board <board-url>` or `redbook board <boardId> --json` |
 | Render markdown to cards | `redbook render content.md --style xiaohongshu` |
+| Publish image note | `redbook post --title "..." --body "..." --images img.jpg` |
 | Check connection | `redbook whoami` |
 
 **Always add `--json`** when parsing output programmatically. Without it, output is human-formatted text.
@@ -498,6 +507,51 @@ More content...
 
 ---
 
+### Module M: Note Health Check (限流检测)
+
+**Answers:** Are any of my notes being secretly rate-limited by XHS?
+
+XHS assigns a hidden `level` field to each note in the creator backend API. This level controls recommendation distribution but is **never shown in the UI**. Your note may look "normal" while secretly receiving zero recommendations.
+
+**Commands:**
+```bash
+# Check all notes (first page)
+redbook health
+
+# Check all pages
+redbook health --all
+
+# JSON output for programmatic use
+redbook health --all --json
+```
+
+**Level definitions:**
+
+| Level | Status | Meaning |
+|-------|--------|---------|
+| 4 | 🟢 Normal | Full recommendation distribution |
+| 2-3 | 🟡 Baseline | Basically normal, minor constraints |
+| 1 | ⚪ New | Under review (new post) |
+| -1 | 🔴 Soft limit | Mild throttling, decreased recommendations |
+| -5 to -101 | 🔴 Moderate | Moderate throttling, minimal promotion |
+| -102 | ⛔ Severe | Irreversible — must delete and repost |
+
+**Additional checks:**
+- **Sensitive word detection** — flags titles containing automation/AI keywords (自动化, AI生成, 批量, etc.)
+- **Tag count warning** — flags notes with >5 hashtags (risk factor)
+
+**How to interpret:**
+- Level -1 or below = your note is being throttled. Consider editing or deleting + reposting.
+- Level -102 = irreversible. Delete the note and create fresh content.
+- Sensitive word hits = risky title keywords that may trigger throttling. Rephrase.
+- Excessive tags = potential spam signal. Use 3-5 targeted tags.
+
+**Output:** Terminal dashboard with color-coded distribution summary, limited notes list, and risk factor warnings.
+
+**Discovery credit:** [@xxx111god](https://x.com/xxx111god) — [xhs-note-health-checker](https://github.com/jzOcb/xhs-note-health-checker)
+
+---
+
 ## Composed Workflows
 
 Combine modules for different analysis depths.
@@ -553,8 +607,13 @@ Keyword research → viral template extraction → data-backed content brainstor
 
 The full pipeline: research keywords → extract viral template → brainstorm content → write markdown → render to styled image cards → publish via `redbook post --images cover.png card_1.png ...`
 
+### Account Health Monitoring
+**Modules:** M
+
+Run `redbook health --all` periodically to catch throttled notes early. If level drops below 1, investigate the note's content for policy violations. Combine with Module I to check if throttled notes still have unanswered comments worth replying to.
+
 ### Full Operations
-**Modules:** A → C → I → J → K
+**Modules:** A → C → I → J → K → M
 
 Comprehensive automation playbook — keyword analysis, engagement classification, comment operations, viral replication templates, and engagement automation workflow.
 

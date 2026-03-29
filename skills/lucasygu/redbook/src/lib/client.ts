@@ -306,6 +306,46 @@ export class XhsClient {
     });
   }
 
+  // ─── Like / Unlike Endpoints ─────────────────────────────────────────
+
+  async likeNote(noteId: string): Promise<unknown> {
+    return this.mainApiPost("/api/sns/web/v1/note/like", {
+      note_oid: noteId,
+    });
+  }
+
+  async unlikeNote(noteId: string): Promise<unknown> {
+    return this.mainApiPost("/api/sns/web/v1/note/dislike", {
+      note_oid: noteId,
+    });
+  }
+
+  // ─── Follow Endpoints ────────────────────────────────────────────────
+
+  async getUserFollowers(userId: string, cursor: string = ""): Promise<unknown> {
+    return this.mainApiGet("/api/sns/web/v1/user/fans_page", {
+      user_id: userId,
+      cursor,
+      num: 30,
+    });
+  }
+
+  async getUserFollowing(userId: string, cursor: string = ""): Promise<unknown> {
+    return this.mainApiGet("/api/sns/web/v1/user/following_page", {
+      user_id: userId,
+      cursor,
+      num: 30,
+    });
+  }
+
+  // ─── Delete Endpoint ─────────────────────────────────────────────────
+
+  async deleteNote(noteId: string): Promise<unknown> {
+    return this.creatorPost("/api/galaxy/creator/note/delete", {
+      note_id: noteId,
+    });
+  }
+
   async getSubComments(
     noteId: string,
     rootCommentId: string,
@@ -381,6 +421,141 @@ export class XhsClient {
     }
 
     throw new XhsApiError("Note not found in HTML state");
+  }
+
+  // ─── Board / Collection Album Endpoints ──────────────────────────────
+
+  /** GET /api/sns/web/v1/board/note — list notes in a board */
+  async getBoardNotes(
+    boardId: string,
+    num: number = 30,
+    cursor: string = ""
+  ): Promise<unknown> {
+    return this.mainApiGet("/api/sns/web/v1/board/note", {
+      board_id: boardId,
+      num,
+      cursor,
+    });
+  }
+
+  /** GET /api/sns/web/v1/board/user — list user's boards */
+  async getUserBoards(
+    userId: string,
+    num: number = 30,
+    page: number = 1
+  ): Promise<unknown> {
+    return this.mainApiGet("/api/sns/web/v1/board/user", {
+      user_id: userId,
+      num,
+      page,
+    });
+  }
+
+  /** GET /api/sns/web/v1/board/{boardId} — get board info */
+  async getBoardInfo(boardId: string): Promise<unknown> {
+    return this.mainApiGet(`/api/sns/web/v1/board/${boardId}`);
+  }
+
+  // ─── Board HTML Fallback ────────────────────────────────────────────
+
+  async getBoardFromHtml(
+    boardId: string
+  ): Promise<unknown> {
+    const url = `${HOME_URL}/board/${boardId}`;
+    const res = await fetch(url, {
+      headers: {
+        "user-agent": USER_AGENT,
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        referer: `${HOME_URL}/`,
+        cookie: cookiesToString(this.cookies),
+      },
+    });
+
+    const html = await res.text();
+
+    // Board pages may use __INITIAL_SSR_STATE__ or __INITIAL_STATE__
+    const ssrMatch = html.match(
+      /window\.__INITIAL_SSR_STATE__\s*=\s*(\{[\s\S]*?\})\s*(?:;|<\/script>)/
+    );
+    if (ssrMatch) {
+      const stateStr = ssrMatch[1].replace(/\bundefined\b/g, "null");
+      const state = JSON.parse(stateStr);
+      const main = state.Main;
+      if (main) {
+        return this.parseSsrBoard(boardId, main);
+      }
+    }
+
+    // Fallback: try __INITIAL_STATE__ (older page versions)
+    const stateMatch = html.match(
+      /window\.__INITIAL_STATE__=({.*})<\/script>/
+    );
+    if (stateMatch) {
+      const stateStr = stateMatch[1].replace(/:\s*undefined/g, ':""').replace(/,\s*undefined/g, ',""');
+      const state = JSON.parse(stateStr);
+      return this.parseLegacyBoard(boardId, state);
+    }
+
+    throw new XhsApiError("Could not parse board page — neither __INITIAL_SSR_STATE__ nor __INITIAL_STATE__ found");
+  }
+
+  private parseSsrBoard(boardId: string, main: Record<string, unknown>): unknown {
+    const albumInfo = main.albumInfo as Record<string, unknown> | undefined;
+    const notesDetail = main.notesDetail as Array<Record<string, unknown>> | undefined;
+
+    const notes = Array.isArray(notesDetail) ? notesDetail : [];
+    return {
+      boardId,
+      name: albumInfo?.name ?? albumInfo?.title ?? "",
+      desc: albumInfo?.desc ?? "",
+      noteCount: albumInfo?.noteCount ?? albumInfo?.note_count ?? notes.length,
+      notes: notes.map((n) => ({
+        note_id: n.id ?? n.noteId ?? n.note_id ?? "",
+        xsec_token: n.xsecToken ?? n.xsec_token ?? "",
+        title: n.title ?? n.displayTitle ?? "",
+        type: n.type ?? "",
+        author: (n.user as Record<string, unknown>)?.nickname ??
+                (n.user as Record<string, unknown>)?.nickName ?? "",
+        cover: ((n.cover as Record<string, unknown>)?.url as string ?? "").split("?")[0],
+        url: `${HOME_URL}/explore/${n.id ?? n.noteId ?? n.note_id}`,
+      })),
+    };
+  }
+
+  private parseLegacyBoard(boardId: string, state: Record<string, unknown>): unknown {
+    const board = state.board as Record<string, unknown> | undefined;
+    const boardDetails = board?.boardDetails as Record<string, unknown> | undefined;
+    const boardFeedsMap = board?.boardFeedsMap as Record<string, unknown> | undefined;
+
+    let feedEntry = (boardFeedsMap?.[boardId] ?? (boardFeedsMap?._rawValue as Record<string, unknown>)?.[boardId]) as Record<string, unknown> | undefined;
+    if (!feedEntry) {
+      const entries = (boardFeedsMap?._rawValue ?? boardFeedsMap ?? {}) as Record<string, unknown>;
+      const firstKey = Object.keys(entries).find(k => k !== "_rawValue");
+      if (firstKey) feedEntry = entries[firstKey] as Record<string, unknown>;
+    }
+
+    const notes = (feedEntry?.notes ?? []) as Array<Record<string, unknown>>;
+    const detail = ((boardDetails?.[boardId] ?? (boardDetails?._rawValue as Record<string, unknown>)?.[boardId]) ?? {}) as Record<string, unknown>;
+
+    return {
+      boardId,
+      name: detail.name ?? detail.title ?? "",
+      desc: detail.desc ?? "",
+      noteCount: detail.noteCount ?? detail.note_count ?? notes.length,
+      cursor: feedEntry?.cursor ?? "",
+      hasMore: feedEntry?.hasMore ?? false,
+      notes: notes.map((n) => ({
+        note_id: n.noteId ?? n.note_id ?? "",
+        xsec_token: n.xsecToken ?? n.xsec_token ?? "",
+        title: n.displayTitle ?? n.display_title ?? n.title ?? "",
+        type: n.type ?? "",
+        author: (n.user as Record<string, unknown>)?.nickName ??
+                (n.user as Record<string, unknown>)?.nickname ?? "",
+        cover: ((n.cover as Record<string, unknown>)?.urlDefault ??
+               (n.cover as Record<string, unknown>)?.url ?? "") as string,
+        url: `${HOME_URL}/explore/${n.noteId ?? n.note_id}${n.xsecToken ? `?xsec_token=${n.xsecToken}&xsec_source=pc_share` : ""}`,
+      })),
+    };
   }
 
   // ─── Creator/Posting Endpoints ────────────────────────────────────────
@@ -489,7 +664,8 @@ export class XhsClient {
     tab: number = 0,
     page: number = 0
   ): Promise<unknown> {
-    return this.creatorGet("/api/galaxy/creator/note/user/posted", {
+    // v2 endpoint returns the hidden `level` field for note health checks
+    return this.creatorGet("/api/galaxy/v2/creator/note/user/posted", {
       tab,
       page,
     });

@@ -37,6 +37,8 @@ clawhub install redbook
 - **竞品分析** —— 找到头部博主，对比粉丝量、互动数据、内容风格
 - **爆款拆解** —— 分析爆款笔记的标题钩子、互动比例、评论主题
 - **爆款模板** —— 从多篇爆款笔记提取内容模板（标题结构、正文结构、钩子模式）
+- **限流检测** —— 检测笔记是否被隐形限流（通过创作者后台 API 的隐藏 level 字段）
+- **收藏专辑** —— 查看收藏专辑内容，分析专辑内的笔记
 - **收藏管理** —— 查看收藏列表、收藏/取消收藏笔记（支持自己和其他用户的公开收藏）
 - **评论管理** —— 发评论、回复评论、按策略批量回复（问题优先 / 高赞优先 / 未回复优先）
 - **图文卡片** —— Markdown 渲染为小红书风格的 PNG 图文卡片（7 种配色主题）
@@ -94,6 +96,16 @@ redbook reply "<noteUrl>" --comment-id "<id>" --content "感谢提问！"
 redbook batch-reply "<noteUrl>" --strategy questions --dry-run
 redbook batch-reply "<noteUrl>" --strategy questions --template "感谢！{content}" --max 10
 
+# 查看收藏专辑
+redbook boards                          # 列出自己的专辑
+redbook boards <userId>                 # 列出他人的专辑
+redbook board "https://www.xiaohongshu.com/board/abc123"
+redbook board abc123 --json
+
+# 检测笔记限流状态
+redbook health
+redbook health --all --json
+
 # 将 Markdown 渲染为图文卡片（需要可选依赖）
 redbook render content.md --style xiaohongshu
 redbook render content.md --style dark --output-dir ./cards
@@ -119,6 +131,9 @@ redbook post --title "测试" --body "..." --images img.png --private
 | `favorites [userId]` | 查看收藏笔记列表（默认当前用户） |
 | `collect <url>` | 收藏（书签）笔记 |
 | `uncollect <url>` | 取消收藏笔记 |
+| `health` | 检测笔记隐形限流（通过创作者后台隐藏 level 字段） |
+| `boards [userId]` | 列出用户的收藏专辑（默认当前用户） |
+| `board <url>` | 查看收藏专辑内容（接受专辑 URL 或 ID） |
 | `analyze-viral <url>` | 分析爆款笔记（钩子、互动、结构） |
 | `viral-template <url...>` | 从 1-3 篇爆款笔记提取内容模板 |
 | `comment <url>` | 发表评论 |
@@ -215,9 +230,9 @@ npm install -g puppeteer-core marked
 - **主 API**（`edith.xiaohongshu.com`）—— 读取：搜索、推荐页、笔记、评论、用户资料。使用 144 字节 x-s 签名（v4.3.1）
 - **创作者 API**（`creator.xiaohongshu.com`）—— 写入：上传图片、发布笔记。使用 AES-128-CBC 签名
 
-## 分析模块（A-L）
+## 分析模块（A-M）
 
-内置 12 个可组合的分析模块，覆盖从关键词研究到内容发布的完整工作流：
+内置 13 个可组合的分析模块，覆盖从关键词研究到内容发布的完整工作流：
 
 | 模块 | 功能 |
 |------|------|
@@ -233,6 +248,7 @@ npm install -g puppeteer-core marked
 | J. 爆款复刻 | 从爆款笔记提取内容模板 |
 | K. 互动自动化 | 组合 I + J 的自动化运营工作流 |
 | L. 图文卡片 | Markdown → 小红书风格 PNG 图文卡片（7 种配色） |
+| M. 限流检测 | 通过创作者后台隐藏 level 字段检测笔记限流状态 |
 
 详见 [SKILL.md](SKILL.md) 的模块文档和组合工作流。
 
@@ -291,6 +307,8 @@ const topics = await client.searchTopics("Claude Code");
 
 Cookie 提取使用 [@steipete/sweet-cookie](https://github.com/nicklockwood/sweet-cookie)。
 
+限流检测灵感来自 [jzOcb/xhs-note-health-checker](https://github.com/jzOcb/xhs-note-health-checker)（[@xxx111god](https://x.com/xxx111god) 发现了创作者后台 API 的隐藏 level 字段）。
+
 ## 免责声明
 
 本工具使用非官方 API。小红书可能随时更改或封锁这些接口。请合理使用，风险自负。本项目与小红书无任何关联。
@@ -336,6 +354,8 @@ After installing, run `redbook whoami` to verify the connection. The CLI auto-de
 - **Competitive analysis** — Find top creators, compare followers, engagement, content style
 - **Viral note breakdown** — Analyze title hooks, engagement ratios, comment themes
 - **Viral templates** — Extract content templates from multiple viral notes (hook patterns, body structure, engagement profile)
+- **Rate-limit detection** — Detect hidden throttling on your notes via the creator API's secret `level` field
+- **Collection albums** — List notes in a collection album (收藏专辑) for batch analysis
 - **Favorites management** — List collected notes, collect/uncollect notes (own and other users' public collections)
 - **Comment management** — Post comments, reply to comments, batch-reply with strategies (questions / top-engaged / unanswered)
 - **Image cards** — Render markdown to styled PNG cards for XHS posts (7 color themes)
@@ -393,6 +413,15 @@ redbook reply "<noteUrl>" --comment-id "<id>" --content "Thanks for asking!"
 redbook batch-reply "<noteUrl>" --strategy questions --dry-run
 redbook batch-reply "<noteUrl>" --strategy questions --template "Thanks! {content}" --max 10
 
+# List user's collection boards
+redbook boards                          # your own boards
+redbook boards <userId>                 # another user's boards
+redbook board "https://www.xiaohongshu.com/board/abc123" --json
+
+# Check note health / rate-limiting status
+redbook health
+redbook health --all --json
+
 # Render markdown to image cards (requires optional deps)
 redbook render content.md --style xiaohongshu
 redbook render content.md --style dark --output-dir ./cards
@@ -418,6 +447,9 @@ redbook post --title "测试" --body "..." --images img.png --private
 | `favorites [userId]` | List collected/favorited notes (defaults to current user) |
 | `collect <url>` | Collect (bookmark) a note |
 | `uncollect <url>` | Remove a note from your collection |
+| `health` | Detect hidden rate-limiting on your notes (via creator API's secret level field) |
+| `boards [userId]` | List user's collection boards (defaults to current user) |
+| `board <url>` | List notes in a collection album (accepts board URL or ID) |
 | `analyze-viral <url>` | Analyze why a viral note works (hooks, engagement, structure) |
 | `viral-template <url...>` | Extract a content template from 1-3 viral notes |
 | `comment <url>` | Post a top-level comment |
@@ -514,9 +546,9 @@ Publishing **frequently triggers captcha** (type=124). Image upload works, but t
 - **Main API** (`edith.xiaohongshu.com`) — for reading: search, feed, notes, comments, user profiles. Uses x-s signature with 144-byte payload (v4.3.1).
 - **Creator API** (`creator.xiaohongshu.com`) — for writing: upload images, publish notes. Uses simpler AES-128-CBC signing.
 
-## Analysis Modules (A-L)
+## Analysis Modules (A-M)
 
-12 composable analysis modules covering the full workflow from keyword research to content publishing:
+13 composable analysis modules covering the full workflow from keyword research to content publishing:
 
 | Module | Purpose |
 |--------|---------|
@@ -532,6 +564,7 @@ Publishing **frequently triggers captcha** (type=124). Image upload works, but t
 | J. Viral Replication | Extract content templates from viral notes |
 | K. Engagement Automation | Combined I + J workflow for operations |
 | L. Card Rendering | Markdown → styled PNG image cards for XHS posts (7 color themes) |
+| M. Note Health Check | Detect hidden rate-limiting via creator API's secret level field |
 
 See [SKILL.md](SKILL.md) for full module documentation and composed workflows.
 
@@ -589,6 +622,8 @@ Signing algorithms ported from these open-source projects (MIT licensed):
 - [ReaJason/xhs](https://github.com/ReaJason/xhs) — API endpoint reference
 
 Cookie extraction via [@steipete/sweet-cookie](https://github.com/nicklockwood/sweet-cookie).
+
+Rate-limit detection inspired by [jzOcb/xhs-note-health-checker](https://github.com/jzOcb/xhs-note-health-checker) ([@xxx111god](https://x.com/xxx111god) discovered the hidden `level` field in the creator backend API).
 
 ## Disclaimer
 
