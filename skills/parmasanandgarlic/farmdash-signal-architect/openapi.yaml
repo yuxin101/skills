@@ -37,7 +37,7 @@ paths:
       operationId: getTrailHeat
       summary: Get Trail Heat protocol dataset
       description: |
-        Returns 200+ DeFi protocols ranked by Trail Heat score (0-100).
+        Returns the live ranked Trail Heat protocol dataset.
         Score components: TVL, status, category, momentum, recency.
         Scout tier receives top 3 with encrypted numeric values.
         Pioneer/Syndicate tiers receive the full unencrypted dataset.
