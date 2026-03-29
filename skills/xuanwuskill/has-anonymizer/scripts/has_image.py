@@ -63,6 +63,14 @@ _ZH_TO_ID = {c["zh"]: int(c["id"]) for c in CATEGORIES}
 ALL_NAMES = [c["name"] for c in CATEGORIES]
 SCHEMA_VERSION = "1"
 
+# Categories with structured encoding patterns that need adaptive mosaic strength.
+# Default mosaic block size (~15px) can align with the encoding module size,
+# leaving the code machine-readable after masking.
+_ADAPTIVE_MOSAIC_CATEGORIES: set[int] = {
+    _NAME_TO_ID["qr_code"],   # 18
+    _NAME_TO_ID["barcode"],   # 19
+}
+
 
 @dataclass(frozen=True)
 class CLIError(Exception):
@@ -206,17 +214,38 @@ def _run_detection(
     type_ids: set[int] | None,
 ) -> dict[str, Any]:
     """Run YOLO detection on a single image and return structured results."""
+    import cv2
+
     model = _load_model(model_path)
     results = model(image_path, conf=conf, verbose=False)
 
-    if not results:
-        return {"detections": [], "summary": {}}
+    # Phase 1: Collect ALL YOLO detections (unfiltered) for cv2 correction
+    yolo_regions: list[tuple[int, list[int], dict[str, Any]]] = []
+    if results and results[0].boxes is not None:
+        result = results[0]
+        for index, bbox, det in _iter_detection_regions(result, type_ids=None):
+            yolo_regions.append((index, bbox, det))
 
-    result = results[0]
+    # Phase 2: cv2 code detection → correct YOLO + find new codes
+    image = cv2.imread(image_path)
+    cv2_codes = _run_cv2_code_detection(image) if image is not None else []
+    new_cv2_dets = _apply_cv2_corrections(cv2_codes, yolo_regions)
+
+    # Phase 3: Apply --type filtering AFTER correction
     detections = []
     summary: dict[str, int] = {}
 
-    for _, _, det in _iter_detection_regions(result, type_ids):
+    for _, _, det in yolo_regions:
+        cls_id = _NAME_TO_ID.get(det["category"])
+        if type_ids is not None and cls_id not in type_ids:
+            continue
+        detections.append(det)
+        summary[det["category"]] = summary.get(det["category"], 0) + 1
+
+    for det in new_cv2_dets:
+        cls_id = _NAME_TO_ID.get(det["category"])
+        if type_ids is not None and cls_id not in type_ids:
+            continue
         detections.append(det)
         summary[det["category"]] = summary.get(det["category"], 0) + 1
 
@@ -322,6 +351,176 @@ def _apply_fill(image, mask, color: tuple[int, int, int]):
     return image
 
 
+def _adaptive_mosaic_strength(bbox: list[int], base_strength: int) -> int:
+    """Calculate adaptive mosaic strength for structured-code categories.
+
+    Ensures the mosaic block size is large enough to destroy encoding
+    structure while preserving visual recognizability of the region.
+    Formula: max(base_strength, bbox_short_side // 10, 20)
+    """
+    bbox_w = bbox[2] - bbox[0]
+    bbox_h = bbox[3] - bbox[1]
+    bbox_dim = min(bbox_w, bbox_h)
+    return max(base_strength, bbox_dim // 10, 20)
+
+
+def _verify_code_destroyed(image, bbox: list[int], cls_id: int | None = None) -> bool:
+    """Check that a QR/barcode region is no longer machine-readable.
+
+    Crops the bbox region (with small padding) and runs the appropriate
+    detector:  cv2.QRCodeDetector for QR codes, cv2.barcode.BarcodeDetector
+    for barcodes.  When cls_id is None, both detectors are tried.
+    Returns True if the code is destroyed (good), False if still readable (bad).
+    Cost: ~15ms per region — negligible vs. YOLO inference.
+    """
+    import cv2
+
+    h, w = image.shape[:2]
+    x1, y1, x2, y2 = bbox
+    pad = 10
+    roi = image[max(y1 - pad, 0):min(y2 + pad, h),
+                max(x1 - pad, 0):min(x2 + pad, w)].copy()
+
+    barcode_id = _NAME_TO_ID.get("barcode")  # 19
+
+    # Check QR (unless explicitly barcode-only)
+    if cls_id != barcode_id:
+        qr_det = cv2.QRCodeDetector()
+        ok, info, _, _ = qr_det.detectAndDecodeMulti(roi)
+        if ok and any(info):
+            return False
+
+    # Check barcode (unless explicitly qr-only)
+    if cls_id is None or cls_id == barcode_id:
+        try:
+            bar_det = cv2.barcode.BarcodeDetector()
+            ok, decoded, _, _ = bar_det.detectAndDecodeMulti(roi)
+            if ok and decoded is not None and any(decoded):
+                return False
+        except Exception:
+            pass  # BarcodeDetector not available in older OpenCV builds
+
+    return True
+
+
+def _bbox_iou(b1: list[int], b2: list[int]) -> float:
+    """Compute Intersection-over-Union between two [x1,y1,x2,y2] bboxes."""
+    x1 = max(b1[0], b2[0])
+    y1 = max(b1[1], b2[1])
+    x2 = min(b1[2], b2[2])
+    y2 = min(b1[3], b2[3])
+    inter = max(0, x2 - x1) * max(0, y2 - y1)
+    area1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+    area2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+    union = area1 + area2 - inter
+    return inter / union if union > 0 else 0.0
+
+
+def _run_cv2_code_detection(image) -> list[tuple[list[int], str]]:
+    """Detect QR codes and barcodes using OpenCV's algorithmic detectors.
+
+    Returns a list of (bbox, category_name) tuples.  Runs both
+    cv2.QRCodeDetector and cv2.barcode.BarcodeDetector.
+    Cost: ~35-165 ms depending on image size.
+    """
+    import cv2
+
+    codes: list[tuple[list[int], str]] = []
+
+    # QR codes
+    try:
+        qr_det = cv2.QRCodeDetector()
+        found, points = qr_det.detectMulti(image)
+        if found and points is not None:
+            for i in range(len(points)):
+                pts = points[i].astype(int)
+                bbox = [
+                    int(pts[:, 0].min()), int(pts[:, 1].min()),
+                    int(pts[:, 0].max()), int(pts[:, 1].max()),
+                ]
+                codes.append((bbox, "qr_code"))
+    except Exception as exc:
+        _verbose(f"cv2 QR detection error: {exc}")
+
+    # Barcodes
+    try:
+        bar_det = cv2.barcode.BarcodeDetector()
+        found, _decoded, _types, points = bar_det.detectAndDecodeMulti(image)
+        if found and points is not None:
+            for i in range(len(points)):
+                pts = points[i].astype(int)
+                bbox = [
+                    int(pts[:, 0].min()), int(pts[:, 1].min()),
+                    int(pts[:, 0].max()), int(pts[:, 1].max()),
+                ]
+                codes.append((bbox, "barcode"))
+    except Exception as exc:
+        _verbose(f"cv2 barcode detection error: {exc}")
+
+    return codes
+
+
+def _apply_cv2_corrections(
+    cv2_codes: list[tuple[list[int], str]],
+    yolo_regions: list[tuple[int, list[int], dict[str, Any]]],
+    iou_threshold: float = 0.3,
+) -> list[dict[str, Any]]:
+    """Use cv2 code detections to correct YOLO and find missed codes.
+
+    Two effects:
+    1. **Correction**: If a cv2 code overlaps (IoU > threshold) a YOLO
+       detection that is NOT already a code category, the YOLO detection's
+       category is corrected in-place.  A ``corrected_from`` field is added.
+    2. **New detections**: cv2 codes that don't overlap ANY YOLO detection
+       are returned as new detection dicts (``cv2_fallback: true``).
+
+    Corrections happen BEFORE ``--type`` filtering so the user gets the
+    behaviour they expect from their ``--type`` flags.
+    """
+    if not cv2_codes:
+        return []
+
+    # Track which cv2 codes matched an existing YOLO region
+    cv2_matched: set[int] = set()
+
+    for cv2_idx, (cv2_bbox, cv2_cat_name) in enumerate(cv2_codes):
+        for _region_idx, (_yolo_index, yolo_bbox, yolo_det) in enumerate(yolo_regions):
+            if _bbox_iou(cv2_bbox, yolo_bbox) <= iou_threshold:
+                continue
+            cv2_matched.add(cv2_idx)
+            # Only correct if YOLO's category is NOT already a code
+            yolo_cat_id = _NAME_TO_ID.get(yolo_det["category"])
+            if yolo_cat_id in _ADAPTIVE_MOSAIC_CATEGORIES:
+                continue  # already correct
+            cv2_cat_id = _NAME_TO_ID[cv2_cat_name]
+            cat = _ID_TO_CAT[cv2_cat_id]
+            old_cat = yolo_det["category"]
+            yolo_det["corrected_from"] = old_cat
+            yolo_det["category"] = cat["name"]
+            yolo_det["category_zh"] = cat["zh"]
+            _verbose(f"cv2 type correction: {old_cat} → {cat['name']}")
+            break  # one correction per cv2 code
+
+    # Build new-detection dicts for cv2 codes with no YOLO overlap at all
+    new_dets: list[dict[str, Any]] = []
+    for cv2_idx, (cv2_bbox, cv2_cat_name) in enumerate(cv2_codes):
+        if cv2_idx in cv2_matched:
+            continue
+        cat = _ID_TO_CAT[_NAME_TO_ID[cv2_cat_name]]
+        new_dets.append({
+            "category": cat["name"],
+            "category_zh": cat["zh"],
+            "confidence": 1.0,
+            "bbox": cv2_bbox,
+            "has_mask": False,
+            "cv2_fallback": True,
+        })
+
+    if new_dets:
+        _verbose(f"cv2 fallback found {len(new_dets)} additional code(s)")
+    return new_dets
+
+
 def _parse_color(color_str: str) -> tuple[int, int, int]:
     """Parse hex color string to BGR tuple (OpenCV format)."""
     color_str = color_str.lstrip("#")
@@ -344,6 +543,62 @@ def _resolve_fill_color(method: str, fill_color: str) -> tuple[int, int, int] | 
 
 
 # ---------------------------------------------------------------------------
+# Per-detection masking (shared by YOLO and cv2 fallback paths)
+# ---------------------------------------------------------------------------
+
+def _apply_masking_strategy(
+    image,
+    mask,
+    det: dict[str, Any],
+    method: str,
+    strength: int,
+    fill_color: tuple[int, int, int] | None,
+    image_shape: tuple[int, int],
+) -> tuple[Any, dict[str, Any]]:
+    """Apply the chosen masking method to a single detection region.
+
+    Returns the (possibly modified) image and updated detection dict.
+    For code categories (qr_code, barcode) with mosaic method, applies
+    adaptive strength and post-masking verification.
+    """
+    bbox = det["bbox"]
+    cls_id = _NAME_TO_ID.get(det["category"])
+    is_code = cls_id is not None and cls_id in _ADAPTIVE_MOSAIC_CATEGORIES
+
+    if method == "mosaic":
+        effective = (_adaptive_mosaic_strength(bbox, strength)
+                     if is_code else strength)
+        if effective != strength:
+            _verbose(f"{det['category']}: adaptive strength "
+                     f"{strength} → {effective}")
+        image = _apply_mosaic(image, mask, effective)
+
+        # Post-masking verification for code categories
+        if is_code and not _verify_code_destroyed(image, bbox, cls_id):
+            escalated = max(effective * 2, 60)
+            _verbose(f"{det['category']}: still readable, "
+                     f"escalating {effective} → {escalated}")
+            image = _apply_mosaic(image, mask, escalated)
+            if not _verify_code_destroyed(image, bbox, cls_id):
+                _verbose(f"{det['category']}: still readable "
+                         f"after escalation, applying fill")
+                image = _apply_fill(image, mask, (0, 0, 0))
+                det["fill_fallback"] = True
+            else:
+                effective = escalated
+        det["effective_strength"] = effective
+    elif method == "blur":
+        image = _apply_blur(image, mask, strength)
+    elif method == "fill":
+        if fill_color is None:
+            _die("missing_fill_color",
+                 "Fill color is required when --method=fill")
+        image = _apply_fill(image, mask, fill_color)
+
+    return image, det
+
+
+# ---------------------------------------------------------------------------
 # Hide (mask) a single image
 # ---------------------------------------------------------------------------
 
@@ -359,6 +614,7 @@ def _run_hide(
 ) -> dict[str, Any]:
     """Detect and mask privacy regions in a single image."""
     import cv2
+    import numpy as np
 
     model = _load_model(model_path)
     results = model(image_path, conf=conf, verbose=False)
@@ -368,27 +624,53 @@ def _run_hide(
         _die("read_failed", f"Failed to read image: {image_path}")
 
     h, w = image.shape[:2]
+    original = image.copy()  # preserve for cv2 fallback
+
+    # Phase 1: Collect ALL YOLO detections (unfiltered) for cv2 correction
+    yolo_regions: list[tuple[int, list[int], dict[str, Any]]] = []
+    result = None
+    if results and results[0].boxes is not None:
+        result = results[0]
+        for index, bbox, det in _iter_detection_regions(result, type_ids=None):
+            yolo_regions.append((index, bbox, det))
+
+    # Phase 2: cv2 code detection on ORIGINAL → correct YOLO + find new
+    cv2_codes = _run_cv2_code_detection(original)
+    new_cv2_dets = _apply_cv2_corrections(cv2_codes, yolo_regions)
+
+    # Phase 3: Apply --type filtering AFTER correction, then mask
     detections = []
     summary: dict[str, int] = {}
 
-    if results and results[0].boxes is not None:
-        result = results[0]
-
-        for index, bbox, det in _iter_detection_regions(result, type_ids):
+    for index, bbox, det in yolo_regions:
+        cls_id = _NAME_TO_ID.get(det["category"])
+        if type_ids is not None and cls_id not in type_ids:
+            continue
+        if result is not None:
             mask = _build_detection_mask(result, index, bbox, (h, w))
+        else:
+            mask = np.zeros((h, w), dtype=np.uint8)
+            x1, y1, x2, y2 = bbox
+            mask[y1:y2, x1:x2] = 1
+        image, det = _apply_masking_strategy(
+            image, mask, det, method, strength, fill_color, (h, w),
+        )
+        detections.append(det)
+        summary[det["category"]] = summary.get(det["category"], 0) + 1
 
-            # Apply masking strategy
-            if method == "mosaic":
-                image = _apply_mosaic(image, mask, strength)
-            elif method == "blur":
-                image = _apply_blur(image, mask, strength)
-            elif method == "fill":
-                if fill_color is None:
-                    _die("missing_fill_color", "Fill color is required when --method=fill")
-                image = _apply_fill(image, mask, fill_color)
-
-            detections.append(det)
-            summary[det["category"]] = summary.get(det["category"], 0) + 1
+    for det in new_cv2_dets:
+        cls_id = _NAME_TO_ID.get(det["category"])
+        if type_ids is not None and cls_id not in type_ids:
+            continue
+        bbox = det["bbox"]
+        x1, y1, x2, y2 = bbox
+        mask = np.zeros((h, w), dtype=np.uint8)
+        mask[y1:y2, x1:x2] = 1
+        image, det = _apply_masking_strategy(
+            image, mask, det, method, strength, fill_color, (h, w),
+        )
+        detections.append(det)
+        summary[det["category"]] = summary.get(det["category"], 0) + 1
 
     output_path = _resolve_output_path(image_path, output_path)
 
