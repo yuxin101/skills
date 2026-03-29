@@ -138,20 +138,26 @@ const command = {
       // 检查源文档权限
       const sourcePermission = await Permission.checkDocumentPermission(skill, docId);
       if (!sourcePermission.hasPermission) {
+        const isNotFound = sourcePermission.reason === 'not_found' || 
+                           (sourcePermission.error && sourcePermission.error.includes('不存在'));
         return {
           success: false,
-          error: '权限不足',
-          message: sourcePermission.error || `无权访问文档 ${docId}`
+          error: isNotFound ? '资源不存在' : '权限不足',
+          message: sourcePermission.error || `无权访问文档 ${docId}`,
+          reason: isNotFound ? 'not_found' : 'permission_denied'
         };
       }
       
       // 检查目标位置权限
-      const targetPermission = await Permission.checkParentPermission(skill, targetParentId, process.env.SIYUAN_DEFAULT_NOTEBOOK);
+      const targetPermission = await Permission.checkParentPermission(skill, targetParentId, skill.config.defaultNotebook);
       if (!targetPermission.hasPermission) {
+        const isNotFound = targetPermission.reason === 'not_found' || 
+                           (targetPermission.error && targetPermission.error.includes('不存在'));
         return {
           success: false,
-          error: '权限不足',
-          message: targetPermission.error || `无权访问目标位置 ${targetParentId}`
+          error: isNotFound ? '资源不存在' : '权限不足',
+          message: targetPermission.error || `无权访问目标位置 ${targetParentId}`,
+          reason: isNotFound ? 'not_found' : 'permission_denied'
         };
       }
       
@@ -166,6 +172,22 @@ const command = {
         } catch (error) {
           console.warn('获取文档标题失败:', error.message);
         }
+      }
+      
+      // 重名检测：检查目标位置是否已存在同名文档（排除自身）
+      const existingDoc = await skill.documentManager.checkDocumentExists(
+        targetPermission.notebookId,
+        targetParentId,
+        titleToUse,
+        docId
+      );
+      
+      if (existingDoc) {
+        return {
+          success: false,
+          error: '目标位置已存在同名文档',
+          message: `在目标位置已存在标题为"${titleToUse}"的文档（ID: ${existingDoc.id}），无法移动。请使用 --new-title 参数指定新标题`
+        };
       }
       
       console.log('移动文档:', {
@@ -192,17 +214,15 @@ const command = {
         console.error('移动失败:', moveResult);
       }
       
-      // 清除缓存
-      skill.clearCache();
-      
       // 如果提供了新标题，移动后重命名
       if (newTitle) {
         console.log('重命名文档为:', newTitle);
         try {
-          await skill.connector.request('/api/filetree/renameDoc', {
+          const renameResult = await skill.connector.request('/api/filetree/renameDocByID', {
             id: docId,
             title: newTitle
           });
+          console.log('重命名结果:', renameResult);
         } catch (error) {
           console.warn('重命名文档失败:', error.message);
         }

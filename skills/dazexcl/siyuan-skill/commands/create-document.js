@@ -21,17 +21,17 @@ function processContent(content) {
 const command = {
   name: 'create-document',
   description: '在 Siyuan Notes 中创建新文档',
-  usage: 'create-document --parent-id <parentId> --title <title> [--content <content>] [--force] [--path <path>]',
+  usage: 'create-document --title <title> [--content <content>] [--force] (--parent-id <parentId> | --path <path>)',
   
   /**
    * 执行指令
    * @param {SiyuanNotesSkill} skill - 技能实例
    * @param {Object} args - 指令参数
-   * @param {string} args.parentId - 父文档/笔记本ID
+   * @param {string} args.parentId - 父文档/笔记本ID（与 path 二选一）
    * @param {string} args.title - 文档标题
    * @param {string} args.content - 文档内容（可选）
    * @param {boolean} args.force - 是否强制创建（忽略重名检测）
-   * @param {string} args.path - 文档路径（可选，支持绝对路径或相对路径）
+   * @param {string} args.path - 文档路径（可选，与 parentId 二选一）
    * @returns {Promise<Object>} 创建结果
    */
   execute: async (skill, args = {}) => {
@@ -45,22 +45,43 @@ const command = {
       };
     }
     
+    if (parentId && path) {
+      return {
+        success: false,
+        error: '参数冲突',
+        message: '--parent-id 和 --path 参数只能二选一，不能同时使用'
+      };
+    }
+    
     // 处理路径参数
     let effectiveParentId = parentId;
     
     if (path) {
-      // 递归创建路径文档
+      const pathEndsWithSlash = path.endsWith('/');
       const pathComponents = path.split('/').filter(component => component.trim() !== '');
       
-      // 首先从技能配置获取默认笔记本，其次使用环境变量
-      let currentParentId = skill.config.defaultNotebook || process.env.SIYUAN_DEFAULT_NOTEBOOK;
+      let currentParentId = skill.config.defaultNotebook;
+      let createdDocId = null;
+      let createdDocPath = null;
+      let actualParentId = null;
       
-      for (let i = 0; i < pathComponents.length; i++) {
+      // 如果路径末尾有 /，需要创建中间目录，然后在其下创建标题文档
+      const componentsToProcess = pathEndsWithSlash ? pathComponents.length : pathComponents.length - 1;
+      // 标题优先级：1. 显式指定的 title 参数 2. 路径最后一段
+      const finalTitle = title || (pathEndsWithSlash ? null : pathComponents[pathComponents.length - 1]);
+      
+      if (!finalTitle) {
+        return {
+          success: false,
+          error: '缺少标题',
+          message: '使用 --path "路径/" 在目录下创建时，需要提供标题参数'
+        };
+      }
+      
+      // 处理所有中间组件（创建目录结构）
+      for (let i = 0; i < componentsToProcess; i++) {
         const component = pathComponents[i];
-        const isLastComponent = i === pathComponents.length - 1;
-        const isSecondLast = i === pathComponents.length - 2;
         
-        // 尝试查找当前路径下是否存在该文档
         try {
           const findResult = await skill.executeCommand('convert-path', {
             path: `/${pathComponents.slice(0, i + 1).join('/')}`,
@@ -70,40 +91,29 @@ const command = {
           if (findResult.success && findResult.data) {
             currentParentId = findResult.data.id;
           } else {
-            // 只有最后一个组件才创建文档，前面的组件只创建文件夹
-            if (isLastComponent) {
-              // 使用实际内容创建文档，处理换行符
-              const processedContent = processContent(content);
-              const createResult = await skill.documentManager.createDocument(
-                currentParentId,
-                component,
-                processedContent
-              );
-              
-              if (createResult.id) {
-                currentParentId = createResult.id;
-              } else {
-                return {
-                  success: false,
-                  error: `无法创建路径组件 "${component}"`
-                };
+            const createResult = await skill.documentManager.createDocument(
+              currentParentId,
+              component,
+              '',
+              { defaultNotebook: skill.config.defaultNotebook }
+            );
+            
+            if (createResult.success === false) {
+              return createResult;
+            }
+            
+            if (createResult.id) {
+              currentParentId = createResult.id;
+              try {
+                await skill.documentManager.setBlockAttrs(createResult.id, { icon: '1f5c2' });
+              } catch (iconError) {
+                console.warn(`为中间目录 "${component}" 设置图标失败:`, iconError.message);
               }
             } else {
-              // 中间组件创建文件夹（使用占位内容）
-              const createResult = await skill.documentManager.createDocument(
-                currentParentId,
-                component,
-                `# ${component}\n\n`
-              );
-              
-              if (createResult.id) {
-                currentParentId = createResult.id;
-              } else {
-                return {
-                  success: false,
-                  error: `无法创建路径组件 "${component}"`
-                };
-              }
+              return {
+                success: false,
+                error: `无法创建路径组件 "${component}"`
+              };
             }
           }
         } catch (error) {
@@ -114,36 +124,71 @@ const command = {
         }
       }
       
-      // 设置最终的父ID：如果最后一个组件存在，使用它的ID作为父ID；否则使用倒数第二个组件的ID作为父ID
-      const lastComponentIndex = pathComponents.length - 1;
-      const secondLastComponentIndex = pathComponents.length - 2;
-      
-      // 检查最后一个组件是否存在
-      const lastComponentExists = await skill.executeCommand('convert-path', {
-        path: `/${pathComponents.slice(0, lastComponentIndex + 1).join('/')}`,
-        force: true
-      });
-      
-      if (lastComponentExists.success && lastComponentExists.data) {
-        // 最后一个组件存在，使用它的ID作为父ID
-        effectiveParentId = lastComponentExists.data.id;
-      } else if (secondLastComponentIndex >= 0) {
-        // 最后一个组件不存在，使用倒数第二个组件的ID作为父ID
-        const secondLastComponentExists = await skill.executeCommand('convert-path', {
-          path: `/${pathComponents.slice(0, secondLastComponentIndex + 1).join('/')}`,
+      // 创建最终文档前检查重名
+      if (!force) {
+        const fullPath = pathEndsWithSlash ? `${path}${finalTitle}` : path;
+        const existCheck = await skill.executeCommand('convert-path', {
+          path: fullPath,
           force: true
         });
         
-        if (secondLastComponentExists.success && secondLastComponentExists.data) {
-          // 使用倒数第二个组件的ID作为父ID
-          effectiveParentId = secondLastComponentExists.data.id;
+        if (existCheck.success && existCheck.data) {
+          return {
+            success: false,
+            error: '文档已存在',
+            message: `文档 "${fullPath}" 已存在 (ID: ${existCheck.data.id})。使用 --force 强制创建。`,
+            existingId: existCheck.data.id
+          };
         }
       }
+      
+      // 创建最终文档
+      actualParentId = currentParentId;
+      const processedContent = processContent(content);
+      const createResult = await skill.documentManager.createDocument(
+        currentParentId,
+        finalTitle,
+        processedContent,
+        { defaultNotebook: skill.config.defaultNotebook }
+      );
+      
+      if (createResult.success === false) {
+        return createResult;
+      }
+      
+      if (createResult.id) {
+        createdDocId = createResult.id;
+        createdDocPath = pathEndsWithSlash ? `${path}${finalTitle}` : path;
+      } else {
+        return {
+          success: false,
+          error: `无法创建文档 "${finalTitle}"`
+        };
+      }
+      
+      if (createdDocId) {
+        const notebookId = skill.config.defaultNotebook;
+        return {
+          success: true,
+          data: {
+            id: createdDocId,
+            title: finalTitle,
+            parentId: actualParentId,
+            notebookId: notebookId,
+            path: createdDocPath,
+            contentLength: content.length
+          },
+          message: '文档创建成功',
+          timestamp: Date.now()
+        };
+      }
+      
+      effectiveParentId = currentParentId;
     }
     
     // 如果未提供 parentId，使用默认笔记本 ID
     if (!effectiveParentId) {
-      effectiveParentId = skill.config.defaultNotebook || process.env.SIYUAN_DEFAULT_NOTEBOOK;
+      effectiveParentId = skill.config.defaultNotebook;
     }
     
     if (!effectiveParentId) {
@@ -155,60 +200,48 @@ const command = {
     }
     
     // 使用权限包装器处理权限检查（提升到方法开头，确保所有操作都在权限检查后执行）
+    // 将 effectiveParentId 保存到闭包中供权限包装器使用
+    const savedParentId = effectiveParentId;
+    
     const permissionHandler = Permission.createPermissionWrapper(async (skill, args, notebookId) => {
-      const { title, content = '', force = false } = args;
+      const { title, content = '', force = false, targetParentId } = args;
       
       // 重名检测（权限检查通过后执行）
       if (!force) {
-        try {
-          // 使用 /api/file/readDir 接口获取笔记本目录下的文件列表
-          const notebookPath = `/data/${notebookId}`;
-          const files = await skill.connector.request('/api/file/readDir', { path: notebookPath });
-          
-          if (files && Array.isArray(files)) {
-            // 检查是否存在同名文档文件
-            for (const file of files) {
-              if (!file.isDir && file.name.endsWith('.sy')) {
-                const docName = file.name.replace('.sy', '');
-                
-                // 尝试获取文档标题
-                try {
-                  // 构建文档ID（假设文件名就是文档ID）
-                  const docId = docName;
-                  const attrs = await skill.connector.request('/api/attr/getBlockAttrs', { id: docId });
-                  if (attrs && attrs.title === title) {
-                    return {
-                      success: false,
-                      error: '文档已存在',
-                      message: `已存在标题为"${title}"的文档，请使用 --force 参数强制创建`
-                    };
-                  }
-                } catch (error) {
-                  // 忽略错误
-                }
-              }
-            }
-          }
-        } catch (error) {
-          // 检测失败不阻止创建，继续执行
+        const existingDoc = await skill.documentManager.checkDocumentExists(
+          notebookId, 
+          targetParentId || notebookId, 
+          title
+        );
+        
+        if (existingDoc) {
+          return {
+            success: false,
+            error: '文档已存在',
+            message: `在目标位置已存在标题为"${title}"的文档（ID: ${existingDoc.id}），请使用 --force 参数强制创建`
+          };
         }
       }
       
       try {
-        // 尝试获取父文档的hPath
-        let parentHPath = '';
-        try {
-          const hPathInfo = await skill.connector.request('/api/filetree/getHPathByID', { id: effectiveParentId });
-          if (hPathInfo) {
-            parentHPath = hPathInfo;
-            console.log('父文档的hPath:', parentHPath);
-          }
-        } catch (error) {
-          console.warn('获取父文档hPath失败:', error.message);
-        }
+        let fullPath = '';
         
-        // 构建完整的路径
-        const fullPath = parentHPath ? `${parentHPath}/${title}` : `/${title}`;
+        const isNotebookId = effectiveParentId === notebookId;
+        
+        if (isNotebookId) {
+          fullPath = `/${title}`;
+        } else {
+          let parentHPath = '';
+          try {
+            const hPathInfo = await skill.connector.request('/api/filetree/getHPathByID', { id: effectiveParentId });
+            if (hPathInfo) {
+              parentHPath = hPathInfo;
+            }
+          } catch (error) {
+            console.warn('获取父文档hPath失败:', error.message);
+          }
+          fullPath = parentHPath ? `${parentHPath}/${title}` : `/${title}`;
+        }
         
         // 处理内容中的换行符
         const formattedContent = processContent(content);
@@ -219,9 +252,6 @@ const command = {
           path: fullPath,
           markdown: formattedContent
         });
-        
-        // 清除缓存
-        skill.clearCache();
         
         if (createResult) {
           return {
@@ -324,10 +354,10 @@ const command = {
     }, {
       type: 'parent',
       idParam: 'parentId',
-      defaultNotebook: skill.config.defaultNotebook || process.env.SIYUAN_DEFAULT_NOTEBOOK
+      defaultNotebook: skill.config.defaultNotebook
     });
     
-    return permissionHandler(skill, { ...args, parentId: effectiveParentId });
+    return permissionHandler(skill, { ...args, parentId: effectiveParentId, targetParentId: savedParentId });
   }
 };
 

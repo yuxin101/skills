@@ -11,40 +11,24 @@ class DocumentManager {
   /**
    * 构造函数
    * @param {Object} connector - Siyuan 连接器实例
-   * @param {Object} cacheManager - 缓存管理器实例
    */
-  constructor(connector, cacheManager) {
+  constructor(connector) {
     this.connector = connector;
-    this.cacheManager = cacheManager;
   }
 
   /**
    * 获取文档结构
    * @param {string} notebookId - 笔记本ID
-   * @param {boolean} [forceRefresh=false - 是否强制刷新缓存
    * @returns {Promise<Object>} 文档结构
    */
-  async getDocStructure(notebookId, forceRefresh = false) {
-    const cacheKey = `doc_structure_${notebookId}`;
-
-    if (!forceRefresh && this.cacheManager.has(cacheKey)) {
-      return {
-        success: true,
-        data: this.cacheManager.get(cacheKey),
-        cached: true
-      };
-    }
-
+  async getDocStructure(notebookId) {
     await this.connector.request('/api/notebook/openNotebook', { notebook: notebookId });
 
     const structure = await this.buildDocStructure(notebookId);
 
-    this.cacheManager.set(cacheKey, structure);
-
     return {
       success: true,
-      data: structure,
-      cached: false
+      data: structure
     };
   }
 
@@ -256,8 +240,8 @@ class DocumentManager {
     let notebookId = null;
     try {
       const pathInfo = await this.connector.request('/api/filetree/getPathByID', { id: docId });
-      if (pathInfo && pathInfo.box) {
-        notebookId = pathInfo.box;
+      if (pathInfo && (pathInfo.notebook || pathInfo.box)) {
+        notebookId = pathInfo.notebook || pathInfo.box;
       }
     } catch (e) {
       // 忽略错误
@@ -321,48 +305,85 @@ class DocumentManager {
 
   /**
    * 创建文档
-   * @param {string} parentId - 父ID
+   * @param {string} parentId - 父文档/笔记本ID
    * @param {string} title - 标题
    * @param {string} [content=''] - 内容
+   * @param {Object} [options={}] - 可选参数
+   * @param {string} [options.defaultNotebook] - 默认笔记本ID
    * @returns {Promise<Object>} 创建结果
    */
-  async createDocument(parentId, title, content = '') {
-    // 根据parentId判断是笔记本ID还是文档ID
-    // 笔记本ID格式：包含字母和数字的混合字符串（如：20260305223500-s269bt3）
-    // 文档ID格式：类似，但需要检查是否为笔记本
-    
-    // 尝试获取parentId的信息，确定是否为笔记本
+  async createDocument(parentId, title, content = '', options = {}) {
+    const { defaultNotebook } = options;
     let notebookId;
     let docPath = `/${title}`;
     
     try {
-      // 尝试获取路径信息，判断parentId是文档还是笔记本
       const pathInfo = await this.connector.request('/api/filetree/getPathByID', { id: parentId });
       
-      if (pathInfo && pathInfo.box) {
-        // 如果是笔记本ID（直接有box字段）
-        notebookId = parentId;
-        docPath = `/${title}`;
-      } else {
-        // 如果是文档ID，获取其笔记本ID
-        notebookId = pathInfo?.box || process.env.SIYUAN_DEFAULT_NOTEBOOK;
-        // 获取父文档的路径，用于构建完整路径
-        const parentDocPath = await this.connector.request('/api/export/exportMdContent', { id: parentId });
-        if (parentDocPath && parentDocPath.hPath) {
-          docPath = `${parentDocPath.hPath}/${title}`;
+      if (pathInfo && (pathInfo.notebook || pathInfo.box)) {
+        notebookId = pathInfo.notebook || pathInfo.box;
+        if (pathInfo.path === '/' || !pathInfo.path) {
+          docPath = `/${title}`;
         } else {
-          // 回退到默认路径
+          const parentHPath = await this.connector.request('/api/filetree/getHPathByID', { id: parentId });
+          if (parentHPath) {
+            docPath = parentHPath !== '/' ? `${parentHPath}/${title}` : `/${title}`;
+          }
+        }
+      } else {
+        // pathInfo 为 null，可能是刚创建的文档，需要验证 parentId
+        const blockInfo = await this.connector.request('/api/block/getBlockInfo', { id: parentId });
+        
+        if (blockInfo && blockInfo.box) {
+          notebookId = blockInfo.box;
+          // 如果是文档，构建子路径
+          if (blockInfo.rootID && blockInfo.rootID !== parentId) {
+            // 这是一个块，需要获取其根文档的路径
+            const rootHPath = await this.connector.request('/api/filetree/getHPathByID', { id: blockInfo.rootID });
+            if (rootHPath) {
+              docPath = rootHPath !== '/' ? `${rootHPath}/${title}` : `/${title}`;
+            }
+          } else if (blockInfo.rootChildID === parentId) {
+            // 这是一个文档（根文档）
+            const rootHPath = await this.connector.request('/api/filetree/getHPathByID', { id: parentId });
+            if (rootHPath) {
+              docPath = rootHPath !== '/' ? `${rootHPath}/${title}` : `/${title}`;
+            }
+          }
+        } else {
+          // 无法获取信息，假设是笔记本ID
+          notebookId = parentId;
           docPath = `/${title}`;
         }
       }
     } catch (error) {
-      // 如果无法获取路径信息，使用默认笔记本
-      notebookId = process.env.SIYUAN_DEFAULT_NOTEBOOK || parentId;
+      console.warn('获取父文档路径信息失败:', error.message);
+      // 尝试使用 getBlockInfo 作为后备
+      try {
+        const blockInfo = await this.connector.request('/api/block/getBlockInfo', { id: parentId });
+        if (blockInfo && blockInfo.box) {
+          notebookId = blockInfo.box;
+          const rootHPath = await this.connector.request('/api/filetree/getHPathByID', { id: parentId });
+          if (rootHPath) {
+            docPath = rootHPath !== '/' ? `${rootHPath}/${title}` : `/${title}`;
+          }
+        } else {
+          notebookId = parentId;
+        }
+      } catch (fallbackError) {
+        notebookId = parentId;
+      }
     }
     
-    // 如果没有有效的笔记本ID，使用默认配置
     if (!notebookId) {
-      notebookId = '20260227231831-yq1lxq2'; // 使用项目规则中的默认笔记本
+      notebookId = defaultNotebook;
+      if (!notebookId) {
+        return {
+          success: false,
+          error: '无法确定笔记本ID',
+          message: '未设置默认笔记本，请在配置文件中设置 defaultNotebook 或设置环境变量 SIYUAN_DEFAULT_NOTEBOOK'
+        };
+      }
     }
     
     const result = await this.connector.request('/api/filetree/createDocWithMd', {
@@ -383,13 +404,16 @@ class DocumentManager {
    * @returns {Promise<Object>} 更新结果
    */
   async updateDocument(docId, content) {
-    await this.connector.request('/api/filetree/updateBlock', {
+    const result = await this.connector.request('/api/block/updateBlock', {
       id: docId,
       dataType: 'markdown',
       data: content
     });
 
-    return { success: true };
+    return {
+      success: result && result.code === 0,
+      error: result?.msg
+    };
   }
 
   /**
@@ -403,6 +427,52 @@ class DocumentManager {
     });
 
     return { success: true, data: result };
+  }
+
+  /**
+   * 检查指定位置是否存在同名文档
+   * @param {string} notebookId - 笔记本ID
+   * @param {string} parentId - 父文档ID或笔记本ID
+   * @param {string} title - 文档标题
+   * @param {string} [excludeDocId] - 排除的文档ID（用于移动时排除自身）
+   * @returns {Promise<Object|null>} 存在则返回文档信息，不存在返回null
+   */
+  async checkDocumentExists(notebookId, parentId, title, excludeDocId = null) {
+    try {
+      let parentHPath = '';
+      
+      if (parentId && parentId !== notebookId) {
+        try {
+          parentHPath = await this.connector.request('/api/filetree/getHPathByID', { id: parentId });
+        } catch (e) {
+          // 忽略错误，可能是笔记本根目录
+        }
+      }
+      
+      const targetPath = parentHPath ? `${parentHPath}/${title}` : `/${title}`;
+      const existingDocs = await this.connector.request('/api/filetree/getIDsByHPath', {
+        path: targetPath,
+        notebook: notebookId
+      });
+      
+      if (existingDocs && existingDocs.length > 0) {
+        const foundId = existingDocs[0];
+        if (excludeDocId && foundId === excludeDocId) {
+          return null;
+        }
+        return {
+          exists: true,
+          id: foundId,
+          path: targetPath,
+          title
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('检查文档存在失败:', error.message);
+      return null;
+    }
   }
 
   /**

@@ -31,27 +31,16 @@ class ConfigManager {
   getDefaultConfig() {
     return {
       // 连接配置
-      baseURL: 'http://127.0.0.1:6806',
+      baseURL: 'http://localhost:6806',
       token: '',
       timeout: 10000,
       
-      // 缓存配置
-      cacheExpiry: 300000, // 5分钟
-      syncInterval: 30000, // 30秒
-      
       // 默认值
       defaultNotebook: null,
-      defaultFormat: 'markdown',
       
       // 权限配置
       permissionMode: 'all', // all, blacklist, whitelist
       notebookList: [],
-      
-      // 功能配置
-      enableCache: true,
-      enableSync: false,
-      enableLogging: true,
-      debugMode: false,
       
       // Qdrant 向量数据库配置 - 无默认值
       qdrant: {
@@ -64,8 +53,12 @@ class ConfigManager {
       embedding: {
         model: 'nomic-embed-text',
         dimension: 768,
-        batchSize: 8,
-        baseUrl: null
+        batchSize: 5,
+        baseUrl: null,
+        maxContentLength: 4000,
+        maxChunkLength: 4000,
+        minChunkLength: 200,
+        skipIndexAttrs: []
       },
       
       // 混合搜索配置
@@ -90,9 +83,9 @@ class ConfigManager {
       
       // TLS 安全配置
       tls: {
-        allowSelfSignedCerts: false,
-        allowedHosts: ['localhost', '127.0.0.1', '::1']
-      }
+          allowSelfSignedCerts: false,
+          allowedHosts: ['localhost']
+        }
     };
   }
   
@@ -199,13 +192,8 @@ class ConfigManager {
     if (process.env.SIYUAN_TOKEN) envConfig.token = process.env.SIYUAN_TOKEN;
     if (process.env.SIYUAN_TIMEOUT) envConfig.timeout = parseInt(process.env.SIYUAN_TIMEOUT, 10);
     
-    // 缓存配置
-    if (process.env.SIYUAN_CACHE_EXPIRY) envConfig.cacheExpiry = parseInt(process.env.SIYUAN_CACHE_EXPIRY, 10);
-    if (process.env.SIYUAN_SYNC_INTERVAL) envConfig.syncInterval = parseInt(process.env.SIYUAN_SYNC_INTERVAL, 10);
-    
     // 默认值
     if (process.env.SIYUAN_DEFAULT_NOTEBOOK) envConfig.defaultNotebook = process.env.SIYUAN_DEFAULT_NOTEBOOK;
-    if (process.env.SIYUAN_DEFAULT_FORMAT) envConfig.defaultFormat = process.env.SIYUAN_DEFAULT_FORMAT;
     
     // 权限配置
     if (process.env.SIYUAN_PERMISSION_MODE) envConfig.permissionMode = process.env.SIYUAN_PERMISSION_MODE;
@@ -226,38 +214,23 @@ class ConfigManager {
           if (innerContent) {
             // 检查是否是有效的JSON数组，不是则尝试修复
             try {
-              // 尝试直接解析
               envConfig.notebookList = JSON.parse(notebookListStr);
             } catch (jsonError) {
-              // 尝试修复：给数组元素添加引号
               const fixedStr = '["' + innerContent.replace(/["']/g, '').split(/\s*,\s*/).join('","') + '"]';
               envConfig.notebookList = JSON.parse(fixedStr);
-              console.log('环境变量 SIYUAN_NOTEBOOK_LIST 解析成功（已修复格式）:', envConfig.notebookList);
             }
           } else {
             envConfig.notebookList = [];
           }
         } else if (notebookListStr.includes(',')) {
-          // 逗号分隔格式：id1,id2,id3
           envConfig.notebookList = notebookListStr.split(',').map(id => id.trim().replace(/['"]/g, '')).filter(id => id);
-          console.log('环境变量 SIYUAN_NOTEBOOK_LIST 解析成功（逗号分隔）:', envConfig.notebookList);
         } else {
-          // 单个笔记本ID
           envConfig.notebookList = [notebookListStr.replace(/['"]/g, '')];
-          console.log('环境变量 SIYUAN_NOTEBOOK_LIST 解析成功（单个ID）:', envConfig.notebookList);
         }
       } catch (error) {
-        console.warn('环境变量 SIYUAN_NOTEBOOK_LIST 解析失败:', error.message);
-        console.warn('原始值:', process.env.SIYUAN_NOTEBOOK_LIST);
         envConfig.notebookList = [];
       }
     }
-    
-    // 功能配置
-    if (process.env.SIYUAN_ENABLE_CACHE) envConfig.enableCache = process.env.SIYUAN_ENABLE_CACHE === 'true';
-    if (process.env.SIYUAN_ENABLE_SYNC) envConfig.enableSync = process.env.SIYUAN_ENABLE_SYNC === 'true';
-    if (process.env.SIYUAN_ENABLE_LOGGING) envConfig.enableLogging = process.env.SIYUAN_ENABLE_LOGGING === 'true';
-    if (process.env.SIYUAN_DEBUG_MODE) envConfig.debugMode = process.env.SIYUAN_DEBUG_MODE === 'true';
     
     // Qdrant 配置
     if (process.env.QDRANT_URL || process.env.QDRANT_API_KEY || process.env.QDRANT_COLLECTION_NAME) {
@@ -269,12 +242,16 @@ class ConfigManager {
     }
     
     // Embedding 配置
-    if (process.env.OLLAMA_BASE_URL || process.env.OLLAMA_EMBED_MODEL || process.env.EMBEDDING_MODEL || process.env.EMBEDDING_DIMENSION || process.env.EMBEDDING_BATCH_SIZE) {
+    if (process.env.OLLAMA_BASE_URL || process.env.OLLAMA_EMBED_MODEL || process.env.EMBEDDING_MODEL || process.env.EMBEDDING_DIMENSION || process.env.EMBEDDING_BATCH_SIZE || process.env.SIYUAN_EMBEDDING_MAX_CONTENT_LENGTH || process.env.SIYUAN_EMBEDDING_MAX_CHUNK_LENGTH || process.env.SIYUAN_EMBEDDING_MIN_CHUNK_LENGTH || process.env.SIYUAN_SKIP_INDEX_ATTRS) {
       envConfig.embedding = {
         model: process.env.OLLAMA_EMBED_MODEL || process.env.EMBEDDING_MODEL || this.defaultConfig.embedding.model,
         dimension: parseInt(process.env.EMBEDDING_DIMENSION, 10) || this.defaultConfig.embedding.dimension,
         batchSize: parseInt(process.env.EMBEDDING_BATCH_SIZE, 10) || this.defaultConfig.embedding.batchSize,
-        baseUrl: process.env.OLLAMA_BASE_URL || process.env.EMBEDDING_BASE_URL || this.defaultConfig.embedding.baseUrl
+        baseUrl: process.env.OLLAMA_BASE_URL || process.env.EMBEDDING_BASE_URL || this.defaultConfig.embedding.baseUrl,
+        maxContentLength: parseInt(process.env.SIYUAN_EMBEDDING_MAX_CONTENT_LENGTH, 10) || this.defaultConfig.embedding.maxContentLength,
+        maxChunkLength: parseInt(process.env.SIYUAN_EMBEDDING_MAX_CHUNK_LENGTH, 10) || this.defaultConfig.embedding.maxChunkLength,
+        minChunkLength: parseInt(process.env.SIYUAN_EMBEDDING_MIN_CHUNK_LENGTH, 10) || this.defaultConfig.embedding.minChunkLength,
+        skipIndexAttrs: process.env.SIYUAN_SKIP_INDEX_ATTRS ? process.env.SIYUAN_SKIP_INDEX_ATTRS.split(',').map(a => a.trim()).filter(Boolean) : this.defaultConfig.embedding.skipIndexAttrs
       };
     }
     
@@ -356,21 +333,6 @@ class ConfigManager {
       validatedConfig.timeout = this.defaultConfig.timeout;
     }
     
-    // 验证缓存配置
-    if (typeof validatedConfig.cacheExpiry !== 'number' || validatedConfig.cacheExpiry <= 0) {
-      validatedConfig.cacheExpiry = this.defaultConfig.cacheExpiry;
-    }
-    
-    if (typeof validatedConfig.syncInterval !== 'number' || validatedConfig.syncInterval <= 0) {
-      validatedConfig.syncInterval = this.defaultConfig.syncInterval;
-    }
-    
-    // 验证默认值
-    if (typeof validatedConfig.defaultFormat !== 'string' || 
-        !['markdown', 'text', 'html'].includes(validatedConfig.defaultFormat)) {
-      validatedConfig.defaultFormat = this.defaultConfig.defaultFormat;
-    }
-    
     // 验证权限配置
     if (typeof validatedConfig.permissionMode !== 'string' || 
         !['all', 'blacklist', 'whitelist'].includes(validatedConfig.permissionMode)) {
@@ -392,23 +354,6 @@ class ConfigManager {
       }
     }
     
-    // 验证功能配置
-    if (typeof validatedConfig.enableCache !== 'boolean') {
-      validatedConfig.enableCache = this.defaultConfig.enableCache;
-    }
-    
-    if (typeof validatedConfig.enableSync !== 'boolean') {
-      validatedConfig.enableSync = this.defaultConfig.enableSync;
-    }
-    
-    if (typeof validatedConfig.enableLogging !== 'boolean') {
-      validatedConfig.enableLogging = this.defaultConfig.enableLogging;
-    }
-    
-    if (typeof validatedConfig.debugMode !== 'boolean') {
-      validatedConfig.debugMode = this.defaultConfig.debugMode;
-    }
-    
     // 验证 Qdrant 配置
     if (!validatedConfig.qdrant || typeof validatedConfig.qdrant !== 'object') {
       validatedConfig.qdrant = { ...this.defaultConfig.qdrant };
@@ -428,7 +373,11 @@ class ConfigManager {
         model: validatedConfig.embedding.model || this.defaultConfig.embedding.model,
         dimension: validatedConfig.embedding.dimension || this.defaultConfig.embedding.dimension,
         batchSize: validatedConfig.embedding.batchSize || this.defaultConfig.embedding.batchSize,
-        baseUrl: validatedConfig.embedding.baseUrl || this.defaultConfig.embedding.baseUrl
+        baseUrl: validatedConfig.embedding.baseUrl || this.defaultConfig.embedding.baseUrl,
+        maxContentLength: validatedConfig.embedding.maxContentLength || this.defaultConfig.embedding.maxContentLength,
+        maxChunkLength: validatedConfig.embedding.maxChunkLength || this.defaultConfig.embedding.maxChunkLength,
+        minChunkLength: validatedConfig.embedding.minChunkLength || this.defaultConfig.embedding.minChunkLength,
+        skipIndexAttrs: Array.isArray(validatedConfig.embedding.skipIndexAttrs) ? validatedConfig.embedding.skipIndexAttrs : this.defaultConfig.embedding.skipIndexAttrs
       };
     }
     
@@ -480,39 +429,6 @@ class ConfigManager {
   }
   
   /**
-   * 保存配置到文件
-   * @returns {boolean} 保存是否成功
-   */
-  saveConfig() {
-    try {
-      const configDir = path.dirname(this.configPath);
-      
-      // 确保目录存在
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
-      }
-      
-      // 保存配置
-      fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2), 'utf8');
-      console.log('配置已保存到:', this.configPath);
-      return true;
-    } catch (error) {
-      console.error('保存配置失败:', error);
-      return false;
-    }
-  }
-  
-  /**
-   * 更新配置
-   * @param {Object} newConfig - 新配置
-   * @returns {boolean} 更新是否成功
-   */
-  updateConfig(newConfig) {
-    this.config = this.validateConfig({ ...this.config, ...newConfig });
-    return this.saveConfig();
-  }
-  
-  /**
    * 获取配置
    * @returns {Object} 当前配置
    */
@@ -530,26 +446,6 @@ class ConfigManager {
   }
   
   /**
-   * 设置配置值
-   * @param {string} key - 配置键
-   * @param {any} value - 配置值
-   * @returns {boolean} 设置是否成功
-   */
-  set(key, value) {
-    this.config[key] = value;
-    return this.saveConfig();
-  }
-  
-  /**
-   * 重置为默认配置
-   * @returns {boolean} 重置是否成功
-   */
-  resetToDefault() {
-    this.config = { ...this.defaultConfig };
-    return this.saveConfig();
-  }
-  
-  /**
    * 获取配置摘要
    * @returns {Object} 配置摘要
    */
@@ -561,9 +457,7 @@ class ConfigManager {
       timeout: config.timeout,
       defaultNotebook: config.defaultNotebook || '未设置',
       permissionMode: config.permissionMode,
-      notebookCount: config.notebookList.length,
-      cacheEnabled: config.enableCache,
-      syncEnabled: config.enableSync
+      notebookCount: config.notebookList.length
     };
   }
 }
