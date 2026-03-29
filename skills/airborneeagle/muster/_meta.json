@@ -3,9 +3,15 @@
   "slug": "muster",
   "displayName": "Muster Connect",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1772747163198,
-    "commit": "https://github.com/openclaw/skills/commit/dccac270299b68ff58e62631f1874407bc2bc132"
+    "version": "2.0.0",
+    "publishedAt": 1774493130588,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1772747163198,
+      "commit": "https://github.com/openclaw/skills/commit/dccac270299b68ff58e62631f1874407bc2bc132"
+    }
+  ]
 }
