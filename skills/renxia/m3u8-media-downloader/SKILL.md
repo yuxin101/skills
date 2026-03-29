@@ -43,9 +43,9 @@ Example:
 
 ```bash
 # 推荐方式：固定版本执行
-npx @lzwme/m3u8-dl@1.9.0 <urls...> [options]
-npx @lzwme/m3u8-dl@1.9.0 info <url>        # 解析视频信息
-npx @lzwme/m3u8-dl@1.9.0 server            # 启动 WebUI (http://localhost:6600)
+m3u8dl <urls...> [options]
+m3u8dl info <url>        # 解析视频信息
+m3u8dl server            # 启动 WebUI (http://localhost:6600)
 ```
 
 ### Key options
@@ -63,28 +63,28 @@ npx @lzwme/m3u8-dl@1.9.0 server            # 启动 WebUI (http://localhost:6600
 
 ```bash
 # Basic download
-npx @lzwme/m3u8-dl@1.9.0 https://example.com/video.m3u8 -f "My Video" -S ./downloads
+m3u8dl https://example.com/video.m3u8 -f "My Video" -S ./downloads
 
 # 抖音/皮皮虾/微博 sharing link
 # parser and download video
-npx @lzwme/m3u8-dl@1.9.0 "https://v.douyin.com/xxxxx/" --type parser
+m3u8dl "https://v.douyin.com/xxxxx/" --type parser
 # parser and print info
-npx @lzwme/m3u8-dl@1.9.0 info "https://h5.pipix.com/xxxxx"
+m3u8dl info "https://h5.pipix.com/xxxxx"
 
 # With name: "name|url"
-npx @lzwme/m3u8-dl@1.9.0 "Episode 1|https://example.com/ep1.m3u8"
+m3u8dl "Episode 1|https://example.com/ep1.m3u8"
 
 # Batch: file with one "filename$url" per line
-npx @lzwme/m3u8-dl@1.9.0 series-list.txt -f "Series Name"
+m3u8dl series-list.txt -f "Series Name"
 
 # Extract m3u8 from web page
-npx @lzwme/m3u8-dl@1.9.0 "https://example.com/play/123" --type web
+m3u8dl "https://example.com/play/123" --type web
 ```
 
 ## WebUI
 
 ```bash
-npx @lzwme/m3u8-dl@1.9.0 server [-P <port>] [-t <token>]
+m3u8dl server [-P <port>] [-t <token>]
 # Optional env vars for customization: DS_PORT, DS_SECRET, DS_SAVE_DIR, DS_CACHE_DIR, DS_FFMPEG_PATH
 ```
 Open http://localhost:6600 to manage tasks in browser.
@@ -121,7 +121,7 @@ await m3u8BatchDownload(['name1$url1', 'name2$url2'], { saveDir: './downloads' }
 
 | Scenario | CLI | Node API |
 |----------|-----|----------|
-| m3u8/mp4 URL | `npx @lzwme/m3u8-dl@1.9.0 <url>` | `m3u8Download(url)` |
+| m3u8/mp4 URL | `m3u8dl <url>` | `m3u8Download(url)` |
 | 抖音/皮皮虾/微博 | `--type parser` or `info <url>` | `VideoParser.parse()` |
 | Web page with m3u8 | `--type web` | `getM3u8Urls()` |
 | Batch download | `"name\|url"` or file | `m3u8BatchDownload()` |
