@@ -49,6 +49,12 @@ openclaw install polaris-report
 | `/events-calendar [ticker]` | Upcoming earnings, launches, acquisitions |
 | `/ipo` | IPO calendar from SEC EDGAR |
 
+### AI Reports
+
+| Command | Description |
+|---------|-------------|
+| `/report [symbol] [tier]` | Generate AI analysis report (quick/full/deep) |
+
 ### Social Sentiment
 
 | Command | Description |

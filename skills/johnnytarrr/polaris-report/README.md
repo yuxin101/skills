@@ -8,11 +8,13 @@ Verified intelligence for AI agents — 891 tickers, 200+ sources, 18 categories
 openclaw install polaris-report
 ```
 
-## Commands (31)
+## Commands (32)
 
 **Intelligence:** `/news`, `/brief`, `/search`, `/trending`, `/forecast`, `/entities`, `/trending-entities`, `/events`, `/historical`, `/similar`, `/clusters`, `/data`, `/timeline`, `/web-search`, `/crawl`
 
 **Trading:** `/price`, `/ticker`, `/ticker-score`, `/technicals`, `/candles`, `/screener`, `/backtest`, `/correlation`, `/alerts`, `/market-movers`, `/sectors`, `/portfolio`, `/events-calendar`, `/ipo`
+
+**Reports:** `/report` (quick/full/deep AI analysis)
 
 **Social:** `/social`, `/social-trending`
 
