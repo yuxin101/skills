@@ -1,45 +1,33 @@
 #!/usr/bin/env python3
 """
-Atlas Cloud & Google AI Studio - Image Generation & Editing Script
-Supports text-to-image, image editing, and local file upload.
-Two providers: Atlas Cloud (async, polling) and Google AI Studio (synchronous, base64).
+Atlas Cloud - Image Generation & Editing Script
+Supports text-to-image, image editing, and local file upload via Atlas Cloud API.
 Zero external dependencies - uses only Python standard library.
 
-Network calls:
-  Atlas Cloud provider (api.atlascloud.ai):
-    - GET  /api/v1/models              — validate model ID (no auth required)
-    - POST /api/v1/model/generateImage — submit image generation request
-    - GET  /api/v1/model/prediction/*  — poll for generation result
-    - POST /api/v1/model/uploadMedia   — upload local file (only via "upload" command)
-  Google AI Studio provider (generativelanguage.googleapis.com):
-    - POST /v1beta/models/*/generateContent — synchronous image generation
+Network calls (api.atlascloud.ai):
+  - GET  /api/v1/models              — validate model ID (no auth required)
+  - POST /api/v1/model/generateImage — submit image generation request
+  - GET  /api/v1/model/prediction/*  — poll for generation result
+  - POST /api/v1/model/uploadMedia   — upload local file (only via "upload" command)
 
 Credentials (read from environment variables only, never hardcoded):
-  - ATLASCLOUD_API_KEY: required for Atlas Cloud provider
-  - GEMINI_API_KEY: required for Google AI Studio provider
+  - ATLASCLOUD_API_KEY: required for Atlas Cloud API
 
 Usage:
-  # Atlas Cloud — text-to-image
+  # Text-to-image
   python generate_image.py generate --model "alibaba/wan-2.6/text-to-image" --prompt "Sunset"
 
-  # Atlas Cloud — image editing
-  python generate_image.py generate --model "google/nano-banana-2/edit" --prompt "Change sky" --images "https://..."
+  # Image editing
+  python generate_image.py generate --model "alibaba/wan-2.6/image-edit" --prompt "Change sky" --images "https://..."
 
-  # Google AI Studio — text-to-image
-  python generate_image.py generate --provider google --prompt "Sunset" aspect_ratio=16:9 image_size=2K
-
-  # Google AI Studio — image editing (with local file)
-  python generate_image.py generate --provider google --prompt "Change sky" --image ./photo.png
-
-  # Upload local file to Atlas Cloud (for editing)
+  # Upload local file (for editing)
   python generate_image.py upload ./photo.jpg
 
-  # List available Atlas Cloud models
+  # List available models
   python generate_image.py list-models
 """
 
 import argparse
-import base64
 import json
 import os
 import sys
@@ -49,31 +37,12 @@ import urllib.error
 import urllib.parse
 
 API_BASE = "https://api.atlascloud.ai/api/v1"
-GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-GEMINI_MODEL = "gemini-3.1-flash-image-preview"
 UA = "AtlasCloud-Skill/1.0"
 
 
 # ---------------------------------------------------------------------------
-# Provider detection
+# API key
 # ---------------------------------------------------------------------------
-
-def detect_provider():
-    """Auto-detect provider based on available API keys."""
-    has_atlas = bool(os.environ.get("ATLASCLOUD_API_KEY"))
-    has_gemini = bool(os.environ.get("GEMINI_API_KEY"))
-    if has_atlas and has_gemini:
-        print("Note: Both API keys found. Defaulting to Atlas Cloud. Use --provider google to switch.")
-        return "atlas"
-    if has_atlas:
-        return "atlas"
-    if has_gemini:
-        return "google"
-    print("Error: No API key found. Set ATLASCLOUD_API_KEY or GEMINI_API_KEY.", file=sys.stderr)
-    print("  Atlas Cloud: https://www.atlascloud.ai", file=sys.stderr)
-    print("  Google AI Studio: https://aistudio.google.com/apikey", file=sys.stderr)
-    sys.exit(1)
-
 
 def get_atlas_key():
     key = os.environ.get("ATLASCLOUD_API_KEY")
@@ -84,20 +53,11 @@ def get_atlas_key():
     return key
 
 
-def get_gemini_key():
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        print("Error: GEMINI_API_KEY environment variable is not set.", file=sys.stderr)
-        print("Get your API key at: https://aistudio.google.com/apikey", file=sys.stderr)
-        sys.exit(1)
-    return key
-
-
 # ---------------------------------------------------------------------------
 # Atlas Cloud implementation
 # ---------------------------------------------------------------------------
 
-def atlas_api_request(method, endpoint, data=None):
+def api_request(method, endpoint, data=None):
     url = f"{API_BASE}{endpoint}"
     headers = {"Authorization": f"Bearer {get_atlas_key()}", "User-Agent": UA}
     body = None
@@ -160,11 +120,11 @@ def list_models(model_type=None):
         sys.exit(1)
 
 
-def atlas_submit(model_id, params):
+def submit(model_id, params):
     validate_model(model_id)
     payload = {"model": model_id, **params}
-    print(f"Submitting image generation (Atlas Cloud): {model_id}")
-    result = atlas_api_request("POST", "/model/generateImage", data=payload)
+    print(f"Submitting image generation: {model_id}")
+    result = api_request("POST", "/model/generateImage", data=payload)
     prediction_id = result.get("data", {}).get("id")
     if not prediction_id:
         print(f"Error: No prediction ID: {json.dumps(result, indent=2)}", file=sys.stderr)
@@ -173,7 +133,7 @@ def atlas_submit(model_id, params):
     return prediction_id
 
 
-def atlas_poll(prediction_id, timeout=120, interval=3):
+def poll(prediction_id, timeout=120, interval=3):
     endpoint = f"/model/prediction/{prediction_id}"
     start = time.time()
     while True:
@@ -181,7 +141,7 @@ def atlas_poll(prediction_id, timeout=120, interval=3):
         if elapsed >= timeout:
             print(f"Error: Timeout after {timeout}s.", file=sys.stderr)
             sys.exit(1)
-        result = atlas_api_request("GET", endpoint)
+        result = api_request("GET", endpoint)
         data = result.get("data", {})
         status = data.get("status", "unknown")
         if status in ("completed", "succeeded"):
@@ -194,10 +154,10 @@ def atlas_poll(prediction_id, timeout=120, interval=3):
         time.sleep(interval)
 
 
-def atlas_generate(model_id, params, output_dir, timeout):
+def generate(model_id, params, output_dir, timeout):
     get_atlas_key()
-    prediction_id = atlas_submit(model_id, params)
-    outputs = atlas_poll(prediction_id, timeout)
+    prediction_id = submit(model_id, params)
+    outputs = poll(prediction_id, timeout)
     if not outputs:
         print("Warning: No output files returned.", file=sys.stderr)
         return []
@@ -208,103 +168,7 @@ def atlas_generate(model_id, params, output_dir, timeout):
 
 
 # ---------------------------------------------------------------------------
-# Google AI Studio implementation
-# ---------------------------------------------------------------------------
-
-def gemini_generate(prompt, params, output_dir, image_path=None):
-    get_gemini_key()
-    print(f"Submitting image generation (Google AI Studio): {GEMINI_MODEL}")
-
-    # Build content parts
-    parts = []
-    if prompt:
-        parts.append({"text": prompt})
-
-    # If editing with a local image file
-    if image_path:
-        if image_path.startswith(("http://", "https://")):
-            print("Error: Google AI Studio requires local file for editing, not URL.", file=sys.stderr)
-            print("Use --provider atlas for URL-based editing.", file=sys.stderr)
-            sys.exit(1)
-        if not os.path.exists(image_path):
-            print(f"Error: File not found: {image_path}", file=sys.stderr)
-            sys.exit(1)
-        with open(image_path, "rb") as f:
-            img_b64 = base64.b64encode(f.read()).decode("utf-8")
-        ext = os.path.splitext(image_path)[1].lower()
-        mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
-        mime = mime_map.get(ext, "image/png")
-        parts.append({"inline_data": {"mime_type": mime, "data": img_b64}})
-
-    # Build image config
-    image_config = {}
-    if "aspect_ratio" in params:
-        image_config["aspectRatio"] = params.pop("aspect_ratio")
-    if "image_size" in params:
-        image_config["imageSize"] = params.pop("image_size")
-
-    payload = {
-        "contents": [{"parts": parts}],
-        "generationConfig": {
-            "responseModalities": ["TEXT", "IMAGE"],
-        },
-    }
-    if image_config:
-        payload["generationConfig"]["imageConfig"] = image_config
-
-    url = f"{GEMINI_API_BASE}/models/{GEMINI_MODEL}:generateContent"
-    body = json.dumps(payload).encode("utf-8")
-    headers = {
-        "x-goog-api-key": get_gemini_key(),
-        "Content-Type": "application/json",
-        "User-Agent": UA,
-    }
-
-    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8", errors="replace")
-        print(f"Google API Error {e.code}: {error_body}", file=sys.stderr)
-        sys.exit(1)
-    except urllib.error.URLError as e:
-        print(f"Network Error: {e.reason}", file=sys.stderr)
-        sys.exit(1)
-
-    # Parse response — extract base64 images
-    saved = []
-    candidates = result.get("candidates", [])
-    if not candidates:
-        print("Error: No candidates in response.", file=sys.stderr)
-        sys.exit(1)
-
-    content_parts = candidates[0].get("content", {}).get("parts", [])
-    img_count = 0
-    for part in content_parts:
-        if "text" in part:
-            print(f"Model response: {part['text']}")
-        elif "inline_data" in part:
-            img_count += 1
-            mime = part["inline_data"].get("mime_type", "image/png")
-            ext = ".png" if "png" in mime else ".jpg" if "jpeg" in mime else ".webp" if "webp" in mime else ".png"
-            filename = f"gemini_output_{int(time.time())}_{img_count}{ext}"
-            output_path = os.path.join(output_dir, filename)
-
-            img_data = base64.b64decode(part["inline_data"]["data"])
-            with open(output_path, "wb") as f:
-                f.write(img_data)
-            size_kb = len(img_data) / 1024
-            print(f"Saved: {output_path} ({size_kb:.1f} KB)")
-            saved.append(output_path)
-
-    if not saved:
-        print("Warning: No images in response.", file=sys.stderr)
-    return saved
-
-
-# ---------------------------------------------------------------------------
-# Shared utilities
+# Utilities
 # ---------------------------------------------------------------------------
 
 def download_file(url, output_dir="."):
@@ -396,19 +260,18 @@ def parse_value(value):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Image Generation & Editing (Atlas Cloud + Google AI Studio)",
+        description="Image Generation & Editing (Atlas Cloud)",
     )
     subparsers = parser.add_subparsers(dest="command")
 
-    subparsers.add_parser("list-models", help="List available Atlas Cloud image models")
+    subparsers.add_parser("list-models", help="List available image models")
 
     gen = subparsers.add_parser("generate", help="Generate or edit an image")
-    gen.add_argument("--provider", choices=["atlas", "google"], help="Provider (auto-detect if omitted)")
-    gen.add_argument("--model", "-m", help="Atlas Cloud model ID (required for atlas provider)")
+    gen.add_argument("--model", "-m", required=True, help="Model ID")
     gen.add_argument("--prompt", "-p", help="Text prompt")
-    gen.add_argument("--negative-prompt", help="Negative prompt (atlas only)")
-    gen.add_argument("--image", help="Input image: URL for atlas, local path for google")
-    gen.add_argument("--images", help="Comma-separated image URLs (atlas only)")
+    gen.add_argument("--negative-prompt", help="Negative prompt")
+    gen.add_argument("--image", help="Input image URL (for editing)")
+    gen.add_argument("--images", help="Comma-separated image URLs (for editing)")
     gen.add_argument("--output", "-o", default=".", help="Output directory (default: current dir)")
     gen.add_argument("--timeout", default=120, type=int, help="Polling timeout in seconds (default: 120)")
     gen.add_argument("extra", nargs="*", help="Extra params as key=value (e.g. aspect_ratio=16:9)")
@@ -432,9 +295,6 @@ def main():
         return
 
     # --- generate ---
-    provider = args.provider or detect_provider()
-
-    # Parse extra key=value params
     extra_params = {}
     for item in args.extra:
         if "=" not in item:
@@ -445,23 +305,17 @@ def main():
 
     os.makedirs(args.output, exist_ok=True)
 
-    if provider == "google":
-        saved = gemini_generate(args.prompt, extra_params, args.output, image_path=args.image)
-    else:
-        if not args.model:
-            print("Error: --model is required for Atlas Cloud provider.", file=sys.stderr)
-            sys.exit(1)
-        params = {}
-        if args.prompt:
-            params["prompt"] = args.prompt
-        if args.negative_prompt:
-            params["negative_prompt"] = args.negative_prompt
-        if args.image:
-            params["images"] = [args.image]
-        if args.images:
-            params["images"] = [u.strip() for u in args.images.split(",")]
-        params.update(extra_params)
-        saved = atlas_generate(args.model, params, args.output, args.timeout)
+    params = {}
+    if args.prompt:
+        params["prompt"] = args.prompt
+    if args.negative_prompt:
+        params["negative_prompt"] = args.negative_prompt
+    if args.image:
+        params["images"] = [args.image]
+    if args.images:
+        params["images"] = [u.strip() for u in args.images.split(",")]
+    params.update(extra_params)
+    saved = generate(args.model, params, args.output, args.timeout)
 
     if saved:
         print(f"\nDone! {len(saved)} image(s) saved.")
