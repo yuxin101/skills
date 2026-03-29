@@ -3,11 +3,16 @@
   "slug": "gws-modelarmor-sanitize-response",
   "displayName": "Gws Modelarmor Sanitize Response",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774300493650,
-    "commit": "https://github.com/openclaw/skills/commit/4e31c0bf7c86b473ff54f80787f7aa573a939223"
+    "version": "1.0.10",
+    "publishedAt": 1774551026342,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774300493650,
+      "commit": "https://github.com/openclaw/skills/commit/4e31c0bf7c86b473ff54f80787f7aa573a939223"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772753163150,
