@@ -343,10 +343,10 @@ const fixedUpload = fixApplyUploadArgs(args, {
 
 ### Q: 为什么 `entry_describe_entry` 不返回文档正文内容？
 
-**A**: `entry_describe_entry` 设计用于获取条目的元信息（如ID、名称、类型、创建时间等），不包含实际内容。要读取文档的正文内容，请使用 `entry_ai_parsed_content` 工具。
+**A**: `entry_describe_entry` 设计用于获取条目的元信息（如ID、名称、类型、创建时间等），不包含实际内容。要读取文档的正文内容，请使用 `entry_describe_ai_parse_content` 工具。
 
-### Q: 什么时候使用 `entry_describe_entry`，什么时候使用 `entry_ai_parsed_content`？
+### Q: 什么时候使用 `entry_describe_entry`，什么时候使用 `entry_describe_ai_parse_content`？
 
 **A**:
 - 使用 `entry_describe_entry`：当您需要获取文档的基本信息用于后续操作时（如获取ID、确认文档类型）
-- 使用 `entry_ai_parsed_content`：当您需要读取文档的实际内容进行摘要、分析或处理时
+- 使用 `entry_describe_ai_parse_content`：当您需要读取文档的实际内容进行摘要、分析或处理时

@@ -3,11 +3,16 @@
   "slug": "lexiang-mcp-skill",
   "displayName": "腾讯乐享知识库 Lexiang Knowledge Base",
   "latest": {
-    "version": "0.1.4",
-    "publishedAt": 1773818652031,
-    "commit": "https://github.com/openclaw/skills/commit/48c4f797b49dd0040b6ce3533f3cbfab5e8e7cfd"
+    "version": "0.1.5",
+    "publishedAt": 1774492524016,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.4",
+      "publishedAt": 1773818652031,
+      "commit": "https://github.com/openclaw/skills/commit/48c4f797b49dd0040b6ce3533f3cbfab5e8e7cfd"
+    },
     {
       "version": "0.1.2",
       "publishedAt": 1773383159296,
