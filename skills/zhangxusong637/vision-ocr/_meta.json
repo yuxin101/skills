@@ -1,0 +1,11 @@
+{
+  "owner": "zhangxusong637",
+  "slug": "vision-ocr",
+  "displayName": "Vision OCR - 图片/PDF 识别转 Markdown",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774777784630,
+    "commit": null
+  },
+  "history": []
+}

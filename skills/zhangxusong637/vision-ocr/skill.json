@@ -1,0 +1,169 @@
+{
+  "name": "vision-ocr",
+  "displayName": "Vision OCR - 图片/PDF OCR 转 Markdown",
+  "version": "1.0.0",
+  "description": "识别图片、截图、扫描件和 PDF，输出 Markdown，支持表格/票据提取并默认发送到飞书",
+  "keywords": [
+    "ocr",
+    "vision",
+    "pdf",
+    "image",
+    "document",
+    "markdown",
+    "image ocr",
+    "pdf ocr",
+    "document ocr",
+    "multimodal",
+    "document processing",
+    "screenshot ocr",
+    "scan ocr",
+    "table ocr",
+    "invoice ocr",
+    "receipt ocr",
+    "图片ocr",
+    "pdf识别",
+    "图片识别",
+    "文档识别",
+    "扫描件识别",
+    "截图识别",
+    "表格识别",
+    "票据识别",
+    "多模态"
+  ],
+  "author": "张旭松",
+  "license": "MIT",
+  "repository": "https://clawhub.ai/zhangxusong637/vision-ocr",
+  "homepage": "https://clawhub.ai/zhangxusong637/vision-ocr",
+  "entry": "index.js",
+  "category": "document-processing",
+  "tags": [
+    "ocr",
+    "document-processing",
+    "document-ocr",
+    "pdf-ocr",
+    "image-ocr",
+    "markdown-output",
+    "multimodal-ocr",
+    "table-extraction",
+    "invoice-recognition",
+    "screenshot-ocr",
+    "scan-recognition",
+    "feishu",
+    "pdf",
+    "image-recognition"
+  ],
+  "requirements": {
+    "bins": ["node", "python3"],
+    "packages": ["pymupdf"]
+  },
+  "config": {
+    "example": "config.example.json",
+    "env": [
+      "VISION_IMAGEOCR_TOKEN",
+      "VISION_IMAGEOCR_ENDPOINT",
+      "VISION_BASE_URL",
+      "VISION_MULTIMODAL_TOKEN",
+      "VISION_MODEL",
+      "VISION_AUTO_SEND_TO_FEISHU"
+    ]
+  },
+  "triggers": [
+    {
+      "type": "prefix_match",
+      "value": "识别图片"
+    },
+    {
+      "type": "prefix_match",
+      "value": "识别 PDF"
+    },
+    {
+      "type": "prefix_match",
+      "value": "OCR"
+    },
+    {
+      "type": "prefix_match",
+      "value": "识别文档"
+    },
+    {
+      "type": "prefix_match",
+      "value": "提取文字"
+    },
+    {
+      "type": "contains",
+      "value": "识别"
+    },
+    {
+      "type": "contains",
+      "value": "OCR"
+    },
+    {
+      "type": "contains",
+      "value": "截图"
+    },
+    {
+      "type": "contains",
+      "value": "扫描件"
+    },
+    {
+      "type": "contains",
+      "value": "PDF"
+    },
+    {
+      "type": "contains",
+      "value": "表格"
+    },
+    {
+      "type": "contains",
+      "value": "转 Markdown"
+    }
+  ],
+  "installation": {
+    "steps": [
+      {
+        "type": "download",
+        "label": "一键安装到 OpenClaw",
+        "description": "在 Clawhub 搜索 vision-ocr，安装后即可识别图片、截图、扫描件和 PDF"
+      },
+      {
+        "type": "manual",
+        "label": "手动导入技能",
+        "description": "复制到 ~/.openclaw/workspace/skills/vision-ocr，并按文档完成 OCR 与飞书配置"
+      }
+    ],
+    "dependencies": [
+      {
+        "name": "PyMuPDF",
+        "command": "pip install pymupdf",
+        "optional": false,
+        "description": "PDF 转图片所需"
+      },
+      {
+        "name": "feishu-send-files",
+        "command": "clawhub install feishu-send-files",
+        "optional": false,
+        "description": "默认发送识别结果到飞书所需技能，可通过配置或 CLI 手动关闭发送"
+      }
+    ]
+  },
+  "configuration": {
+    "priority": [
+      "环境变量（最高）",
+      "技能目录配置（~/.openclaw/workspace/skills/vision-ocr/config.json）",
+      "Workspace 配置（~/.openclaw/workspace/config.json）",
+      "OpenClaw 主配置（~/.openclaw/openclaw.json）（最低）"
+    ],
+    "required": [
+      "ocr.imageocr.token",
+      "ocr.imageocr.endpoint",
+      "ocr.multimodal.baseUrl",
+      "ocr.multimodal.token",
+      "ocr.multimodal.model"
+    ],
+    "optional": [
+      "autoSendToFeishu"
+    ],
+    "defaults": {
+      "autoSendToFeishu": true
+    }
+  }
+}
