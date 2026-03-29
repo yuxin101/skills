@@ -2,7 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "stockClaw-yingyan OpenClaw API",
-    "version": "1.1.1"
+    "version": "1.1.4",
+    "description": "HTTP 接口中参数名 apikey 须为会员中心「OpenClaw」12 位 Key。WebSocket /ws/monitor/open 的查询参数 apikey 须为「监控信号」Key。详见 SKILL.md openclawCredentials。"
   },
   "servers": [
     {
@@ -32,7 +33,8 @@
                   "apikey": {
                     "type": "string",
                     "minLength": 12,
-                    "maxLength": 12
+                    "maxLength": 12,
+                    "description": "会员中心 OpenClaw API Key（config.openClaw_api_key）"
                   },
                   "start_date": {
                     "type": "string",
@@ -79,7 +81,8 @@
                   "apikey": {
                     "type": "string",
                     "minLength": 12,
-                    "maxLength": 12
+                    "maxLength": 12,
+                    "description": "会员中心 OpenClaw API Key（config.openClaw_api_key）"
                   }
                 }
               }
@@ -109,6 +112,7 @@
             "name": "apikey",
             "in": "query",
             "required": true,
+            "description": "会员中心 OpenClaw API Key（config.openClaw_api_key）",
             "schema": {
               "type": "string",
               "minLength": 12,
@@ -138,7 +142,7 @@
         ],
         "responses": {
           "200": {
-            "description": "WebSocket connection template and data format info"
+            "description": "WebSocket 模板中 apikey 占位须替换为监控信号 Key（config.monitor_api_key），非 OpenClaw Key"
           }
         }
       }

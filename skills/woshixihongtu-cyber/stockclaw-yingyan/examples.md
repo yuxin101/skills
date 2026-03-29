@@ -1,24 +1,40 @@
 # Examples
 
-## 0. `user_id` 或 `apikey` 缺失
+## 0. `openclawCredentials`：从 config.json 读取与持久化
 
-场景：
-- 用户想用量化图、行情问答或实时监控
-- 但还没有提供 `user_id`、`apikey`，或只提供了其中一个
+`config.json` → `openclawCredentials` 含 **`user_id`**、**`openClaw_api_key`**、**`monitor_api_key`**。
 
-OpenClaw 应这样处理：
-- 不要直接请求接口
-- 先明确告诉用户缺少哪个字段
-- 引导用户去鹰眼量化站点的"用户中心" -> "开发 API"获取
+- **`user_id` + `openClaw_api_key`**：**必填**，用于所有需鉴权的 **HTTP** 接口（请求里参数名仍为 `apikey`，取值用 `openClaw_api_key`）。
+- **`monitor_api_key`**：**选填**；仅 **WebSocket 实时监控** 需要。不需要监控可留空。
 
-示例提示：
+场景：用户想用量化图、行情、搜股、涨停等，但对话里未粘贴凭证。
+
+OpenClaw 应：
+1. **先读** `openclawCredentials.user_id` 与 `openClaw_api_key`；二者均有效则用于 HTTP，**不要**重复询问。
+2. 若用户本轮提供了新值：合并后**写回** `config.json`（保留其他键）。
+3. 仍缺 **`user_id` 或 `openClaw_api_key`** 时，提示补充（见 SKILL.md 必填提示）；**不要**要求用户必须填 `monitor_api_key`，除非用户要连监控。
+
+示例提示（仅缺必填项时）：
 
 ```text
-继续之前需要先提供 user_id 和 apikey。
+继续之前需要配置 user_id 与 openClaw_api_key（HTTP 请求里的 apikey 填后者）。
 
-你可以在鹰眼量化网站的“用户中心” -> “开发 API”页面获取这两个值：
-https://yingyan.chatface.com/
+获取：鹰眼量化「用户中心」→「开放 API」https://yingyan.chatface.com/
+
+保存到本 Skill 的 config.json（openclawCredentials）后可自动沿用。
 ```
+
+## 0b. 用户要修改或更换凭证
+
+场景：用户说换 Key、换账号、粘贴新的 12 位 Key 等。
+
+处理：
+1. 用新值覆盖 `user_id` / `openClaw_api_key` / `monitor_api_key` 中用户明确要改的项，其余保留 config 原值。
+2. 可选：用 `user_id` + `openClaw_api_key` 调用 `POST /api/openclaw/stock/message` 做 HTTP 侧验证。
+3. **写回** `openclawCredentials` 到 `config.json`。
+4. 告知已保存；配置有效时勿重复索要。
+
+用户**手动编辑** `config.json` 后：下次执行**必须先读文件**，以文件为准。
 
 ## 1. 用户发送自然语言选股条件
 
@@ -31,7 +47,7 @@ Content-Type: application/json
 {
   "query": "涨幅超过8%的半导体股票，按换手率从高到低排序，取前20只",
   "user_id": "68b26718213929ab1d78aae5",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -52,7 +68,7 @@ Content-Type: application/json
 {
   "message": "000001",
   "user_id": "68b267182139",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -72,7 +88,7 @@ Content-Type: application/json
 {
   "message": "平安银行",
   "user_id": "68b26718213929",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -91,7 +107,7 @@ Content-Type: application/json
 {
   "message": "平安银行行情",
   "user_id": "68b267182139",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -112,7 +128,7 @@ Content-Type: application/json
 {
   "message": "平安行情",
   "user_id": "68b267182139",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -131,14 +147,14 @@ GET /api/openclaw/stock/monitor/stream?user_id=68b2671
 
 预期：
 - 返回 `ws_url_template`
-- 由客户端填入 `apikey` 与 `user_id` 后连接 WebSocket 服务
+- 将模板中 **`apikey` 占位** 填为 **`monitor_api_key`**（监控信号 Key），`user_id` 填真实 ID，再连 WebSocket
 
 ## 7. 建立 WebSocket 实时监控连接
 
-连接地址（由 `ws_url_template` 拼接）：
+连接地址（由 `ws_url_template` 拼接，**URL 中 apikey = monitor_api_key**）：
 
 ```text
-wss://yingyan.chatface.com/ws/monitor/open?apikey=YOUR_12_CHAR_KEY&user_id=68b2671825
+wss://yingyan.chatface.com/ws/monitor/open?apikey=YOUR_MONITOR_12_CHAR_KEY&user_id=68b2671825
 ```
 
 预期：
@@ -162,17 +178,20 @@ Content-Type: application/json
 {
   "message": "000001",
   "user_id": "68b26718213929ab1d78aae5",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
 预期：
 - 返回 `ok=true`
-- 说明 `user_id` 与 `apikey` 至少对消息接口鉴权有效
+- 说明 `user_id` 与 **OpenClaw** Key（请求字段 `apikey`）对消息接口鉴权有效
 
-如果凭证缺失：
+如果缺 **`user_id` 或 `openClaw_api_key`**：
 - 不要继续走步骤 2 和步骤 3
-- 先提示用户到"用户中心" -> "开发 API"补全 `user_id` 和 `apikey`
+- 先按 SKILL.md 补全必填项
+
+若用户要连监控但缺 **`monitor_api_key`**：
+- 提示到「开放 API」保存**监控信号** Key，勿用 OpenClaw Key 顶替
 
 步骤 2：获取监控流模板
 
@@ -182,12 +201,12 @@ GET /api/openclaw/stock/monitor/stream?user_id=68b26718213929ab1d78aae5
 
 预期：
 - 返回 `ws_url_template`
-- 模板类似 `wss://yingyan.chatface.com/ws/monitor/open?apikey={apikey}&user_id={user_id}`
+- 模板类似 `wss://.../ws/monitor/open?apikey={apikey}&user_id={user_id}`，其中 `{apikey}` 替换为 **`monitor_api_key`**
 
 步骤 3：直接建立 WebSocket 连接
 
 ```text
-wss://yingyan.chatface.com/ws/monitor/open?apikey=YOUR_12_CHAR_KEY&user_id=68b26718213929ab1d78aae5
+wss://yingyan.chatface.com/ws/monitor/open?apikey=YOUR_MONITOR_12_CHAR_KEY&user_id=68b26718213929ab1d78aae5
 ```
 
 预期：
