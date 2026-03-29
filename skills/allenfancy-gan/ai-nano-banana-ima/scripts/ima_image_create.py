@@ -42,8 +42,8 @@ try:
     from ima_logger import setup_logger, cleanup_old_logs
     logger = setup_logger("ima_skills")
     cleanup_old_logs(days=7)
-except ImportError:
-    # Fallback: create basic logger if ima_logger not available
+except Exception as e:
+    # Fallback: keep script runnable when logger module import/setup fails
     import logging
     logging.basicConfig(
         level=logging.INFO,
@@ -51,6 +51,7 @@ except ImportError:
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     logger = logging.getLogger("ima_skills")
+    logger.warning(f"Using basic logger fallback: {e}")
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,8 +81,11 @@ POLL_CONFIG = {
 APP_ID = "webAgent"
 APP_KEY = "32jdskjdk320eew"
 
-# Note: APP_UID and APP_TOKEN should be configured via environment variables
-# They can be obtained from: POST /api/v3/login/app → data.user_id & data.token
+# Strict model scope for this skill package
+ALLOWED_MODEL_IDS = {
+    "gemini-3.1-flash-image",
+    "gemini-3-pro-image",
+}
 
 
 # ─── HTTP helpers ─────────────────────────────────────────────────────────────
@@ -103,6 +107,15 @@ def is_remote_url(value: str | None) -> bool:
     if not value:
         return False
     return bool(re.match(r"^https?://", value.strip(), re.IGNORECASE))
+
+
+def enforce_model_allowlist(model_id: str) -> None:
+    """Fail fast when a model ID is outside this skill's declared scope."""
+    if model_id not in ALLOWED_MODEL_IDS:
+        allowed = ", ".join(sorted(ALLOWED_MODEL_IDS))
+        raise RuntimeError(
+            f"Model '{model_id}' is outside this skill scope. Allowed model IDs: {allowed}"
+        )
 
 
 # ─── Image Upload (OSS) ───────────────────────────────────────────────────────
@@ -141,7 +154,7 @@ def get_upload_token(api_key: str, suffix: str,
     
     See SECURITY.md § "Network Endpoints Used" for full disclosure.
     
-    Calls GET /api/rest/oss/getuploadtoken with exactly 11 params.
+    Calls POST /api/rest/oss/getuploadtoken with params in request body.
     
     Args:
         api_key: IMA API key (used as both appUid and cmimToken for authentication)
@@ -160,7 +173,7 @@ def get_upload_token(api_key: str, suffix: str,
     sign, ts, nonce = _gen_sign()
     
     url = f"{im_base_url}/api/rest/oss/getuploadtoken"
-    params = {
+    payload = {
         # Use IMA API key for both appUid and cmimToken
         "appUid": api_key,
         "appId": APP_ID,
@@ -179,7 +192,7 @@ def get_upload_token(api_key: str, suffix: str,
     logger.info(f"Getting upload token: suffix={suffix}, content_type={content_type}")
     
     try:
-        resp = requests.get(url, params=params, timeout=30)
+        resp = requests.post(url, data=payload, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         
@@ -1501,7 +1514,7 @@ Examples:
                    choices=list(POLL_CONFIG.keys()),
                    help="Task type: text_to_image or image_to_image")
     p.add_argument("--model-id",
-                   help="Model ID from product list (e.g. doubao-seedream-4.5)")
+                   help="Allowed model IDs: gemini-3.1-flash-image, gemini-3-pro-image")
     p.add_argument("--version-id",
                    help="Specific version ID — overrides auto-select of latest")
     p.add_argument("--prompt",
@@ -1510,17 +1523,12 @@ Examples:
                    help="Input image URLs or local file paths (required for image_to_image). "
                         "Can be repeated multiple times; values are merged. "
                         "Local files will be automatically uploaded using the API key.")
-    p.add_argument("--allow-secondary-upload-domain", action="store_true",
-                   help="Explicitly allow local file uploads to the secondary IMA upload domain "
-                        "(imapi.liveme.com). Required only when --input-images contains local paths.")
     p.add_argument("--size",
                    help="Override size parameter (e.g. 4k, 2k, 2048x2048)")
     p.add_argument("--extra-params",
                    help='JSON string of extra inner parameters, e.g. \'{"n":2}\'')
     p.add_argument("--language", default="en",
                    help="Language for product labels (en/zh)")
-    p.add_argument("--base-url", default=DEFAULT_BASE_URL,
-                   help="API base URL")
     p.add_argument("--user-id", default="default",
                    help="User ID for preference memory")
     p.add_argument("--list-models", action="store_true",
@@ -1544,7 +1552,7 @@ def flatten_input_images_args(raw_groups) -> list[str]:
 
 def main():
     args   = build_parser().parse_args()
-    base   = args.base_url
+    base   = DEFAULT_BASE_URL
     
     # Get API key from args or environment variable
     apikey = args.api_key or os.getenv("IMA_API_KEY")
@@ -1569,7 +1577,7 @@ def main():
 
     # ── List models mode ───────────────────────────────────────────────────────
     if args.list_models:
-        models = list_all_models(tree)
+        models = [m for m in list_all_models(tree) if m["model_id"] in ALLOWED_MODEL_IDS]
         print(f"\nAvailable models for '{args.task_type}':")
         print(f"{'Name':<28} {'model_id':<34} {'version_id':<44} {'pts':>4}  attr_id")
         print("─" * 120)
@@ -1589,6 +1597,11 @@ def main():
             print("❌ --model-id is required (no saved preference found)", file=sys.stderr)
             print("   Run with --list-models to see available models", file=sys.stderr)
             sys.exit(1)
+    try:
+        enforce_model_allowlist(args.model_id)
+    except RuntimeError as e:
+        print(f"❌ {e}", file=sys.stderr)
+        sys.exit(1)
 
     if not args.prompt:
         print("❌ --prompt is required", file=sys.stderr)
@@ -1598,7 +1611,7 @@ def main():
     node = find_model_version(tree, args.model_id, args.version_id)
     if not node:
         logger.error(f"Model not found: model_id={args.model_id}, task_type={args.task_type}")
-        available = [f"  {m['model_id']}" for m in list_all_models(tree)]
+        available = [f"  {m['model_id']}" for m in list_all_models(tree) if m["model_id"] in ALLOWED_MODEL_IDS]
         print(f"❌ model_id='{args.model_id}' not found for task_type='{args.task_type}'.",
               file=sys.stderr)
         print("   Available model_ids:\n" + "\n".join(available), file=sys.stderr)
@@ -1635,18 +1648,7 @@ def main():
     input_images_args = flatten_input_images_args(args.input_images)
     processed_images: list[str] = []
     if input_images_args:
-        requires_secondary_upload = any(not is_remote_url(img) for img in input_images_args)
-        if requires_secondary_upload and not args.allow_secondary_upload_domain:
-            print(
-                "❌ Local image upload requires explicit acknowledgment.\n"
-                "   Re-run with: --allow-secondary-upload-domain\n"
-                "   Reason: local files are uploaded through https://imapi.liveme.com "
-                "before task creation.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        im_base = os.getenv("IMA_IM_BASE_URL", DEFAULT_IM_BASE_URL)
+        im_base = DEFAULT_IM_BASE_URL
         
         print(f"\n📤 Processing {len(input_images_args)} input image(s)…", flush=True)
         for i, img_source in enumerate(input_images_args, 1):

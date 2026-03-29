@@ -1,23 +1,21 @@
 {
-  "name": "IMA Nano Banana",
-  "tagline": "Text-to-image, image-to-image — Nano Banana series only. Lightweight AI image generation.",
-  "description": "Image generation with IMA Open API, restricted to Nano Banana model IDs (gemini-3.1-flash-image, gemini-3-pro-image). Supports text-to-image and image-to-image. Requires IMA_API_KEY. For local file upload, users must explicitly pass --allow-secondary-upload-domain because API key is sent to imapi.liveme.com for upload authentication.",
+  "name": "IMA Nano Banana Image Generator",
+  "tagline": "Nano Banana-only image generation on IMA: text_to_image + image_to_image.",
+  "description": "Generate images via IMA Open API using Nano Banana models only (gemini-3.1-flash-image, gemini-3-pro-image). Supports text_to_image and image_to_image through scripts/ima_image_create.py, with deterministic size/ratio mapping and budget vs premium profiles. Requires IMA_API_KEY.",
   "category": "file-generation",
   "requiredEnvVars": ["IMA_API_KEY"],
-  "optionalEnvVars": ["IMA_IM_BASE_URL"],
-  "credentialNotice": "IMA_API_KEY is required at runtime (--api-key or IMA_API_KEY). It is sent to api.imastudio.com for product/task APIs. For image_to_image with local files, it is also sent to imapi.liveme.com to obtain upload tokens before uploading to OSS/CDN URLs returned by that API. Local uploads additionally require --allow-secondary-upload-domain.",
+  "credentialNotice": "The IMA API key is required at runtime (--api-key or IMA_API_KEY). It is sent to api.imastudio.com (generation) and, for image_to_image with local files, to imapi.liveme.com (upload). Both are IMA Studio. Obtain keys at https://www.imaclaw.ai/. Use a scoped/test key for initial testing.",
   "localPaths": {
     "readWrite": [
       "~/.openclaw/memory/ima_prefs.json",
       "~/.openclaw/logs/ima_skills/"
     ],
-    "purpose": "Preference cache and operational logs; logs auto-cleaned after 7 days."
+    "purpose": "Preferences (model defaults) and generation logs; logs auto-deleted after 7 days. User can delete anytime."
   },
   "requires": {
     "env": ["IMA_API_KEY"],
-    "envOptional": ["IMA_IM_BASE_URL"],
     "primaryCredential": "IMA_API_KEY",
-    "credentialNote": "IMA_API_KEY is sent to api.imastudio.com and, for local image uploads, to imapi.liveme.com."
+    "credentialNote": "IMA_API_KEY is required at runtime. It is sent to api.imastudio.com and, for local image uploads, to imapi.liveme.com."
   },
   "persistence": {
     "readWrite": [
@@ -33,8 +31,12 @@
     "image-generation",
     "text-to-image",
     "image-to-image",
-    "lightweight",
     "budget",
+    "premium",
+    "aspect-ratio",
+    "4k",
+    "safe-upload",
+    "script-driven",
     "nano banana",
     "nano banana 2",
     "nano banana pro"
@@ -62,10 +64,14 @@
     "nano banana",
     "nano banana 2",
     "nano banana pro",
+    "ima open api image generation",
     "text to image",
     "image to image",
+    "image to image local upload",
+    "aspect ratio 16:9 9:16 1:1",
+    "4k image generation",
     "gemini image",
-    "lightweight image generation",
+    "scripts ima_image_create.py",
     "ai-nano-banana"
   ],
   "supported_models": [
@@ -78,15 +84,19 @@
     "ima-all-ai"
   ],
   "use_cases": [
-    "Nano Banana series only: text-to-image, image-to-image",
-    "Budget / balanced / premium output",
-    "Fixed aspect ratios 1:1, 16:9, 9:16, 4:3, 3:4"
+    "Nano Banana model-only generation: text_to_image and image_to_image",
+    "Prompt-to-image and reference-image editing workflows",
+    "Budget / balanced / premium profile selection with size controls",
+    "Aspect ratio control: 1:1, 16:9, 9:16, 4:3, 3:4 (8K requests downgraded to 4K)"
   ],
   "key_features": [
     "Strict Nano Banana model allowlist in script runtime",
-    "Text-to-image, image-to-image, native aspect ratio",
-    "Explicit secondary upload-domain acknowledgment for local file uploads",
-    "512px/1K/2K/4K",
-    "Lightweight, no SeeDream/Midjourney"
+    "Script-only execution path via scripts/ima_image_create.py",
+    "Deterministic task/model/size/ratio mapping for weak-model safety",
+    "Local file uploads use IMA's shared upload-signing credentials (same as ima-image-ai)",
+    "Upload-token request uses POST body with redacted error logging",
+    "Fixed API domain policy (no runtime endpoint override)",
+    "Supports 512/1K/2K/4K sizing and budget-vs-premium profiles",
+    "No SeeDream/Midjourney or other non-Nano-Banana model paths"
   ]
 }
