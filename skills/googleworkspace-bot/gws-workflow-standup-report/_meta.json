@@ -3,11 +3,16 @@
   "slug": "gws-workflow-standup-report",
   "displayName": "Gws Workflow Standup Report",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774300523734,
-    "commit": "https://github.com/openclaw/skills/commit/07eafff2823c698745a7a88115414b428d07544f"
+    "version": "1.0.10",
+    "publishedAt": 1774551066357,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774300523734,
+      "commit": "https://github.com/openclaw/skills/commit/07eafff2823c698745a7a88115414b428d07544f"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772831375388,
