@@ -3,11 +3,16 @@
   "slug": "recipe-batch-invite-to-event",
   "displayName": "Recipe Batch Invite To Event",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774300557169,
-    "commit": "https://github.com/openclaw/skills/commit/8dd56ae6a67c8d3bea2086e868a42f566b5315d5"
+    "version": "1.0.10",
+    "publishedAt": 1774551101244,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774300557169,
+      "commit": "https://github.com/openclaw/skills/commit/8dd56ae6a67c8d3bea2086e868a42f566b5315d5"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772847347599,
