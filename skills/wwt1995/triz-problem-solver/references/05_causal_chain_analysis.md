@@ -49,9 +49,41 @@ bash scripts/call_triz_analysis.sh "causal_chain_analysis" "<user_input>"
 
 ---
 
+## Tool Result Parsing
+
+The tool returns JSON-format data directly, with the following structure:
+
+```json
+{
+  "causal_chain": [
+    {
+      "node_id": "N001",
+      "parent_node": "ROOT",
+      "problem_description": "Problem description",
+      "logic_relation": "SINGLE",
+      "key_problem": "",
+      "node_type": "PROBLEM"
+    }
+  ]
+}
+```
+
+### Parsing Rules
+
+1. Parse the JSON data returned by the tool
+2. Convert the `causal_chain` array into a Markdown table with field mappings:
+   - `node_id` → `Node ID`
+   - `parent_node` → `Parent Node`
+   - `problem_description` → `Problem Description`
+   - `logic_relation` → `Logical Relationship`
+   - `key_problem` → `Key Problem` (empty string outputs as empty cell)
+   - `node_type` → `Node Type`
+
+---
+
 ## Output Format
 
-The tool returns a JSON string with the structure `{"content": "..."}`. Extract the causal chain analysis result from the `content` field. The result is in Markdown table format, containing six fields: node ID, parent node, problem description, logical relationship, key problem, and node type.
+Display the parsed data in Markdown table format, containing six fields: node ID, parent node, problem description, logical relationship, key problem, and node type.
 
 **Output example**:
 

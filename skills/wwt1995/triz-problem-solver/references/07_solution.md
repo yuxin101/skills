@@ -24,13 +24,14 @@ Retrieve the following data from the causal chain problem filtering:
 Invoke the `batch_solution_workflow` MCP tool:
 
 ```bash
-bash scripts/call_batch_solution_workflow.sh '[{"problem_type":"Causal chain key problem","problem_description":"Technical detailed description of the specific problem selected by the user"}]'
+bash scripts/call_batch_solution_workflow.sh 'INNOVATION' '[{"problem_type":"Causal chain key problem","problem_description":"Technical detailed description of the specific problem selected by the user"}]'
 ```
 
 #### Input Parameters
 
 ```json
 {
+    "workflow_type": "INNOVATION",
     "problems": [
         {
             "problem_type": "Causal chain key problem",
@@ -40,6 +41,7 @@ bash scripts/call_batch_solution_workflow.sh '[{"problem_type":"Causal chain key
 }
 ```
 
+- `workflow_type` (required): Workflow type, fixed value `"INNOVATION"`
 - `problems` (required): List of problems selected by the user, each record corresponds to a specific problem
   - `problem_type`: Fixed value "Causal chain key problem", used as a problem group identifier
   - `problem_description`: Technical detailed description content of the problem selected by the user
@@ -168,15 +170,15 @@ Based on the Top 4 concept solutions recommended in Phase 1, **invoke** the `ima
 
 ### Tool Invocation Instructions
 
-Initiate calls for all Top 4 solutions simultaneously. Use the corresponding solution's `idea_summary` field content directly as `image_description`:
+Initiate calls for all Top 4 solutions simultaneously. Use the corresponding solution's `idea_id` field and `idea_summary` field content:
 
 ```bash
-bash scripts/call_image_generation.sh "[idea_summary content of the solution]"
+bash scripts/call_image_generation.sh "[idea_id of the solution]" "[idea_summary content of the solution]"
 ```
 
 ### Return Result Processing
 
-The tool returns a result containing an `images` list, each item containing `image_object_key` and `image_url`. Take the `image_url` of the first image and display it below the corresponding solution.
+The tool returns a result containing `idea_id` and an `images` list, each item containing `image_object_key` and `image_url`. Match the corresponding solution by `idea_id`, and take the `image_url` of the first image to display below the corresponding solution.
 
 ### Phase 2 Output Format
 

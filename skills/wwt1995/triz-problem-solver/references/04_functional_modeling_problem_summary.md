@@ -38,9 +38,35 @@ bash scripts/call_triz_analysis.sh "functional_modeling_problem_summary" "<user_
 
 ---
 
+## Tool Result Parsing
+
+The tool returns JSON-format data directly, with the following structure:
+
+```json
+{
+  "problems": [
+    {
+      "id": 1,
+      "problem_type": "Problem type",
+      "problem_description": "Problem description"
+    }
+  ]
+}
+```
+
+### Parsing Rules
+
+1. Parse the JSON data returned by the tool
+2. Convert the `problems` array into a Markdown table with field mappings:
+   - `id` → `#`
+   - `problem_type` → `Problem Type`
+   - `problem_description` → `Problem Description`
+
+---
+
 ## Output Format
 
-The tool returns a JSON string with the structure `{"content": "..."}`. Extract the problem summary result from the `content` field. The result is in Markdown table format, containing three fields: number, problem type, and problem description, with 3–5 problems.
+Display the parsed data in Markdown table format, containing three fields: number, problem type, and problem description, with 3–5 problems.
 
 **Output example**:
 

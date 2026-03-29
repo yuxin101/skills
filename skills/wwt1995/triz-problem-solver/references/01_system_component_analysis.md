@@ -40,9 +40,46 @@ bash scripts/call_triz_analysis.sh "system_component_analysis" "<user_input>"
 
 ---
 
+## Tool Result Parsing
+
+The tool returns JSON-format data directly, with the following structure:
+
+```json
+{
+  "system_components": [
+    {
+      "id": "S1",
+      "name": "Component name",
+      "type": "Substance/Field/Parameter",
+      "function_description": "Main functional description"
+    }
+  ],
+  "super_system_components": [
+    {
+      "id": "S4",
+      "name": "Component name",
+      "type": "Substance/Field/Parameter",
+      "function_description": "Main functional description"
+    }
+  ]
+}
+```
+
+### Parsing Rules
+
+1. Parse the JSON data returned by the tool
+2. Convert the `system_components` array into a "System Components" Markdown table with field mappings:
+   - `id` → `No.`
+   - `name` → `Component Name`
+   - `type` → `Type`
+   - `function_description` → `Main Functional Description`
+3. Convert the `super_system_components` array into a "Supersystem Components" Markdown table using the same field mappings
+
+---
+
 ## Output Format
 
-The tool returns a JSON string with the structure `{"content": "..."}`. Extract the system component analysis result from the `content` field. The result is a system component inventory in Markdown table format, containing two sections — system components and supersystem components — with each component including a number, name, type, and main functional description.
+Display the parsed data as a system component inventory in Markdown table format, containing two sections — system components and supersystem components — with each component including a number, name, type, and main functional description.
 
 ### Example (using "heat exchanger frosting causing efficiency degradation" as an example)
 

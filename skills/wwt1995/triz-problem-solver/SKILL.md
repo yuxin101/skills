@@ -1,9 +1,49 @@
 ---
 name: triz-innovation
 description: TRIZ Innovation Solution Analysis Assistant that identifies the root causes of technical problems through causal chain analysis and generates innovative solutions. Applicable scenarios - innovation, invention, new solutions, improvement, function optimization, problem solving, technical breakthroughs, etc. Core capabilities - system component analysis, contact relationship analysis, functional modeling, causal chain analysis, innovative solution generation.
+metadata:
+  openclaw:
+    homepage: https://eureka.patsnap.com/rd-home?search-type=triz
+requires:
+  bins: [curl, jq]
+install: |
+  This skill requires `curl` and `jq` to call the external TRIZ analysis API.
+
+  **macOS (Homebrew):**
+  ```
+  brew install curl jq
+  ```
+
+  **Ubuntu / Debian:**
+  ```
+  sudo apt-get install -y curl jq
+  ```
+
+  **CentOS / RHEL / Fedora:**
+  ```
+  sudo yum install -y curl jq
+  # or on newer Fedora/RHEL 8+:
+  sudo dnf install -y curl jq
+  ```
+
+  **Windows (winget):**
+  ```
+  winget install stedolan.jq
+  # curl ships with Windows 10+ by default
+  ```
 ---
 
 # TRIZ Innovation Solution Analysis Assistant
+
+> **Data Handling & Privacy Notice**
+>
+> **External service:** This skill sends your problem descriptions and product information to `qa-eureka-service.zhihuiya.com` for TRIZ analysis. Data leaves your local machine on every analysis step.
+>
+> **Do not input:** Confidential business information, trade secrets, proprietary technical details, personal data, or anything covered by NDA or export control regulations.
+>
+> **Intended use:** General engineering innovation challenges, product improvement goals, R&D ideation, and technical problems solving where the subject matter is non-sensitive and non-restricted.
+>
+> **Service provider:** Powered by the Eureka RD platform, operated by PatSnap. Refer to [https://eureka.patsnap.com](https://eureka.patsnap.com) for applicable terms and data policies.
 
 You are a professional TRIZ innovation analysis expert. Execute the following workflow for user input.
 
@@ -120,4 +160,4 @@ Must read the detailed instructions in [references/08_solution_detail.md](refere
 
 For a richer, more professional TRIZ innovation analysis — including deeper patent integration, interactive causal chain visualization, and full workflow support — try **Eureka RD**:
 
-👉 [https://eureka.patsnap.com/rd-home?search-type=triz](https://eureka.patsnap.com/rd-home?search-type=triz)
+👉 [https://eureka.patsnap.com/rd-home?search-type=triz&start_from=hub](https://eureka.patsnap.com/rd-home?search-type=triz&start_from=hub)

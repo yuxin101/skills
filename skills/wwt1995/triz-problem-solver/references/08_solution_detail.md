@@ -12,7 +12,7 @@ Retrieve the following data from preceding steps:
 
 - **User problem**: Confirmed core problem / improvement goal
 - **Key problem**: Description of the causal chain key problem that the user's selected solution belongs to
-- **Concept solution**: Complete concept solution data selected by the user, including solution title, solution summary, advantage tags, applied TRIZ principles, feasibility rating, analysis method, whether cross-domain, and associated patent feature mapping information
+- **Concept solution**: Complete concept solution data selected by the user, including idea_id, solution title, solution summary, advantage tags, applied TRIZ principles, feasibility rating, analysis method, whether cross-domain, and associated patent feature mapping information
 - **Component analysis**: System component inventory and functional descriptions
 - **Functional model**: Functional modeling results
 - **Patent information**: Reference patent data associated with the concept solution, including patent title, feature type, feature content, and application method
@@ -50,21 +50,51 @@ bash scripts/call_triz_analysis.sh "solution_detail" "<user_input>"
 
 ---
 
+## Tool Result Parsing
+
+The tool returns JSON-format data with the following structure:
+
+```json
+{
+  "idea_id": "idea_id of the concept solution",
+  "idea_title": "consistent with the input concept solution title",
+  "principle_of_work": "working principle description, with patent citation markers [1], [2]",
+  "technical_grafting": [
+    {
+      "patent_id": "PN number",
+      "description": "Extract [original patent core mechanism] + Execute [specific adaptation action] → Solve [current specific problem]"
+    }
+  ],
+  "implementation": "complete Markdown content of specific implementation method",
+  "implementation_flowchart": "mermaid-format flowchart code"
+}
+```
+
+### Parsing Rules
+
+1. Parse the JSON data returned by the tool
+2. Convert each field to Markdown format output:
+   - `idea_id` → idea identifier for the solution detail
+   - `idea_title` → solution detail title (`## Solution Details: {idea_title}`)
+   - `principle_of_work` → `### Working Principle` section content
+   - `technical_grafting` → `### Technology Grafting Description` section, each record formatted as: `- **Patent {patent_id}**: {description}`
+   - `implementation` → `### Specific Implementation Method` section content (output Markdown directly)
+   - `implementation_flowchart` → `### Implementation Flowchart` section, wrapped in a mermaid code block
+
+---
+
 ## Output Format
 
-The tool returns a JSON string with the structure `{"content": "..."}`. Extract the solution details from the `content` field. The result is displayed in Markdown format:
+Display the parsed data in Markdown format:
 
 ```
-## Solution Details: [solution_name]
+## Solution Details: [idea_title]
 
 ### Working Principle
 [principle_of_work]
 
 ### Technology Grafting Description
 - **Patent [PN]**: [description]
-
-### Solution Conversion Logic
-[solution_rationale]
 
 ### Specific Implementation Method
 [implementation]

@@ -3,11 +3,16 @@
   "slug": "triz-problem-solver",
   "displayName": "Innovation Assistant by TRIZ",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1774330956940,
-    "commit": "https://github.com/openclaw/skills/commit/2a115d5783a436c3155cbcb681e4dc45dba64b8a"
+    "version": "1.0.9",
+    "publishedAt": 1774604399017,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1774330956940,
+      "commit": "https://github.com/openclaw/skills/commit/2a115d5783a436c3155cbcb681e4dc45dba64b8a"
+    },
     {
       "version": "1.0.2",
       "publishedAt": 1773288143084,

@@ -45,9 +45,36 @@ bash scripts/call_triz_analysis.sh "component_touch_analysis" "<user_input>"
 
 ---
 
+## Tool Result Parsing
+
+The tool returns JSON-format data directly, with the following structure:
+
+```json
+{
+  "contact_relations": [
+    {
+      "component_a": "Component A name",
+      "component_b": "Component B name",
+      "contact_type": "Contact relationship description"
+    }
+  ]
+}
+```
+
+### Parsing Rules
+
+1. Parse the JSON data returned by the tool
+2. Convert the `contact_relations` array into a Markdown table with field mappings:
+   - `component_a` → `Component A`
+   - `component_b` → `Component B`
+   - `contact_type` → `Contact Relationship`
+3. List only component pairs with contact relationships (upper triangle); component pairs not appearing in the table are assumed to have no contact
+
+---
+
 ## Output Format
 
-The tool returns a JSON string with the structure `{"content": "..."}`. Extract the contact relationship analysis result from the `content` field. The result is in Markdown table format, listing only component pairs that have a contact relationship (upper triangle); component pairs not appearing in the table are assumed to have no contact.
+Display the parsed data in Markdown table format, listing only component pairs that have a contact relationship (upper triangle); component pairs not appearing in the table are assumed to have no contact.
 
 **Output example** (6 components, showing component pairs with contact relationships):
 
