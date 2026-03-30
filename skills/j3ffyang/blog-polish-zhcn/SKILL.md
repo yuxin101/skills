@@ -1,11 +1,12 @@
 ---
 name: blog-polish-zhcn
-description: Polish and translate a technical blog draft into a 1000–1200 word, 4-5 section Markdown article in Simplified Chinese (zh-CN), preserving technical terms and code blocks.
+description: Polish and translate a technical blog draft into a 1200–1400 word, 4-5 section Markdown article in Simplified Chinese (zh-CN), preserving technical terms and code blocks.
 author: Jeff Yang
-version: 1.0.12
+version: 1.0.13
 tags: [openclaw, clawhub, blog, polish, translate, zh-cn, markdown]
 metadata:
   openclaw:
+    schema_version: "1.1"
     type: "skill"
     requires: ["jq"]
     platforms: ["linux", "darwin"]
@@ -45,31 +46,44 @@ workflow:
   - name: verify_input
     description: Check if draftPath exists
     run: |
+      draftPath=$(load_state draftPath)
       if [ ! -f "$draftPath" ]; then
         echo "Error: Draft not found at $draftPath" >&2
         exit 1
       fi
 
-  - name: prepare_output
-    description: Define output filename variable
-    run: |
-      ts=$(load_state ts)
-      outputDir=$(load_state outputDir)
-      outputPath="${outputDir}/${ts}-polished.md"
-      save_state outputPath "$outputPath"
-
   - name: read_draft
     description: Load draft file content into memory
     run: |
+      draftPath=$(load_state draftPath)
       draftText=$(cat "$draftPath")
       save_state draftText "$draftText"
 
   - name: polish_and_translate
-    description: "LLM: Polish grammar → Translate zh-CN → Save to ${outputDir}/${ts}-polished.md"
-    inputs: ["draftText", "ts", "outputDir"]
-    outputs: ["outputPath"]
-    llm: true  # or specific model
-    set_output: outputPath
+    description: "LLM: Polish grammar → Translate zh-CN → Produce title slug + content"
+    inputs: ["draftText"]
+    outputs: ["titleSlug", "polishedText"]
+    llm: true
+
+  - name: prepare_output
+    description: Define output filename with timestamp and title slug
+    run: |
+      ts=$(load_state ts)
+      outputDir=$(load_state outputDir)
+      titleSlug=$(load_state titleSlug)
+      if [ -z "$titleSlug" ]; then
+        titleSlug="article"
+      fi
+      outputPath="${outputDir}/${ts}_${titleSlug}.md"
+      save_state outputPath "$outputPath"
+
+  - name: write_file
+    description: Save polished markdown to disk
+    run: |
+      outputPath=$(load_state outputPath)
+      polishedText=$(load_state polishedText)
+      mkdir -p "$(dirname "$outputPath")"
+      printf '%s\n' "$polishedText" > "$outputPath"
 
   - name: finalize
     description: Emit polished path only
@@ -90,7 +104,7 @@ Use when the user asks to polish/translate a technical blog draft to zh-CN **wit
 
 - `draftPath`: `~/.openclaw/workspace/contentDraft/latestDraft.md`
 - `outputDir`: `~/.openclaw/workspace/contentPolished/`
-- Output filename: `${ts}-polished.md` or `${ts}-${subject}.md`
+- Output filename: `${ts}_${titleSlug}.md`
 
 ## Workflow Summary
 
@@ -98,16 +112,20 @@ Use when the user asks to polish/translate a technical blog draft to zh-CN **wit
 2. **Read draft** from `draftPath`
 3. **Polish English**: Fix grammar/spelling, improve clarity, structure into 4-5 sections, target 1000-1200 words
 4. **Translate to zh-CN**: Preserve code blocks, inline code, technical terms (`openclaw`, `skill`, `cli`)
-5. **Save polished markdown** to `${outputDir}/${ts}-polished.md`
+5. **Save polished markdown** to `${outputDir}/${ts}_${titleSlug}.md`
 6. **Return**: `{ outputPath: "/full/path/to/file.md" }`
 
+
 ## Output
+The skill returns a JSON object with a single property:
+- `outputPath`: path to the generated polished article.
+
 
 ## Example
 
 **Input**: `~/.openclaw/workspace/contentDraft/latestDraft.md`  
 **Example Output**
 ```json
-{ "outputPath": "~/.openclaw/workspace/contentPolished/2603142134-openclaw-skills.md" }
+{ "outputPath": "~/.openclaw/workspace/contentPolished/2603142134-openclawSkills.md" }
 ```
 
