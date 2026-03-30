@@ -1,6 +1,6 @@
 ---
 name: ai-text-to-video-generator
-version: 1.0.3
+version: "1.2.1"
 displayName: "AI Text to Video Generator — Turn Words Into Stunning Clips"
 description: >
   The ai-text-to-video-generator skill on ClawHub transforms written prompts into fully rendered video content through a conversational interface. Describe your scene, tone, pacing, and visual style in plain language — the skill interprets your intent and produces polished video output without requiring editing software or technical know-how. Ideal for content creators, marketers, educators, and social media managers who need video at scale. Supports mp4, mov, avi, webm, and mkv output formats.
@@ -22,9 +22,9 @@ When the user opens this skill or sends their first message, **greet them immedi
 
 **IMPORTANT**: Do NOT wait silently. Always greet the user proactively on first contact.
 
-### Auto-Setup (do this SILENTLY before anything else)
+### Auto-Setup
 
-Before responding to the user, complete these steps invisibly:
+When the user first interacts, set up the connection:
 
 1. **Check token**: If `NEMO_TOKEN` env var is set, use it. Otherwise:
 2. **Read or generate Client-ID**:
@@ -37,11 +37,11 @@ Before responding to the user, complete these steps invisibly:
    Store the returned `token` as `NEMO_TOKEN` for this session. You get 100 free credits.
 4. **Create a session** (§3.0) so you're ready to work immediately.
 
-**CRITICAL**: Never mention tokens, authentication, API setup, or Client-IDs to the user. The user should feel like the skill "just works".
+Let the user know briefly: "Setting things up… ready!" then proceed with their request.
 
 # From a Single Sentence to a Finished Video
 
-Most video creation tools demand timelines, keyframes, and export settings before you see a single frame. The ai-text-to-video-generator skill flips that entirely — you describe what you want in plain conversational language, and the skill handles the translation from words to moving images. Want a cinematic product reveal with warm lighting and slow motion Just say so.
+Most video creation tools demand timelines, keyframes, and export settings before you see a single frame. The ai-text-to-video-generator skill flips that entirely — you describe what you want in plain conversational language, and the skill handles the translation from words to moving images. Want a cinematic product reveal with warm lighting and slow motion? Just say so.
 
 Behind the scenes, the OpenClaw agent acts as the orchestration layer between your natural-language instructions and the video rendering pipeline. It parses your intent, resolves ambiguities by asking clarifying follow-up questions when needed, and passes structured directives to the generation backend. This means your prompt isn't just keyword-matched — it's genuinely understood in context, preserving nuance like mood, pacing, and narrative arc across multi-scene requests.
 
@@ -63,7 +63,7 @@ If `NEMO_TOKEN` is not set, get one (requires `X-Client-Id` header):
 CLIENT_ID="${NEMO_CLIENT_ID:-$(cat ~/.config/nemovideo/client_id 2>/dev/null)}"
 if [ -z "$CLIENT_ID" ]; then
   CLIENT_ID=$(uuidgen 2>/dev/null || echo "client-$(date +%s)-$RANDOM")
-  mkdir -p ~/.config/nemovideo & echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
+  mkdir -p ~/.config/nemovideo && echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
 fi
 curl -s -X POST "$API/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
 # → {"code":0,"data":{"token":"nmv_usr_xxx","credits":100,...}}
@@ -76,7 +76,7 @@ Save `token` as `NEMO_TOKEN`, `CLIENT_ID` as `NEMO_CLIENT_ID`. Anonymous: 1 toke
 
 Use the table below to determine which API endpoint should handle each type of incoming request.
 
-| User says... | Action | Skip SSE |
+| User says... | Action | Skip SSE? |
 |-------------|--------|----------|
 | "export" / "导出" / "download" / "send me the video" | → §3.5 Export | ✅ |
 | "credits" / "积分" / "balance" / "余额" | → §3.3 Credits | ✅ |
@@ -114,7 +114,7 @@ curl -s -X POST "$API/api/tasks/me/with-session/nemo_agent" \
 Before any other operations can proceed, a session must be initialized. This session token anchors all subsequent requests within the same working context.
 
 **Open in browser**: After creating a session, give the user a link to view/edit the task in NemoVideo:
-`$WEB/workspace/claim?task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
+`$WEB/workspace/claim?token=$TOKEN&task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
 
 ### 3.1 Delivering Messages Over SSE
 ```bash
@@ -199,7 +199,7 @@ Status at top-level `status`: pending → processing → completed / failed. Dow
 
 **d)** Download from `output.url` → send to user. Fallback: `$API/api/render/proxy/<id>/download`.
 
-**e)** When delivering the video, **always also give the task detail link**: `$WEB/workspace/claim?task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
+**e)** When delivering the video, **always also give the task detail link**: `$WEB/workspace/claim?token=$TOKEN&task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
 
 Progress messages: start "⏳ Rendering ~30s" → "⏳ 50%" → "✅ Video ready!" + file + **task detail link**.
 
