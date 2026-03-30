@@ -1,0 +1,22 @@
+{
+  "name": "first-principle-analyzer",
+  "version": "0.1.0",
+  "description": "第一性原理分析器 - 用第一性原理分解复杂问题，提取基本真理，重构创新方案",
+  "main": "src/analyzer.js",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "first-principles",
+    "analysis",
+    "thinking",
+    "decision-making",
+    "problem-solving"
+  ],
+  "author": "王的奴隶 · 严谨专业版",
+  "license": "Commercial",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cloud-shrimp/first-principle-analyzer"
+  }
+}

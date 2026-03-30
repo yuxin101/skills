@@ -3,7 +3,7 @@
 [English](README.md) | **中文** | [日本語](README.ja.md)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Skill Version](https://img.shields.io/badge/skill_version-0.2.0-green.svg)](SKILL.md)
+[![Skill Version](https://img.shields.io/badge/skill_version-0.2.9-green.svg)](SKILL.md)
 [![ClawHub](https://img.shields.io/badge/ClawHub-marketplace-brightgreen.svg)](https://clawhub.com)
 [![Flova](https://img.shields.io/badge/Flova-video_platform-00bcd4.svg)](https://www.flova.ai)
 

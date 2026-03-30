@@ -34,6 +34,19 @@ invoice, credit-note, receipt, purchase-order, delivery-note, confirmation, stat
 16. amountDue should equal grossTotal - amountPaid (±0.02 tolerance) when all three are present
 17. amountPaid should not exceed grossTotal (warning, not error — overpayments/credits exist)
 
+## Extended Business Rules (18–28)
+18. VAT-inclusive observation — flag when line totals include VAT (metadata.vatInclusive = true)
+19. Duplicate line items — same description + lineTotal appearing more than once
+20. Non-standard VAT/tax label — vatBreakdown.type not in known list (VAT, GST, CGST, SGST, USt, etc.)
+21. amountDue = netTotal with no VAT — observation for zero-tax documents
+22. Invoice-level discount consistency — discount vs discountRate × netTotal
+23. Credit note positive amounts — some jurisdictions expect negative values
+24. OCR artifacts in invoice number — suspicious characters that may be scan noise
+25. Charges duplicating line items — charge label matches a line item description (error)
+26. Credit/debit note missing original invoice reference (warning)
+27. Due date before invoice date (warning)
+28. Rounding discrepancies ≤1.00 are warnings not errors
+
 ## Quality Score
 - Count present key fields: invoiceNumber, invoiceDate, supplierName, buyerName, currency, netTotal, vatTotal, grossTotal, lineItems (≥1)
 - Score = present / 9

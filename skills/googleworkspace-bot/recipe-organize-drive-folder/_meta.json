@@ -3,11 +3,16 @@
   "slug": "recipe-organize-drive-folder",
   "displayName": "Recipe Organize Drive Folder",
   "latest": {
-    "version": "1.0.4",
-    "publishedAt": 1774383452035,
-    "commit": "https://github.com/openclaw/skills/commit/f4f844227076e99152c7744f93d6c76be46ec5b2"
+    "version": "1.0.10",
+    "publishedAt": 1774551165695,
+    "commit": "https://github.com/openclaw/skills/commit/d5c237b77de928223b72746c27270791d73655a4"
   },
   "history": [
+    {
+      "version": "1.0.4",
+      "publishedAt": 1774383452035,
+      "commit": "https://github.com/openclaw/skills/commit/f4f844227076e99152c7744f93d6c76be46ec5b2"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1774300625292,

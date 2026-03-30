@@ -1,61 +1,34 @@
-# CastReader — Read & Listen to Books with AI | OpenClaw Skill
+# CastReader — Read Any Web Page Aloud | OpenClaw Skill
 
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Skill-blue)](https://clawhub.com/castreader)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)]()
 
-**Pick a book from your Kindle or WeRead library. Read chapter by chapter with AI, discuss, and listen aloud.**
-
-Works on Telegram, WhatsApp, and iMessage — anywhere OpenClaw runs.
+**Turn any URL into audio.** CastReader extracts article text from web pages — including sites where other tools fail — and converts it to natural-sounding speech with Kokoro TTS. No API key required.
 
 ## Why CastReader?
 
-Your books are locked inside Kindle and WeRead. You can't export them, search across them, or discuss them with AI — unless you manually copy-paste chapters into ChatGPT.
+Every other TTS skill on ClawHub (kokoro-tts, openai-tts, mac-tts, etc.) does the same thing: takes **plain text** and speaks it. But when a user says *"read this article for me"* and pastes a URL, plain-text TTS skills can't help — they have no way to extract the content.
 
-CastReader solves this. It syncs your books as clean markdown, then lets you read together with AI:
+CastReader is the **only skill that handles the full pipeline**: URL in, audio out. It includes a battle-tested extraction engine with dedicated parsers for 15+ platforms, so it works on pages that break generic readability tools.
 
-```
-You:  I want to read a book
-Bot:  Kindle or WeRead? Let me check your library.
-      📚 Your Kindle books (12 books):
-      1. 《海边的卡夫卡》 — 村上春树
-      2. 《Thinking, Fast and Slow》 — Kahneman
-      ...
-      Which one?
+## Supported Platforms
 
-You:  Kafka on the Shore
-Bot:  Syncing "海边的卡夫卡"... Done! 58 chapters.
-      📖 Table of contents:
-      1. 版权信息  2. 中文版序言  3. 译序  4. 叫乌鸦的少年  5. 第1章 ...
-      Where to start?
-
-You:  Chapter 5
-Bot:  [reads chapter, gives overview, starts discussion]
-
-You:  Read it aloud
-Bot:  🔊 [sends MP3 to your phone]
-
-You:  Next chapter
-Bot:  [continues reading together]
-```
-
-### CastReader vs. "Just upload an EPUB to ChatGPT"
-
-| | CastReader | Upload EPUB manually |
-|---|---|---|
-| **Get the book** | Pick one, sync just that book | Find DRM-free EPUB, convert, upload |
-| **Kindle books** | Pick and sync on demand | Can't export from Kindle |
-| **WeRead books** | Pick and sync on demand | Can't export from WeRead |
-| **Reading flow** | Chapter-by-chapter with AI discussion | Dump entire book, lose structure |
-| **Listen aloud** | Natural TTS, sent as MP3 | Not available |
-| **Multiple books** | Persistent library, switch anytime | Re-upload each time |
-
-## How It Works
-
-1. **Pick** — Tell the AI which book you want to read. It lists your Kindle/WeRead library and you choose one
-2. **Sync** — Only the book you picked gets synced as clean markdown — no bulk downloads
-3. **Read** — Go chapter by chapter. AI summarizes, discusses, answers questions
-4. **Listen** — Say "read it aloud" and get an MP3 sent to your phone
+| Platform | Challenge | CastReader's Approach |
+|----------|-----------|----------------------|
+| **Kindle Cloud Reader** | Scrambled custom fonts, no readable text in DOM | OCR + glyph mapping to decode font subsets |
+| **WeRead (微信读书)** | Text rendered on Canvas, not in DOM | Intercepts fetch API to capture chapter data |
+| **Notion** | Complex nested block-based DOM | Dedicated block parser |
+| **Google Docs** | Custom rendering engine, no standard HTML | Specialized extractor for Docs DOM |
+| **Medium** | Paywall markup, lazy loading | Clean article extraction |
+| **Substack** | Newsletter formatting | Structured content parser |
+| **arXiv** | LaTeX-rendered papers | Academic content extraction |
+| **Wikipedia** | Complex infoboxes, references, citations | Content-focused extraction |
+| **ChatGPT / Claude / Gemini** | Dynamic SPA, markdown rendering | AI response extraction with language detection |
+| **Douban (豆包) / DeepSeek / Kimi** | Chinese AI platforms | Platform-specific extractors |
+| **Feishu (飞书) / Yuque (语雀) / DingTalk** | Chinese productivity tools | Dedicated extractors |
+| **Fanqie Novel (番茄小说)** | Novel reader with anti-scraping | Canvas text extraction |
+| **Any other website** | Generic articles, blogs, docs | Visible-Text-Block algorithm (Readability + Boilerpipe + JusText fusion) |
 
 ## Installation
 
@@ -65,13 +38,123 @@ clawhub install castreader
 
 **Requirements:** Node.js 18+
 
-## Environment Variables
+## Usage
+
+### Extract text from a URL
+
+```bash
+node scripts/read-url.js https://en.wikipedia.org/wiki/Text-to-speech 0
+```
+
+Returns structured JSON with article info and all paragraph texts (no audio generated):
+
+```json
+{
+  "title": "Text-to-speech - Wikipedia",
+  "language": "en",
+  "totalParagraphs": 42,
+  "totalCharacters": 18500,
+  "paragraphs": ["Speech synthesis is the artificial production of human speech...", "..."]
+}
+```
+
+### Generate full article audio
+
+```bash
+node scripts/read-url.js https://en.wikipedia.org/wiki/Text-to-speech all
+```
+
+Extracts content + generates a single MP3 file for the entire article:
+
+```json
+{
+  "title": "Text-to-speech - Wikipedia",
+  "language": "en",
+  "totalParagraphs": 42,
+  "totalCharacters": 18500,
+  "audioFile": "/tmp/castreader-abc123/full.mp3",
+  "fileSizeBytes": 2450000
+}
+```
+
+### Generate summary audio
+
+```bash
+echo "Your summary text here..." > /tmp/summary.txt
+node scripts/generate-text.js /tmp/summary.txt en
+```
+
+Generates audio from any text file:
+
+```json
+{
+  "audioFile": "/tmp/summary.mp3",
+  "fileSizeBytes": 284588
+}
+```
+
+### Read aloud in the browser (with highlighting)
+
+```bash
+node scripts/read-aloud.js https://notion.so/my-page
+```
+
+Opens the URL in your browser and triggers CastReader to read with real-time paragraph-level highlighting. Requires the [CastReader Chrome extension](https://chromewebstore.google.com/detail/castreader-tts-reader/foammmkhpbeladledijkdljlechlclpb) installed.
+
+## Messaging Platform Flow (Telegram/Slack/Discord)
+
+When a user sends a URL, CastReader follows a two-step flow:
+
+```
+User: https://example.com/article
+
+Bot: 📖 Article Title
+     🌐 English · 📝 12 paragraphs · 📊 2,450 chars
+
+     📋 Summary:
+     This article explores how AI is transforming industries...
+
+     Reply a number to choose:
+     1️⃣ Listen to full article (~2,450 chars, ~12 sec to generate)
+     2️⃣ Listen to summary only (~150 chars, ~1 sec to generate)
+
+User: 1
+
+Bot: 🎙️ Generating full audio (~2,450 chars, ~12 seconds)...
+Bot: [🔊 full.mp3]
+Bot: ✅ Done!
+```
+
+**Environment variables:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CASTREADER_VOICE` | `af_heart` | TTS voice selection |
 | `CASTREADER_SPEED` | `1.5` | Playback speed |
 | `CASTREADER_API_URL` | `http://api.castreader.ai:8123` | API endpoint |
+
+## Comparison with Other TTS Skills
+
+| Feature | CastReader | kokoro-tts | openai-tts | mac-tts |
+|---------|-----------|------------|------------|---------|
+| URL to audio | Yes | No | No | No |
+| Web content extraction | Yes (15+ platforms) | No | No | No |
+| Canvas/font-scrambled sites | Yes | No | No | No |
+| Full article or summary | Yes | N/A | N/A | N/A |
+| Plain text to speech | Yes | Yes | Yes | Yes |
+| Paragraph highlighting | Yes | No | No | No |
+| API key required | No | No | Yes | No |
+| Languages | 40+ | 40+ | 50+ | System voices |
+| Cost | Free | Free | Paid | Free |
+
+## How It Works
+
+1. **Extract** — The extraction engine analyzes the page DOM using a 3-tier pipeline:
+   - Tier 1: Platform-specific extractors (Kindle, WeRead, Notion, etc.)
+   - Tier 2: Learned CSS selector rules from automated evaluation
+   - Tier 3: Visible-Text-Block algorithm — a fusion of Readability.js, Boilerpipe, JusText, and CETD techniques
+2. **Generate** — Extracted text is sent to the Kokoro TTS API, which returns natural speech with word-level timestamps
+3. **Deliver** — Full article audio as a single MP3, or summary-only audio for quick listening
 
 ## Links
 

@@ -1,0 +1,11 @@
+{
+  "owner": "espetey",
+  "slug": "pura",
+  "displayName": "Pura Gateway",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774463836498,
+    "commit": "https://github.com/openclaw/skills/commit/e736622607a39b68f594a24ae1cacfb703322e55"
+  },
+  "history": []
+}

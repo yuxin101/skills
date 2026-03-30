@@ -1,54 +1,59 @@
 ---
 name: graph-polymarket-mcp
-description: "Ask any Polymarket question — get live odds, trader P&L, leaderboards, open interest, and resolution data from 8 subgraphs. 20 tools, no auth needed to start."
-version: 1.3.0
-homepage: https://github.com/PaulieB14/graph-polymarket-mcp
+description: Query Polymarket prediction market data via The Graph subgraphs + Polymarket REST APIs (Gamma + CLOB) — 31 tools for market search, live prices, on-chain analytics, trader P&L, open interest, resolution status, and more.
 metadata:
-  clawdbot:
-    emoji: "🔮"
-    requires:
-      bins: ["node"]
-      env: ["GRAPH_API_KEY"]
-    primaryEnv: "GRAPH_API_KEY"
+  {"openclaw": {"requires": {"bins": ["node"], "env": ["GRAPH_API_KEY"]}, "primaryEnv": "GRAPH_API_KEY", "homepage": "https://github.com/PaulieB14/graph-polymarket-mcp"}}
 ---
 
 # Graph Polymarket MCP
 
-Ask any question about Polymarket prediction markets. Get back live data from 8 specialized subgraphs — odds, volumes, trader performance, open interest, resolution status.
+Query Polymarket prediction market data via The Graph subgraphs and Polymarket REST APIs (Gamma + CLOB) — market search, live prices, order books, trader P&L, positions, open interest, resolution status, and trader profiles.
 
-## Try it
+## Tools
 
-- `"What are the hottest Polymarket markets right now?"`
-- `"Show me the top 10 traders by profit"`
-- `"Open interest on the US election markets"`
-- `"Has the Fed rate decision market been disputed?"`
-- `"What's trader 0xabc's P&L and win rate?"`
-- `"Daily volume trends for the last 30 days"`
+### Polymarket REST API (no API key needed)
 
-## 20 tools available
+- **search_markets** — Search markets by text query with filters (active, closed, sort by volume/liquidity)
+- **get_market_info** — Get detailed market metadata by slug or condition ID
+- **list_polymarket_events** — Browse events (groups of related markets) with tag/status filters
+- **get_polymarket_event** — Get a single event with all its associated markets
+- **get_live_prices** — Real-time CLOB prices for outcome tokens (buy/sell, single or batch)
+- **get_live_spread** — Bid-ask spread + midpoint for assessing market liquidity
+- **get_live_orderbook** — Full order book (all resting bids and asks) for a token
+- **get_price_history** — Historical price time-series (1m to max interval, configurable fidelity)
+- **get_last_trade** — Last trade price for an outcome token
+- **get_clob_market** — CLOB market details: token IDs, live prices, min order/tick sizes
+- **search_markets_enriched** — Power tool: search + auto-enrich with live CLOB prices AND on-chain resolution status
 
-| Tool | What it does |
-|------|-------------|
-| `get_global_stats` | Platform totals — markets, volume, fees, trades |
-| `get_market_data` | Market outcomes, odds, resolution status |
-| `get_top_traders` | Leaderboard by PnL, win rate, volume |
-| `get_account_pnl` | Any trader's P&L, win rate, profit factor, max drawdown |
-| `get_trader_profile` | Full profile — first seen, CTF events, USDC flows |
-| `get_daily_stats` | Daily volume, fees, trader counts |
-| `get_market_positions` | Top holders for an outcome token with P&L |
-| `get_user_positions` | A user's current token positions |
-| `get_market_open_interest` | Top markets by USDC locked |
-| `get_oi_history` | Hourly OI snapshots for a market |
-| `get_global_open_interest` | Total platform-wide OI |
-| `get_orderbook_trades` | Recent fills with maker/taker filtering |
-| `get_recent_activity` | Splits, merges, redemptions |
-| `get_market_resolution` | UMA oracle resolution status |
-| `get_disputed_markets` | Markets disputed during resolution |
-| `get_market_revisions` | Moderator interventions |
-| `get_trader_usdc_flows` | USDC deposit/withdrawal history |
-| `list_subgraphs` | All 8 Polymarket subgraphs |
-| `get_subgraph_schema` | Full GraphQL schema for any subgraph |
-| `query_subgraph` | Custom GraphQL query against any subgraph |
+### The Graph Subgraphs (requires GRAPH_API_KEY)
+
+- **list_subgraphs** — List all available Polymarket subgraphs with descriptions and key entities
+- **get_subgraph_schema** — Get the full GraphQL schema for a specific subgraph
+- **query_subgraph** — Execute a custom GraphQL query against any subgraph
+- **get_market_data** — Get market/condition data with outcomes and resolution status
+- **get_global_stats** — Platform stats: market counts, volume, fees, trades
+- **get_account_pnl** — Trader P&L and performance metrics (winRate, profitFactor, maxDrawdown)
+- **get_top_traders** — Leaderboard ranked by PnL, winRate, volume, or profitFactor
+- **get_daily_stats** — Daily volume, fees, trader counts, and market activity
+- **get_market_positions** — Top holders for a specific outcome token with their P&L
+- **get_user_positions** — A user's current token positions
+- **get_recent_activity** — Recent splits, merges, and redemptions
+- **get_orderbook_trades** — Recent order fills with maker/taker filtering
+- **get_market_open_interest** — Top markets ranked by USDC locked in positions
+- **get_oi_history** — Hourly OI snapshots for a specific market
+- **get_global_open_interest** — Total platform-wide open interest and market count
+- **get_market_resolution** — UMA oracle resolution status with filtering
+- **get_disputed_markets** — Markets disputed during oracle resolution
+- **get_market_revisions** — Moderator interventions and updates on market resolution
+- **get_trader_profile** — Full trader profile: first seen, CTF events, USDC flows
+- **get_trader_usdc_flows** — USDC deposit/withdrawal history with direction filtering
+
+## Requirements
+
+- **Runtime:** Node.js >= 18 (runs via `npx`)
+- **Environment variables:**
+  - `GRAPH_API_KEY` (required for subgraph tools) — Free API key from [The Graph Studio](https://thegraph.com/studio/). Free tier: 100K queries/month.
+  - REST API tools (search, prices, order books) work without any API key.
 
 ## Install
 
@@ -56,33 +61,21 @@ Ask any question about Polymarket prediction markets. Get back live data from 8 
 GRAPH_API_KEY=your-key npx graph-polymarket-mcp
 ```
 
-Get a free API key at [The Graph Studio](https://thegraph.com/studio/) (free tier: 100K queries/month).
+## Network & Data Behavior
 
-## External Endpoints
+- Subgraph tools make GraphQL requests to The Graph Gateway (`gateway.thegraph.com`) using your API key.
+- REST API tools query Polymarket's public endpoints (`gamma-api.polymarket.com` and `clob.polymarket.com`) directly — no authentication needed.
+- Eight subgraphs are queried: Main, Beefy P&L, Slimmed P&L, Activity, Orderbook, Open Interest, Resolution, and Traders.
+- No local database or persistent storage is used.
+- The SSE transport (`--http` / `--http-only`) starts a local HTTP server on port 3851 (configurable via `MCP_HTTP_PORT` env var).
 
-| Endpoint | Data sent | Purpose |
-|----------|-----------|---------|
-| `gateway.thegraph.com` | GraphQL queries with your API key | Queries 8 Polymarket subgraphs |
+## Use Cases
 
-No other endpoints are contacted. No data is stored locally.
-
-## Security & Privacy
-
-- **Runs locally** via `npx` — no remote server needed
-- **Your API key stays local** — only sent to The Graph Gateway
-- **No persistent storage** — no database, no local files written
-- **Open source** — full code at [github.com/PaulieB14/graph-polymarket-mcp](https://github.com/PaulieB14/graph-polymarket-mcp)
-
-## Model Invocation Note
-
-This skill may be invoked autonomously by your AI agent when it detects a prediction market question. Disable the skill to opt out.
-
-## Trust Statement
-
-By using this skill, GraphQL queries are sent to `gateway.thegraph.com` using your API key. Only install if you trust The Graph's decentralized network with your query data.
-
-## Links
-
-- GitHub: https://github.com/PaulieB14/graph-polymarket-mcp
-- npm: https://www.npmjs.com/package/graph-polymarket-mcp
-- The Graph: https://thegraph.com
+- Search and discover prediction markets by topic, category, or keyword
+- Get real-time prices, order books, and spreads for any market
+- Analyze price history and market trends
+- Get platform-wide stats, volume, and market rankings
+- Analyze trader P&L, performance metrics, and leaderboards
+- Track open interest trends and market positions
+- Monitor market resolution lifecycle and disputed markets
+- Run custom GraphQL queries against 8 specialized Polymarket subgraphs

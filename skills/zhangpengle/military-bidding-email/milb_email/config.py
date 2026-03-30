@@ -30,14 +30,16 @@ def load_config() -> Dict:
     Returns:
         Dict: 配置字典，包含所有配置项
     """
-    # 先检查包目录的 .env，再检查项目根目录
-    env_path = Path(__file__).parent / '.env'
-    if not env_path.exists():
-        env_path = Path(__file__).parent.parent / '.env'
+    # 按优先级查找：当前工作目录 → ~/.config/milb-email/
+    candidates = [
+        Path.cwd() / '.env',
+        Path.home() / '.config' / 'milb-email' / '.env',
+    ]
+    env_path = next((p for p in candidates if p.exists()), None)
 
     config = {}
 
-    if env_path.exists():
+    if env_path:
         with open(env_path, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()

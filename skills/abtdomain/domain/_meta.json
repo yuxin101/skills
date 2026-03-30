@@ -1,13 +1,18 @@
 {
   "owner": "abtdomain",
   "slug": "domain",
-  "displayName": "DomainKits",
+  "displayName": "DomainKits - domain name data and insights",
   "latest": {
-    "version": "2.0.1",
-    "publishedAt": 1772878754378,
-    "commit": "https://github.com/openclaw/skills/commit/1f0280587f57ff7f71e88c9deaf5c5351a0459f6"
+    "version": "2.0.4",
+    "publishedAt": 1774481176932,
+    "commit": "https://github.com/openclaw/skills/commit/5567f8d8f5afd3c714cd25dc47c20bb8365c6dba"
   },
   "history": [
+    {
+      "version": "2.0.1",
+      "publishedAt": 1772878754378,
+      "commit": "https://github.com/openclaw/skills/commit/1f0280587f57ff7f71e88c9deaf5c5351a0459f6"
+    },
     {
       "version": "1.0.10",
       "publishedAt": 1771335348215,

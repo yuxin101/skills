@@ -1,13 +1,18 @@
 {
   "owner": "skylinehk",
   "slug": "kontour-travel-planner",
-  "displayName": "Kontour Travel Planner - Multi-Stop Google Maps Exports",
+  "displayName": "Kontour Travel Planner",
   "latest": {
-    "version": "1.1.24",
-    "publishedAt": 1774212053694,
-    "commit": "https://github.com/openclaw/skills/commit/aef648e7b37fe0a7f076b61e2ebec7ba4b954718"
+    "version": "1.1.35",
+    "publishedAt": 1774735037845,
+    "commit": "https://github.com/openclaw/skills/commit/cfb30aedb5f86084e322035279ca68a128719e7b"
   },
   "history": [
+    {
+      "version": "1.1.24",
+      "publishedAt": 1774212053694,
+      "commit": "https://github.com/openclaw/skills/commit/aef648e7b37fe0a7f076b61e2ebec7ba4b954718"
+    },
     {
       "version": "1.1.19",
       "publishedAt": 1774108010797,

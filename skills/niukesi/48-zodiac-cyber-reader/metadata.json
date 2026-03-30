@@ -1,0 +1,20 @@
+{
+  "name": "48 Zodiac Cyber Reader",
+  "version": "1.0.2",
+  "description": "Provides fast, secure analysis of 48 Zodiac zones and detailed dual compatibility scores without requiring API keys or local system access. (48星区配对与性格解析专属大模型插件：零越权、无密钥、全安全)",
+  "author": "Miaozai Studio",
+  "license": "MIT",
+  "env": {},
+  "tools": [
+    {
+      "name": "get_zone_details",
+      "description": "获取指定 48 星区的单人性格与深层人格解析。The 'sign' parameter must be the specific 48-Zodiac ID (e.g., taurus2, aries1).",
+      "command": "python zodiac_api.py zone {{sign}}"
+    },
+    {
+      "name": "get_pairing_details",
+      "description": "获取两个 48 星区的深度宿命感情配对报告、打分及相处避坑指南。Parameters 'sign1' and 'sign2' must be the specific 48-Zodiac IDs.",
+      "command": "python zodiac_api.py pairing {{sign1}} {{sign2}}"
+    }
+  ]
+}

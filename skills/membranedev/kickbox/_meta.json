@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "kickbox",
+  "displayName": "Kickbox",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774504956787,
+    "commit": "https://github.com/openclaw/skills/commit/01c1ab9f3a59a3bccaff55da7b48635bd61f9f89"
+  },
+  "history": []
+}

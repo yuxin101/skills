@@ -1,0 +1,11 @@
+{
+  "owner": "mzlzyca",
+  "slug": "extract-tables-from-pdf",
+  "displayName": "extract-tables-from-pdf",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774605245884,
+    "commit": "https://github.com/openclaw/skills/commit/f236262b08dde39cfa61225a2d01adcd10951d2c"
+  },
+  "history": []
+}

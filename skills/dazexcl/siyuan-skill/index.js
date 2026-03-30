@@ -5,14 +5,14 @@
  */
 
 const path = require('path');
+
+const VERSION = '1.7.8';
 const ConfigManager = require('./config');
 const SiyuanConnector = require('./connector');
 const commands = require('./commands');
-const CacheManager = require('./utils/cache');
 const NotebookManager = require('./lib/notebook-manager');
 const DocumentManager = require('./lib/document-manager');
 const SearchManager = require('./lib/search-manager');
-const SyncManager = require('./lib/sync-manager');
 const EmbeddingManager = require('./lib/embedding-manager');
 const VectorManager = require('./lib/vector-manager');
 const NLPManager = require('./lib/nlp-manager');
@@ -28,7 +28,6 @@ class SiyuanNotesSkill {
    * @param {string} options.baseURL - Siyuan Notes API 地址
    * @param {string} options.token - API 令牌
    * @param {number} options.timeout - 请求超时时间（毫秒）
-   * @param {number} options.cacheExpiry - 缓存过期时间（毫秒）
    * @param {boolean} options.enableVectorSearch - 是否启用向量搜索
    * @param {boolean} options.enableNLP - 是否启用 NLP 功能
    */
@@ -42,11 +41,9 @@ class SiyuanNotesSkill {
     this.config = config;
     this.initialized = false;
 
-    this.cacheManager = new CacheManager(config.cacheExpiry || 300000);
-    this.notebookManager = new NotebookManager(this.connector, this.cacheManager);
-    this.documentManager = new DocumentManager(this.connector, this.cacheManager);
+    this.notebookManager = new NotebookManager(this.connector);
+    this.documentManager = new DocumentManager(this.connector);
     this.searchManager = new SearchManager(this.connector);
-    this.syncManager = new SyncManager(this.cacheManager);
 
     this.embeddingManager = null;
     this.vectorManager = null;
@@ -54,29 +51,14 @@ class SiyuanNotesSkill {
 
     this.vectorSearchEnabled = options.enableVectorSearch !== false;
     this.nlpEnabled = options.enableNLP !== false;
-
-    this.cache = {
-      notebooks: null,
-      notebookConfigs: {},
-      docStructure: {},
-      cacheExpiry: config.cacheExpiry || 300000
-    };
-
-    this.syncStatus = {
-      lastSync: null,
-      isSyncing: false,
-      syncError: null,
-      syncInterval: null
-    };
   }
 
   /**
    * 获取所有笔记本（便捷方法）
-   * @param {boolean} forceRefresh - 是否强制刷新缓存
    * @returns {Promise<Object>} 笔记本列表
    */
-  async getNotebooks(forceRefresh = false) {
-    return this.notebookManager.getNotebooks(forceRefresh);
+  async getNotebooks() {
+    return this.notebookManager.getNotebooks();
   }
 
   /**
@@ -192,7 +174,7 @@ class SiyuanNotesSkill {
   getInfo() {
     return {
       name: 'siyuan-skill',
-      version: '1.6.3',
+      version: VERSION,
       description: 'Siyuan Notes 连接器技能（支持向量搜索和 NLP）',
       commands: Object.keys(commands).map(cmd => ({
         name: cmd,
@@ -242,44 +224,6 @@ class SiyuanNotesSkill {
    */
   getConfig() {
     return this.config;
-  }
-
-  /**
-   * 更新配置
-   * @param {Object} newConfig - 新配置
-   */
-  setConfig(newConfig) {
-    this.configManager.updateConfig(newConfig);
-    this.config = this.configManager.getConfig();
-
-    if (newConfig.baseURL) {
-      this.connector.setBaseURL(newConfig.baseURL);
-    }
-
-    if (newConfig.token) {
-      this.connector.setToken(newConfig.token);
-    }
-
-    if (newConfig.timeout) {
-      this.connector.setTimeout(newConfig.timeout);
-    }
-
-    if (newConfig.cacheExpiry) {
-      this.cacheManager.defaultExpiry = newConfig.cacheExpiry;
-    }
-
-    this.initialized = false;
-  }
-
-  /**
-   * 清除缓存
-   */
-  clearCache() {
-    this.cacheManager.clear();
-    
-    this.cache.notebooks = null;
-    this.cache.notebookConfigs = {};
-    this.cache.docStructure = {};
   }
 
   /**
@@ -433,6 +377,7 @@ const nlpAnalyze = async (text, nlpOptions = {}, skillOptions = {}) => {
 };
 
 module.exports = {
+  VERSION,
   SiyuanNotesSkill,
   createSkill,
   executeSingleCommand,

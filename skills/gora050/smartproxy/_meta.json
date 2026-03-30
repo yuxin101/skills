@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "smartproxy",
+  "displayName": "Smartproxy",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774407850752,
+    "commit": "https://github.com/openclaw/skills/commit/29169b84909e69504be9933d50a69ef607f14200"
+  },
+  "history": []
+}

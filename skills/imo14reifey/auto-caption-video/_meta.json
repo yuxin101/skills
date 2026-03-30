@@ -1,0 +1,11 @@
+{
+  "owner": "imo14reifey",
+  "slug": "auto-caption-video",
+  "displayName": "Auto Caption Video",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1774427955554,
+    "commit": "https://github.com/openclaw/skills/commit/931600484a22b0c5543179822944042948acd613"
+  },
+  "history": []
+}

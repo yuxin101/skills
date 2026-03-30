@@ -3,11 +3,16 @@
   "slug": "invoice-scan",
   "displayName": "Invoice Scan",
   "latest": {
-    "version": "1.9.0",
-    "publishedAt": 1774037381219,
-    "commit": "https://github.com/openclaw/skills/commit/e6f8c1b1ffffa795c378080f7353489456ade60d"
+    "version": "2.2.0",
+    "publishedAt": 1774474436157,
+    "commit": "https://github.com/openclaw/skills/commit/648b16a715018db9a5106eec8546f3bdf76a9c32"
   },
   "history": [
+    {
+      "version": "1.9.0",
+      "publishedAt": 1774037381219,
+      "commit": "https://github.com/openclaw/skills/commit/e6f8c1b1ffffa795c378080f7353489456ade60d"
+    },
     {
       "version": "1.8.1",
       "publishedAt": 1774024613002,

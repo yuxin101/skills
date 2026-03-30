@@ -1,6 +1,6 @@
 ---
 name: turing-pyramid
-description: Motivation and action system for AI agents. 10 needs with Turing-exp tension, execution gate with evidence verification, spontaneity layers, continuity across sessions, and crash-resilient watchdog.
+description: Motivation and action system for AI agents. 10 needs with Turing-exp tension, execution gate, spontaneity layers, deliberation protocol (structured thinking with outcome artifacts), association scan (contextual recall), continuity across sessions, and crash-resilient watchdog.
 metadata:
   clawdbot:
     emoji: "🔺"
@@ -35,7 +35,9 @@ metadata:
 | **Continuity** | `mindstate-daemon.sh`, `mindstate-freeze.sh`, `mindstate-boot.sh` | Read workspace + own state, write MINDSTATE.md | Read-only system checks: `pgrep` (gateway alive?), `df` (disk usage). No writes outside workspace. |
 | **Resilience** | `mindstate-watchdog.sh` | Monitor continuity scripts | **Default: detect + log only.** With `allow_kill: true`: terminates hung `mindstate-*.sh` processes (path-anchored, never other PIDs). With `allow_cleanup: true`: deletes orphan `.tmp` files in workspace + assets dir. Auto-freeze is always safe. |
 
-Core motivation scripts make **zero network calls**. Optional `external-model` scan method (disabled by default) can call an inference API if explicitly enabled by steward. The continuity daemon performs lightweight local system checks (read-only). The watchdog **detects and logs by default** — destructive actions (`kill`, `delete`) require explicit opt-in via config.
+Core motivation scripts make **no network calls by default**. Some actions in needs-config.json are tagged `"external": true` (e.g., web search, check for updates) — these are text suggestions to the agent, not executed by the scripts themselves. The optional `external-model` scan method (disabled by default) can call an inference API if explicitly enabled by steward. The continuity daemon performs lightweight local system checks (read-only). The watchdog **detects and logs by default** — destructive actions (`kill`, `delete`) require explicit opt-in via config.
+
+⚠️ **WORKSPACE isolation**: This skill reads and writes files inside the `WORKSPACE` directory. Never point `WORKSPACE` at your home directory, system folders, or any location containing credentials or sensitive files. Use an isolated workspace directory.
 
 **v1.27.0** — Execution Gate: structural enforcement that prevents agents from describing actions instead of doing them. Turing-exp tension formula: equal rotation at homeostasis, hierarchy only in crisis.
 
@@ -106,8 +108,11 @@ The system is self-tuning. After a few cycles, you'll see patterns: which needs 
 - **Tension** = dep² + importance × max(0, dep - threshold)². Equal at homeostasis, hierarchy in crisis.
 - **Decay**: Satisfaction drops over time at need-specific rates. Connection decays in 6h. Security in 168h.
 - **Actions**: Each need has 8-11 possible actions with impact levels (low/mid/high). The pyramid picks based on current state.
+- **Deliberative actions** are tagged `[DELIBERATIVE]` — think through phases (REPRESENT → RELATE+TENSION → GENERATE → EVALUATE → CONCLUDE → ROUTE), produce an outcome artifact, and route it back into the system. Use `deliberate.sh --validate` to check free-form notes or `--validate-inline` for quick checks.
+- **Association scan** (`association-scan.sh`): contextual recall during deliberation. Surfaces related past conclusions, research threads, pending followups, and open interests. Suggested in RELATE+TENSION phase, not required.
+- **Followup horizons**: `create-followup.sh --in 2w` or `--in 1m` for long-term revisits.
 
-**Resilience:** After setup, verify your cron has both entries (daemon + watchdog). The watchdog catches edge cases — daemon crashes, hung processes, stale state. See "Resilience & Crash Recovery" section for details.
+**Resilience:** After setup, verify your cron has both entries (daemon + watchdog). The watchdog catches edge cases — daemon crashes, hung processes, stale state, log rotation. See "Resilience & Crash Recovery" section for details.
 
 ### For the Human (Steward)
 
@@ -128,6 +133,8 @@ The system is self-tuning. After a few cycles, you'll see patterns: which needs 
 - "Check `gate-status.sh` — is the execution rate healthy?"
 - "Is the watchdog cron installed?" → verify with `crontab -l`
 - "Check `watchdog.log` — any recent restarts?"
+- "Are deliberative actions producing real conclusions?" → check `audit.log` for `conclusion` field
+- "Is the association scan useful or noisy?" → tune `--min-score` and `--recency-hours`
 
 **Execution Gate** (enabled by default): The gate prevents your agent from logging "I did X" without actually doing X. Monitor execution rate via `gate-status.sh`. Healthy is >70%. If your agent repeatedly defers the same need, the actions may not fit your agent's capabilities — adjust them in `needs-config.json`.
 
@@ -283,6 +290,64 @@ Configure: `execution_gate` in `assets/mindstate-config.json`
 
 ---
 
+## 🧠 Deliberation Protocol (v1.31.0+)
+
+Reflective actions ("re-read notes", "review SELF.md", "explore topic") previously collapsed into read → mark-satisfied → done. The Deliberation Protocol adds structured thinking with outcome artifacts.
+
+### Two Action Modes
+
+- **Operative** (default): produces external artifact (file, commit, post). Same protocol as before.
+- **Deliberative** (`"mode": "deliberative"` in needs-config.json): must produce an **outcome artifact** + **routing decision**.
+
+### The Pipeline
+
+Full (impact ≥ 1.0): `REPRESENT → RELATE+TENSION → GENERATE → EVALUATE → CONCLUDE → ROUTE`
+Compressed (impact < 1.0): `REPRESENT → CONCLUDE → ROUTE`
+
+Phases are questions, not obligations. Skip with a reason — but always reach CONCLUDE and ROUTE.
+
+### Outcome Types
+
+Not every deliberation ends in a verdict. Six valid outcome types:
+- **Decision** — clear action directive
+- **Assessment** — evaluation of current state
+- **Diagnosis** — root cause identification
+- **Question refinement** — the real question isn't what was asked
+- **Uncertainty artifact** — explicit gap with specific missing data
+- **Tension artifact** — named conflict between elements
+
+### Routing (Phase 6)
+
+Every outcome must go somewhere: `followup` | `research_thread` | `interest` | `steward_question` | `priority_flag` | `reframe` | `chain` | `concluded`
+
+### Scripts
+
+```bash
+# Template scaffolding (or use free-form + validate)
+deliberate.sh --template --need understanding --action "explore topic"
+# Validate a free-form file
+deliberate.sh --validate research/threads/cosmos/sulfur-biosignature-problem.md
+# Quick inline check
+deliberate.sh --validate-inline --conclusion "H2S is not reliable" --route "research_thread"
+```
+
+### Gate Integration
+
+- `gate-propose.sh` stores `action_mode` in pending_actions.json
+- `gate-resolve.sh --conclusion "..."` logs outcome; warns (doesn't block) if deliberative action lacks conclusion
+- `mark-satisfied.sh --conclusion "..."` records in audit.log
+
+### Design Principles
+
+1. **Scaffolding, not bureaucracy** — gate checks presence, not quality
+2. **Anti-compliance by design** — validate mode over template mode; gate warns, never blocks
+3. **Persistent state change mandatory** — not necessarily a file, but always a trace
+4. **Phases are questions, not obligations** — conscious skipping is valid
+
+Full design: `DELIBERATION-PROTOCOL.md` in skill root.
+
+---
+
 ## 🎲 Spontaneity System (Layers A/B/C)
 
 Three layers create organic, unpredictable behavior:
@@ -337,6 +402,31 @@ State persistence across discrete sessions via a two-layer living document. The 
 ```
 
 Current state loads first — early context frames interpretation of everything after.
+
+### Compaction Continuity (v1.33.4)
+
+Context compaction (auto or manual `/compact`) compresses conversation history, which can lose active execution state. The continuity layer bridges this gap:
+
+**Pre-compaction (recommended OpenClaw config):**
+```json5
+// openclaw.json → agents.defaults.compaction.memoryFlush
+{
+  "enabled": true,
+  "softThresholdTokens": 4000,
+  "systemPrompt": "Session nearing compaction. Write current task state to memory/current-task.md (OVERWRITE). Write durable memories to memory/YYYY-MM-DD.md (APPEND). If nothing to store, reply NO_REPLY.",
+  "prompt": "Pre-compaction flush. Save current task to memory/current-task.md, durable notes to memory/YYYY-MM-DD.md. Reply NO_REPLY if nothing to store."
+}
+```
+
+**Post-compaction recovery:** `mindstate-boot.sh` auto-detects `memory/current-task.md` and displays it with pickup instructions. The agent reads it, resumes work, then deletes the file.
+
+**Manual `/compact`:** The flush only fires on auto-compaction (near context limit). For manual `/compact`, agents should write `memory/current-task.md` themselves before compacting.
+
+**Agent guideline (add to AGENTS.md):**
+```
+If `memory/current-task.md` exists: read it — you were in the middle of
+something before compaction. Pick up where you left off, then delete the file.
+```
 
 ### Temperature System
 
@@ -464,7 +554,7 @@ Config: `assets/scan-config.json`. Fallback always to `line-level`.
 │ • Reads local files │      │ • Has API keys      │
 │ • Calculates decay  │ ───▶ │ • Has permissions   │
 │ • Outputs: "★ do X" │      │ • DECIDES & ACTS    │
-│ • Zero network I/O  │      │                     │
+│ • No network by def │      │                     │
 └─────────────────────┘      └─────────────────────┘
          │
          │ (continuity layer, cron)
@@ -543,6 +633,18 @@ All state changes logged with timestamp, need, impact, reason (scrubbed):
 - Passwords/secrets/tokens → `[REDACTED]`
 
 View: `cat assets/audit.log | jq`
+
+### File Descriptor Allocation
+
+Lock FDs used by scripts (do not reuse in wrappers):
+
+| FD | Lock file | Used by |
+|----|-----------|---------|
+| 200 | `needs-state.json.lock` | mark-satisfied.sh, apply-deprivation.sh |
+| 200 | `cycle.lock` | run-cycle.sh, apply-preset.sh (different lock file, same fd — never concurrent) |
+| 201 | `followups.jsonl.lock` | create-followup.sh, resolve-followup.sh, run-cycle.sh |
+| 202 | `mindstate.lock` | mindstate-daemon.sh, mindstate-freeze.sh, mindstate-watchdog.sh |
+| 203 | `gate.lock` | gate-propose.sh, gate-resolve.sh, gate-check.sh |
 
 ---
 

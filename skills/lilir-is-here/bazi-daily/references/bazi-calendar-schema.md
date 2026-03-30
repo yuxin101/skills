@@ -2,10 +2,10 @@
 
 ## Data Source File
 
-- 默认文件：`assets/bazi_daily_calendar_2026.csv`
-- 用途：作为 `bazi_daily_calendar` 的打包日历数据集
+- 默认文件：`assets/bazi_daily_calendar_2026.sql`
+- 用途：作为 `bazi_daily_calendar` 内置表的可直接导入数据源
 - 可选原始文件：外部 `xlsx`（不随 skill 包分发时，由用户自行提供）
-- 维护脚本：`scripts/import_bazi_calendar.py`（将外部 xlsx 转为标准化 CSV 或 SQL）
+- 导入脚本：`scripts/import_bazi_calendar.py`（将外部 xlsx 转为 SQL）
 
 ## Import Mapping
 
@@ -27,7 +27,7 @@
 ```bash
 python scripts/import_bazi_calendar.py \
   --input /path/to/bazi_daily_calendar_2026.xlsx \
-  --output assets/bazi_daily_calendar_2026.csv \
+  --output assets/bazi_daily_calendar_2026.sql \
   --table bazi_daily_calendar
 ```
 

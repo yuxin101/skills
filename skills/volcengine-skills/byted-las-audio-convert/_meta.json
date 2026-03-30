@@ -1,0 +1,11 @@
+{
+  "owner": "volcengine-skills",
+  "slug": "byted-las-audio-convert",
+  "displayName": "Byted Las Audio Convert",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774452843226,
+    "commit": "https://github.com/openclaw/skills/commit/5ae9f418d038ad365996bf48c69babc0a260e7fc"
+  },
+  "history": []
+}

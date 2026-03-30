@@ -1,0 +1,11 @@
+{
+  "owner": "engibarian",
+  "slug": "notification-system",
+  "displayName": "Notification System",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774499914892,
+    "commit": "https://github.com/openclaw/skills/commit/acaea8ae1c099670f21e5e20f8385942a9831ab8"
+  },
+  "history": []
+}

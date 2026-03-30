@@ -58,6 +58,28 @@ Heavy exploration (research, debugging, multi-step installs) → spawn a sub-age
 
 A reference to something that no longer exists (old path, removed tool, fixed bug) is ghost context. It biases reasoning toward a past state. Find and remove during heartbeat maintenance.
 
+## Session Lifespan
+
+After 85% context window usage or 3+ compactions — start a new session. With contextspectre proxy stripping noise inline, sessions stay cleaner longer. But once past 85%, diminishing returns kick in — start fresh with a good MEMORY.md.
+
+## Tool Output Discipline
+
+- Truncate command output to what you need: `| head -20`, `| jq '.key'`
+- Request only needed fields from APIs: `fields=key,summary` not full objects
+- Never paste full JSON responses when you need one value
+- If output exceeds 50 lines, summarize instead of quoting
+
+## File Loading Discipline
+
+- At startup: only today + yesterday memory files, not the full `memory/` directory
+- Read SKILL.md files only when the task requires that skill
+- Don't re-read a file already in context
+- AGENTS.md over 100 lines → move details to separate files and reference them
+
+## Delivered Content Rule
+
+Never store delivered content (digests, reports, summaries) in memory files. It's already in the chat. Recording it doubles the token cost for zero value.
+
 ## Self-Check (add to heartbeat rotation)
 
 ```
@@ -69,13 +91,21 @@ A reference to something that no longer exists (old path, removed tool, fixed bu
 
 ## Setup
 
-Add to AGENTS.md session startup:
+1. Fill `USER.md` **timezone first** — agents will guess from JIRA profiles or system locale, and they'll guess wrong. Set it explicitly:
+
+```markdown
+- **Timezone:** Asia/Kuala_Lumpur (GMT+8)
+```
+
+Without this, cron reports, reminders, and date references will use the wrong local time.
+
+2. Add to AGENTS.md session startup:
 
 ```
 5. Follow `CONTEXT.md` — reasoning hygiene protocol
 ```
 
-Copy the file budgets table into your workspace as `CONTEXT.md` and customize limits for your setup.
+3. Copy the file budgets table into your workspace as `CONTEXT.md` and customize limits for your setup.
 
 ---
 **Context Hygiene Protocol v1.0**

@@ -78,6 +78,7 @@ Use it when you need to remove private data locally before sending content elsew
 - If the user intent is ambiguous, start with `scan` before `hide`.
 - After batch scans, summarize text file count, image file count, findings by type/category, high-risk items, and the suggested next step.
 - If timing matters to the user, add `--timing` and report the elapsed result in plain language afterward.
+- For `qr_code` and `barcode`, the default mosaic strength is automatically raised based on the detection size to ensure the encoding is destroyed. The agent does not need to manually increase `--strength` for these categories. If a detection output includes `effective_strength`, report it to the user.
 
 ## Shared CLI Contract
 
@@ -399,6 +400,8 @@ Behavior:
 
 - Refuses to overwrite the source image.
 - Directory mode accepts `--output-dir`, not `--output`.
+- For `qr_code` and `barcode` detections with `--method mosaic`, the block size is automatically raised to `max(strength, bbox_short_side // 10, 20)` to prevent the encoding from surviving pixelation. After masking, a lightweight verification confirms the code is no longer machine-readable; if it is, the strength is escalated further (up to a fill fallback). Each affected detection includes an `effective_strength` field in the output.
+- A cv2-based fallback supplements YOLO detection for QR codes and barcodes. When YOLO misses a code (e.g. large codes on plain backgrounds), `cv2.QRCodeDetector` and `cv2.barcode.BarcodeDetector` provide additional coverage. When YOLO misclassifies a code region as a different category (e.g. `monitor_screen`), cv2 corrects the category before `--type` filtering, so `--type qr_code` catches all QR codes regardless of YOLO's label. Corrected detections include a `"corrected_from"` field; new detections include `"cv2_fallback": true`.
 
 ## `has image categories`
 

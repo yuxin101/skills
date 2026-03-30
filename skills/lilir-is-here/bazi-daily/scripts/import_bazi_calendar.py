@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert Bazi calendar xlsx into a packaged dataset for bazi_daily_calendar."""
+"""Convert Bazi calendar xlsx into upsert SQL for bazi_daily_calendar."""
 
 from __future__ import annotations
 
@@ -136,29 +136,10 @@ def build_sql(records: List[Dict[str, str]], table: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_csv(records: List[Dict[str, str]]) -> str:
-    today = dt.datetime.now(dt.timezone.utc).isoformat()
-    lines = ["date,flow_year,flow_month,flow_day,source,updated_at"]
-    for r in records:
-        lines.append(
-            ",".join(
-                [
-                    r["date"],
-                    r["flow_year"],
-                    r["flow_month"],
-                    r["flow_day"],
-                    "xlsx_2026",
-                    today,
-                ]
-            )
-        )
-    return "\n".join(lines) + "\n"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True, help="Path to xlsx file")
-    parser.add_argument("--output", required=True, help="Path to output .csv or .sql")
+    parser.add_argument("--output", required=True, help="Path to output .sql")
     parser.add_argument("--sheet", default=None, help="Sheet name, default first sheet")
     parser.add_argument("--table", default="bazi_daily_calendar", help="Target table name")
     args = parser.parse_args()
@@ -177,16 +158,9 @@ def main() -> None:
         raise ValueError("No valid data rows found in xlsx")
     validate_records(records)
 
-    output_format = output_path.suffix.lower()
-    if output_format == ".csv":
-        content = build_csv(records)
-    elif output_format == ".sql":
-        content = build_sql(records, args.table)
-    else:
-        raise ValueError("Output file must end with .csv or .sql")
-
+    sql = build_sql(records, args.table)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(content, encoding="utf-8")
+    output_path.write_text(sql, encoding="utf-8")
 
     print(f"sheet={sheet.title}")
     print(f"header_row={header_row}")

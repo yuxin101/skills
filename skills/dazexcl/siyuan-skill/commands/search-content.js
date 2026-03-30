@@ -28,7 +28,7 @@ const command = {
    * @param {string} args.type - 按单个类型过滤 (d/p/h/l/i/tb/c/s/img)
    * @param {Array|string} args.types - 按多个类型过滤
    * @param {boolean} args.hasTags - 是否有标签
-   * @param {string} args.sql - 自定义SQL查询条件（可选）
+   * @param {string} args.sql - 自定义WHERE条件（可选，通过 --where 参数传入）
    * @param {number} args.denseWeight - 语义搜索权重（混合搜索时）
    * @param {number} args.sparseWeight - 关键词搜索权重（混合搜索时）
    * @param {number} args.sqlWeight - SQL搜索权重（混合搜索时）
@@ -38,7 +38,7 @@ const command = {
   async execute(skill, args = {}) {
     const { 
       query, 
-      mode = 'hybrid',
+      mode = 'legacy',
       notebookId, 
       path,
       limit = 10, 
@@ -49,7 +49,7 @@ const command = {
       sql,
       denseWeight = 0.7,
       sparseWeight = 0.3,
-      sqlWeight = 0.0,
+      sqlWeight = 0,
       threshold = 0.0
     } = args;
     
@@ -120,10 +120,13 @@ const command = {
       
       const pathPermission = await Permission.checkDocumentPermission(skill, parentId);
       if (!pathPermission.hasPermission) {
+        const isNotFound = pathPermission.reason === 'not_found' || 
+                           (pathPermission.error && pathPermission.error.includes('不存在'));
         return {
           success: false,
-          error: '权限不足',
-          message: `无权访问路径 ${path}`
+          error: isNotFound ? '资源不存在' : '权限不足',
+          message: pathPermission.error || `无权访问路径 ${path}`,
+          reason: isNotFound ? 'not_found' : 'permission_denied'
         };
       }
     }

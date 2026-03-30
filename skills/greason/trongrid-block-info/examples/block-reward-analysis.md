@@ -13,7 +13,6 @@ Who produced block #68000000 and how much TRX was burned?
 3. **Transaction Info** → `getTransactionInfoByBlockNum(68000000)` → All transaction receipts
 4. **SR Lookup** → `getPaginatedNowWitnessList()` → Match witness address to SR name
 5. **SR Brokerage** → `getBrokerage(witnessAddress)` → Reward split
-6. **Block Balance** → `getBlockBalance(hash, number)` → All balance changes
 
 ## Expected Output (Sample)
 
@@ -57,4 +56,3 @@ Who produced block #68000000 and how much TRX was burned?
 | `getTransactionInfoByBlockNum` | 1 | Transaction receipts |
 | `getPaginatedNowWitnessList` | 1 | SR name lookup |
 | `getBrokerage` | 1 | Reward distribution |
-| `getBlockBalance` | 1 | Balance changes |

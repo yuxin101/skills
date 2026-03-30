@@ -1,9 +1,9 @@
 ---
 name: china-weather
 description: 中国天气查询工具。Use when user wants to check weather for Chinese cities. Supports current weather, forecast, air quality, life index with rich data and beautiful formatting. Free APIs with fallback strategy. 天气查询、天气预报、空气质量。
-version: 1.0.1
+version: 1.0.3
 license: MIT-0
-metadata: {"openclaw": {"emoji": "🌤️", "requires": {"bins": ["curl", "python3"], "env": ["QWEATHER_API_KEY", "OPENWEATHER_API_KEY"]}}}
+metadata: {"openclaw": {"emoji": "🌤️", "requires": {"bins": ["curl", "python3"], "env": []}}}
 ---
 
 # China Weather
@@ -33,14 +33,42 @@ metadata: {"openclaw": {"emoji": "🌤️", "requires": {"bins": ["curl", "pytho
 
 ## API Strategy (接口策略)
 
-### 优先级排序
+### 认证方式说明
 
-| 优先级 | API | 免费额度 | 稳定性 | 数据丰富度 |
-|--------|-----|----------|--------|------------|
-| 1 | 和风天气 | 1000次/天 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| 2 | 心知天气 | 无限制 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| 3 | OpenWeatherMap | 1000次/天 | ⭐⭐⭐⭐ | ⭐⭐⭐ |
-| 4 | wttr.in | 无限制 | ⭐⭐⭐ | ⭐⭐⭐ |
+| API | 认证方式 | 免费额度 | 配置要求 |
+|-----|----------|----------|----------|
+| **wttr.in** | 无需认证 | 无限制 | ❌ 无需任何配置 |
+| **和风天气** | API Host + Key | 1000次/天 | ✅ 需要API_HOST + API_KEY |
+| **OpenWeatherMap** | API Key | 1000次/天 | ✅ 需要API_KEY + 绑定信用卡 |
+| **心知天气** | API Key | 无限制 | ✅ 需要API_KEY |
+
+**推荐**：优先使用wttr.in（无需任何配置，免费无限制）
+
+### 降级策略
+
+```python
+# 优先级：无需配置 → 需要配置
+API_CHAIN = [
+    {"name": "wttr", "requires_key": False},      # 无需任何配置
+    {"name": "qweather", "requires_key": True},    # 需要API Host + Key
+    {"name": "openweathermap", "requires_key": True} # 需要Key + 信用卡
+]
+```
+
+### 和风天气配置说明（重要）
+
+和风天气从2026年起**不再支持公共API地址**，必须使用专属API Host：
+
+```bash
+# 环境变量配置
+export QWEATHER_API_HOST="你的API_HOST"  # 如：abc1234xyz.def.qweatherapi.com
+export QWEATHER_API_KEY="你的API_KEY"
+
+# 正确的API调用
+curl "https://${QWEATHER_API_HOST}/v7/weather/now?location=101010100&key=${QWEATHER_API_KEY}"
+```
+
+**注意**：响应使用gzip压缩，需要添加`--compressed`参数或在代码中处理
 
 ### 降级策略
 
@@ -243,14 +271,17 @@ class WttrAPI:
         return result
 
 class QWeatherAPI:
-    """和风天气 - Free tier available"""
+    """和风天气 - 需要API Host + Key"""
     
     def __init__(self):
         self.api_key = os.environ.get('QWEATHER_API_KEY', '')
-        self.base_url = 'https://devapi.qweather.com/v7'
+        self.api_host = os.environ.get('QWEATHER_API_HOST', '')
+        # 默认使用GeoAPI端点
+        self.geo_url = f"https://{self.api_host}/geo/v2" if self.api_host else ''
+        self.weather_url = f"https://{self.api_host}/v7" if self.api_host else ''
     
     def get_weather(self, city, days=7):
-        if not self.api_key:
+        if not self.api_key or not self.api_host:
             return None
         
         # Get city ID
@@ -258,10 +289,15 @@ class QWeatherAPI:
         if not city_id:
             return None
         
-        # Get current weather
-        url = f"{self.base_url}/weather/now?location={city_id}&key={self.api_key}"
-        response = requests.get(url, timeout=10)
-        current_data = response.json()
+        # Get current weather (with gzip support)
+        url = f"{self.weather_url}/weather/now?location={city_id}&key={self.api_key}"
+        response = requests.get(url, timeout=10, headers={'Accept-Encoding': 'gzip'})
+        response.encoding = 'utf-8'
+        
+        try:
+            current_data = response.json()
+        except:
+            return None
         
         if current_data.get('code') != '200':
             return None
@@ -291,11 +327,14 @@ class QWeatherAPI:
     
     def _get_city_id(self, city):
         """Get city ID from city name"""
-        url = f"https://geoapi.qweather.com/v2/city/lookup?location={city}&key={self.api_key}"
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        if data.get('code') == '200' and data.get('location'):
-            return data['location'][0]['id']
+        url = f"{self.geo_url}/city/lookup?location={city}&key={self.api_key}"
+        response = requests.get(url, timeout=10, headers={'Accept-Encoding': 'gzip'})
+        try:
+            data = response.json()
+            if data.get('code') == '200' and data.get('location'):
+                return data['location'][0]['id']
+        except:
+            pass
         return None
     
     def _get_forecast(self, city_id, days):

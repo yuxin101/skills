@@ -3,11 +3,21 @@
   "slug": "recipe-review-meet-participants",
   "displayName": "Recipe Review Meet Participants",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1774390873391,
-    "commit": "https://github.com/openclaw/skills/commit/f41c11a7f6ea42c06cc9b1cd3112af356af47d9a"
+    "version": "1.0.10",
+    "publishedAt": 1774551176926,
+    "commit": "https://github.com/openclaw/skills/commit/3147d2bce7dd11da61a6ca4cbaa93faa23892a81"
   },
   "history": [
+    {
+      "version": "1.0.9",
+      "publishedAt": 1774540838546,
+      "commit": "https://github.com/openclaw/skills/commit/fa5d26a50815beb330fb22562a439f7bdf9777cd"
+    },
+    {
+      "version": "1.0.7",
+      "publishedAt": 1774390873391,
+      "commit": "https://github.com/openclaw/skills/commit/f41c11a7f6ea42c06cc9b1cd3112af356af47d9a"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1774300634860,

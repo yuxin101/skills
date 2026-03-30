@@ -24,7 +24,7 @@ For credit/debit memos: ALWAYS include a referencedDocument with type "invoice" 
 
 ## totals
 
-netTotal, vatBreakdown[]: { rate, amount }, vatTotal, grossTotal, amountPaid, amountDue
+netTotal, vatBreakdown[]: { rate, amount, type (optional — tax regime label e.g. "CGST", "SGST", "USt", "НДС") }, vatTotal, grossTotal, amountPaid, amountDue, discount (invoice-level discount amount), discountRate (percentage e.g. 10 for 10%)
 
 ## charges[]
 
@@ -42,7 +42,7 @@ Freeform string — any comments, notes, or remarks printed on the document (nul
 
 ## metadata
 
-confidence (0.0–1.0), language (ISO 639-1), pageCount, processingDurationMs, provider, extractionTimestamp (ISO 8601), documentType
+confidence (0.0–1.0), language (ISO 639-1), pageCount, processingDurationMs, provider, extractionTimestamp (ISO 8601), documentType, paidDate (YYYY-MM-DD — date from PAID stamp if present), vatInclusive (true if line totals include VAT, false if net, null if unknown)
 
 ## fields[]
 

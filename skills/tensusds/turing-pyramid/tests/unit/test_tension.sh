@@ -14,8 +14,20 @@ RUN_CYCLE="$SKILL_DIR/scripts/run-cycle.sh"
 export WORKSPACE="${WORKSPACE:-$HOME/.openclaw/workspace}"
 export SKIP_SCANS="true"
 
+# Clear gate for test isolation (restore on exit)
+PENDING_FILE="$SKILL_DIR/assets/pending_actions.json"
+cp "$PENDING_FILE" "$PENDING_FILE.tension_backup" 2>/dev/null || true
+echo '{"actions":[],"last_cycle":"tension_test"}' > "$PENDING_FILE"
+trap 'mv "$PENDING_FILE.tension_backup" "$PENDING_FILE" 2>/dev/null || true; [[ -f "$STATE_FILE.tension_backup" ]] && mv "$STATE_FILE.tension_backup" "$STATE_FILE" 2>/dev/null || true' EXIT
+
 errors=0
 THRESHOLD=$(jq -r '.settings.tension_formula.crisis_threshold // 1.0' "$CONFIG_FILE")
+
+# Helper: run cycle with clean gate
+run_cycle_clean() {
+    echo '{"actions":[],"last_cycle":"tension_test"}' > "$PENDING_FILE"
+    "$RUN_CYCLE" 2>&1
+}
 
 calc_expected() {
     local imp=$1 dep=$2
@@ -32,7 +44,7 @@ now_str=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 jq --arg t "$now_str" '.security.satisfaction = 2.0 | .security.last_decay_check = $t | .security.last_satisfied = $t' \
     "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
 
-output=$("$RUN_CYCLE" 2>&1)
+output=$(run_cycle_clean)
 security_line=$(echo "$output" | grep -E "^\s+security: tension=" | head -1)
 actual=$(echo "$security_line" | sed -E 's/.*tension=([0-9.]+).*/\1/')
 # dep=1.0, threshold=1.0 → excess=0 → tension = 1² + 10×0 = 1.0
@@ -57,7 +69,7 @@ now_str=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 jq --arg t "$now_str" '.integrity.satisfaction = 0 | .integrity.last_decay_check = $t | .integrity.last_satisfied = $t' \
     "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
 
-output=$("$RUN_CYCLE" 2>&1)
+output=$(run_cycle_clean)
 integrity_line=$(echo "$output" | grep -E "^\s+integrity: tension=" | head -1)
 actual=$(echo "$integrity_line" | sed -E 's/.*tension=([0-9.]+).*/\1/')
 # dep=3.0, imp=9, excess=2.0 → 9 + 9×4 = 45.0
@@ -82,7 +94,7 @@ now_str=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 jq --arg t "$now_str" '.expression.satisfaction = 3.0 | .expression.last_decay_check = $t | .expression.last_satisfied = $t' \
     "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
 
-output=$("$RUN_CYCLE" 2>&1)
+output=$(run_cycle_clean)
 
 if echo "$output" | grep -qE "^\s+expression: tension="; then
     expression_line=$(echo "$output" | grep -E "^\s+expression: tension=" | head -1)
@@ -111,7 +123,7 @@ for need in security integrity coherence closure autonomy connection competence 
         "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
 done
 
-output=$("$RUN_CYCLE" 2>&1)
+output=$(run_cycle_clean)
 # All should be 0.25 (0.5² + imp × 0² = 0.25)
 expected=$(calc_expected 1 0.5) # importance doesn't matter below threshold
 

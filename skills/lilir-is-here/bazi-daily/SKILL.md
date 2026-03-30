@@ -1,6 +1,6 @@
 ---
 name: bazi-daily
-description: 面向“今日运势/今天适合做X吗/今日宜忌”与 “today’s fortune / is today good for X / what to do or avoid today” 的八字日运解读技能。自动读取当日日期并查询流年流月流日，结合用户四柱分析；首次用户无档案时先引导录入四柱并写入长期记忆。Supports both Chinese and English users with language-aware responses.
+description: 面向“今日运势/今天适合做X吗/今日宜忌”类咨询的八字日运解读技能。使用场景：用户在 OpenClaw 中询问当日运势、某事项是否适合今天做、今日吉凶与建议时触发。技能会自动读取当前日期，查询当日对应的流年、流月、流日，并结合用户的八字四柱进行分析；若用户为首次使用且无个人四柱记忆，先引导用户提供四柱并写入长期记忆，后续复用无需重复询问。
 ---
 
 # Bazi Daily
@@ -13,11 +13,14 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”与 “tod
 - B.《渊海子平》库（结构层）：用于格局判定、十神结构、用神框架（先定结构再谈细节）。
 - C.《穷通宝鉴》库（调候层）：用于月令气候、寒暖燥湿与调候药方（对结构结论做气候校正）。
 
-固定来源文件（优先包内 txt，PDF 仅人工回退）：
-- `A.滴天髓`（优先）：`references/classics/A_滴天髓.txt`
-- `B.渊海子平`（优先）：`references/classics/B_渊海子平.txt`
-- `C.穷通宝鉴`（优先）：`references/classics/C_穷通宝鉴.txt`
-- 若包内文本缺失，仅在操作者已显式提供对应 PDF 时再使用 PDF 回退；不要假设固定本机路径。
+固定来源文件（仅使用本地 txt）：
+- `A.滴天髓`：`references/classics/A_滴天髓.txt`
+- `B.渊海子平`：`references/classics/B_渊海子平.txt`
+- `C.穷通宝鉴`：`references/classics/C_穷通宝鉴.txt`
+
+若 txt 文件不可读，直接报错"经典文本文件缺失，无法完成分析"，不得尝试其他路径。
+
+> **当前文本覆盖缺口警告**：`B_渊海子平.txt` 缺少格局判断核心章节（成格/破格/从格/化格），`C_穷通宝鉴.txt` 缺少约 40% 天干的调候章节（乙木完整版、丁火、戊土、己土、庚金、辛金、癸水）。在涉及上述缺失内容时，输出中必须注明"当前文本节选，[B-结构]/[C-调候] 依据不完整"，不得以模型内置知识静默替代。详见 [references/classics/README.md](references/classics/README.md)。
 
 调用顺序必须是：`B 结构 -> C 调候 -> A 解释`。
 路由细则见 [references/classic-sources-routing.md](references/classic-sources-routing.md)。
@@ -25,28 +28,16 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”与 “tod
 ## Workflow
 
 1. 识别触发意图。
-2. 路由输出语言（见 `Language Routing Rules`）。
-3. 从会话上下文提取 `user_id` 与 `user_timezone`。
-4. 以用户时区自动计算 `today_local`（`YYYY-MM-DD`）。
-5. 调 heartbeat `bazi_profile_get` 读取用户四柱档案。
-6. 若未命中四柱档案，请用户补充四柱并调 heartbeat `bazi_profile_upsert` 写入长期记忆。
-7. 根据 `today_local` 查询 `bazi_daily_calendar`。
-8. 按“五步编排”完成分析并输出结论、依据和建议。
+2. 从会话上下文提取 `user_id` 与 `user_timezone`。
+3. 以用户时区自动计算 `today_local`（`YYYY-MM-DD`）。
+4. 调 heartbeat `bazi_profile_get` 读取用户四柱档案。
+5. 若未命中四柱档案，请用户补充四柱并调 heartbeat `bazi_profile_upsert` 写入长期记忆。
+6. 根据 `today_local` 查询 `bazi_daily_calendar`。
+7. 按“五步编排”完成分析并输出结论、依据和建议。
 
-默认年度数据源文件：`assets/bazi_daily_calendar_2026.csv`。
-维护脚本：`scripts/import_bazi_calendar.py`。
+默认年度数据源文件：`assets/bazi_daily_calendar_2026.sql`。
+导入脚本：`scripts/import_bazi_calendar.py`。
 经典文本预处理脚本：`scripts/extract_classics_text.py`。
-
-术语与翻译约束见 [references/i18n-terminology.md](references/i18n-terminology.md)。
-
-## Language Routing Rules
-
-1. 输出语言优先级：`user_locale` > 最近一条用户消息语言检测 > 默认 `zh-CN`。
-2. 支持语言仅限 `zh-CN` 与 `en-US`；其他 locale 统一回退到 `zh-CN`。
-3. 语言检测回退只影响展示层，不改变分析流程与 `B->C->A` 推理顺序。
-4. 证据标签内部键名固定保留中文：`[B-结构]`、`[C-调候]`、`[A-原理]`。
-5. 英文展示时，可补充映射说明：`[B-Structure]`、`[C-Climate]`、`[A-Principle]`（仅展示映射，不替换内部标签）。
-6. 回复时只输出单一语言版本，避免中英同屏重复。
 
 ## Five-Step Orchestration (Mandatory)
 
@@ -79,23 +70,16 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”与 “tod
 - “今天宜做什么/忌做什么？”
 - “我今天的运气怎么样？”
 - “帮我看今天的八字运势”
-- "today's fortune"
-- "is today good for xxx?"
-- "what should I do or avoid today?"
-- "how is my luck today?"
-- "check my bazi luck for today"
 
 若用户没有显式说“八字”，但语义是“今天是否适合某事”，默认按本技能流程处理。
 
 ## First-Time Onboarding
 
 当找不到用户四柱记忆时：
-1. 明确告知需要四柱后才能进行个性化日运分析（按输出语言选择模板）：
-   - `zh-CN`: “要做个性化今日运势解读，我需要你的八字四柱（年柱/月柱/日柱/时柱）。”
-   - `en-US`: "To provide a personalized daily reading, I need your Four Pillars (Year/Month/Day/Hour)."
-2. 请用户直接提供四柱，格式优先：`年柱/月柱/日柱/时柱`（英文可接受 `Year/Month/Day/Hour Pillars`）。
-3. 若用户不清楚四柱，建议使用可信的万年历或四柱排盘工具查询后再回传（英文提示可说明 “look up Four Pillars and send back”）。
-4. 校验最小完整性（四柱都存在）。
+1. 明确告知需要四柱后才能进行个性化日运分析。
+2. 请用户直接提供四柱，格式优先：`年柱/月柱/日柱/时柱`。
+3. 若用户不清楚四柱，建议前往“万年历”查询：<https://wannianrili.bmcx.com/>，输入生日后获取四柱再回传。
+4. 校验四柱完整性与格式：四项都存在且非空，且每柱须为有效干支组合（2 个汉字，第 1 字为十天干，第 2 字为十二地支）；格式不合法时要求用户重新输入，不得写入。
 5. 调 heartbeat `bazi_profile_upsert` 将结构化结果写入长期记忆。
 6. 写入成功后继续本次分析，不要求用户重新提问。
 
@@ -105,7 +89,7 @@ description: 面向“今日运势/今天适合做X吗/今日宜忌”与 “tod
 - `bazi_profile.pillars.day`
 - `bazi_profile.pillars.hour`
 - `bazi_profile.source`（如 `user_provided`）
-- `bazi_profile.updated_at`（ISO 日期时间）
+- `bazi_profile.updated_at`（UTC 时间，格式 `YYYY-MM-DDTHH:mm:ssZ`）
 
 若用户后续主动更正四柱，以最新输入覆盖旧值。
 
@@ -121,8 +105,13 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 6. 若当天无记录，明确告知“缺少当日流运数据”，并仅给出有限建议，不伪造结果。
 7. 每次运势分析请求都必须执行一次日期计算与一次数据表查询，不得跳过。
 
+8. 当前内置日历数据为 `assets/bazi_daily_calendar_2026.sql`，从 `2026-03-03` 起覆盖至 2026 年末。年度结束或数据缺口期间，除”缺少当日流运数据”提示外，额外提示”请联系管理员更新年度日历数据”。
+9. 年度日历更新流程：准备新年度 xlsx → 运行 `scripts/import_bazi_calendar.py` 生成 SQL → 导入 OpenClaw 内置表（详见 `references/import-command-template.md`）。新数据应至少在年度切换前 30 天就绪。
+
 数据表字段约定见 [references/bazi-calendar-schema.md](references/bazi-calendar-schema.md)。
 数据文件导入规范见 [references/bazi-calendar-schema.md](references/bazi-calendar-schema.md) 中的 “Data Source File” 与 “Import Mapping”。
+导入命令模板见 [references/import-command-template.md](references/import-command-template.md)。
+
 ## Analysis Rules
 
 1. 结构判定优先级高于主观经验；先判“是否成格/破格”，再谈强弱喜忌。
@@ -151,30 +140,24 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 
 ## Failure Handling
 
-1. heartbeat 读取失败时，按“未知档案”处理并进入首次引导；同时按输出语言提示：
-   - `zh-CN`: “记忆服务暂不可用，本次可先临时分析。”
-   - `en-US`: "Memory service is temporarily unavailable. I can still provide a one-time analysis."
-   若用户不清楚四柱，补充建议其使用可信排盘工具查询四柱。
-2. heartbeat 写入失败时，继续使用用户本次输入完成分析；同时按输出语言提示：
-   - `zh-CN`: “本次已解读，但暂未保存，下次可能需要再次提供。”
-   - `en-US`: "This reading is complete, but it wasn't saved. You may need to provide your pillars again next time."
-3. 当日流运缺失时，必须先确认“已执行当日查询且未命中”，再按输出语言提示：
-   - `zh-CN`: “缺少当日流运数据，仅基于四柱给出有限建议。”
-   - `en-US`: "Today's flow data is missing. I can only provide limited guidance based on your natal pillars."
+1. heartbeat 读取失败时，按“未知档案”处理并进入首次引导；同时提示“记忆服务暂不可用，本次可先临时分析”。
+   若用户不清楚四柱，补充推荐“万年历”：<https://wannianrili.bmcx.com/>。
+2. heartbeat 写入失败时，继续使用用户本次输入完成分析；同时提示“本次已解读，但暂未保存，下次可能需要再次提供”。
+3. 当日流运缺失时，明确告知“缺少当日流运数据，仅基于四柱给出有限建议”；该提示必须建立在“已执行当日查询且未命中”之上。
 
 ## Response Template
 
-按以下顺序组织回答（中英文都必须保持同一 10 段结构）：
-1. 今日日期 / Date (`YYYY-MM-DD`)
-2. 当日流运 / Daily Flows（流年/流月/流日）
-3. 命盘摘要 / Natal Summary（十神/强弱初判/月令/格局候选）
-4. 结构结论 / Structure Verdict（`[B-结构]`）
-5. 调候校正 / Climate Adjustment（`[C-调候]`）
-6. 气机解释 / Principle Rationale（`[A-原理]`）
-7. 对用户提问的直接结论 / Direct Answer
-8. 今日“宜”列表 / Do Today（2-4 条）
-9. 今日“忌”列表 / Avoid Today（2-4 条）
-10. 一句风险提示 / Risk Note（非决定性，仅供参考）
+按以下顺序组织回答：
+1. 今日日期（`YYYY-MM-DD`）
+2. 当日流运（流年/流月/流日）
+3. 命盘摘要（十神/强弱初判/月令/格局候选）
+4. 结构结论（`[B-结构]`）
+5. 调候校正（`[C-调候]`）
+6. 气机解释（`[A-原理]`）
+7. 对用户提问的直接结论
+8. 今日“宜”列表（2-4 条）
+9. 今日“忌”列表（2-4 条）
+10. 一句风险提示（非决定性，仅供参考）
 
 ## Guardrails
 
@@ -184,14 +167,11 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 - 用户未提供时柱时，不自动推断；要求补全。
 - 禁止跳过 `B->C->A` 顺序直接下结论。
 
-## Logging Suggestions
+## Mandatory Logging Fields
 
-建议每次请求记录以下字段，便于排障与 UAT 复盘：
+每次请求**必须**记录以下字段，用于排障与 UAT 复盘：
 - `user_id`
 - `user_timezone`
-- `user_locale`
-- `output_language`
-- `language_detection_source`（`user_locale|message_detected|default`）
 - `today_local`
 - `timezone_fallback`
 - `memory_hit`
@@ -203,6 +183,8 @@ heartbeat 请求响应与错误码约定见 [references/heartbeat-contract.md](r
 - `principle_source_hit`（A）
 - `final_yongshen_framework`
 - `climate_adjustment_applied`
+
+上述字段不得省略；若某字段在当次请求中不适用（如首次引导无 `heartbeat_upsert_status`），记录为 `null`。
 
 ## UAT Cases
 

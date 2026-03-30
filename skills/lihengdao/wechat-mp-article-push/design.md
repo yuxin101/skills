@@ -95,10 +95,6 @@ h3 { font-size: clamp(15px, 1.6vw, 16px); font-weight: bold; }
 ```
 
 **字体规则：**
-- ❌ 禁止输出文章标题（页面已有 `<title>`）
-- ❌ 禁止输出 `<header>` 标签及任何标题相关的描述性头部内容
-- ❌ 禁止用左边框（`border-left`）装饰任何级别的标题
-- ❌ 禁止在标题下方加横线装饰
 - ✅ 标题编号：H1 用"一、二、三"，H2 用"1.1、1.2"，H3 用"1.1.1"
 - ✅ 若文章仅有一级标题，字号使用 h3 样式；仅有二级标题，一级用 h2 样式，二级用 h3 样式
 
@@ -171,6 +167,7 @@ h3 { font-size: clamp(15px, 1.6vw, 16px); font-weight: bold; }
 
 ---
 
+
 ## 5. 布局规范
 
 ```css
@@ -195,14 +192,20 @@ h3 { font-size: clamp(15px, 1.6vw, 16px); font-weight: bold; }
 - ❌ 禁止 `float`
 
 ---
+ 
+## 6. 标题规范
+- 页面已有 `<title>` 标签展示标题，内容区域**严格禁止**重复输出**页面主标题**（即与 `<title>` 内容相同或相近的标题文字）
+- ❌ 内容区域禁止输出 `<header>` 标签
+- ❌ 内容区域禁止输出主标题或主标题相关描述
+- ❌ 内容区域禁止用左边框（`border-left`）装饰任何级别的段落标题
+- ❌ 内容区域禁止在段落标题下面用横线装饰
 
-## 6. 文章内容规范
+--- 
 
-### 内容输出规则（严格执行）
+## 7. 文章内容规范
 
-- ❌ 禁止输出 `<header>` 标签
-- ❌ 禁止输出文章标题或任何标题相关的描述性头部内容
-- ❌ 禁止用左边框（`border-left`）装饰任何级别的标题
+### 内容输出规则（严格执行） 
+
 - ✅ `content-container` 内直接放置段落元素（`<p>`、`<section>`、`<div class="highlight">` 等），中间不得嵌套 wrapper / inner 等额外容器
 - ✅ 标题编号使用文字序号，使用主题色文字颜色或渐变背景标注，宽度自适应标题内容
 
@@ -233,7 +236,11 @@ p, h1, h2, h3, section {
 <div class="design-container" style="padding: 0;">
     <div class="content-container" style="padding: 0; margin: 0;">
 
-        <!-- ✅ 无背景色段落，无左右内边距 -->
+        <!--
+         ✅ 无背景色段落，无左右内边距 
+         ✅ 遵循「标题规范」：禁止输出 <header> 标签及页面主标题
+         
+         -->
         <h2>一、标题</h2>
         <p>正文内容正文内容正文内容</p>
 
@@ -275,7 +282,7 @@ p, h1, h2, h3, section {
 
 ---
 
-## 7. 图文卡片（分页）规范
+## 8. 图文卡片（分页）规范
 
 **宽度 375px，默认 3:4 竖图比例，高度 500px**
 
@@ -327,8 +334,8 @@ p, h1, h2, h3, section {
 .pagination img { width: 100%; height: auto; max-height: 40%; object-fit: cover; }
 ```
 
-### 自动分页脚本（放在 `</body>` 前）
-
+### 自动分页脚本（放在 `</body>` 前） 
+ 
 ```javascript
 (function() {
     var pages = document.querySelectorAll('.pagination');
@@ -399,7 +406,7 @@ p, h1, h2, h3, section {
 
 ---
 
-## 8. CSS 限制
+## 9. CSS 限制
 
 | 禁止 | 替代方案 |
 |------|----------|
@@ -412,7 +419,7 @@ p, h1, h2, h3, section {
 
 ---
 
-## 9. HTML 标签限制
+## 10. HTML 标签限制
 
 | 禁止 | 替代 |
 |------|------|
@@ -423,7 +430,7 @@ p, h1, h2, h3, section {
 
 ---
 
-## 10. JavaScript 限制
+## 11. JavaScript 限制
 
 - ❌ 禁止所有事件监听器（`addEventListener`、`onclick`、`onload` 等）
 - ✅ 允许用于初始化渲染（图表初始化、DOM 操作）

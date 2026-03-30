@@ -1,3 +1,8 @@
+---
+name: code-planning-agent
+description: "Create comprehensive implementation plans for software projects. The agent produces structured plans including phases, steps, dependencies, verification methods, and assumptions."
+---
+
 # Code Planning Agent
 
 Create comprehensive implementation plans for software projects.

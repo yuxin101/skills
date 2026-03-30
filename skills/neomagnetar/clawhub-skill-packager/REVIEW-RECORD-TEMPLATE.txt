@@ -1,0 +1,60 @@
+SKILL PACKAGE REVIEW RECORD
+
+Status:
+- [ ] Draft
+- [ ] Ready to review
+- [ ] Ready to publish
+
+Mode used:
+- 
+
+Inputs received:
+- 
+
+Missing information detected:
+- 
+
+Assumptions made:
+- 
+
+Skill classification:
+- 
+
+Runtime / security notes:
+- 
+
+Files created:
+- 
+
+Files edited:
+- 
+
+Files removed:
+- 
+
+Identity alignment changes:
+- 
+
+Frontmatter changes:
+- 
+
+Behavioral changes:
+- 
+
+Branding / positioning edits:
+- 
+
+⚠️ REQUIRED REVIEW
+- 
+
+🔶 INFERRED FIELD
+- 
+
+✅ FIXED AUTOMATICALLY
+- 
+
+📝 EDITED FOR ALIGNMENT
+- 
+
+🚀 READY TO PUBLISH
+- 

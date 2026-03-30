@@ -3,11 +3,16 @@
   "slug": "stockindex",
   "displayName": "Shanghai Stock Exchange Composite Index - 上证股票指数",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773719980164,
-    "commit": "https://github.com/openclaw/skills/commit/6df2502a47d53f7aa6cd49f441d414fcde00e5b8"
+    "version": "1.0.3",
+    "publishedAt": 1774592507765,
+    "commit": "https://github.com/openclaw/skills/commit/ef16156d8dd74feeb1e421012c09d05578077591"
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773719980164,
+      "commit": "https://github.com/openclaw/skills/commit/6df2502a47d53f7aa6cd49f441d414fcde00e5b8"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773632379993,

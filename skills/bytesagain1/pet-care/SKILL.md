@@ -1,46 +1,35 @@
 ---
-version: "2.0.0"
-name: Pet Care Guide
-description: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━. Use when you need pet care capabilities. Triggers on: pet care."
-  宠物护理指南。喂养方案(猫/狗)、健康检查、训练技巧、美容护理、紧急处理、新手准备清单。Pet care guide for cats and dogs with feeding, health, training, grooming, emergency, checklists. 宠物、猫、狗、喂养。
-author: BytesAgain
+name: "pet-care"
+version: "4.0.1"
+description: "Reference tool for life — covers intro, quickstart, patterns and more. Quick lookup for Pet Care concepts, best practices, and implementation patterns."
+author: "BytesAgain"
+homepage: "https://bytesagain.com"
+source: "https://github.com/bytesagain/ai-skills"
+tags: [pet,care, reference]
+category: "life"
 ---
-# Pet Care Guide
 
-宠物护理指南。喂养方案(猫/狗)、健康检查、训练技巧、美容护理、紧急处理、新手准备清单。Pet care guide for cats and dogs with feeding, health, training, grooming, emergency, checklists. 宠物、猫、狗、喂养。
+# Pet Care
 
-## 为什么选择这个工具
-
-- ✅ 专为中文用户设计，理解中国市场和文化
-- ✅ 多种命令覆盖不同场景需求
-- ✅ 输出实用、可直接使用的内容
-- ✅ 持续更新，紧跟行业最新趋势
-
-## 命令速查
-
-```
-  feed            feed
-  health          health
-  train           train
-  grooming        grooming
-  emergency       emergency
-  checklist       checklist
-```
-
-## 专业建议
-
-- ❌ 巧克力、葡萄、洋葱、大蒜、木糖醇
-- ❌ 生鸡蛋、生肉（沙门氏菌风险）
-- ❌ 牛奶（成年猫狗多数乳糖不耐）
-- 猫: 8周首针，每3-4周加强，1岁后年度
-- 狗: 6-8周首针，每3-4周加强，1岁后年度
-
----
-*Pet Care Guide by BytesAgain*
----
-💬 Feedback & Feature Requests: https://bytesagain.com/feedback
-Powered by BytesAgain | bytesagain.com
+Reference tool for life — covers intro, quickstart, patterns and more. Quick lookup for Pet Care concepts, best practices, and implementation patterns. No API keys or credentials required.
 
 ## Commands
 
-Run `pet-care help` to see all available commands.
+| Command | Description |
+|---------|-------------|
+| `intro` | intro reference |
+| `quickstart` | quickstart reference |
+| `patterns` | patterns reference |
+| `debugging` | debugging reference |
+| `performance` | performance reference |
+| `security` | security reference |
+| `migration` | migration reference |
+| `cheatsheet` | cheatsheet reference |
+
+## Output Format
+
+All commands output plain-text reference documentation via heredoc. No external API calls, no credentials needed, no network access.
+
+---
+
+*Powered by BytesAgain | bytesagain.com | hello@bytesagain.com*

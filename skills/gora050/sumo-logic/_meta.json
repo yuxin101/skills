@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "sumo-logic",
+  "displayName": "Sumo Logic",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774616682566,
+    "commit": "https://github.com/openclaw/skills/commit/be49788078d59027b405345484f72d0d6048dd12"
+  },
+  "history": []
+}

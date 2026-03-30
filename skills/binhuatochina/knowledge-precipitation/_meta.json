@@ -1,0 +1,11 @@
+{
+  "owner": "binhuatochina",
+  "slug": "knowledge-precipitation",
+  "displayName": "知识自动沉淀引擎",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774668116523,
+    "commit": "https://github.com/openclaw/skills/commit/77487fe7eda7a6dba9368750efc9f3d3604ffb6f"
+  },
+  "history": []
+}

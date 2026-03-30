@@ -221,7 +221,7 @@ Test competitor content in AI systems for relevant queries:
 
 **Domain Authority Comparison (Recommended)**
 
-When domain-level comparison is needed, run the [domain-authority-auditor](../../cross-cutting/domain-authority-auditor/) for each competitor to get CITE scores:
+When domain-level comparison is needed, run `domain-authority-auditor` for each competitor to get CITE scores:
 
 | Domain | CITE Score | C (Citation) | I (Identity) | T (Trust) | E (Eminence) | Veto |
 |--------|-----------|-------------|-------------|----------|-------------|------|

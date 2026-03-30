@@ -1,0 +1,11 @@
+{
+  "owner": "xuwei-fit2cloud",
+  "slug": "dataease",
+  "displayName": "DataEase",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774605603899,
+    "commit": "https://github.com/openclaw/skills/commit/fff1c20f8b031d416ecc8bd25896cd8cf1447fc0"
+  },
+  "history": []
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "peandrover",
+  "slug": "law-firm-video",
+  "displayName": "Law Firm Video",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774513222778,
+    "commit": "https://github.com/openclaw/skills/commit/752bc8272b8add26b708cb04071f449bfc4fa0bc"
+  },
+  "history": []
+}

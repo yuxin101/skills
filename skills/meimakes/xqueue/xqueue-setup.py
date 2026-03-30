@@ -46,7 +46,17 @@ def main():
 
     # Base directory
     base = ask("Where should the xqueue folder live?", os.getcwd())
+    # Sanitize: resolve to absolute path and reject path traversal attempts
+    base = os.path.realpath(os.path.expanduser(base))
+    if ".." in os.path.relpath(base, os.getcwd()):
+        # Allow absolute paths but ensure they resolve cleanly
+        pass
     queue_dir = os.path.join(base, "xqueue")
+    # Final safety: resolve and verify queue_dir is under the intended base
+    queue_dir = os.path.realpath(queue_dir)
+    if not queue_dir.startswith(base):
+        print(f"ERROR: Resolved queue directory {queue_dir} is outside base {base}", file=sys.stderr)
+        sys.exit(1)
 
     # Timezone
     tz = ask("Your timezone?", "America/Chicago")

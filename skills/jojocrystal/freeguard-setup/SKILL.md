@@ -11,12 +11,27 @@ An agent skill for guiding users through FreeGuard VPN setup and daily usage. De
 
 This skill uses the `freeguard` CLI binary (installed via official channels below). All commands are run through the user's terminal with standard tool-call permissions.
 
+## Vendor & Domain Information
+
+FreeGuard VPN is developed by **Planetlink Inc.**
+
+| Purpose | Domain | Notes |
+|---------|--------|-------|
+| Homepage | `https://freeguardvpn.com` | Product homepage |
+| Binary releases | `downloadcli.freeguardvpn.com` | Install scripts and binary downloads |
+| Homebrew tap | `github.com/planetlinkinc/homebrew-tap` | Signed formula |
+| API backend | `www.freeguardvpn.com` | Login, subscription, profile sync |
+
+The CLI source code is proprietary (not open-source). All credentials are sent exclusively to `freeguardvpn.com` over HTTPS. No other domains receive user data.
+
 ## Credentials & Data Handling
 
-- **Email**: asked from user for login/subscription (sent to freeguards.com API)
-- **Verification code**: 6-digit code sent to user's email, entered by user
-- **Subscription URL / Access token**: provided by user, stored locally in `~/.freeguard/credentials.yaml` with 0600 permissions
-- No credentials are stored or transmitted by this skill itself — all handled by the `freeguard` CLI
+- **Email**: asked from user for login/subscription, sent to `freeguardvpn.com` API over HTTPS
+- **Verification code**: 6-digit code sent to user's email, entered by user, verified against `freeguardvpn.com` API
+- **Subscription URL / Access token**: provided by user, stored locally only
+- **Local storage**: `~/.freeguard/credentials.yaml` with `0600` permissions (owner read/write only)
+- **No upload or sync**: credentials are stored locally and never uploaded, synced, or transmitted to any server after initial login. The CLI reads them locally for subsequent operations.
+- **No credentials are stored or transmitted by this skill itself** — all credential handling is performed by the `freeguard` CLI binary
 
 ## Tone
 
@@ -88,20 +103,66 @@ Tell the user the current state in friendly terms:
 
 ## Step 2: Installation
 
-Ask the user's operating system if unclear, then recommend the best install method.
+Ask the user's operating system if unclear, then recommend the install method **in this priority order**:
 
-**Preferred — package managers (verified, signed):**
-- **macOS with Homebrew**: `brew install planetlinkinc/tap/freeguardvpn`
-- **Direct download**: Binary releases at https://github.com/planetlinkinc/freeguard-cli/releases (GitHub-hosted, checksums in release notes)
+### Option 1 (Recommended): Homebrew (macOS / Linux)
 
-**Alternative — install scripts (ask user to confirm before running):**
-- **macOS / Linux**: `curl -fsSL https://downloadcli.freeguardvpn.com/cli/install.sh | sh`
-- **Windows (PowerShell)**: `irm https://downloadcli.freeguardvpn.com/cli/install.ps1 | iex`
+```bash
+brew install planetlinkinc/tap/freeguardvpn
+```
 
-When suggesting script install, tell the user:
-> "This will download and install FreeGuard from the official site (downloadcli.freeguardvpn.com). The source code is on GitHub at github.com/planetlinkinc/freeguard-cli. Shall I go ahead?"
+Best option — signed, verified, and auto-updates via Homebrew.
 
-Only proceed after user confirms. After install, verify with `freeguard doctor --json`.
+### Option 2: Install script
+
+Downloads the latest binary from the official FreeGuard CDN (`downloadcli.freeguardvpn.com`). **Always download the script first, let the user inspect it, then execute.** Ask for explicit confirmation before running.
+
+> "I can download the install script from the official site (downloadcli.freeguardvpn.com) so you can review it before running. **Would you like me to go ahead, or would you prefer to install via Homebrew?**"
+
+Only proceed after user explicitly confirms.
+
+**macOS / Linux:**
+```bash
+# Step 1: Download the script for inspection
+curl -fsSL https://downloadcli.freeguardvpn.com/cli/install.sh -o /tmp/freeguard-install.sh
+
+# Step 2: Show the user what the script does
+cat /tmp/freeguard-install.sh
+```
+
+After showing the script content, tell the user:
+> "Here's what the install script does: [brief summary of the script's actions]. Shall I run it?"
+
+Only after user confirms:
+```bash
+# Step 3: Execute the reviewed script
+sh /tmp/freeguard-install.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+# Step 1: Download the script for inspection
+Invoke-WebRequest -Uri https://downloadcli.freeguardvpn.com/cli/install.ps1 -OutFile $env:TEMP\freeguard-install.ps1
+
+# Step 2: Show the user what the script does
+Get-Content $env:TEMP\freeguard-install.ps1
+```
+
+After showing the script content, tell the user:
+> "Here's what the install script does: [brief summary]. Shall I run it?"
+
+Only after user confirms:
+```powershell
+# Step 3: Execute the reviewed script
+& $env:TEMP\freeguard-install.ps1
+```
+
+### Post-install verification
+
+After install (any method), verify with:
+```bash
+freeguard doctor --json
+```
 
 ## Step 3: Subscribe (if no subscription)
 
@@ -169,7 +230,7 @@ If the user just completed a purchase in Step 3, skip this question and go strai
 4. Tell user: "A verification code has been sent. Please check your inbox (and spam folder) and tell me the 6-digit code."
 5. User provides code
 6. Run: `freeguard login --email <email> --code <code> --json`
-7. On success: "Great, you're logged in!"
+7. On success: "Great, you're logged in! Your credentials are saved locally on this computer only."
 8. On failure: "That code didn't work. Want me to send a new one?"
 
 ### URL Login
@@ -235,10 +296,18 @@ Tell the user:
 
 ## Step 6: Authorize & Connect
 
-**TUN mode requires administrator/root privileges.** Without it, only apps that respect proxy settings will go through VPN. Always explain WHY admin access is needed and ask for explicit confirmation.
+### Why admin access is needed
+
+**TUN mode** creates a virtual network adapter to capture ALL traffic from every app on the system. This is a low-level OS operation that requires elevated privileges:
+- **macOS / Linux**: requires `sudo` to create the TUN device (`/dev/tun*`) and modify routing tables
+- **Windows**: requires Administrator to install the Wintun network driver
+
+**Without admin access**, only apps that respect system proxy settings (browsers, most GUI apps) will go through VPN. Terminal commands, games, and some desktop apps may bypass VPN.
+
+### Connecting
 
 **macOS / Linux:**
-> "To protect all your apps (not just the browser), VPN needs admin privileges. This is because system-wide traffic capture requires low-level network access.
+> "To protect all your apps (not just the browser), VPN needs admin privileges. This is needed to create a virtual network adapter that captures all traffic.
 >
 > I'll need to run `sudo freeguard connect`. **Is that OK?** You'll be asked for your password."
 
@@ -248,7 +317,7 @@ sudo freeguard connect --json
 ```
 
 **Windows:**
-> "To protect all your apps, we need to run as Administrator. This is because system-wide traffic capture requires elevated permissions.
+> "To protect all your apps, we need to run as Administrator. This is needed to install a network driver that captures all traffic.
 >
 > Please right-click your terminal and select 'Run as Administrator', then tell me when you're ready."
 
@@ -264,6 +333,33 @@ Then connect without sudo:
 ```bash
 freeguard connect --json
 ```
+
+### Connect with smart node selection (v0.8.0+)
+
+The connect command supports multiple ways to specify a server:
+
+```bash
+# Auto-select best node (default)
+freeguard connect --json
+
+# Use short alias (e.g. la2 = Los Angeles-2)
+freeguard connect la2 --json
+
+# Use country code (uppercase, auto-selects best in that country)
+freeguard connect US --json
+
+# Use alias + protocol
+freeguard connect la2 anytls --json
+
+# Reconnect to last-used node (no args, remembers previous session)
+freeguard connect --json
+```
+
+**When the user says "connect to LA" or "use Los Angeles":** use the short alias form (e.g. `la2`). Run `freeguard node list --json` first to find the matching alias.
+
+**When the user says "connect to US" or "use a Japan server":** use the country code form (e.g. `US`, `JP`).
+
+**If the user just says "connect" and they've used VPN before:** the CLI automatically reconnects to their last-used node. No extra steps needed.
 
 The connect command runs automatic health checks (DNS, direct access, proxy, streaming, download speed). Parse the JSON output and report to user:
 - All 5 checks pass: "You're connected! Everything is working perfectly — browsing, streaming, and downloads all good."
@@ -288,10 +384,13 @@ If connected, tell the user:
 >
 > - **Check status**: just ask me 'am I connected?'
 > - **Disconnect**: ask me to 'disconnect' or run `freeguard disconnect`
-> - **Reconnect**: ask me to 'connect' or run `freeguard connect`
-> - **Switch server location**: ask me to 'switch to Japan' or similar
+> - **Reconnect**: ask me to 'reconnect' or run `freeguard reconnect` (restarts the VPN fresh)
+> - **Quick reconnect**: just run `freeguard connect` — it remembers your last server
+> - **Switch server**: ask me to 'switch to la2' or 'switch to Japan' — you can use short aliases!
+> - **See all servers**: run `freeguard node list` to see servers with their short aliases
 > - **Check subscription**: ask me 'when does my plan expire?'
 > - **Start on boot**: ask me to 'enable autostart'
+> - **Shell completion**: run `freeguard completion bash` (or zsh/fish/powershell) to enable tab completion
 >
 > Enjoy your secure internet!"
 
@@ -302,12 +401,14 @@ When the user asks about ongoing usage, run the appropriate command and summariz
 | User says | What to do |
 |-----------|------------|
 | "Am I connected?" / "Status" | `freeguard status --json` → report connection, node, mode, subscription expiry |
-| "Connect" / "Turn on VPN" | `freeguard connect --json` → "Connected!" + report health check results |
-| "Connect to US" / "Use Japan server" | `freeguard connect --country US --json` |
+| "Connect" / "Turn on VPN" | `freeguard connect --json` → auto-reconnects to last-used node, or auto-selects best |
+| "Connect to US" / "Use Japan server" | `freeguard connect US --json` (country code, uppercase) |
+| "Connect to LA" / "Use Los Angeles" | `freeguard connect la2 --json` (short alias). Run `node list --json` first to find the right alias |
 | "Disconnect" / "Turn off VPN" | `freeguard disconnect --json` → "Disconnected" |
-| "Show nodes" / "Server list" | `freeguard node list --json` → summarize locations |
-| "Switch to Tokyo" | `freeguard node switch "Tokyo" --json` → "Switched to Tokyo" |
-| "Switch to hysteria2 protocol" | `freeguard node switch "<current-node>" hysteria2 --json` |
+| "Reconnect" / "Restart VPN" | `freeguard reconnect --json` → full disconnect + reconnect cycle |
+| "Show nodes" / "Server list" | `freeguard node list --json` → summarize locations with short aliases |
+| "Switch to Tokyo" | `freeguard node switch to1 --json` (use alias). Run `node list --json` first to find the alias |
+| "Switch to hysteria2 protocol" | `freeguard node switch <alias> hysteria2 --json` |
 | "Speed test" | `freeguard node test --all --json` → show top 5 fastest |
 | "Check my account" | `freeguard subscribe info --json` → report plan status and expiry |
 | "Renew my subscription" | `freeguard subscribe list --json` → show plans |
@@ -317,6 +418,20 @@ When the user asks about ongoing usage, run the appropriate command and summariz
 | "Share VPN with my phone" | Explain: set proxy to this computer's IP, port 7997 |
 | "Start VPN on boot" | `freeguard autostart enable --json` |
 | "Stop autostart" | `freeguard autostart disable --json` |
+| "Enable tab completion" | `freeguard completion bash` (or zsh/fish/powershell) → guide user to source the output |
+
+### Short Aliases (v0.8.0+)
+
+Nodes have auto-generated short aliases shown in `freeguard node list`. The alias format is:
+- **Multi-word city**: first letter of each significant word + node number (e.g. `la2` = Los Angeles-2, `hk1` = Hong Kong-1)
+- **Single-word city**: first 2 letters + node number (e.g. `to1` = Tokyo-1, `se1` = Seattle-1)
+- **Collisions**: losing city extends to 3 letters (e.g. `seo1` = Seoul-1 since `se1` = Seattle-1)
+
+Aliases are **lowercase**. Country codes are **uppercase**. This is how they are distinguished:
+- `se1` = Seattle-1 (alias)
+- `SE` = Sweden (country code, auto-selects best node)
+
+When the user wants to connect or switch to a specific server, always look up the alias first via `freeguard node list --json` and use the alias form — it's shorter and less error-prone than typing full node names with spaces.
 
 ## Troubleshooting
 
@@ -344,8 +459,12 @@ Use friendly language instead of internal technical terms:
 | fake-ip DNS | fast DNS |
 | rule-provider | smart routing |
 | node switch | switch server |
+| node alias (la2, to1) | short server name / shortcut |
 | autostart enable | start VPN on boot |
 | subscribe info | check your account |
+| reconnect | restart VPN connection |
+| completion | tab completion / auto-complete |
+| Levenshtein / fuzzy match | smart suggestions when you mistype |
 | Trojan/AnyTLS/Hysteria2 | connection protocols (only mention if user asks) |
 | mihomo | VPN engine (only mention if user asks) |
 | config.yaml / runtime.yaml | settings (only mention if user asks) |

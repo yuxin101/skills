@@ -5,22 +5,19 @@ Run via cron every 15 minutes.
 
 Reads credentials from environment variables (X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN,
 X_ACCESS_TOKEN_SECRET). Optional macOS Keychain fallback if XQUEUE_KEYCHAIN_ACCOUNT is set.
-Fallback: env vars X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET
 """
 
 import base64
-import hashlib
-import hmac
 import json
 import os
 import re
-import secrets
 import sys
 import time
-import urllib.parse
-import urllib.request
 from datetime import datetime
 from pathlib import Path
+
+import requests
+from requests_oauthlib import OAuth1
 
 # ---------------------------------------------------------------------------
 # Config
@@ -31,6 +28,26 @@ MAX_TWEET_LENGTH = 280
 SUPPORTED_MEDIA = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5MB
 MAX_GIF_BYTES = 15 * 1024 * 1024  # 15MB
+
+
+def notify_user(message: str):
+    """Send a notification to the user via OpenClaw webhook."""
+    try:
+        # Write to a notification file that heartbeat/cron can pick up
+        notif_path = Path.home() / ".openclaw" / "workspace" / "xqueue" / "notifications.log"
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        with open(notif_path, "a") as f:
+            f.write(f"[{ts}] {message}\n")
+        # Also try the OpenClaw gateway API for immediate delivery
+        gw_token_path = Path.home() / ".openclaw" / "openclaw.json"
+        if gw_token_path.exists():
+            import subprocess
+            subprocess.run(
+                ["openclaw", "wake", "--text", f"XQueue alert: {message}"],
+                capture_output=True, timeout=10
+            )
+    except Exception:
+        pass  # Best effort — don't crash the poster
 
 
 def load_config(queue_dir: Path) -> dict:
@@ -59,16 +76,16 @@ def log_action(config: dict, queue_dir: Path, message: str):
 
 
 # ---------------------------------------------------------------------------
-# OAuth 1.0a
+# OAuth 1.0a (via requests-oauthlib)
 # ---------------------------------------------------------------------------
 
 def get_credential(service: str, env_var: str) -> str:
-    """Get credential from env var first, fall back to macOS Keychain if XQUEUE_KEYCHAIN_ACCOUNT is set."""
+    """Get credential from env var first, fall back to macOS Keychain."""
     val = os.environ.get(env_var, "")
     if val:
         return val
-    # Optional macOS Keychain fallback — only if user explicitly configures it
-    account = os.environ.get("XQUEUE_KEYCHAIN_ACCOUNT", "")
+    # macOS Keychain fallback — default account "meimakes", override with XQUEUE_KEYCHAIN_ACCOUNT
+    account = os.environ.get("XQUEUE_KEYCHAIN_ACCOUNT", "meimakes")
     if account:
         import subprocess
         try:
@@ -83,127 +100,52 @@ def get_credential(service: str, env_var: str) -> str:
     return ""
 
 
+def get_oauth() -> OAuth1:
+    """Build an OAuth1 instance from credentials."""
+    return OAuth1(
+        get_credential("x-consumer-key", "X_CONSUMER_KEY"),
+        get_credential("x-consumer-secret", "X_CONSUMER_SECRET"),
+        get_credential("x-access-token", "X_ACCESS_TOKEN"),
+        get_credential("x-access-token-secret", "X_ACCESS_TOKEN_SECRET"),
+    )
+
+
 def oauth_request(method: str, url: str, body: dict = None, params: dict = None) -> dict:
-    consumer_key = get_credential("x-consumer-key", "X_CONSUMER_KEY")
-    consumer_secret = get_credential("x-consumer-secret", "X_CONSUMER_SECRET")
-    access_token = get_credential("x-access-token", "X_ACCESS_TOKEN")
-    access_secret = get_credential("x-access-token-secret", "X_ACCESS_TOKEN_SECRET")
-
-    oauth_params = {
-        "oauth_consumer_key": consumer_key,
-        "oauth_nonce": secrets.token_hex(16),
-        "oauth_signature_method": "HMAC-SHA1",
-        "oauth_timestamp": str(int(time.time())),
-        "oauth_token": access_token,
-        "oauth_version": "1.0",
-    }
-
-    # For signature, include query params but NOT JSON body
-    all_params = {**oauth_params}
-    if params:
-        all_params.update(params)
-
-    param_str = "&".join(
-        f"{urllib.parse.quote(k, '')}={urllib.parse.quote(str(v), '')}"
-        for k, v in sorted(all_params.items())
-    )
-    base_url = url.split("?")[0]
-    base = f"{method}&{urllib.parse.quote(base_url, '')}&{urllib.parse.quote(param_str, '')}"
-    key = f"{urllib.parse.quote(consumer_secret, '')}&{urllib.parse.quote(access_secret, '')}"
-    sig = base64.b64encode(
-        hmac.new(key.encode(), base.encode(), hashlib.sha1).digest()
-    ).decode()
-    oauth_params["oauth_signature"] = sig
-
-    auth_header = "OAuth " + ", ".join(
-        f'{urllib.parse.quote(k, "")}="{urllib.parse.quote(v, "")}"'
-        for k, v in sorted(oauth_params.items())
-    )
-
-    req_url = url
-    if params:
-        req_url += "?" + urllib.parse.urlencode(params)
-
-    headers = {"Authorization": auth_header}
-    data = None
-    if body is not None:
-        data = json.dumps(body).encode()
-        headers["Content-Type"] = "application/json"
-
-    req = urllib.request.Request(req_url, data=data, headers=headers, method=method)
+    """Make an OAuth 1.0a signed request to the X API."""
+    auth = get_oauth()
     try:
-        with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode()
-        return {"error": e.code, "body": error_body}
+        resp = requests.request(
+            method, url, auth=auth, json=body, params=params, timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.HTTPError as e:
+        error_body = e.response.text if e.response else str(e)
+        return {"error": e.response.status_code if e.response else 0, "body": error_body}
+    except requests.exceptions.RequestException as e:
+        return {"error": 0, "body": str(e)}
 
 
 def upload_media(file_path: Path) -> str:
-    """Upload media to X and return media_id string. Uses v1.1 chunked upload."""
-    consumer_key = get_credential("x-consumer-key", "X_CONSUMER_KEY")
-    consumer_secret = get_credential("x-consumer-secret", "X_CONSUMER_SECRET")
-    access_token = get_credential("x-access-token", "X_ACCESS_TOKEN")
-    access_secret = get_credential("x-access-token-secret", "X_ACCESS_TOKEN_SECRET")
-
+    """Upload media to X and return media_id string. Uses v1.1 media upload."""
+    auth = get_oauth()
     media_data = file_path.read_bytes()
     media_b64 = base64.b64encode(media_data).decode()
 
-    suffix = file_path.suffix.lower()
-    media_type = {
-        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
-    }.get(suffix, "image/jpeg")
-
-    # Use v1.1 media upload with multipart
     url = "https://upload.twitter.com/1.1/media/upload.json"
-
-    # Build multipart form data
-    boundary = secrets.token_hex(16)
-    body_parts = []
-    body_parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"media_data\"\r\n\r\n{media_b64}\r\n")
-    body_parts.append(f"--{boundary}--\r\n")
-    body_bytes = "".join(body_parts).encode()
-
-    oauth_params = {
-        "oauth_consumer_key": consumer_key,
-        "oauth_nonce": secrets.token_hex(16),
-        "oauth_signature_method": "HMAC-SHA1",
-        "oauth_timestamp": str(int(time.time())),
-        "oauth_token": access_token,
-        "oauth_version": "1.0",
-    }
-
-    param_str = "&".join(
-        f"{urllib.parse.quote(k, '')}={urllib.parse.quote(str(v), '')}"
-        for k, v in sorted(oauth_params.items())
-    )
-    base = f"POST&{urllib.parse.quote(url, '')}&{urllib.parse.quote(param_str, '')}"
-    key = f"{urllib.parse.quote(consumer_secret, '')}&{urllib.parse.quote(access_secret, '')}"
-    sig = base64.b64encode(
-        hmac.new(key.encode(), base.encode(), hashlib.sha1).digest()
-    ).decode()
-    oauth_params["oauth_signature"] = sig
-
-    auth_header = "OAuth " + ", ".join(
-        f'{urllib.parse.quote(k, "")}="{urllib.parse.quote(v, "")}"'
-        for k, v in sorted(oauth_params.items())
-    )
-
-    req = urllib.request.Request(
-        url, data=body_bytes,
-        headers={
-            "Authorization": auth_header,
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-        },
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req) as resp:
-            result = json.loads(resp.read())
-            return str(result["media_id_string"])
-    except urllib.error.HTTPError as e:
-        print(f"Media upload failed: {e.code} {e.read().decode()}", file=sys.stderr)
+        resp = requests.post(
+            url, auth=auth,
+            data={"media_data": media_b64},
+            timeout=60
+        )
+        resp.raise_for_status()
+        return str(resp.json()["media_id_string"])
+    except requests.exceptions.HTTPError as e:
+        print(f"Media upload failed: {e.response.status_code} {e.response.text}", file=sys.stderr)
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"Media upload failed: {e}", file=sys.stderr)
         return None
 
 
@@ -211,8 +153,48 @@ def upload_media(file_path: Path) -> str:
 # Posting logic
 # ---------------------------------------------------------------------------
 
+def split_long_text(text: str, max_len: int = MAX_TWEET_LENGTH) -> list[str]:
+    """Split text that exceeds max_len into multiple tweet-sized chunks.
+    Splits at paragraph breaks first, then sentence boundaries, preserving meaning."""
+    if len(text) <= max_len:
+        return [text]
+
+    chunks = []
+
+    # First try splitting on double newlines (paragraphs)
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+
+    current = ""
+    for para in paragraphs:
+        candidate = (current + "\n\n" + para).strip() if current else para
+        if len(candidate) <= max_len:
+            current = candidate
+        else:
+            if current:
+                chunks.append(current)
+            # If single paragraph is too long, split on sentences
+            if len(para) > max_len:
+                sentences = re.split(r'(?<=[.!?])\s+', para)
+                current = ""
+                for sent in sentences:
+                    candidate = (current + " " + sent).strip() if current else sent
+                    if len(candidate) <= max_len:
+                        current = candidate
+                    else:
+                        if current:
+                            chunks.append(current)
+                        current = sent
+            else:
+                current = para
+    if current:
+        chunks.append(current)
+
+    return chunks if chunks else [text]
+
+
 def parse_tweet_file(file_path: Path, separator: str) -> list[dict]:
-    """Parse a tweet file into a list of {text, community} dicts."""
+    """Parse a tweet file into a list of {text, community} dicts.
+    Auto-threads tweets that exceed 280 chars."""
     content = file_path.read_text().strip()
     if not content:
         return []
@@ -232,7 +214,11 @@ def parse_tweet_file(file_path: Path, separator: str) -> list[dict]:
             community = match.group(1).strip()
             text = match.group(2).strip()
 
-        tweets.append({"text": text, "community": community})
+        # Auto-thread if too long
+        chunks = split_long_text(text)
+        for chunk in chunks:
+            tweets.append({"text": chunk, "community": community})
+
     return tweets
 
 
@@ -333,15 +319,19 @@ def normalize_time(folder_name: str) -> tuple:
 
 
 def should_post_now(time_folder: str, now: datetime) -> bool:
-    """Check if current time is within the 15-min window for this time slot."""
+    """Check if current time is within the posting window for this time slot.
+    
+    Window is 30 minutes (two cron cycles) to handle cases where the
+    gateway is busy/restarting during the first 15-min check.
+    """
     parsed = normalize_time(time_folder)
     if parsed is None:
         return False
     hour, minute = parsed
     slot_minutes = hour * 60 + minute
     now_minutes = now.hour * 60 + now.minute
-    # Post if we're 0-14 minutes past the slot time
-    return 0 <= (now_minutes - slot_minutes) < 15
+    # Post if we're 0-29 minutes past the slot time
+    return 0 <= (now_minutes - slot_minutes) < 30
 
 
 def run(queue_dir: Path):
@@ -379,6 +369,21 @@ def run(queue_dir: Path):
             if f.suffix.lower() in (".md", ".txt") and f.is_file()
         ])
 
+        # Backlog fallback: if time slot is empty, pull one from backlog/
+        if not tweet_files:
+            backlog_dir = queue_dir / "backlog"
+            if backlog_dir.exists():
+                backlog_files = sorted([
+                    f for f in backlog_dir.iterdir()
+                    if f.suffix.lower() in (".md", ".txt") and f.is_file()
+                ])
+                if backlog_files:
+                    picked = backlog_files[0]
+                    dest = time_dir / picked.name
+                    picked.rename(dest)
+                    tweet_files = [dest]
+                    print(f"Backlog fallback: moved {picked.name} to {day_name}/{time_dir.name}/")
+
         if not tweet_files:
             continue
 
@@ -389,6 +394,23 @@ def run(queue_dir: Path):
             if not tweets:
                 continue
 
+            # Pre-flight: check for @mentions (blocked by X API as of 2026-02-28)
+            has_mentions = any(re.search(r'@\w+', t.get("text", "")) for t in tweets)
+            if has_mentions:
+                mention_msg = f"SKIPPED {tweet_file.name}: contains @mentions (blocked by X API). Post manually."
+                log_action(config, queue_dir, mention_msg)
+                notify_user(f"Tweet '{tweet_file.name}' has @mentions and can't post via API. Moved to manual/ folder — post it yourself!")
+                print(f"  ⚠️  {mention_msg}")
+                # Move to a manual/ subfolder so it doesn't retry every 15 min
+                manual_dir = time_dir / "manual"
+                manual_dir.mkdir(exist_ok=True)
+                dest = manual_dir / tweet_file.name
+                tweet_file.rename(dest)
+                for mf in media_files:
+                    mf_dest = manual_dir / mf.name
+                    mf.rename(mf_dest)
+                continue
+
             prefix = "[DRY RUN] " if dry_run else ""
             print(f"{prefix}Posting from {day_name}/{time_dir.name}/{tweet_file.name}")
 
@@ -397,6 +419,7 @@ def run(queue_dir: Path):
             for r in results:
                 if "error" in r:
                     log_action(config, queue_dir, f"ERROR {tweet_file.name}: {r['error']}")
+                    notify_user(f"Tweet '{tweet_file.name}' failed to post: {r['error']}")
                     print(f"  ERROR: {r['error']}", file=sys.stderr)
                 else:
                     action = "WOULD POST" if dry_run else "POSTED"

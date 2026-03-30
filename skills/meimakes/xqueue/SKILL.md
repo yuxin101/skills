@@ -1,7 +1,7 @@
 ---
 name: xqueue
 description: File-based X/Twitter post scheduler. Drop tweets into day/time folders, they post automatically. No frontend, no app — your file system is the UI.
-metadata: {"openclaw":{"requires":{"env":["X_CONSUMER_KEY","X_CONSUMER_SECRET","X_ACCESS_TOKEN","X_ACCESS_TOKEN_SECRET"],"bins":["python3"]},"permissions":{"filesystem":"read/write within xqueue/ directory","network":"api.twitter.com, upload.twitter.com","keychain":"optional macOS Keychain if XQUEUE_KEYCHAIN_ACCOUNT is set"}}}
+metadata: {"openclaw":{"requires":{"env":["X_CONSUMER_KEY","X_CONSUMER_SECRET","X_ACCESS_TOKEN","X_ACCESS_TOKEN_SECRET"],"bins":["python3"],"pip":["requests","requests-oauthlib"]},"permissions":{"filesystem":"read/write within xqueue/ directory, ~/.openclaw/workspace/xqueue/notifications.log","network":"api.x.com, upload.twitter.com","keychain":"macOS Keychain for X API credentials (fallback when env vars not set)","system":"openclaw CLI wake command for notifications (best-effort, non-critical)"}}}
 ---
 
 # XQueue

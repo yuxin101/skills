@@ -1,7 +1,9 @@
 ---
 name: novel-scraper
-version: 1.0.0
-description: 轻量级小说抓取工具，支持自动翻页、会话复用、内存监控。使用 browser 工具抓取笔趣阁等小说网站，输出格式化 TXT 文件。Use when: (1) 抓取网络小说章节，(2) 批量下载小说内容，(3) 保存小说为 TXT 格式。
+description: >-
+  轻量级小说抓取工具，支持自动翻页、会话复用、内存监控。
+  使用 curl+BeautifulSoup 抓取笔趣阁等小说网站，输出格式化 TXT 文件。
+  Use when: 抓取网络小说章节、批量下载小说内容、保存小说为 TXT 格式。
 ---
 
 # Novel Scraper - 小说抓取工具
@@ -62,10 +64,19 @@ python3 scripts/scraper.py [选项]
 
 ## 支持网站
 
-| 网站 | 状态 | 配置 |
-|------|------|------|
-| 笔趣阁 (bqquge.com) | ✅ 已测试 | `configs/sites.json` |
-| 其他网站 | 🔄 需配置 | 添加选择器配置 |
+| 网站 | 状态 | URL 格式 | 说明 |
+|------|------|----------|------|
+| 笔趣阁 (bqquge.com) | ✅ 已测试 | `/4/2042` | 主要支持网站，使用 Biquge2026Adapter |
+| 其他网站 | 🔄 需配置 | - | 在 `configs/sites.json` 添加选择器配置 |
+
+### URL 格式说明
+
+笔趣阁 URL 格式：`https://www.bqquge.com/{book_id}/{chapter_id}.html`
+
+- `book_id`: 小说 ID（如 4 表示《没钱修什么仙》）
+- `chapter_id`: 章节 ID（如 2042 表示第 81 章）
+
+章节 ID 通常连续，可通过目录页获取完整列表。
 
 ## 配置新网站
 
@@ -86,7 +97,8 @@ python3 scripts/scraper.py [选项]
 ## 依赖
 
 - Python 3.11+
-- OpenClaw browser 工具
+- curl（系统命令）
+- BeautifulSoup4 (bs4)
 - psutil（内存监控）
 
 ```bash
@@ -94,13 +106,26 @@ cd ~/.openclaw/workspace/skills/novel-scraper
 pip3 install -r requirements.txt --user
 ```
 
+requirements.txt 包含：
+```
+beautifulsoup4>=4.12.0
+bs4>=0.0.1
+psutil>=5.9.0
+```
+
 ## 故障排除
 
 ### 抓取内容为空
 
-1. 检查 URL 是否正确
+1. 检查 URL 格式是否为 `https://www.bqquge.com/4/xxx`
 2. 清除缓存：`rm -rf /tmp/novel_scraper_cache/*`
-3. 增加等待时间：`--wait 3`
+3. 检查网站是否可访问：`curl -I https://www.bqquge.com/4/1962`
+
+### 章节标题提取错误
+
+1. 检查 HTML 结构是否变化
+2. 查看 `scripts/scraper.py` 中 `Biquge2026Adapter` 的解析逻辑
+3. 可能需要更新选择器配置
 
 ### 内存过高
 

@@ -1,6 +1,6 @@
 # GitHub Trending
 
-Fetches trending repositories from the past 7 days using the GitHub Search API.
+Fetches trending repositories using the GitHub Search API with progressive time windows to surface breakout projects.
 
 ## Command
 
@@ -10,15 +10,17 @@ node fetch.mjs github [--limit <n>] [--json]
 
 ## Queries
 
-Three parallel queries are executed and deduplicated:
+Five parallel queries are executed and deduplicated:
 
 | Query | Focus | Max Results |
 |-------|-------|-------------|
-| `stars:>50 created:>{7d ago}` | General trending | 15 |
-| `topic:ai stars:>20 created:>{7d ago}` | AI repos | 10 |
-| `topic:llm stars:>10 created:>{7d ago}` | LLM repos | 10 |
+| `created:>{7d ago}` | Fast risers (brand new & hot) | 20 |
+| `created:>{30d ago} stars:>100` | Growing fast (100+ stars in 30 days) | 20 |
+| `created:>{90d ago} stars:>500` | Breakout projects (500+ stars in 90 days) | 15 |
+| `topic:ai created:>{30d ago} stars:>50` | AI fast risers | 15 |
+| `topic:llm created:>{30d ago} stars:>50` | LLM fast risers | 15 |
 
-Results are sorted by star count (descending) and deduplicated by repo ID.
+Results are sorted by star count (descending), deduplicated by repo ID, and capped at 50.
 
 ## Output Fields
 

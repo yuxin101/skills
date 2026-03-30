@@ -3,9 +3,15 @@
   "slug": "structs-combat",
   "displayName": "Structs Combat",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1772479224592,
-    "commit": "https://github.com/openclaw/skills/commit/9fa7fda17177d9beb95e922a5c7fda1dfabd7c1b"
+    "version": "1.1.1",
+    "publishedAt": 1774718070593,
+    "commit": "https://github.com/openclaw/skills/commit/401e3b9ed8e4db4f3afecf49648d9551cc395032"
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1772479224592,
+      "commit": "https://github.com/openclaw/skills/commit/9fa7fda17177d9beb95e922a5c7fda1dfabd7c1b"
+    }
+  ]
 }

@@ -2,10 +2,9 @@
  * 块更新命令
  * 在 Siyuan Notes 中更新块内容
  * 
- * 兼容说明：
- * - 支持 id/data 参数（块操作）
- * - 支持 docId/content 参数（文档操作，兼容旧命令）
- * - 文档本身也是一种特殊的块，文档块ID = 文档ID
+ * 限制说明：
+ * - 只接受块ID（type != 'd'）
+ * - 不接受文档ID，文档更新请使用 update 命令
  */
 
 const Permission = require('../utils/permission');
@@ -20,25 +19,51 @@ function processContent(content) {
 }
 
 /**
+ * 验证ID是否为块ID（非文档ID）
+ * @param {SiyuanNotesSkill} skill - 技能实例
+ * @param {string} id - 要验证的ID
+ * @returns {Promise<Object>} 验证结果 { isBlock: boolean, error?: string }
+ */
+async function validateBlockId(skill, id) {
+  try {
+    const blockInfo = await skill.connector.request('/api/block/getBlockInfo', { id });
+    
+    if (!blockInfo) {
+      return { isBlock: false, error: '无法获取块信息，请检查ID是否正确' };
+    }
+    
+    if (blockInfo.rootID === id && blockInfo.path && blockInfo.path.endsWith('.sy')) {
+      return { 
+        isBlock: false, 
+        error: `传入的ID是文档。请使用 update 命令更新文档内容` 
+      };
+    }
+    
+    return { isBlock: true };
+  } catch (error) {
+    return { isBlock: false, error: `验证块ID失败: ${error.message}` };
+  }
+}
+
+/**
  * 命令配置
  */
 const command = {
-  name: 'update-block',
-  description: '在 Siyuan Notes 中更新块/文档内容',
-  usage: 'update-block --id <blockId> --data <content> [--data-type <dataType>]',
+  name: 'block-update',
+  description: '在 Siyuan Notes 中更新块内容（仅接受块ID，非文档ID）',
+  usage: 'block-update --id <blockId> --data <content> [--data-type <dataType>]',
   
   /**
    * 执行命令
    * @param {SiyuanNotesSkill} skill - 技能实例
    * @param {Object} args - 命令参数
-   * @param {string} args.id - 块ID（或使用 docId 兼容旧命令）
-   * @param {string} args.data - 新内容（或使用 content 兼容旧命令）
+   * @param {string} args.id - 块ID（必需，非文档ID）
+   * @param {string} args.data - 新内容（必需）
    * @param {string} args.dataType - 数据类型（markdown/dom，默认 markdown）
    * @returns {Promise<Object>} 更新结果
    */
   execute: async (skill, args = {}) => {
-    // 兼容旧参数：docId -> id, content -> data
-    const id = args.id || args.docId;
+    const id = args.id || args.blockId || args['block-id'];
     const data = args.data || args.content;
     const dataType = args.dataType || args['data-type'] || 'markdown';
     
@@ -46,7 +71,7 @@ const command = {
       return {
         success: false,
         error: '缺少必要参数',
-        message: '必须提供 id 参数'
+        message: '必须提供 id 参数（块ID）'
       };
     }
     
@@ -60,6 +85,16 @@ const command = {
     
     const permissionHandler = Permission.createPermissionWrapper(async (skill, args, notebookId) => {
       try {
+        const validation = await validateBlockId(skill, id);
+        
+        if (!validation.isBlock) {
+          return {
+            success: false,
+            error: '参数类型错误',
+            message: validation.error
+          };
+        }
+        
         const processedData = processContent(data);
         
         const requestData = {
@@ -74,18 +109,16 @@ const command = {
         
         console.log('更新块成功:', result);
         
-        // 处理响应 - API 返回的是数组格式
         if (result && Array.isArray(result) && result.length > 0) {
           const operation = result[0]?.doOperations?.[0];
           
           if (operation) {
-            skill.clearCache();
             
             return {
               success: true,
               data: {
                 id,
-                operation: 'update',
+                operation: 'block-update',
                 contentLength: data.length,
                 timestamp: Date.now(),
                 notebookId
@@ -95,15 +128,13 @@ const command = {
           }
         }
         
-        // 兼容旧版 API 响应格式
         if (result === null || (result && result.code === 0)) {
-          skill.clearCache();
           
           return {
             success: true,
             data: {
               id,
-              operation: 'update',
+              operation: 'block-update',
               contentLength: data.length,
               timestamp: Date.now(),
               notebookId
@@ -126,9 +157,9 @@ const command = {
         };
       }
     }, {
-      type: 'document',
+      type: 'block',
       idParam: 'id',
-      defaultNotebook: skill.config.defaultNotebook || process.env.SIYUAN_DEFAULT_NOTEBOOK
+      defaultNotebook: skill.config.defaultNotebook
     });
     
     return permissionHandler(skill, args);

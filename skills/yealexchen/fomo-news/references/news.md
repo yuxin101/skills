@@ -1,6 +1,6 @@
 # Breaking News
 
-Aggregates RSS feeds from 13+ major publications across 4 categories.
+Aggregates RSS feeds from 14 major publications across 4 categories.
 
 ## Command
 
@@ -24,21 +24,22 @@ Where `<category>` is one of: `news` (all), `tech`, `ai`, `economics`, `politics
 ### AI
 | Source | Feed URL |
 |--------|----------|
-| MIT Tech Review | `https://www.technologyreview.com/feed/` |
-| VentureBeat | `https://venturebeat.com/feed/` |
+| MIT Tech Review AI | `https://www.technologyreview.com/feed/` |
+| VentureBeat AI | `https://venturebeat.com/feed/` |
 
 ### Economics
 | Source | Feed URL |
 |--------|----------|
-| Reuters Business | `https://feeds.reuters.com/reuters/businessNews` |
+| Reuters Business | `https://www.rss.app/feeds/v1.1/tsYGKBcfOkSPYTXh.xml` |
 | CNBC | `https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114` |
-| MarketWatch | `https://feeds.marketwatch.com/marketwatch/topstories/` |
+| MarketWatch | `https://www.marketwatch.com/rss/topstories` |
 
 ### Politics
 | Source | Feed URL |
 |--------|----------|
-| AP News | `https://rsshub.app/apnews/topics/apf-topnews` |
-| BBC News | `https://feeds.bbci.co.uk/news/world/rss.xml` |
+| Reuters World | `https://www.rss.app/feeds/v1.1/tsMZOAj38SjPLDn3.xml` |
+| AP News | `https://rsshub.app/apnews/topics/politics` |
+| BBC News | `https://feeds.bbci.co.uk/news/rss.xml` |
 | NPR News | `https://feeds.npr.org/1001/rss.xml` |
 
 ## Output Fields
@@ -50,4 +51,4 @@ Where `<category>` is one of: `news` (all), `tech`, `ai`, `economics`, `politics
 | `title` | Article title |
 | `link` | Article URL |
 | `pubDate` | Publication date |
-| `snippet` | Brief excerpt (max 200 chars) |
+| `snippet` | Brief excerpt (max 300 chars) |

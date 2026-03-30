@@ -6,6 +6,7 @@
 
 const https = require('https');
 const http = require('http');
+const ChineseTokenizer = require('./chinese-tokenizer');
 
 /**
  * EmbeddingManager 类
@@ -18,13 +19,20 @@ class EmbeddingManager {
    * @param {string} config.model - 模型名称（默认：nomic-embed-text）
    * @param {number} config.dimension - 向量维度
    * @param {string} config.baseUrl - Ollama 服务地址
+   * @param {number} config.maxContentLength - 最大内容长度（触发分块阈值）
+   * @param {number} config.maxChunkLength - 每个块的最大长度
+   * @param {number} config.minChunkLength - 每个块的最小长度
    */
   constructor(config = {}) {
-    this.model = config.model || process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
+    this.model = config.model || 'nomic-embed-text';
     this.dimension = config.dimension || 768;
-    this.baseUrl = config.baseUrl || process.env.OLLAMA_BASE_URL || null;
+    this.baseUrl = config.baseUrl || null;
+    this.maxContentLength = config.maxContentLength || 1000;
+    this.maxChunkLength = config.maxChunkLength || 800;
+    this.minChunkLength = config.minChunkLength || 200;
     this.initialized = false;
     this.modelInfo = null;
+    this.tokenizer = new ChineseTokenizer();
   }
 
   /**
@@ -177,7 +185,7 @@ class EmbeddingManager {
     }
 
     // 截断过长的文本
-    const maxTextLength = 2000; // 安全长度限制
+    const maxTextLength = this.maxChunkLength;
     let processedText = text;
     if (text.length > maxTextLength) {
       processedText = text.substring(0, maxTextLength);
@@ -271,15 +279,20 @@ class EmbeddingManager {
       termFreq.set(lowerToken, (termFreq.get(lowerToken) || 0) + 1);
     });
 
-    const indices = [];
-    const values = [];
+    const indexValueMap = new Map();
     
-    const sortedTerms = Array.from(termFreq.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    
-    sortedTerms.forEach(([term, freq]) => {
-      indices.push(this.hashTerm(term));
-      values.push(freq);
+    termFreq.forEach((freq, term) => {
+      const hashIndex = this.hashTerm(term);
+      if (indexValueMap.has(hashIndex)) {
+        indexValueMap.set(hashIndex, indexValueMap.get(hashIndex) + freq);
+      } else {
+        indexValueMap.set(hashIndex, freq);
+      }
     });
+
+    const sortedEntries = Array.from(indexValueMap.entries()).sort((a, b) => a[0] - b[0]);
+    const indices = sortedEntries.map(([idx]) => idx);
+    const values = sortedEntries.map(([, val]) => val);
 
     return { indices, values };
   }
@@ -306,14 +319,41 @@ class EmbeddingManager {
   }
 
   /**
-   * 简单分词
+   * 中文分词 + N-gram 分词
    * @param {string} text - 输入文本
    * @returns {string[]} 词元数组
    */
   tokenize(text) {
     const processed = this.preprocessText(text);
-    const tokens = processed.match(/[\u4e00-\u9fa5]+|[a-zA-Z]+|[0-9]+/g) || [];
-    return tokens.filter(token => token.length > 1);
+    const finalTokens = new Set();
+    
+    const chineseParts = processed.match(/[\u4e00-\u9fa5]+/g) || [];
+    const nonChineseParts = processed.match(/[a-zA-Z]+|[0-9]+/g) || [];
+    
+    nonChineseParts.forEach(token => {
+      if (token.length > 1) {
+        finalTokens.add(token.toLowerCase());
+      }
+    });
+    
+    chineseParts.forEach(part => {
+      const segmented = this.tokenizer.segment(part);
+      
+      segmented.forEach(token => {
+        if (token.length > 1) {
+          finalTokens.add(token);
+        }
+      });
+      
+      for (let i = 0; i < part.length - 1; i++) {
+        finalTokens.add(part.substring(i, i + 2));
+      }
+      for (let i = 0; i < part.length - 2; i++) {
+        finalTokens.add(part.substring(i, i + 3));
+      }
+    });
+    
+    return Array.from(finalTokens);
   }
 
   /**

@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "btcpay-server",
+  "displayName": "Btcpay Server",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774404173297,
+    "commit": "https://github.com/openclaw/skills/commit/ece078fd5b79619eeef92278ee250703c8402077"
+  },
+  "history": []
+}

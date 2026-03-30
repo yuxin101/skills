@@ -66,7 +66,7 @@ fi
 # Parse time duration to seconds
 parse_duration() {
     local input="$1"
-    local num="${input%[hdw]}"
+    local num="${input%[hdwm]}"
     local unit="${input##*[0-9]}"
     
     if ! [[ "$num" =~ ^[0-9]+$ ]]; then
@@ -78,13 +78,14 @@ parse_duration() {
         h) echo "$((num * 3600))" ;;
         d) echo "$((num * 86400))" ;;
         w) echo "$((num * 604800))" ;;
+        m) echo "$((num * 2592000))" ;; # 30 days
         *) echo "0" ;;
     esac
 }
 
 DELAY_SECONDS=$(parse_duration "$IN_TIME")
 if [[ "$DELAY_SECONDS" -eq 0 ]]; then
-    echo "❌ Invalid time format: $IN_TIME (use: 1h, 4h, 12h, 1d, 2d, 1w)"
+    echo "❌ Invalid time format: $IN_TIME (use: 1h, 4h, 12h, 1d, 2d, 1w, 2w, 1m)"
     exit 1
 fi
 

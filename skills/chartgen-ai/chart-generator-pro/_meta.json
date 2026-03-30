@@ -1,0 +1,11 @@
+{
+  "owner": "chartgen-ai",
+  "slug": "chart-generator-pro",
+  "displayName": "Chart Generator Pro",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774581694118,
+    "commit": "https://github.com/openclaw/skills/commit/b14c0e207a66df4c69dc13347c3232c6195d538c"
+  },
+  "history": []
+}

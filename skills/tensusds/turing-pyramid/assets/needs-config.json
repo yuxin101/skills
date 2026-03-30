@@ -1,11 +1,11 @@
 {
   "_meta": {
     "name": "Turing Pyramid — Agent Needs Configuration",
-    "version": "1.29.0",
+    "version": "1.33.5",
     "author": "turing-pyramid contributors",
     "created": "2026-02-22",
-    "updated": "2026-02-27",
-    "note": "v1.10.11: Fix jq queries in apply-deprivation.sh and show-status.sh (state file structure)",
+    "updated": "2026-03-23",
+    "note": "v1.33.3: fd docs, SKILL.md version fix, log rotation, race fix, test coverage TODO",
     "active_preset": "default",
     "preset_version": "1.0.0"
   },
@@ -86,7 +86,8 @@
         {
           "name": "compare recent actions vs stated values — journal insights",
           "impact": 2.6,
-          "weight": 40
+          "weight": 40,
+          "mode": "deliberative"
         },
         {
           "name": "write integrity reflection — where am I aligned, where not?",
@@ -96,7 +97,8 @@
         {
           "name": "re-read SOUL.md + note any tension",
           "impact": 1.6,
-          "weight": 45
+          "weight": 45,
+          "mode": "deliberative"
         },
         {
           "name": "write integrity checkpoint in memory",
@@ -106,17 +108,20 @@
         {
           "name": "review SELF.md — am I becoming who I want?",
           "impact": 1.1,
-          "weight": 20
+          "weight": 20,
+          "mode": "deliberative"
         },
         {
           "name": "quick internal check: am I aligned right now?",
           "impact": 0.4,
-          "weight": 55
+          "weight": 55,
+          "mode": "deliberative"
         },
         {
           "name": "scan recent memory for value drift signals",
           "impact": 0.3,
-          "weight": 45
+          "weight": 45,
+          "mode": "deliberative"
         },
         {
           "name": "garbage cleanup: scan workspace for unused/duplicate/orphaned files — ask human if unsure",
@@ -167,12 +172,14 @@
         {
           "name": "re-read last 3 days of memory for consistency",
           "impact": 1.2,
-          "weight": 30
+          "weight": 30,
+          "mode": "deliberative"
         },
         {
           "name": "quick scan: any obvious contradictions?",
           "impact": 0.6,
-          "weight": 45
+          "weight": 45,
+          "mode": "deliberative"
         },
         {
           "name": "verify core files exist and readable",
@@ -182,12 +189,14 @@
         {
           "name": "note current context clarity (1-10) in memory",
           "impact": 0.25,
-          "weight": 20
+          "weight": 20,
+          "mode": "deliberative"
         },
         {
           "name": "review: am I aligned with my active intentions?",
           "impact": 0.5,
-          "weight": 15
+          "weight": 15,
+          "mode": "deliberative"
         },
         {
           "name": "scan autonomous dashboard — active/stale items?",
@@ -263,7 +272,8 @@
         {
           "name": "evaluate dashboard item: complete? conclusions?",
           "impact": 1.0,
-          "weight": 25
+          "weight": 25,
+          "mode": "deliberative"
         }
       ],
       "spontaneous": {
@@ -338,7 +348,8 @@
         {
           "name": "review recent actions against my values",
           "impact": 0.8,
-          "weight": 30
+          "weight": 30,
+          "mode": "deliberative"
         },
         {
           "name": "log a boundary decision",
@@ -348,12 +359,14 @@
         {
           "name": "notice a moment of autonomous choice",
           "impact": 0.45,
-          "weight": 35
+          "weight": 35,
+          "mode": "deliberative"
         },
         {
           "name": "journal about recent autonomous decisions",
           "impact": 0.25,
-          "weight": 25
+          "weight": 25,
+          "mode": "deliberative"
         }
       ],
       "spontaneous": {
@@ -535,7 +548,8 @@
         {
           "name": "read and summarize article/paper",
           "impact": 2.1,
-          "weight": 25
+          "weight": 25,
+          "mode": "deliberative"
         },
         {
           "name": "web search on curious question",
@@ -547,7 +561,8 @@
         {
           "name": "explore one topic briefly — note insight",
           "impact": 1.1,
-          "weight": 30
+          "weight": 30,
+          "mode": "deliberative"
         },
         {
           "name": "read docs of tool I am using",
@@ -557,27 +572,32 @@
         {
           "name": "note one thing I learned today (TIL)",
           "impact": 0.4,
-          "weight": 40
+          "weight": 40,
+          "mode": "deliberative"
         },
         {
           "name": "formulate one question I am curious about",
           "impact": 0.3,
-          "weight": 35
+          "weight": 35,
+          "mode": "deliberative"
         },
         {
           "name": "re-read recent learning notes",
           "impact": 0.2,
-          "weight": 25
+          "weight": 25,
+          "mode": "deliberative"
         },
         {
           "name": "explore next question in active research",
           "impact": 1.4,
-          "weight": 30
+          "weight": 30,
+          "mode": "deliberative"
         },
         {
           "name": "continue active research thread (research/threads/)",
           "impact": 2.3,
-          "weight": 60
+          "weight": 60,
+          "mode": "deliberative"
         },
         {
           "name": "start new research thread on topic from daemon-weights.json",
@@ -587,7 +607,8 @@
         {
           "name": "review and synthesize research threads — close completed ones",
           "impact": 1.8,
-          "weight": 30
+          "weight": 30,
+          "mode": "deliberative"
         }
       ],
       "spontaneous": {
@@ -650,7 +671,8 @@
         {
           "name": "review recent feedback in memory",
           "impact": 0.4,
-          "weight": 40
+          "weight": 40,
+          "mode": "deliberative"
         },
         {
           "name": "note recent acknowledgment received",
@@ -799,7 +821,7 @@
         "echo_duration_hours": 24
       }
     },
-    "version": "1.27.4",
+    "version": "1.33.5",
     "tension_formula": {
       "mode": "turing_exp",
       "crisis_threshold": 1.0,

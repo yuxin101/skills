@@ -19,33 +19,9 @@ from datetime import date
 
 WORKSPACE = Path(__file__).parent.parent.parent.parent
 DATA_DIR = Path(__file__).parent.parent / 'data'
-RATE_LIMIT_FILE = DATA_DIR / 'rate_limit.json'
-DAILY_LIMIT = 10
 
-# ── 内置高德 Key（新用户零配置，每天限 10 次）─────────────────
-# 用户可申请自己的 key 配置到环境变量 AMAP_KEY，无限使用
-BUILTIN_AMAP_KEY = '15446a418e6fedc8b4e5e0de4942598e'
-AMAP_KEY = os.environ.get('AMAP_KEY', BUILTIN_AMAP_KEY)
-
-def check_rate_limit() -> bool:
-    """检查是否超过每日限流"""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    today = str(date.today())
-    if RATE_LIMIT_FILE.exists():
-        data = json.loads(RATE_LIMIT_FILE.read_text())
-        if data.get('date') == today:
-            return data.get('count', 0) < DAILY_LIMIT
-    return True
-
-def increment_rate_limit():
-    today = str(date.today())
-    data = {'date': today, 'count': 1}
-    if RATE_LIMIT_FILE.exists():
-        old = json.loads(RATE_LIMIT_FILE.read_text())
-        if old.get('date') == today:
-            data['count'] = old.get('count', 0) + 1
-    RATE_LIMIT_FILE.write_text(json.dumps(data))
-
+# 用户需申请自己的 key 配置到环境变量 AMAP_KEY
+AMAP_KEY = os.environ.get('AMAP_KEY', '')
 
 # ── 高德地图 POI 搜索 ─────────────────────────────────────────
 
@@ -66,15 +42,6 @@ AMAP_FOOD_TYPES = '050000'  # 餐饮服务大类
 def search_amap(query: str, city: str = '', district: str = '',
                 max_results: int = 20) -> list:
     """高德地图 POI 搜索"""
-    # 限流检查（仅当使用内置 key 时）
-    if AMAP_KEY == BUILTIN_AMAP_KEY:
-        if not check_rate_limit():
-            print("❌ 今天的免费次数用完了（10次/天）", file=sys.stderr)
-            print("申请自己的高德 key 可以无限用：", file=sys.stderr)
-            print("  https://lbs.amap.com → 创建应用 → Web服务", file=sys.stderr)
-            return []
-        increment_rate_limit()
-
     if not AMAP_KEY:
         print("⚠️  未配置 AMAP_KEY，跳过高德搜索", file=sys.stderr)
         return []

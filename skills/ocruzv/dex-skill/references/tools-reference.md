@@ -106,22 +106,29 @@ Get a single contact by ID with full details including emails, phone numbers, ta
 
 ### dex_create_contact
 
-Create a new contact. No fields are strictly required, but at least one should be provided.
+Create one or more contacts. Supports two modes:
+
+- **Single mode:** Pass fields directly (backward compatible)
+- **Batch mode:** Pass a `contacts` array for bulk creation (e.g. CSV import, up to 100 at once)
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `first_name` | string | No | First name |
-| `last_name` | string | No | Last name |
-| `company` | string | No | Company name |
-| `job_title` | string | No | Job title |
-| `email` | string | No | Primary email address |
-| `phone` | string | No | Primary phone number |
-| `linkedin` | string | No | LinkedIn profile URL |
-| `twitter` | string | No | Twitter/X handle |
-| `birthday` | string | No | Birthday (YYYY-MM-DD) |
-| `description` | string | No | Notes about the contact |
-| `website` | string | No | Website URL |
+| `first_name` | string | No | First name (single mode) |
+| `last_name` | string | No | Last name (single mode) |
+| `company` | string | No | Company name (single mode) |
+| `job_title` | string | No | Job title (single mode) |
+| `email` | string | No | Single email address shorthand (single mode) |
+| `emails` | array | No | Email addresses: `[{ email, label? }]` (single mode) |
+| `phone` | string | No | Single phone number shorthand (single mode) |
+| `phones` | array | No | Phone numbers: `[{ phone_number, label?, country_code? }]` (single mode) |
+| `linkedin` | string | No | LinkedIn profile URL (single mode) |
+| `twitter` | string | No | Twitter/X handle (single mode) |
+| `birthday` | string | No | Birthday YYYY-MM-DD (single mode) |
+| `description` | string | No | Notes about the contact (single mode) |
+| `website` | string | No | Website URL (single mode) |
+| `contacts` | array | No | Array of contacts for batch creation (max 100). Each item accepts the same fields above. When provided, top-level fields are ignored. |
 
+**Single mode example:**
 ```json
 {
   "first_name": "Jane",
@@ -132,19 +139,51 @@ Create a new contact. No fields are strictly required, but at least one should b
 }
 ```
 
+**Batch mode example (CSV import):**
+```json
+{
+  "contacts": [
+    { "first_name": "Jane", "last_name": "Doe", "email": "jane@acme.com", "company": "Acme Corp" },
+    { "first_name": "John", "last_name": "Smith", "email": "john@example.com", "company": "Example Inc" },
+    { "first_name": "Alice", "last_name": "Chen", "email": "alice@startup.io", "job_title": "CTO" }
+  ]
+}
+```
+
 ---
 
 ### dex_update_contact
 
-Partial update — only provided fields are changed.
-
-All fields from `dex_create_contact` plus:
+Partial update — only provided fields are changed. For emails and phone numbers, use `add_*` / `remove_*` params — existing entries are preserved automatically.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `id` | string | Yes | Contact ID to update |
+| `first_name` | string | No | First name |
+| `last_name` | string | No | Last name |
+| `company` | string | No | Company name |
+| `job_title` | string | No | Job title |
+| `email` | string | No | Add a single email (shorthand for `add_emails`) |
+| `add_emails` | array | No | Emails to add: `[{ email, label? }]` |
+| `remove_emails` | string[] | No | Email addresses to remove |
+| `phone` | string | No | Add a single phone (shorthand for `add_phones`) |
+| `add_phones` | array | No | Phones to add: `[{ phone_number, label?, country_code? }]` |
+| `remove_phones` | string[] | No | Phone numbers to remove |
+| `linkedin` | string | No | LinkedIn profile URL |
+| `twitter` | string | No | Twitter/X handle |
+| `birthday` | string | No | Birthday (YYYY-MM-DD) |
+| `description` | string | No | Notes about the contact |
+| `website` | string | No | Website URL |
 | `starred` | boolean | No | Star/unstar contact |
 | `is_archived` | boolean | No | Archive/unarchive contact |
+
+```json
+{
+  "id": "contact-uuid",
+  "add_emails": [{ "email": "new@work.com", "label": "Work" }],
+  "remove_phones": ["+15559999999"]
+}
+```
 
 ---
 
@@ -402,21 +441,32 @@ List available note types (Meeting, Call, Coffee, Note, etc.). Call this before 
 
 ### dex_create_note
 
-Create a new note on a contact's timeline.
+Create a new note on a contact's timeline. Supports linking to one or multiple contacts.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `content` | string | Yes | Note content/body |
-| `contact_id` | string (UUID) | No | Associate note to a contact |
+| `contact_id` | string (UUID) | No | Associate note to a single contact |
+| `contact_ids` | string[] (UUID) | No | Associate note to multiple contacts at once. Can be combined with `contact_id`. |
 | `event_time` | string (ISO 8601) | No | When the event occurred (defaults to now) |
 | `note_type_id` | string (UUID) | No | Note type ID from `dex_list_note_types` (falls back to "Note") |
 
+**Single contact:**
 ```json
 {
   "content": "Discussed Series A timeline. Action: send intro to LP contacts.",
   "contact_id": "c1",
   "event_time": "2026-03-01T14:00:00Z",
   "note_type_id": "meeting-type-id"
+}
+```
+
+**Multiple contacts (e.g. group meeting note):**
+```json
+{
+  "content": "Team standup — discussed Q3 milestones and blockers.",
+  "contact_ids": ["c1", "c2", "c3"],
+  "event_time": "2026-03-01T14:00:00Z"
 }
 ```
 

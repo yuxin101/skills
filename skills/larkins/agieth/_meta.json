@@ -1,0 +1,17 @@
+{
+  "owner": "larkins",
+  "slug": "agieth",
+  "displayName": "Agieth",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774590757958,
+    "commit": "https://github.com/openclaw/skills/commit/de37a15345c3dffe7f57fbe80182063cb7465eff"
+  },
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1774581721913,
+      "commit": "https://github.com/openclaw/skills/commit/511a23512ef2e1449a0e82f8c6936176b55bc661"
+    }
+  ]
+}

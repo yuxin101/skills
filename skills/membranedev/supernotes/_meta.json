@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "supernotes",
+  "displayName": "Supernotes",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774389771514,
+    "commit": "https://github.com/openclaw/skills/commit/915b121bb17af4689d6dfbeea490bdaf36c9f2e5"
+  },
+  "history": []
+}

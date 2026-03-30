@@ -1,0 +1,11 @@
+{
+  "owner": "l1angjy",
+  "slug": "douyin-auto-publish",
+  "displayName": "Douyin-Publish抖音自动上传发布",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774456604752,
+    "commit": "https://github.com/openclaw/skills/commit/aee87c3ef781e80a1625e1184fd7d85f00b8f1e1"
+  },
+  "history": []
+}

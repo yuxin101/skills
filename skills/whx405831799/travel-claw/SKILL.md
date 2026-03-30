@@ -1,6 +1,6 @@
 ---
 name: travel-claw
-description: "A whimsical travel adventure generator inspired by the Japanese Travel Frog game. Claw randomly travels to destinations, encounters events, and generates 130-260 word travel logs with optional landscape images. Language adapts to user - Chinese for Chinese users, English otherwise."
+description: "A whimsical travel adventure generator inspired by the Japanese Travel Frog game. Claw randomly travels to destinations, encounters events, and generates 500-800 word travel logs with optional landscape images. Language adapts to user - Chinese for Chinese users, English otherwise."
 permissions:
   - type: context_reading
     purpose: "Detect lobster nickname from conversation or trigger phrase"
@@ -19,7 +19,7 @@ A whimsical travel adventure generator where Claw explores random destinations a
 1. **Nickname** - Detect from trigger phrase or conversation context. Default: Chinese "龙虾", English "Claw"
 2. **Destination** - Random selection from diverse locations (see Destination Types)
 3. **Story Mode** - Random selection, **NOT displayed in output**, only influences narrative style
-4. **Story** - 130-260 words in user's language
+4. **Story** - 500-800 words in user's language
 5. **Item** - 70% chance, surreal poetic description
 6. **Hidden Message** - 70% chance, poetic location hint (no coordinates)
 7. **Image** - Optional landscape photo with user consent
@@ -92,7 +92,7 @@ Adventure / Wholesome / Mystery / Fantasy / Comedy / Sci-Fi / Surreal / Fairy Ta
 
 **{目的地}**
 
-[故事 130-260字]
+[故事 500-800字]
 
 ---
 
@@ -118,7 +118,7 @@ Adventure / Wholesome / Mystery / Fantasy / Comedy / Sci-Fi / Surreal / Fairy Ta
 
 **{Destination}**
 
-[Story 130-260 words]
+[Story 500-800 words]
 
 ---
 
@@ -141,7 +141,7 @@ The {feature} of {Destination} is beautiful! Would you like a photo? 😊
 - Events connected to location character
 - Famous locations/ancient eras: Events MUST connect to famous figures or items
 - Whimsical, warm, magical tone
-- 130-260 word narrative
+- 500-800 word narrative
 - Period-appropriate dialogue for time travel
 - Language auto-detection
 - Image search: opt-in only

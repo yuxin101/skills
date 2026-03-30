@@ -12,12 +12,16 @@ dependencies: |
   - pyjwt >= 2.8.0 (可选,JWT认证)
   - cryptography >= 41.0.0 (可选,JWT认证)
 config:
+  always: false
   env:
-    - HEFENG_API_HOST
-    - HEFENG_API_KEY
-    - HEFENG_PROJECT_ID (可选)
-    - HEFENG_KEY_ID (可选)
-    - HEFENG_PRIVATE_KEY_PATH (可选)
+    required:
+      - HEFENG_API_HOST
+    optional:
+      - HEFENG_API_KEY
+      - HEFENG_PROJECT_ID
+      - HEFENG_KEY_ID
+      - HEFENG_PRIVATE_KEY_PATH
+      - HEFENG_PRIVATE_KEY
 ---
 
 # 和风天气查询 Skill
@@ -34,17 +38,31 @@ config:
 
 ### 2. 配置认证信息
 
-使用以下 Python 脚本配置API认证:
+**安全警告**：此 skill 需要 API 凭证才能工作。你可以选择以下两种方式配置：
+
+#### 方式一：使用环境变量（推荐，更安全）
+
+```bash
+export HEFENG_API_HOST="your-domain.qweatherapi.com"
+export HEFENG_API_KEY="your_api_key_here"
+```
+
+#### 方式二：使用配置脚本（会保存到文件）
 
 ```bash
 python scripts/configure.py --api-host "your-domain.qweatherapi.com" --api-key "your_api_key"
 ```
 
-或手动创建配置文件 `~/.config/qweather/.env`:
+**注意**：默认情况下，配置脚本会将凭证保存到 `~/.config/qweather/.env`。如果你不希望凭证持久化到磁盘，请使用 `--no-save` 选项：
 
 ```bash
-HEFENG_API_HOST=your-domain.qweatherapi.com
-HEFENG_API_KEY=your_api_key_here
+python scripts/configure.py --api-host "your-domain.qweatherapi.com" --api-key "your_api_key" --no-save
+```
+
+如果你选择保存到文件，建议设置文件权限为 600：
+
+```bash
+chmod 600 ~/.config/qweather/.env
 ```
 
 ## 核心功能
@@ -302,6 +320,21 @@ python scripts/search_poi_range.py --location "116.38,39.91" --poi-type "scenic"
 2. 询问用户城市,或使用默认城市
 3. 执行脚本:`python scripts/air_quality.py --city "北京"`
 4. 生成回复:"当前AQI为65,空气质量良好,PM2.5浓度为45μg/m³"
+
+## 安全注意事项
+
+1. **API 凭证保护**：
+   - 不要将 API Key 或私钥提交到版本控制
+   - 使用 `--no-save` 选项避免凭证持久化到磁盘
+   - 定期轮换 API Key
+
+2. **API 主机验证**：
+   - 确保 `HEFENG_API_HOST` 指向官方域名（如 `dev.qweather.com`）
+   - 不要将请求发送到不受信任的服务器
+
+3. **文件权限**：
+   - 配置文件默认设置权限为 600（仅所有者可读写）
+   - 配置文件目录默认设置权限为 700
 
 ## 错误处理
 

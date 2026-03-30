@@ -98,20 +98,14 @@
 2. 在评论框中输入审查报告
 3. 点击"发送评论"按钮
 
-### 步骤 6: 发布 LGTM (如适用)
-
-如果审查结果为 **低风险** 或 **中低风险**：
-1. 在评论框中输入 `/lgtm`
-2. 点击"发送评论"按钮
-
 ## 严重程度判定标准
 
-| 等级 | 条件 | 是否可合入 | 是否发 /lgtm |
-|------|------|------------|--------------|
-| Low | 仅有建议性改进 | ✅ 可以 | ✅ 是 |
-| Medium | 有一般性问题，不影响功能 | ⚠️ 建议 | ✅ 是 |
-| High | 有严重问题，可能导致缺陷 | ❌ 需要 | ❌ 否 |
-| Critical | 有安全漏洞或严重内存问题 | ❌ 需要 | ❌ 否 |
+| 等级 | 条件 | 是否可合入 |
+|------|------|------------|
+| Low | 仅有建议性改进 | ✅ 可以 |
+| Medium | 有一般性问题，不影响功能 | ⚠️ 建议 |
+| High | 有严重问题，可能导致缺陷 | ❌ 需要 |
+| Critical | 有安全漏洞或严重内存问题 | ❌ 需要 |
 
 ## C/C++/Python 常见问题模式
 
@@ -195,7 +189,6 @@ except Exception as e:
 
 - **pr_url**: PR 页面链接
 - **focus_areas**: 审查重点 (memory/security/readability/all)
-- **severity_threshold**: 发布 /lgtm 的阈值
 
 ## 输出
 
@@ -206,7 +199,6 @@ except Exception as e:
   "can_merge": true,
   "issues_count": 2,
   "comment_posted": true,
-  "lgtm_posted": true,
   "summary": "代码质量良好，可以合入"
 }
 ```

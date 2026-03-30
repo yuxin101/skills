@@ -1,0 +1,11 @@
+{
+  "owner": "sparkbayes",
+  "slug": "astrmap-voc",
+  "displayName": "astrmap-voc(星图AI·跨境电商客户洞察CLI)",
+  "latest": {
+    "version": "0.9.3",
+    "publishedAt": 1774528725049,
+    "commit": "https://github.com/openclaw/skills/commit/72f0179f51ea87aa2d2b28433092e71282476851"
+  },
+  "history": []
+}

@@ -212,15 +212,10 @@ After presenting the trend analysis and NRDS findings, let the user know they ca
 - **Data-driven**: Every judgment cites specific numbers
 - **Honest**: No catalyst found → say "cause unidentified" — never fabricate
 - **Quota-aware**: Step 3 consumes many tool calls. Show Step 2 results first and let user pick 2-3 keywords before continuing
+
 ## Access Tiers
 
-This skill uses DomainKits tools. Usage limits depend on your DomainKits tier:
-
-- **Guest** — Most tools, limited daily usage
-- **Member** (free) — All tools, higher limits
-- **AI Access / Premium / Platinum** — Higher limits for heavy analysis
-
-Get API key at https://domainkits.com
+Guest users can use this skill with limited daily search quota. Register a free account at https://domainkits.com to unlock higher search limits and access to all tools.
 
 ## Privacy
 
@@ -233,3 +228,4 @@ Get API key at https://domainkits.com
 - DomainKits: https://domainkits.com/mcp
 - GitHub: https://github.com/ABTdomain/domainkits-mcp
 - Contact: info@domainkits.com
+- Developed by: https://abtdomain.com

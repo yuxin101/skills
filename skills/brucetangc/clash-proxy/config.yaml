@@ -1,0 +1,97 @@
+# Clash 配置 - Garmin Sync Pro
+# 带流量统计 + 订阅自动更新
+# 2026-03-26
+
+mixed-port: 7890
+allow-lan: false
+bind-address: '*'
+mode: rule
+log-level: info
+ipv6: false
+
+# 外部控制 API
+external-controller: '0.0.0.0:9090'
+
+# 流量统计
+profile:
+    store-selected: true
+    tracing: true  # 启用流量统计
+    store-fake-ip: false
+
+unified-delay: true
+hosts:
+    localhost.localhost: 127.0.0.1
+    
+dns:
+    enable: true
+    ipv6: false
+    listen: '0.0.0.0:1053'
+    enhanced-mode: fake-ip
+    fake-ip-range: 198.18.0.1/16
+    use-hosts: true
+    default-nameserver: [223.5.5.5, 119.29.29.29]
+    nameserver: [223.5.5.5, 223.6.6.6]
+    fake-ip-filter: ['*.lan', localhost.ptlogin2.qq.com, dns.msftncsi.com, '*.srv.nintendo.net', '*.stun.playstation.net', 'xbox.*.microsoft.com', '*.xboxlive.com']
+    fallback: [1.1.1.1, 8.8.8.8]
+    fallback-filter: { geoip: true, geoip-code: CN, ipcidr: [240.0.0.0/4] }
+
+# 订阅管理（自动更新）
+proxy-providers:
+  HongKong:
+    type: http
+    url: "https://3a8df90f75b48975ca041b2327b729ca.z1jd-q8rm-6vpa-xk3t-bc9l.sbs/s?q=e16a33c6&t=3a8df90f75b48975ca041b2327b729ca.jpg"
+    interval: 3600  # 每小时更新一次
+    path: ./providers/hongkong.yaml
+    health-check:
+      enable: true
+      interval: 600  # 每 10 分钟检测节点健康
+      url: http://www.gstatic.com/generate_204
+      tolerance: 50  # 延迟超过 50ms 视为不健康
+
+# 手动配置的备用节点（订阅失效时使用）
+proxies:
+    - { name: '🇭🇰 HK-Backup-01', type: ss, server: O2iRuYdjytyDFxtGjr.redug8dqjjktoapmdfmqymrvi0iupi.com, port: '16001', cipher: aes-256-gcm, password: 4c989811-df91-4272-a690-f35d6992d289, udp: true }
+    - { name: '🇭🇰 HK-Backup-02', type: ss, server: O2iRuYdjytyDFxtGjr.redug8dqjjktoapmdfmqymrvi0iupi.com, port: '16002', cipher: aes-256-gcm, password: 4c989811-df91-4272-a690-f35d6992d289, udp: true }
+
+# 代理组 - 自动故障转移 + 自动回切
+proxy-groups:
+    # 主代理组 - 使用订阅节点，自动选择最快
+    - name: Proxy
+      type: url-test
+      use:
+        - HongKong  # 使用订阅提供者
+      proxies:
+        - '🇭🇰 HK-Backup-01'  # 备用节点
+        - '🇭🇰 HK-Backup-02'
+      url: 'http://www.gstatic.com/generate_204'
+      interval: 300  # 每 5 分钟测试一次
+      tolerance: 50  # 延迟差超过 50ms 才切换
+    
+    # 备用代理组 - fallback 故障转移
+    - name: Proxy-Fallback
+      type: fallback
+      use:
+        - HongKong
+      proxies:
+        - '🇭🇰 HK-Backup-01'
+        - '🇭🇰 HK-Backup-02'
+      url: 'http://www.gstatic.com/generate_204'
+      interval: 300
+    
+    # 手动选择组（可选）
+    - name: Proxy-Manual
+      type: select
+      use:
+        - HongKong
+      proxies:
+        - '🇭🇰 HK-Backup-01'
+        - '🇭🇰 HK-Backup-02'
+
+rules:
+    - 'DOMAIN-SUFFIX,garmin.com,Proxy'
+    - 'DOMAIN-SUFFIX,garmin.cn,Proxy'
+    - 'DOMAIN,sso.garmin.com,Proxy'
+    - 'DOMAIN,connect.garmin.com,Proxy'
+    - 'DOMAIN,api.garmin.com,Proxy'
+    - 'GEOIP,CN,DIRECT'
+    - 'MATCH,Proxy'

@@ -1,0 +1,11 @@
+{
+  "owner": "synththoughts",
+  "slug": "cross-funding-arb",
+  "displayName": "Cross Funding Arb",
+  "latest": {
+    "version": "2.4.0",
+    "publishedAt": 1774572071969,
+    "commit": "https://github.com/openclaw/skills/commit/c4e9a843d9f60fff69e63afe30236929be7f64bb"
+  },
+  "history": []
+}

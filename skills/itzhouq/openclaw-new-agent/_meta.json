@@ -1,0 +1,11 @@
+{
+  "owner": "itzhouq",
+  "slug": "openclaw-new-agent",
+  "displayName": "openclaw-new-agent",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774519861670,
+    "commit": "https://github.com/openclaw/skills/commit/0d0bc7b0b0765c0e39db8feaa28a1f1aca522591"
+  },
+  "history": []
+}

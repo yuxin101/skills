@@ -1,13 +1,23 @@
 {
   "owner": "nemovideonemo",
   "slug": "nemo-generate",
-  "displayName": "NemoGenerate - AI Video Generator: Text to Video, Create Video from Text",
+  "displayName": "Nemo Generate",
   "latest": {
-    "version": "1.8.3",
-    "publishedAt": 1774141173047,
-    "commit": "https://github.com/openclaw/skills/commit/0d367955d432c2970b874104153288cb9bbd4374"
+    "version": "1.8.9",
+    "publishedAt": 1774653780343,
+    "commit": "https://github.com/openclaw/skills/commit/45920190a6af60977d76c989d781aa7f3eb4b904"
   },
   "history": [
+    {
+      "version": "1.8.6",
+      "publishedAt": 1774518249852,
+      "commit": "https://github.com/openclaw/skills/commit/8431f0806d07a855ae91253ef213ba4f5b682734"
+    },
+    {
+      "version": "1.8.3",
+      "publishedAt": 1774141173047,
+      "commit": "https://github.com/openclaw/skills/commit/0d367955d432c2970b874104153288cb9bbd4374"
+    },
     {
       "version": "1.1.0",
       "publishedAt": 1773778754157,

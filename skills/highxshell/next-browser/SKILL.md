@@ -58,7 +58,25 @@ curl -X POST "https://app.nextbrowser.com/api/v1/browser/profiles" \
 # Delete profile
 curl -X DELETE "https://app.nextbrowser.com/api/v1/browser/profiles/<profile-id>" \
   -H "Authorization: x-api-key $API_KEY"
+
+# Start browser for profile (creates browser instance)
+curl -X POST "https://app.nextbrowser.com/api/v1/browser/profiles/<profile-id>/start" \
+  -H "Authorization: x-api-key $API_KEY"
+
+# Get profile details (check status after start)
+curl "https://app.nextbrowser.com/api/v1/browser/profiles/<profile-id>" \
+  -H "Authorization: x-api-key $API_KEY"
+
+# Stop browser for profile
+curl -X PUT "https://app.nextbrowser.com/api/v1/browser/profiles/<profile-id>/stop" \
+  -H "Authorization: x-api-key $API_KEY"
 ```
+
+**OS type:** `browser_settings.os_type` defines the operating system fingerprint used by the browser. Supported values are `windows`, `linux`, `macos`, and `android`. If not provided, it defaults to `linux`.
+
+**Important:** After creating a new profile (or recreating one, e.g. to change country), you **must** call the start endpoint to create a browser instance for it. Tasks will fail if the profile has no running browser.
+
+**Start/stop flow:** After calling `/start`, poll `GET /browser/profiles/<profile-id>` until `status` becomes `active`. Only then proceed with tasks or call `/stop` when done.
 
 ---
 ## 3. Locations
@@ -212,7 +230,3 @@ curl "https://app.nextbrowser.com/api/v1/chat/tasks/<task-id>?from_step=3" \
 | `send_email_notification` | If `true`, a completion email will be sent for the task. |
 
 ---
-
-## Full API Reference
-
-See [references/api.md](references/api.md) for all endpoints including Sessions, Files, Skills, and Skills Marketplace.

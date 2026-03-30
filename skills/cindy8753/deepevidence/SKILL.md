@@ -1,3 +1,4 @@
+---
 name: deepevidence-api
 description: >
   循证医学临床助手，采用 DeepEvidence 兼容 OpenAI 的 API（可追溯引用）。
@@ -47,7 +48,7 @@ To avoid ambiguity, treat requirement levels as:
 
 Ask the user to set an API key via environment variable:
 
-- **Env var**: `DEEPEVIDENCE_API_KEY` (企业用户请在此申请: <https://app.medsci.cn/platform>)
+- **Env var**: `DEEPEVIDENCE_API_KEY` (企业用户请在此申请: <https://app.medsci.cn/platform/api-keys>)
 - **MUST NOT** commit keys to source control
 - **MUST NOT** print API keys, full request bodies, or full response bodies in logs/errors (may contain sensitive clinical information)
 
@@ -127,20 +128,10 @@ print(resp.choices[0].message.content)
 
 When DeepEvidence cannot be called or returns insufficient information, you MUST be transparent and MUST NOT pretend you have evidence-backed conclusions:
 
-- **Missing `DEEPEVIDENCE_API_KEY`**: tell the user to configure it; do not continue with evidence-backed claims
-- **Empty / timeout / network error**: explicitly say: **"Temporarily unable to retrieve evidence-based results. Please try again later or consult a licensed clinician."** and state that evidence/references could not be retrieved
+- **Missing `DEEPEVIDENCE_API_KEY`**: 告知用户该环境变量未配置，引导其前往 https://app.medsci.cn/platform/api-keys 申请 API Key 后再重试；在 Key 完成配置前不得继续进行循证查询
+- **Empty / timeout / network error**: use bounded retries with reasonable timeouts (avoid infinite retry loops); if still failing, explicitly say: **"Temporarily unable to retrieve evidence-based results. Please try again later or consult a licensed clinician."** Do not interpret empty responses as "no risk/no evidence"
 - **Insufficient direct evidence**: explicitly state "No high-quality direct evidence found / conclusion uncertain" and do not overstate certainty
 - **Incomplete citation metadata**: MUST NOT invent DOI/journal/year/authors/links; present only what was returned and label as "metadata incomplete"
-
-## Operations & reliability (RECOMMENDED)
-
-For integration and operations, RECOMMENDED minimum handling:
-
-- **Missing key**: check `DEEPEVIDENCE_API_KEY` before calling; return actionable guidance if missing
-- **Timeouts**: use bounded retries with reasonable timeouts (avoid infinite retry loops)
-- **Empty responses**: treat as failure (do not interpret as "no risk/no evidence")
-- **Low/indirect evidence**: label uncertainty explicitly; do not overclaim
-- **Missing references**: state "references not returned" instead of filling in
 
 ## Security (MUST)
 
@@ -155,7 +146,6 @@ For integration and operations, RECOMMENDED minimum handling:
 - Decisions must consider patient-specific factors (age, renal function, comorbidities, pregnancy/lactation, allergies), local guidelines, and drug labels
 - For urgent symptoms, advise immediate medical care (see "Emergency boundary")
 - Evidence quality depends on retrieval scope and knowledge-base updates; may be time-sensitive
-- MUST NOT invent missing bibliographic metadata (DOI/journal/year/authors/links)
 
 ## Advanced features (multi-tenant & conversations)
 
@@ -163,7 +153,7 @@ For integration and operations, RECOMMENDED minimum handling:
 
 ## Versioning & updates
 
-- **Skill version**: see frontmatter `metadata.version`
+- **Skill version**: see frontmatter `version`
 - **API behavior/fields**: treat `references/api_reference.md` as source of truth; update failure paths and citation rules first when behavior changes
 
 ## Test cases (RECOMMENDED)
@@ -194,7 +184,7 @@ Choose one strategy:
 Minimal HTTP API example (curl):
 
 ```bash
-curl https://deepevid.medsci.cn//chat/completions \
+curl https://deepevid.medsci.cn/v1/chat/completions \
   -H "Authorization: Bearer $DEEPEVIDENCE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

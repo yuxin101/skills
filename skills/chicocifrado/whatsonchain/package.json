@@ -1,0 +1,32 @@
+{
+  "name": "whatsonchain",
+  "version": "1.0.2",
+  "description": "Whatsonchain API tools for BSV blockchain exploration",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "./PRESETUP.sh",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "bsv",
+    "bitcoin-sv",
+    "blockchain",
+    "api",
+    "whatsonchain",
+    "teranode",
+    "openclaw",
+    "clawhub"
+  ],
+  "author": "ChicoCifrado",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": {
+    "url": "https://github.com/bsv/bsv/issues"
+  },
+  "homepage": "https://platform.teranode.group",
+  "dependencies": {},
+  "devDependencies": {}
+}

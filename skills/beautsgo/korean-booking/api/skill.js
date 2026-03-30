@@ -163,29 +163,29 @@ async function clickBookingButton(url) {
     browser = result.browser
     const page = result.page
 
-    await page.waitForTimeout(5000)
-
-    // 等待预约按钮出现
+    // 等待预约按钮出现（Vue 渲染通常 1~3 秒即可）
     await page.waitForSelector('.btns-right', { timeout: 10000 }).catch(() => {})
+    await page.waitForTimeout(2000)
 
-    // 策略1: DOM 直接点击
+    // 策略1: 优先 .btns-right（排除 .btns-consult，找包含"预约"文字的按钮）
     const clicked = await page.evaluate(() => {
-      // 查找"预约面诊"按钮
-      const elements = document.querySelectorAll('*')
-      let target = null
-      let minLen = Infinity
-      for (const el of elements) {
+      // 优先：.btns-right 中文本包含"预约"的元素
+      const btnsRight = document.querySelectorAll('.btns-right')
+      for (const el of btnsRight) {
         const text = (el.textContent || '').trim()
-        if ((text === '预约面诊' || text === '立即预约' || text === '预约') && el.offsetParent !== null) {
-          if (text.length < minLen) {
-            minLen = text.length
-            target = el
-          }
+        if (text.includes('预约') && el.offsetParent !== null) {
+          el.click()
+          return true
         }
       }
-      if (target) {
-        target.click()
-        return true
+      // 降级：文本包含"预约面诊"或"立即预约"的任意可见元素
+      const elements = document.querySelectorAll('*')
+      for (const el of elements) {
+        const text = (el.textContent || '').trim()
+        if ((text.includes('预约面诊') || text.includes('立即预约')) && el.offsetParent !== null && text.length < 30) {
+          el.click()
+          return true
+        }
       }
       // 备选：class 包含 book 或 reservation
       const btn = document.querySelector('[class*="book"],[class*="reservation"],[class*="appoint"]')
@@ -211,8 +211,8 @@ async function clickBookingButton(url) {
 
 /**
  * 解析用户输入，提取预约表单字段
- * @param {string} query 用户输入，如 "2人，3月26日，想做水光针"
- * @returns {{ persons: number, dateText: string, remark: string }}
+ * @param {string} query 用户输入，如 "2人，3月26日，13800138000"
+ * @returns {{ persons: number, dateText: string, contact: string }}
  */
 function parseFormInput(query) {
   // 人数：匹配"2人"、"2位"、"两人"等
@@ -235,16 +235,22 @@ function parseFormInput(query) {
     dateText = dateMatch[0]
   }
 
-  // 备注：去掉人数、日期后的剩余内容
-  let remark = query
-    .replace(/\d+\s*(人|位)/g, '')
-    .replace(/两人|两位|三人|三位/g, '')
-    .replace(/\d{1,4}[年月\/\-]\d{1,2}[日号月\/\-]?\d{0,2}[日号]?/g, '')
-    .replace(/[，,。.、！!？?]/g, ' ')
-    .trim()
-  if (remark.length < 2) remark = ''
+  // 联系方式：优先匹配手机号（11位数字），否则取去除人数、日期后的剩余内容
+  let contact = ''
+  const phoneMatch = query.match(/1[3-9]\d{9}/)
+  if (phoneMatch) {
+    contact = phoneMatch[0]
+  } else {
+    contact = query
+      .replace(/\d+\s*(人|位)/g, '')
+      .replace(/两人|两位|三人|三位/g, '')
+      .replace(/\d{1,4}[年月\/\-]\d{1,2}[日号月\/\-]?\d{0,2}[日号]?/g, '')
+      .replace(/[，,。.、！!？?]/g, ' ')
+      .trim()
+    if (contact.length < 2) contact = ''
+  }
 
-  return { persons, dateText, remark }
+  return { persons, dateText, contact }
 }
 
 /**
@@ -253,38 +259,19 @@ function parseFormInput(query) {
  * @param {{ persons: number, dateText: string, remark: string }} formData
  * @returns {{ success: boolean, message: string }}
  */
-async function fillBookingForm(url, formData) {
+async function fillBookingForm(url, bookingUrl, formData) {
   let browser
   try {
-    const result = await createAuthorizedPage(url)
+    // 直接打开预约表单页，跳过详情页点按钮
+    const targetUrl = bookingUrl || url
+    const result = await createAuthorizedPage(targetUrl)
     browser = result.browser
     const page = result.page
 
-    // 1. 等待医院页面渲染，点击"预约面诊"按钮
-    console.log('[Booking Skill] 等待医院页面加载...')
-    await page.waitForTimeout(5000)
-    await page.waitForSelector('.btns-right', { timeout: 10000 }).catch(() => {})
-
-    const bookClicked = await page.evaluate(() => {
-      const elements = document.querySelectorAll('*')
-      let target = null
-      let minLen = Infinity
-      for (const el of elements) {
-        const text = (el.textContent || '').trim()
-        if ((text === '预约面诊' || text === '立即预约' || text === '预约') && el.offsetParent !== null) {
-          if (text.length < minLen) { minLen = text.length; target = el }
-        }
-      }
-      if (target) { target.click(); return true }
-      return false
-    })
-
-    if (!bookClicked) {
-      return { success: false, message: '未找到预约按钮，请手动点击预约面诊' }
-    }
-
-    console.log('[Booking Skill] 已点击预约按钮，等待表单加载...')
-    await page.waitForTimeout(5000)
+    // 等待表单页渲染
+    console.log('[Booking Skill] 等待预约表单加载...')
+    await page.waitForSelector('.u-number-box__plus, .sub-right', { timeout: 15000 }).catch(() => {})
+    await page.waitForTimeout(2000)
 
     // 2. 填写人数
     if (formData.persons && formData.persons > 1) {
@@ -387,29 +374,23 @@ async function fillBookingForm(url, formData) {
       }
     }
 
-    // 4. 填写备注
-    if (formData.remark && formData.remark.length > 0) {
-      console.log(`[Booking Skill] 填写备注：${formData.remark}`)
-      const remarkFilled = await page.evaluate((remark) => {
-        // 找 textarea 或 contenteditable
-        const ta = document.querySelector('textarea, [contenteditable="true"]')
-        if (ta) {
-          ta.focus()
-          ta.value = remark
-          ta.dispatchEvent(new Event('input', { bubbles: true }))
-          return true
-        }
-        // uni-textarea 内的原生 textarea
-        const uniTa = document.querySelector('uni-textarea textarea')
-        if (uniTa) {
-          uniTa.focus()
-          uniTa.value = remark
-          uniTa.dispatchEvent(new Event('input', { bubbles: true }))
-          return true
+    // 4. 填写联系方式
+    if (formData.contact && formData.contact.length > 0) {
+      console.log(`[Booking Skill] 填写联系方式：${formData.contact}`)
+      const contactFilled = await page.evaluate((contact) => {
+        // 找 type=text 的 input（联系方式字段）
+        const inputs = document.querySelectorAll('input.uni-input-input[type="text"], input[type="text"]')
+        for (const input of inputs) {
+          if (input.offsetParent !== null) {
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+            nativeInputValueSetter.call(input, contact)
+            input.dispatchEvent(new Event('input', { bubbles: true }))
+            return true
+          }
         }
         return false
-      }, formData.remark)
-      console.log(`[Booking Skill] 备注填写结果：${remarkFilled}`)
+      }, formData.contact)
+      console.log(`[Booking Skill] 联系方式填写结果：${contactFilled}`)
       await page.waitForTimeout(500)
     }
 
@@ -698,7 +679,7 @@ module.exports = async function (input) {
     }
 
     // ——————————————————————————————————————————
-    // 第3轮：自动点击预约按钮 → 询问预约信息
+    // 第3轮：直接打开预约表单页 → 询问预约信息
     // ——————————————————————————————————————————
     if (intent === 'book') {
       const hospital = resolveHospital()
@@ -707,30 +688,19 @@ module.exports = async function (input) {
         return '❌ 我还不知道你要预约哪家医院，请告诉我医院名称，例如"帮我预约JD皮肤科"。'
       }
 
-      const clicked = await clickBookingButton(hospital.url)
+      // 优先用 booking_url（直接跳过详情页），没有则降级用 url
+      const bookingUrl = hospital.booking_url || hospital.url
+      await openBrowser(bookingUrl)
 
-      if (clicked) {
-        return `✅ 预约表单已打开！正在加载 **${hospital.name}** 的预约页面...
+      return `✅ 预约表单已打开！
 
 📝 请告诉我以下预约信息，我来帮你自动填写并提交：
 
 1. **预约人数**（例如：1人、2人）
 2. **预约时间**（例如：3月26日）
-3. **备注需求**（可选，例如：想做水光针）
+3. **联系方式**（手机号或微信号）
 
-👉 直接回复，例如："**2人，3月26日，想做皮肤检测**"`
-      } else {
-        return `⚠️ 自动点击预约按钮未成功，但页面已为你打开。
-
-请在浏览器中手动操作：
-1. 找到页面上的蓝色"预约面诊"按钮
-2. 点击进入预约表单
-3. 填写信息后提交
-
-医院页面：${hospital.url}
-
-如需帮助，可以告诉我"咨询客服"，我帮你联系医院客服。`
-      }
+👉 直接回复，例如："**2人，3月26日，13800138000**"`
     }
 
     // ——————————————————————————————————————————
@@ -753,10 +723,10 @@ module.exports = async function (input) {
 
 其他信息可选：
 • 预约人数（默认1人）
-• 备注需求（可选）`
+• 联系方式（手机号或微信号）`
       }
 
-      const result = await fillBookingForm(hospital.url, formData)
+      const result = await fillBookingForm(hospital.url, hospital.booking_url, formData)
 
       if (result.success) {
         return `✅ **预约已提交！**
@@ -764,7 +734,7 @@ module.exports = async function (input) {
 📋 **预约信息摘要：**
 • 🏥 机构：${hospital.name}
 • 👥 人数：${formData.persons} 人
-• 📅 时间：${formData.dateText}${formData.remark ? `\n• 📝 备注：${formData.remark}` : ''}
+• 📅 时间：${formData.dateText}${formData.contact ? `\n• 📞 联系方式：${formData.contact}` : ''}
 
 🎉 提交成功！BeautsGO 平台会尽快联系机构为你匹配时间，确认短信将发送到你的账号绑定手机。
 
@@ -775,7 +745,7 @@ module.exports = async function (input) {
 你可以在已打开的浏览器中手动完成填写：
 1. 选择预约人数
 2. 选择预约时间（${formData.dateText}）
-3. 勾选服务条款
+3. 填写联系方式
 4. 点击"去付款"提交
 
 如需其他帮助，随时告诉我！`

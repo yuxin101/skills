@@ -95,6 +95,12 @@ except ImportError:
     print("错误: 未安装腾讯云 SDK，请运行: pip install tencentcloud-sdk-python", file=sys.stderr)
     sys.exit(1)
 
+try:
+    from qcloud_cos import CosConfig, CosS3Client
+    _COS_SDK_AVAILABLE = True
+except ImportError:
+    _COS_SDK_AVAILABLE = False
+
 # ─────────────────────────────────────────────
 # 配置
 # ─────────────────────────────────────────────
@@ -368,7 +374,30 @@ def print_result(result: dict, as_json: bool = False, output_dir: str = None):
             r = result["remake"]
             print(f"\n✅ 去重完成（进度: {r['progress']}%）")
             if r.get("output_object_path"):
-                print(f"   输出路径: {r['output_object_path']}")
+                out_path = r["output_object_path"]
+                print(f"   输出路径: {out_path}")
+                # 尝试生成预签名下载链接
+                out_storage = r.get("output_storage") or {}
+                out_type = out_storage.get("Type", "")
+                if out_type == "COS" and _COS_SDK_AVAILABLE:
+                    cos_out = out_storage.get("CosOutputStorage", {}) or {}
+                    bucket = cos_out.get("Bucket", "")
+                    region = cos_out.get("Region", "")
+                    if bucket and region:
+                        try:
+                            secret_id = os.environ.get("TENCENTCLOUD_SECRET_ID", "")
+                            secret_key = os.environ.get("TENCENTCLOUD_SECRET_KEY", "")
+                            cos_config = CosConfig(Region=region, SecretId=secret_id, SecretKey=secret_key)
+                            cos_client = CosS3Client(cos_config)
+                            signed_url = cos_client.get_presigned_url(
+                                Bucket=bucket,
+                                Key=out_path.lstrip("/"),
+                                Method="GET",
+                                Expired=3600
+                            )
+                            print(f"   🔗 下载链接（预签名，1小时有效）: {signed_url}")
+                        except Exception as e:
+                            print(f"   ⚠️  生成预签名 URL 失败: {e}")
         else:
             print("\n⚠️  暂无结果（任务可能仍在处理中）")
         print(f"{sep}\n")

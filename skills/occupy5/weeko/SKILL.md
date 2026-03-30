@@ -18,8 +18,10 @@ Add to `~/.openclaw/openclaw.json`:
 ```json
 {
   "skills": {
-    "weeko": {
-      "apiKey": "wk_your_api_key_here"
+    "entries": {
+      "weeko": {
+        "apiKey": "wk_your_api_key_here"
+      }
     }
   }
 }
@@ -36,7 +38,7 @@ Get your API key from Weeko Settings → API tab. Keys start with `wk_`.
 ## Authentication
 
 API key lookup order (first found wins):
-1. `openclaw.json` → `skills.weeko.apiKey`
+1. `openclaw.json` → `skills.entries.weeko.apiKey`
 2. Environment variable `WEEKO_API_KEY`
 
 All API requests require the Authorization header:
@@ -259,7 +261,7 @@ Headers in every response: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-Rate
 
 **Before ANY API call:**
 1. Check API key in order:
-   - Read from `~/.openclaw/openclaw.json` → `skills.weeko.apiKey`
+   - Read from `~/.openclaw/openclaw.json` → `skills.entries.weeko.apiKey`
    - Fall back to environment variable `$WEEKO_API_KEY`
 2. If NOT found, output this message and STOP:
 
@@ -268,8 +270,10 @@ Headers in every response: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-Rate
    ```json
    {
      \"skills\": {
-       \"weeko\": {
-         \"apiKey\": \"wk_your_key_here\"
+       \"entries\": {
+         \"weeko\": {
+           \"apiKey\": \"wk_your_key_here\"
+         }
        }
      }
    }

@@ -2,7 +2,7 @@
 name: tencent-mps
 description: "腾讯云 MPS 媒体处理服务。只要用户的请求涉及音视频或图片的处理、生成、增强、用量查询、内容理解、媒体质检，必须使用此 Skill。覆盖：转码/压缩/格式转换、画质增强/老片修复/超分、字幕提取/翻译/语音识别、去字幕/擦除水印/人脸模糊、图片超分/美颜/降噪、音频分离/人声提取/伴奏提取、AI生图/生视频（含分镜）、大模型音视频理解、媒体质检、用量统计。视频增强支持专用模板（真人/漫剧/抖动优化/细节最强/人脸保真，720P至4K）。无论是视频转码、去水印、提取人声、画质修复、内容理解、质量检测，还是AI生成图片视频，都应调用此 Skill。"
 metadata:
-  version: "1.2.0"
+  version: "1.1.2"
 ---
 
 # 腾讯云媒体处理服务（MPS）
@@ -153,25 +153,27 @@ python scripts/mps_cos_download.py --cos-key output/result.mp4 --local-file ./re
 
 ## 生成命令的强制规则
 
-1. **禁止占位符**：所有参数值必须是真实值。若用户未提供必需值，**先询问**，不得用 `<视频URL>`、`YOUR_URL` 等占位符。
+1. **脚本路径前缀**：所有生成的 python 命令必须包含 `scripts/` 路径前缀，格式为 `python scripts/mps_xxx.py ...`。禁止生成 `python mps_xxx.py ...`（缺少 scripts/ 前缀）的命令。
 
-2. **`mps_qualitycontrol.py` 必须含 `--definition`**：
+2. **禁止占位符**：所有参数值必须是真实值。若用户未提供必需值，**先询问**，不得用 `<视频URL>`、`YOUR_URL` 等占位符。
+
+3. **`mps_qualitycontrol.py` 必须含 `--definition`**：
    - 音频质检：`--definition 50`
    - 画面质检（默认）：`--definition 60`
    - 播放兼容性：`--definition 70`
 
-3. **`mps_av_understand.py` 必须含 `--mode` 和 `--prompt`**：
+4. **`mps_av_understand.py` 必须含 `--mode` 和 `--prompt`**：
    - `--mode video`（理解视频画面）或 `--mode audio`（仅音频，视频自动提取音频）
    - `--prompt` 控制大模型理解侧重点，缺失时结果可能为空
 
-4. **`mps_narrate.py` 必须含 `--scene`**：
+5. **`mps_narrate.py` 必须含 `--scene`**：
    - 值必须是预设枚举之一：`short-drama` | `short-drama-no-erase`
    - 用户说"有字幕"/"带硬字幕"时默认选含擦除场景（`short-drama`）
    - 用户说"没有字幕"/"原片无字幕"/"不擦除"时选 `-no-erase` 场景（`short-drama-no-erase`）
    - 多集视频时，第一集用 `--url`/`--cos-object`，后续集用 `--extra-urls` 按顺序追加
    - 禁止传入 `scriptUrls` 相关参数（本次不支持输入自定义脚本）
 
-5. **`mps_highlight.py` 必须含 `--scene`**：
+6. **`mps_highlight.py` 必须含 `--scene`**：
    - 值必须是预设枚举之一：`vlog` | `vlog-panorama` | `short-drama` | `football` | `basketball` | `custom`
    - 用户提到"篮球"/"足球"/"短剧"/"VLOG"等关键词时直接映射到对应 `--scene`，无需二次询问
    - `--prompt` 和 `--scenario` 仅在 `--scene custom` 时生效，但二者非必填

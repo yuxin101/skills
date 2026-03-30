@@ -1,11 +1,32 @@
 ---
 name: instaparser-api
 description: Use the Instaparser API to parse articles, PDFs, and generate summaries from URLs. Trigger when users want to extract content from web pages, parse PDF documents, or summarize articles using the Instaparser service.
+metadata:
+  openclaw:
+    requires:
+      env:
+       - INSTAPARSER_API_KEY
+    primaryEnv: INSTAPARSER_API_KEY
 ---
 
 # Instaparser API Skill
 
 Use this skill when the user wants to interact with the Instaparser API to parse articles, PDFs, or generate summaries.
+
+## Requirements
+
+- **Network access:** This skill makes HTTPS requests to `https://www.instaparser.com/api/`. The user must grant network access when prompted.
+- **API key:** All requests require an Instaparser API key set as the `INSTAPARSER_API_KEY` environment variable.
+
+### Getting an API key
+
+1. Go to [https://www.instaparser.com](https://www.instaparser.com) and create an account.
+2. After signing in, navigate to the API section of your dashboard to generate an API key.
+3. Set the key in your environment:
+   ```bash
+   export INSTAPARSER_API_KEY="your_api_key_here"
+   ```
+4. The free Trial plan includes a limited number of monthly credits. Paid plans are available for higher usage.
 
 ## Authentication
 

@@ -1,0 +1,11 @@
+{
+  "owner": "clawwalletteam",
+  "slug": "claw-wallet-pro",
+  "displayName": "ClawWallet",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774596493184,
+    "commit": "https://github.com/openclaw/skills/commit/ca374d54344bdf7be6e22698b8a36855c212575d"
+  },
+  "history": []
+}

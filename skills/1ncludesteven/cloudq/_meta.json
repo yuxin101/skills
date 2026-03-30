@@ -1,0 +1,11 @@
+{
+  "owner": "1ncludesteven",
+  "slug": "cloudq",
+  "displayName": "CloudQ",
+  "latest": {
+    "version": "1.5.2",
+    "publishedAt": 1774528146531,
+    "commit": "https://github.com/openclaw/skills/commit/c67905aff51238fc5830fb913ae77fac5afd5256"
+  },
+  "history": []
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "imwyvern",
+  "slug": "love-counselor",
+  "displayName": "Love Counselor Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774368444776,
+    "commit": "https://github.com/openclaw/skills/commit/7b0087a090be98ba9177d77b148f1e21addb15fa"
+  },
+  "history": []
+}

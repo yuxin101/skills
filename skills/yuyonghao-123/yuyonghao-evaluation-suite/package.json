@@ -1,0 +1,23 @@
+{
+  "name": "evaluation-suite",
+  "version": "0.1.0",
+  "description": "OpenClaw 评估体系 - RAG评估 + 推理评估 + 幻觉检测",
+  "main": "src/evaluator.js",
+  "type": "module",
+  "scripts": {
+    "test": "node test/quick-test.js",
+    "benchmark": "node benchmarks/run-benchmarks.js",
+    "eval:rag": "node src/rag-eval.js",
+    "eval:reasoning": "node src/reasoning-eval.js",
+    "eval:hallucination": "node src/hallucination-detector.js"
+  },
+  "keywords": [
+    "evaluation",
+    "benchmark",
+    "rag",
+    "hallucination",
+    "openclaw-skill"
+  ],
+  "author": "yuyonghao-123",
+  "license": "MIT"
+}

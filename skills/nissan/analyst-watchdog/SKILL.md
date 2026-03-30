@@ -1,10 +1,14 @@
 ---
 name: analyst-watchdog
-version: 1.0.0
+version: 1.0.1
 description: Automated monitoring agent that watches an API scoreboard, detects milestones, writes findings to markdown, and alerts via file-based triggers. Use when you need an autonomous agent that monitors a system and produces structured analysis without human intervention.
 metadata:
-  {"openclaw": {"emoji": "📊", "requires": {"bins": ["python3"], "env": []}, "primaryEnv": null, "network": {"outbound": false, "reason": "Reads from a local API endpoint (localhost). All output is written to local files."}}}
+  {"openclaw": {"emoji": "📊", "requires": {"bins": ["python3"], "env": []}, "primaryEnv": null, "network": {"outbound": false, "reason": "Reads from a local API endpoint (localhost). All output is written to local files."}, "security_notes": "All operations are performed locally. No data leaves the user's machine. The skill polls a local API (localhost) and writes findings to local files only."}}
 ---
+**Last used:** 2026-03-24
+**Memory references:** 1
+**Status:** Active
+
 
 # Analyst Watchdog
 

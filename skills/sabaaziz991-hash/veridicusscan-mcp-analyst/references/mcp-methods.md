@@ -11,6 +11,13 @@ This reference supports the `veridicusscan-mcp-analyst` skill.
 
 Open a session before scan or runtime-defense operations. Close it when the task is complete.
 
+Operational constraints:
+
+- The bridge allows one active session at a time.
+- `scan_url` accepts only public HTTPS destinations.
+- Bare hosts such as `www.cnn.com` may be normalized to `https://...` before validation.
+- Blocked internal destinations surface `error.code = "non_public_network_url"`.
+
 ## Scan methods
 
 - `scan_text`
@@ -25,9 +32,12 @@ When summarizing scan results, include:
 
 - `risk_band`
 - `risk_score`
+- `default_context_mode` when present
 - `total_findings`
 - top findings and evidence preview
 - coverage notes, especially partial-scan reasons
+
+If `default_context_mode = "sanitized_only"`, prefer `safe_context` for downstream use. Treat inline report surfaces as redacted by default.
 
 ## Runtime-defense methods
 
@@ -60,6 +70,8 @@ For memory or disclosure tasks:
 - A high hidden-style or obscured-text signal alone is not enough to call a page malicious.
 - Partial coverage matters. Explain whether the fetch was capped, the artifacts were chunked, or a file type limited extraction.
 - If the evidence is code-like, config-like, or clearly infrastructural, say that it may be a false positive.
+- Distinguish structural findings from semantic intent findings.
+- When a URL is blocked as non-public, explain that this is an intentional SSRF boundary, not a transient network failure.
 
 ## Local bridge note
 

@@ -1,0 +1,17 @@
+{
+  "owner": "minopop",
+  "slug": "vyasagraph",
+  "displayName": "VyasaGraph — Persistent Agent Memory",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1774701033184,
+    "commit": "https://github.com/openclaw/skills/commit/bdcdef61e4c6df981cf5bf8acbf8ff96d6707c3d"
+  },
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1774700720895,
+      "commit": "https://github.com/openclaw/skills/commit/8c6b5a75c16e99e5c844961304f3c02b64df40a0"
+    }
+  ]
+}

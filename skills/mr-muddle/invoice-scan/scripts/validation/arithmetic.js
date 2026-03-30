@@ -8,6 +8,7 @@
  */
 
 const TOLERANCE = 0.02; // 2p tolerance for rounding
+const ROUNDING_THRESHOLD = 1.00; // discrepancies ≤ this are warnings, not errors
 
 /**
  * Validate arithmetic consistency of an invoice.
@@ -26,11 +27,18 @@ function validateArithmetic(invoice) {
       return sum + (li.lineTotal || 0);
     }, 0);
 
-    if (Math.abs(lineSum - invoice.totals.netTotal) > TOLERANCE) {
-      errors.push({
+    const lineSumDiff = Math.abs(lineSum - invoice.totals.netTotal);
+    if (lineSumDiff > TOLERANCE) {
+      const entry = {
         field: 'totals.netTotal',
         message: `Line items sum (${lineSum.toFixed(2)}) does not match net total (${invoice.totals.netTotal.toFixed(2)})`,
-      });
+      };
+      if (lineSumDiff <= ROUNDING_THRESHOLD) {
+        entry.message += ' (likely rounding)';
+        warnings.push(entry);
+      } else {
+        errors.push(entry);
+      }
     }
   }
 
@@ -40,11 +48,18 @@ function validateArithmetic(invoice) {
       const expected = li.quantity * li.unitPrice;
       // Account for discounts
       const afterDiscount = li.discount ? expected - li.discount : expected;
-      if (Math.abs(afterDiscount - li.lineTotal) > TOLERANCE) {
-        errors.push({
+      const liDiff = Math.abs(afterDiscount - li.lineTotal);
+      if (liDiff > TOLERANCE) {
+        const entry = {
           field: `lineItems[${i}].lineTotal`,
           message: `qty (${li.quantity}) × price (${li.unitPrice}) = ${expected.toFixed(2)}, but lineTotal is ${li.lineTotal.toFixed(2)}`,
-        });
+        };
+        if (liDiff <= ROUNDING_THRESHOLD) {
+          entry.message += ' (likely rounding)';
+          warnings.push(entry);
+        } else {
+          errors.push(entry);
+        }
       }
     }
   });
@@ -80,11 +95,21 @@ function validateArithmetic(invoice) {
   // 4. Net + VAT = Gross
   if (invoice.totals.netTotal !== null && invoice.totals.vatTotal !== null && invoice.totals.grossTotal !== null) {
     const expectedGross = invoice.totals.netTotal + invoice.totals.vatTotal;
-    if (Math.abs(expectedGross - invoice.totals.grossTotal) > TOLERANCE) {
-      errors.push({
+    // Account for invoice-level discount if present
+    const discount = invoice.totals.discount || 0;
+    const adjustedExpected = expectedGross - discount;
+    const grossDiff = Math.abs(adjustedExpected - invoice.totals.grossTotal);
+    if (grossDiff > TOLERANCE) {
+      const entry = {
         field: 'totals.grossTotal',
-        message: `net (${invoice.totals.netTotal.toFixed(2)}) + VAT (${invoice.totals.vatTotal.toFixed(2)}) = ${expectedGross.toFixed(2)}, but gross is ${invoice.totals.grossTotal.toFixed(2)}`,
-      });
+        message: `net (${invoice.totals.netTotal.toFixed(2)}) + VAT (${invoice.totals.vatTotal.toFixed(2)})${discount ? ` - discount (${discount.toFixed(2)})` : ''} = ${adjustedExpected.toFixed(2)}, but gross is ${invoice.totals.grossTotal.toFixed(2)}`,
+      };
+      if (grossDiff <= ROUNDING_THRESHOLD) {
+        entry.message += ' (likely rounding)';
+        warnings.push(entry);
+      } else {
+        errors.push(entry);
+      }
     }
   }
 

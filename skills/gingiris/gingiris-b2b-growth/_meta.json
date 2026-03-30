@@ -1,13 +1,18 @@
 {
   "owner": "gingiris",
   "slug": "gingiris-b2b-growth",
-  "displayName": "B2B SaaS Growth Playbook (PLG/SLG)",
+  "displayName": "Gingiris B2b Growth",
   "latest": {
-    "version": "1.3.0",
-    "publishedAt": 1773503636808,
-    "commit": "https://github.com/openclaw/skills/commit/b21bd030fce25ffea1f2d15fe8607607ce94388f"
+    "version": "2.0.0",
+    "publishedAt": 1774329642379,
+    "commit": "https://github.com/openclaw/skills/commit/4148a6331671abcea740e54a72261310430953af"
   },
   "history": [
+    {
+      "version": "1.3.0",
+      "publishedAt": 1773503636808,
+      "commit": "https://github.com/openclaw/skills/commit/b21bd030fce25ffea1f2d15fe8607607ce94388f"
+    },
     {
       "version": "1.7.2",
       "publishedAt": 1772721866126,

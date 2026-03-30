@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "3scribe",
+  "displayName": "3Scribe",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774580569656,
+    "commit": "https://github.com/openclaw/skills/commit/aae1b94d29cd563ef24fc5ab13ff2cb9d5a90eb8"
+  },
+  "history": []
+}

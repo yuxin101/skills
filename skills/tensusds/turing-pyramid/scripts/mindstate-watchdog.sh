@@ -52,6 +52,54 @@ if [[ -f "$WATCHDOG_LOG" ]] && (( $(wc -l < "$WATCHDOG_LOG") > 200 )); then
     mv "$WATCHDOG_LOG.tmp" "$WATCHDOG_LOG"
 fi
 
+# Rotate audit.log (keep last 5000 lines — ~6 months at 12 entries/day)
+# Archived entries go to audit.log.archive (compressed) — never deleted
+AUDIT_LOG="$ASSETS_DIR/audit.log"
+if [[ -f "$AUDIT_LOG" ]] && (( $(wc -l < "$AUDIT_LOG") > 5000 )); then
+    # Archive old entries (everything except last 3000)
+    total=$(wc -l < "$AUDIT_LOG")
+    archive_count=$((total - 3000))
+    head -"$archive_count" "$AUDIT_LOG" >> "$AUDIT_LOG.archive"
+    tail -3000 "$AUDIT_LOG" > "$AUDIT_LOG.tmp"
+    mv "$AUDIT_LOG.tmp" "$AUDIT_LOG"
+    # Compress archive if > 1MB
+    if [[ -f "$AUDIT_LOG.archive" ]] && (( $(stat -c %s "$AUDIT_LOG.archive" 2>/dev/null || echo 0) > 1048576 )); then
+        gzip -f "$AUDIT_LOG.archive" 2>/dev/null || true
+    fi
+    log "Rotated audit.log (archived $archive_count entries, kept last 3000)"
+fi
+
+# Compact followups.jsonl (remove resolved/expired older than 30 days)
+FOLLOWUPS_FILE="$ASSETS_DIR/followups.jsonl"
+if [[ -f "$FOLLOWUPS_FILE" ]] && (( $(wc -l < "$FOLLOWUPS_FILE") > 100 )); then
+    CUTOFF_EPOCH=$(($(date +%s) - 2592000)) # 30 days
+    # Keep: all pending + resolved/expired within last 30 days
+    while IFS= read -r line; do
+        status=$(echo "$line" | grep -oP '"status":"[^"]*"' | cut -d'"' -f4)
+        if [[ "$status" == "pending" ]]; then
+            echo "$line"
+        else
+            ts=$(echo "$line" | grep -oP '"resolved_at":"[^"]*"' | cut -d'"' -f4)
+            if [[ -n "$ts" ]]; then
+                ts_epoch=$(date -d "$ts" +%s 2>/dev/null || echo 0)
+                (( ts_epoch > CUTOFF_EPOCH )) && echo "$line"
+            else
+                echo "$line" # keep if no resolved_at (safety)
+            fi
+        fi
+    done < "$FOLLOWUPS_FILE" > "$FOLLOWUPS_FILE.tmp"
+    mv "$FOLLOWUPS_FILE.tmp" "$FOLLOWUPS_FILE"
+    log "Compacted followups.jsonl (kept pending + recent resolved)"
+fi
+
+# Rotate boot.log (keep last 500 lines — ~1.5 years)
+BOOT_LOG="$ASSETS_DIR/mindstate-boot.log"
+if [[ -f "$BOOT_LOG" ]] && (( $(wc -l < "$BOOT_LOG") > 500 )); then
+    tail -300 "$BOOT_LOG" > "$BOOT_LOG.tmp"
+    mv "$BOOT_LOG.tmp" "$BOOT_LOG"
+    log "Rotated boot.log (kept last 300 entries)"
+fi
+
 # ─── 1. Check MINDSTATE.md freshness ───
 daemon_alive=true
 if [[ -f "$MINDSTATE_FILE" ]]; then

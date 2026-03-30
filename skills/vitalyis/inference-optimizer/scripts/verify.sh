@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify inference-optimizer installation and script enablement.
+# Verify inference-optimizer installation, wiring, and audit coverage.
 
 set -euo pipefail
 
@@ -23,6 +23,36 @@ check() {
   fi
 }
 
+check_workspace_file() {
+  local file="$1"
+  local label="$2"
+  local legacy=false
+  local current=false
+
+  if [[ ! -f "$file" ]]; then
+    echo "[SKIP] $label missing"
+    return 0
+  fi
+
+  grep -Fq "/clawd/skills/public/inference-optimizer" "$file" && legacy=true
+  grep -Fq "~/clawdbot/code/scripts/openclaw-audit.sh" "$file" && legacy=true
+  grep -Fq "~/clawdbot/code/scripts/purge-stale-sessions.sh" "$file" && legacy=true
+
+  if grep -Fq "$SKILL_DIR/scripts/openclaw-audit.sh" "$file" || grep -Fq "$SKILL_DIR/scripts/preflight.sh" "$file"; then
+    current=true
+  fi
+
+  if [[ "$legacy" = true ]]; then
+    echo "[FAIL] $label has legacy inference-optimizer paths"
+    ((FAIL++)) || true
+  elif [[ "$current" = true ]]; then
+    echo "[OK] $label references current skill path"
+    ((PASS++)) || true
+  else
+    echo "[WARN] $label has no current managed skill wiring"
+  fi
+}
+
 echo "=== inference-optimizer verify ==="
 echo ""
 
@@ -35,26 +65,44 @@ check "[[ -f $SKILL_DIR/scripts/preflight.sh ]]" "preflight.sh exists"
 check "[[ -x $SKILL_DIR/scripts/preflight.sh ]]" "preflight.sh executable"
 check "[[ -f $SKILL_DIR/SKILL.md ]]" "SKILL.md exists"
 
-if [[ -f "$WORKSPACE_MAIN/AGENTS.md" ]] && grep -q "/optimize" "$WORKSPACE_MAIN/AGENTS.md" 2>/dev/null; then
-  echo "[OK] AGENTS.md has /optimize (main workspace)"
+SETUP_PREVIEW="$(bash "$SKILL_DIR/scripts/setup.sh" 2>/dev/null || true)"
+if grep -Fq "$SKILL_DIR/scripts/preflight.sh" <<<"$SETUP_PREVIEW" && grep -Fq "$SKILL_DIR/scripts/openclaw-audit.sh" <<<"$SETUP_PREVIEW"; then
+  echo "[OK] setup preview uses current skill path"
   ((PASS++)) || true
 else
-  echo "[WARN] AGENTS.md missing /optimize — run setup.sh or add manually"
+  echo "[FAIL] setup preview does not use current skill path"
   ((FAIL++)) || true
 fi
 
-if [[ -d "$WORKSPACE_MAIN" ]]; then
-  AUDIT_OUTPUT="$(bash "$SKILL_DIR/scripts/openclaw-audit.sh" 2>/dev/null || true)"
-  if grep -q "Workspace file sizes" <<<"$AUDIT_OUTPUT"; then
-    echo "[OK] openclaw-audit.sh runs (paths resolvable)"
-    ((PASS++)) || true
-  else
-    echo "[WARN] openclaw-audit.sh may have path issues (run on VPS?)"
-    ((FAIL++)) || true
-  fi
+AUDIT_OUTPUT="$("$SKILL_DIR/scripts/openclaw-audit.sh" 2>/dev/null || true)"
+if grep -Fq "=== Runtime health ===" <<<"$AUDIT_OUTPUT"; then
+  echo "[OK] audit reports runtime health"
+  ((PASS++)) || true
 else
-  echo "[SKIP] Workspace not found, skipping audit dry-run"
+  echo "[FAIL] audit missing runtime health section"
+  ((FAIL++)) || true
 fi
+
+if grep -Fq "=== Workspace command wiring ===" <<<"$AUDIT_OUTPUT"; then
+  echo "[OK] audit checks workspace command wiring"
+  ((PASS++)) || true
+else
+  echo "[FAIL] audit missing workspace command wiring section"
+  ((FAIL++)) || true
+fi
+
+if grep -Fq "=== Recommended next steps ===" <<<"$AUDIT_OUTPUT"; then
+  echo "[OK] audit emits recommended next steps"
+  ((PASS++)) || true
+else
+  echo "[FAIL] audit missing recommended next steps"
+  ((FAIL++)) || true
+fi
+
+check_workspace_file "$WORKSPACE_MAIN/AGENTS.md" "main AGENTS.md"
+check_workspace_file "$WORKSPACE_MAIN/TOOLS.md" "main TOOLS.md"
+check_workspace_file "$WORKSPACE_WHATSAPP/AGENTS.md" "whatsapp AGENTS.md"
+check_workspace_file "$WORKSPACE_WHATSAPP/TOOLS.md" "whatsapp TOOLS.md"
 
 echo ""
 echo "---"

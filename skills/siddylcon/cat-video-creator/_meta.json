@@ -1,0 +1,11 @@
+{
+  "owner": "siddylcon",
+  "slug": "cat-video-creator",
+  "displayName": "Cat Video Creator",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774614325469,
+    "commit": "https://github.com/openclaw/skills/commit/58d1d1dc9bc094cb9ac2dc58fa27715e802e5ba9"
+  },
+  "history": []
+}

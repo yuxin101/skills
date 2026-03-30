@@ -3,11 +3,16 @@
   "slug": "express",
   "displayName": "Express Logistics Track - 快递物流查询",
   "latest": {
-    "version": "1.0.4",
-    "publishedAt": 1773719712088,
-    "commit": "https://github.com/openclaw/skills/commit/6afc5c18f7f3cffa709afec659232935b598d34c"
+    "version": "1.0.5",
+    "publishedAt": 1774585759415,
+    "commit": "https://github.com/openclaw/skills/commit/7a0aacf16104f965953edb7c4a5f0a9cebe040f0"
   },
   "history": [
+    {
+      "version": "1.0.4",
+      "publishedAt": 1773719712088,
+      "commit": "https://github.com/openclaw/skills/commit/6afc5c18f7f3cffa709afec659232935b598d34c"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1773309215787,

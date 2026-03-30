@@ -1,0 +1,11 @@
+{
+  "owner": "dongrebeccahhh-boop",
+  "slug": "industry-news-agent",
+  "displayName": "Industry News Agent",
+  "latest": {
+    "version": "3.0.2",
+    "publishedAt": 1774536326978,
+    "commit": "https://github.com/openclaw/skills/commit/2867e6ee3c294ac7f87a48cf727ad2943c356810"
+  },
+  "history": []
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "evan-zhang",
+  "slug": "sop-02-lite",
+  "displayName": "SOP-02 Lite: 20分钟内中小事项执行框架",
+  "latest": {
+    "version": "1.0.4",
+    "publishedAt": 1774741446961,
+    "commit": "https://github.com/openclaw/skills/commit/af5ad78e4b1dced426832f6b57a69ec9b510327e"
+  },
+  "history": []
+}

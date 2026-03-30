@@ -1,13 +1,18 @@
 {
   "owner": "nitishgargiitd",
   "slug": "pod-cog",
-  "displayName": "pod-cog",
+  "displayName": "Pod Cog",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1770774338279,
-    "commit": "https://github.com/openclaw/skills/commit/6ade31fefbf4ba81b9404a75de2b8be230e3957c"
+    "version": "1.0.3",
+    "publishedAt": 1774585068917,
+    "commit": "https://github.com/openclaw/skills/commit/39008439bd23d51f37f95fd5deb3913a0ba11ff1"
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1770774338279,
+      "commit": "https://github.com/openclaw/skills/commit/6ade31fefbf4ba81b9404a75de2b8be230e3957c"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1770419953546,

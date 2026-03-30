@@ -128,7 +128,7 @@ echo "Test 5: Neutral content → time-based satisfaction"
 
 cat > "$FAKE_WORKSPACE/memory/$TODAY.md" <<'EOF'
 ## Notes
-Discussed architecture with Max
+Discussed architecture with steward
 Read through the documentation
 Reviewed the project timeline
 Thought about next steps

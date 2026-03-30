@@ -940,7 +940,17 @@ for need in "${top_needs_array[@]}"; do
             echo "  Range $impact_range rolled → selected:"
             
             if [[ -n "$selected_action" ]]; then
-                echo "    ★ $selected_action (impact: $actual_impact)"
+                # Check if action is deliberative
+                action_mode=$(jq -r --arg n "$need" --arg a "$selected_action" \
+                    '(.needs[$n].actions[] | select(.name == $a) | .mode) // "operative"' \
+                    "$CONFIG_FILE" 2>/dev/null || echo "operative")
+                
+                delib_label=""
+                if [[ "$action_mode" == "deliberative" ]]; then
+                    delib_label=" [DELIBERATIVE]"
+                fi
+                
+                echo "    ★ $selected_action (impact: $actual_impact)$delib_label"
                 # Record selection for staleness tracking
                 record_action_selection "$need" "$selected_action"
                 # Register in execution gate (skip in test mode)
@@ -959,7 +969,16 @@ for need in "${top_needs_array[@]}"; do
                 jq -r ".needs.\"$need\".actions[] | \"    • \" + .name + \" (impact \" + (.impact|tostring) + \")\"" "$CONFIG_FILE"
             fi
             
-            echo "  Then: mark-satisfied.sh $need $actual_impact"
+            # Output execution instructions based on action mode
+            if [[ "${action_mode:-operative}" == "deliberative" ]]; then
+                echo "  Protocol: Think → conclude → route. Options:"
+                echo "    deliberate.sh --template --need $need --action \"$selected_action\""
+                echo "    deliberate.sh --validate <your-file>"
+                echo "    deliberate.sh --validate-inline --conclusion \"...\" --route \"...\""
+                echo "  Then: mark-satisfied.sh $need $actual_impact --conclusion \"your conclusion\""
+            else
+                echo "  Then: mark-satisfied.sh $need $actual_impact"
+            fi
             
             # Log to memory with selected action
             if $is_forced_need; then

@@ -41,6 +41,12 @@ except ImportError:
 
 
 try:
+    from qcloud_cos import CosConfig, CosS3Client
+    _COS_SDK_AVAILABLE = True
+except ImportError:
+    _COS_SDK_AVAILABLE = False
+
+try:
     from load_env import ensure_env_loaded as _ensure_env_loaded
     _LOAD_ENV_AVAILABLE = True
 except ImportError:
@@ -154,6 +160,25 @@ def format_status(status):
     return STATUS_MAP.get(status, status)
 
 
+def _try_print_cos_presigned_url(bucket, region, out_path, indent="       "):
+    """尝试为 COS 输出文件生成预签名下载链接并打印，失败时静默跳过。"""
+    if not bucket or not out_path or not _COS_SDK_AVAILABLE:
+        return
+    try:
+        cred = get_credentials()
+        cos_config = CosConfig(Region=region, SecretId=cred.secret_id, SecretKey=cred.secret_key)
+        cos_client = CosS3Client(cos_config)
+        signed_url = cos_client.get_presigned_url(
+            Bucket=bucket,
+            Key=out_path.lstrip("/"),
+            Method="GET",
+            Expired=3600
+        )
+        print(f"{indent}🔗 下载链接（预签名，1小时有效）: {signed_url}")
+    except Exception as e:
+        print(f"{indent}⚠️  生成预签名 URL 失败: {e}")
+
+
 def print_input_info(input_info):
     """打印输入文件信息。"""
     if not input_info:
@@ -233,6 +258,7 @@ def print_media_process_results(result_set):
                     bucket = cos_out.get("Bucket", "")
                     region = cos_out.get("Region", "")
                     print(f"       输出: COS - {bucket}:{out_path} (region: {region})")
+                    _try_print_cos_presigned_url(bucket, region, out_path)
                 elif out_path:
                     print(f"       输出: {out_path}")
 
@@ -704,6 +730,7 @@ def print_edit_media_task(task):
             bucket = cos_out.get("Bucket", "")
             region = cos_out.get("Region", "")
             print(f"       输出: COS - {bucket}:{out_path} (region: {region})")
+            _try_print_cos_presigned_url(bucket, region, out_path)
 
 
 def print_live_stream_task(task):

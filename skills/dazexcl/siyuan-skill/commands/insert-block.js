@@ -42,7 +42,7 @@ const command = {
       return {
         success: false,
         error: '缺少必要参数',
-        message: '必须提供 data 参数'
+        message: '必须提供 content 参数\n用法: siyuan block-insert <content> --parent-id <parentId>\n示例: siyuan bi "新块内容" --parent-id 20260313203048-cjem96v'
       };
     }
     
@@ -50,8 +50,8 @@ const command = {
     if (!parentId && !previousId && !nextId) {
       return {
         success: false,
-        error: '缺少必要参数',
-        message: '必须提供至少一个位置参数：parentId、previousId 或 nextId'
+        error: '缺少位置参数',
+        message: '必须提供至少一个位置参数:\n  --parent-id <父块ID>    作为子块插入\n  --previous-id <块ID>    插入到此块之后\n  --next-id <块ID>        插入到此块之前\n示例: siyuan bi "内容" --parent-id 20260313203048-cjem96v'
       };
     }
     
@@ -78,9 +78,6 @@ const command = {
         console.log('请求参数:', JSON.stringify(requestData, null, 2));
         const result = await skill.connector.request('/api/block/insertBlock', requestData);
         console.log('API 响应:', JSON.stringify(result, null, 2));
-        
-        // 清除缓存
-        skill.clearCache();
         
         // 尝试从响应中提取块 ID
         let blockId = null;
@@ -112,7 +109,7 @@ const command = {
     }, {
       type: permissionType,
       idParam: parentId ? 'parentId' : (previousId ? 'previousId' : 'nextId'),
-      defaultNotebook: skill.config.defaultNotebook || process.env.SIYUAN_DEFAULT_NOTEBOOK
+      defaultNotebook: skill.config.defaultNotebook
     });
     
     return permissionHandler(skill, { ...args, idForPermission: idForPermission });

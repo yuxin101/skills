@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "thinkific-integration",
+  "displayName": "Thinkific",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774553023234,
+    "commit": "https://github.com/openclaw/skills/commit/a6be6e0e63e837680d45e5457a5532cea3375cce"
+  },
+  "history": []
+}

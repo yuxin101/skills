@@ -33,11 +33,11 @@ On error:
 
 ## Error Codes
 
-| Code | Description |
-|------|-------------|
-| `INPUT_ERROR` | Invalid input (missing file, unsupported format) |
-| `CONFIG_ERROR` | API not configured |
-| `API_ERROR` | API call failed (auth, timeout, service error, or invalid response schema) |
+| Code           | Description                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `INPUT_ERROR`  | Invalid or unusable input (arguments, file source, format, types). |
+| `CONFIG_ERROR` | Missing or invalid API / client configuration.       |
+| `API_ERROR`    | Request or response handling failed (network, HTTP, body parsing, schema). |
 
 ## Raw Result Notes
 
@@ -70,31 +70,36 @@ Raw fields may vary by model version and endpoint.
 
 ## Important Fields
 
-- `result[n].prunedResult`  
+Paths are relative to the output envelope root.
+
+- `result.result.layoutParsingResults[n].prunedResult`  
   Structured parsing data for page `n` (layout elements, locations, content, confidence, and related metadata).
 
-- `result[n].markdown`  
+- `result.result.layoutParsingResults[n].markdown`  
   Rendered output for page `n`.
 
-- `result[n].markdown.text`  
+- `result.result.layoutParsingResults[n].markdown.text`  
   Full page markdown text.
 
 ## Text Extraction
 
-`vl_caller.py` extracts top-level `text` from `result.layoutParsingResults[n].markdown.text` and joins pages with `\n\n`.
+`vl_caller.py` extracts top-level `text` from `result.result.layoutParsingResults[n].markdown.text` and joins pages with `\n\n`.
 
 ## Command Examples
 
 ```bash
 # Parse document from URL (result auto-saves to the system temp directory)
-python scripts/paddleocr-doc-parsing/vl_caller.py --file-url "URL" --pretty
+python scripts/vl_caller.py --file-url "URL" --pretty
 
 # Parse local file (result auto-saves to the system temp directory)
-python scripts/paddleocr-doc-parsing/vl_caller.py --file-path "doc.pdf" --pretty
+python scripts/vl_caller.py --file-path "doc.pdf" --pretty
+
+# Parse with explicit file type
+python scripts/vl_caller.py --file-url "URL" --file-type 1 --pretty
 
 # Save result to a custom file path
-python scripts/paddleocr-doc-parsing/vl_caller.py --file-url "URL" --output "./result.json" --pretty
+python scripts/vl_caller.py --file-url "URL" --output "./result.json" --pretty
 
 # Print JSON to stdout without saving a file
-python scripts/paddleocr-doc-parsing/vl_caller.py --file-url "URL" --stdout --pretty
+python scripts/vl_caller.py --file-url "URL" --stdout --pretty
 ```

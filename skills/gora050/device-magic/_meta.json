@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "device-magic",
+  "displayName": "Device Magic",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774433017333,
+    "commit": "https://github.com/openclaw/skills/commit/55a0813da688f4b12926d0febfaeadbc2329921e"
+  },
+  "history": []
+}

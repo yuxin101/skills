@@ -3,11 +3,16 @@
   "slug": "gws-events",
   "displayName": "Gws Events",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774300446972,
-    "commit": "https://github.com/openclaw/skills/commit/40e758d6e1f9a1277ea75ad4a25fdd2e21a99afc"
+    "version": "1.0.10",
+    "publishedAt": 1774550981257,
+    "commit": "https://github.com/openclaw/skills/commit/929e0d078f4e54b351adc53d3268d2ee8937b36a"
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774300446972,
+      "commit": "https://github.com/openclaw/skills/commit/40e758d6e1f9a1277ea75ad4a25fdd2e21a99afc"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772670416872,

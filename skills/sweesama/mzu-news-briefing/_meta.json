@@ -1,0 +1,11 @@
+{
+  "owner": "sweesama",
+  "slug": "mzu-news-briefing",
+  "displayName": "每日要闻（可定制版）· Customizable Daily Briefing",
+  "latest": {
+    "version": "1.2.0",
+    "publishedAt": 1774500269715,
+    "commit": "https://github.com/openclaw/skills/commit/1d5cb2dcef7796e2a0e16a048a2e983da3c977df"
+  },
+  "history": []
+}

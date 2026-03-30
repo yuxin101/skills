@@ -1,0 +1,11 @@
+{
+  "owner": "dp-pcs",
+  "slug": "ogp-project",
+  "displayName": "OGP Project",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774411255994,
+    "commit": "https://github.com/openclaw/skills/commit/8de998dc953e9dc3722a07eda8d2b502016da981"
+  },
+  "history": []
+}

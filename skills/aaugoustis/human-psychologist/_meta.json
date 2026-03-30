@@ -1,0 +1,11 @@
+{
+  "owner": "aaugoustis",
+  "slug": "human-psychologist",
+  "displayName": "Human Psychologist for AI Agents",
+  "latest": {
+    "version": "2.0.0",
+    "publishedAt": 1774564499246,
+    "commit": "https://github.com/openclaw/skills/commit/53622a53a1bb90bbab1bb45fece849bc140175e2"
+  },
+  "history": []
+}

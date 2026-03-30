@@ -116,7 +116,7 @@ Rules:
 - For dates: always output as YYYY-MM-DD
 - For VAT rates: output as percentage number (e.g., 20 not 0.2)
 - Include any handwritten text or stamp text you can read
-- If a field is genuinely not present on the invoice, use null
+- If a field is genuinely not present on the invoice, use null (a retry pass will verify missing fields)
 - Numbers MUST be actual JSON numbers using dot as decimal separator (e.g., 1234.56)
 - Convert ALL locale-specific number formats to standard JSON numbers:
   - European: 1.234,56 → 1234.56

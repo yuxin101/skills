@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "branch",
+  "displayName": "Branch",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774512226495,
+    "commit": "https://github.com/openclaw/skills/commit/ac29476d464819af59015ace6a22cf681e069f0a"
+  },
+  "history": []
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "switchboard",
+  "displayName": "Switchboard",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774501451559,
+    "commit": "https://github.com/openclaw/skills/commit/68db3138008620710986c14b763dc6fa7f441f0e"
+  },
+  "history": []
+}

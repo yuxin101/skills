@@ -1,0 +1,11 @@
+{
+  "owner": "scnet-sugon",
+  "slug": "personal-id-ocr",
+  "displayName": "Personal Id Ocr",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774596246213,
+    "commit": "https://github.com/openclaw/skills/commit/8612c101d3185cee4ffe1fe0bb486c4c8610a14e"
+  },
+  "history": []
+}

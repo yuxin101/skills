@@ -1,221 +1,186 @@
 ---
 name: shieldcortex
-description: Persistent memory system with security for AI agents. Remembers decisions, preferences, architecture, and context across sessions with knowledge graphs, decay, contradiction detection, and a 6-layer defence pipeline with Iron Dome behavioural protection. Use when asked to "remember this", "what do we know about", "recall context", "scan for threats", "run security audit", "check memory stats", or when starting a new session and needing prior context.
-license: MIT
-metadata:
-  author: Drakon Systems
-  version: 3.4.3
-  mcp-server: shieldcortex
-  category: memory-and-security
-  tags: [memory, security, knowledge-graph, mcp, iron-dome]
+description: >
+  Persistent memory and security system for AI agents (ShieldCortex product).
+  Use when: developing ShieldCortex features, writing ShieldCortex content/blogs,
+  managing the ShieldCortex npm package or ClawHub skill, or answering questions
+  about ShieldCortex capabilities. Covers memory persistence, semantic search,
+  knowledge graphs, and the 6-layer security pipeline.
+  Do NOT use when: the task is about OpenClaw's built-in memory search, general
+  security auditing (use iron-dome), or unrelated products.
 ---
 
 # ShieldCortex — Persistent Memory & Security for AI Agents
 
-Give your agent a brain that persists between sessions and protect it from memory poisoning attacks.
+Give your AI agent a brain that persists between sessions — and protect it from memory poisoning attacks.
 
-## Safety & Scope
+## Description
 
-- This skill documents a local memory/security tool. It does not auto-install packages or silently execute shell commands.
-- Any install command shown here is a manual setup step for the user to approve and run explicitly.
-- Local ShieldCortex usage does not require credentials. API keys are optional and only needed for ShieldCortex Cloud.
-- Only scan instruction files or other prompts when the user has named the path or clearly asked for that review.
-- `shieldcortex install` writes local MCP configuration; it does not deploy a remote service or request background privileges.
+ShieldCortex is a complete memory system with built-in security. It gives AI agents persistent, intelligent memory with semantic search, knowledge graphs, decay-based forgetting, and contradiction detection. Every memory write passes through a 6-layer defence pipeline that blocks prompt injection, credential leaks, and poisoning attacks.
 
-## When to Use This Skill
-
-- You want to remember things between sessions (decisions, preferences, architecture, context)
-- You need to recall relevant past context at the start of a session
+**Use when:**
+- You want your agent to remember things between sessions (decisions, preferences, architecture, context)
+- You need semantic search across past memories (not just keyword matching)
+- You want automatic memory consolidation, decay, and cleanup
 - You want knowledge graph extraction from memories (entities, relationships)
 - You need to protect memory from prompt injection or poisoning attacks
 - You want credential leak detection in memory writes
-- You want to audit what has been stored in and retrieved from memory
-- You want to scan instruction files (SKILL.md, .cursorrules, CLAUDE.md) for threats
+- You want to audit what's been stored in and retrieved from memory
+- You want to scan agent instruction files (SKILL.md, .cursorrules, CLAUDE.md) for hidden threats
 
-## Setup
+**Do NOT use when:**
+- You only need simple key-value storage (use a config file)
+- You want ephemeral session-only context (use the agent's built-in context window)
+- You need a vector database for RAG pipelines (ShieldCortex is agent memory, not document retrieval)
 
-Install the npm package globally, then configure the MCP server, only when the user explicitly wants ShieldCortex enabled:
+## Prerequisites
+
+- Node.js >= 18
+- npm or pnpm
+
+## Install
 
 ```bash
 npm install -g shieldcortex
-shieldcortex install
 ```
 
-Python SDK also available:
+For OpenClaw integration (installs the cortex-memory hook):
 
 ```bash
-pip install shieldcortex
+npx shieldcortex openclaw install
 ```
 
-## Core Workflow
+For Claude Code / VS Code / Cursor MCP integration:
 
-### Session Start
+```bash
+npx shieldcortex install
+```
 
-At the start of every session, retrieve prior context:
+## Quick Start
 
-1. Call `start_session` to begin a new session and get relevant memories
-2. Or call `get_context` with a query describing the current task
+### As an OpenClaw hook (automatic)
 
-### Remembering
+After `npx shieldcortex openclaw install`, the hook activates on next restart:
 
-Call `remember` immediately when any of these happen:
+- **Auto-saves** important session context on compaction
+- **Injects** relevant past memories on session start
+- **"remember this: ..."** keyword trigger saves memories inline
 
-- **Architecture decisions** — "We're using PostgreSQL for the database"
-- **Bug fixes** — capture root cause and solution
-- **User preferences** — "Always use TypeScript strict mode"
-- **Completed features** — what was built and why
-- **Error resolutions** — what broke and how it was fixed
-- **Project context** — tech stack, key patterns, file structure
+### CLI Commands
 
-Parameters:
-- `title` (required): Short summary
-- `content` (required): Detailed information
-- `category`: architecture, pattern, preference, error, context, learning, todo, note
-- `importance`: low, normal, high, critical
-- `project`: Scope to a specific project (auto-detected if omitted)
-- `tags`: Array of tags for categorisation
+```bash
+# Check status
+npx shieldcortex status
 
-### Recalling
+# Scan content for threats
+npx shieldcortex scan "some text to check"
 
-Call `recall` to search for past memories:
+# Full security audit of your agent environment
+npx shieldcortex audit
 
-- `mode: "search"` — query-based semantic search (default)
-- `mode: "recent"` — most recent memories
-- `mode: "important"` — highest-salience memories
+# Scan all installed skills/instruction files for hidden threats
+npx shieldcortex scan-skills
 
-Filter by `category`, `tags`, `project`, or `type` (short_term, long_term, episodic).
+# Scan a single skill file
+npx shieldcortex scan-skill ./path/to/SKILL.md
 
-### Forgetting
+# Build knowledge graph from existing memories
+npx shieldcortex graph backfill
 
-Call `forget` to remove outdated or incorrect memories:
+# Start the visual dashboard
+npx shieldcortex --dashboard
+```
 
-- Delete by `id` for a specific memory
-- Delete by `query` to match content
-- Always use `dryRun: true` first to preview what will be deleted
-- Use `confirm: true` for bulk deletions
-
-### Session End
-
-Call `end_session` with a summary to trigger memory consolidation. This promotes short-term memories to long-term and runs decay on old, unaccessed memories.
-
-## Knowledge Graph
-
-ShieldCortex automatically extracts entities and relationships from memories.
-
-- `graph_query` — traverse from an entity, returns connected entities up to N hops
-- `graph_entities` — list known entities, filter by type (person, tool, concept, file, language, service, pattern)
-- `graph_explain` — find the path connecting two entities
-
-Use the knowledge graph to understand relationships between concepts, technologies, and decisions across the project.
-
-## Memory Intelligence
-
-- `consolidate` — merge duplicate/similar memories, run decay. Use `dryRun: true` to preview
-- `detect_contradictions` — find conflicting memories (e.g., "use Redis" vs "don't use Redis")
-- `get_related` — find memories connected to a specific memory ID
-- `link_memories` — create explicit relationships (references, extends, contradicts, related)
-- `memory_stats` — view total counts, category breakdown, decay stats
-
-## Security & Defence
-
-Every memory write passes through a 6-layer defence pipeline:
-
-1. Input Sanitisation — strips control characters and null bytes
-2. Pattern Detection — regex matching for known injection patterns
-3. Semantic Analysis — embedding similarity to attack corpus
-4. Structural Validation — JSON/format integrity checks
-5. Behavioural Scoring — anomaly detection over time
-6. Credential Leak Detection — blocks API keys, tokens, private keys (25+ patterns, 11 providers)
-
-### Iron Dome
-
-Behavioural security layer that controls what agents can do, not just what they remember:
-
-- `iron_dome_activate` — activate with a profile: `school`, `enterprise`, `personal`, or `paranoid`
-- `iron_dome_status` — check active profile, trusted channels, and approval rules
-- `iron_dome_check` — gate an action (e.g., send_email, delete_file) before execution
-- `iron_dome_scan` — scan text for prompt injection patterns
-
-Profiles control action gates (what actions require approval), channel trust (which instruction sources are trusted), and approval rules.
-
-### Security Tools
-
-- `audit_query` — query the forensic audit log of all memory operations
-- `defence_stats` — view defence system statistics (blocks, allows, quarantines)
-- `quarantine_review` — review and manage quarantined memories (list, approve, reject)
-- `scan_memories` — scan existing memories for signs of poisoning
-- `scan_skill` — scan an instruction file for hidden threats (SKILL.md, .cursorrules, CLAUDE.md, etc.)
-
-## Universal Memory Bridge
-
-ShieldCortex can act as a security layer for any memory backend — not just its own. Use `ShieldCortexGuardedMemoryBridge` to wrap any memory system with the full defence pipeline:
+### As a Library (programmatic)
 
 ```javascript
-import { ShieldCortexGuardedMemoryBridge, MarkdownMemoryBackend } from 'shieldcortex';
+import {
+  addMemory,
+  getMemoryById,
+  runDefencePipeline,
+  scanSkill,
+  extractFromMemory,
+  consolidate,
+  initDatabase
+} from 'shieldcortex';
 
-const bridge = new ShieldCortexGuardedMemoryBridge({
-  backend: new MarkdownMemoryBackend('~/.my-memories/'),
+// Initialize
+initDatabase('/path/to/memories.db');
+
+// Add a memory (automatically passes through defence pipeline)
+addMemory({
+  title: 'API uses OAuth2',
+  content: 'The payment API requires OAuth2 bearer tokens, not API keys',
+  category: 'architecture',
+  importance: 'high',
+  project: 'my-project'
 });
 
-// All writes pass through the 6-layer defence pipeline
-await bridge.write({ title: 'Decision', content: 'Use PostgreSQL' });
+// Scan content before processing
+const result = runDefencePipeline(untrustedContent, 'Email Import', {
+  type: 'external',
+  identifier: 'email-scanner'
+});
+
+if (result.allowed) {
+  // Safe to process
+}
+
+// Extract knowledge graph entities
+const { entities, triples } = extractFromMemory(
+  'Database Migration',
+  'We switched from MySQL to PostgreSQL for the auth service',
+  'architecture'
+);
+// entities: [{name: 'MySQL', type: 'service'}, {name: 'PostgreSQL', type: 'service'}, ...]
+// triples: [{subject: 'auth service', predicate: 'uses', object: 'PostgreSQL'}, ...]
 ```
 
-Built-in backends: `MarkdownMemoryBackend`, `OpenClawMarkdownBackend`. Implement the backend interface for custom storage.
-ShieldCortex does not auto-discover remote backends or obtain their credentials; the host application must wire that in explicitly.
+## Memory System Features
 
-## Project Scoping
+| Feature | Description |
+|---------|-------------|
+| **Persistent Storage** | SQLite-backed, survives restarts and compaction |
+| **Semantic Search** | Find memories by meaning, not just keywords |
+| **Project Scoping** | Isolate memories per project/workspace |
+| **Importance Levels** | Critical, high, normal, low with auto-decay |
+| **Categories** | Architecture, decisions, preferences, context, learnings, errors |
+| **Decay & Forgetting** | Old, unaccessed memories fade — like a real brain |
+| **Consolidation** | Automatic merging of similar/duplicate memories |
+| **Contradiction Detection** | Flags when new memories conflict with existing ones |
+| **Knowledge Graph** | Extracts entities and relationships from memories |
+| **Activation Scoring** | Recently accessed memories get retrieval priority |
+| **Salience Scoring** | Important memories surface first in search |
 
-- `set_project` — switch active project context
-- `get_project` — show current project scope
-- Use `project: "*"` for global/cross-project memories
+## Security Features
 
-## Best Practices
+| Layer | Protection |
+|-------|-----------|
+| **Input Sanitisation** | Strip control characters, null bytes, dangerous formatting |
+| **Pattern Detection** | Regex matching for known injection patterns |
+| **Anomaly Scoring** | Entropy analysis, behavioural deviation detection |
+| **Credential Leak Detection** | Blocks API keys, tokens, private keys (25+ patterns, 11 providers) |
+| **Trust Scoring** | Source-based reliability scoring for memory writes |
+| **Audit Trail** | Full forensic log of every memory operation |
+| **Skill Scanner** | Detect prompt injection in SKILL.md, .cursorrules, CLAUDE.md |
 
-1. **Remember immediately** — call `remember` right after a decision is made or a bug is fixed, not at the end of the session
-2. **Use categories** — architecture, pattern, preference, error, context, learning
-3. **Set importance** — mark critical decisions as `importance: "critical"` so they resist decay
-4. **Recall at session start** — always call `get_context` or `start_session` first
-5. **End sessions properly** — call `end_session` with a summary to trigger consolidation
-6. **Review contradictions** — periodically run `detect_contradictions` to catch conflicting information
-7. **Scope by project** — memories are automatically scoped to the current project directory
+## ShieldCortex Cloud (Optional)
 
-## Troubleshooting
-
-**Memory not found in recall:**
-- Try `mode: "search"` with different query phrasing
-- Check `set_project` — you may be searching the wrong project scope
-- Use `includeDecayed: true` to find memories that have faded
-
-**Memory blocked by firewall:**
-- The defence pipeline detected a potential threat (injection, credential leak)
-- Check `audit_query` for the specific block reason
-- Review with `quarantine_review` if it was a false positive
-- Avoid including literal API keys or tokens in memory content
-
-**Consolidation removing memories:**
-- Run `consolidate` with `dryRun: true` first to preview
-- Mark important memories as `importance: "critical"` to prevent decay
-- Access memories regularly — `recall` boosts activation and prevents decay
-
-## OpenClaw Auto-Memory
-
-When using the OpenClaw hook, auto-memory extraction is off by default. Enable it to automatically extract memories from session output:
+Sync audit data to a team dashboard for cross-project visibility:
 
 ```bash
-shieldcortex config --openclaw-auto-memory
+npx shieldcortex config set-api-key <your-key>
 ```
 
-When enabled, the system deduplicates against recent memories to avoid storing duplicates. Configure with:
-
-- `openclawAutoMemory` — enable/disable (default: false)
-- `openclawAutoMemoryDedupe` — deduplicate against existing memories (default: true)
-- `openclawAutoMemoryNoveltyThreshold` — similarity threshold for deduplication (default: 0.88)
-- `openclawAutoMemoryMaxRecent` — number of recent memories to check (default: 300)
+Free local package is unlimited. Cloud adds team dashboards, audit aggregation, and alerts.
 
 ## Links
 
-- npm: https://www.npmjs.com/package/shieldcortex
-- PyPI: https://pypi.org/project/shieldcortex
-- GitHub: https://github.com/Drakon-Systems-Ltd/ShieldCortex
-- Website: https://shieldcortex.ai
+- **npm:** https://www.npmjs.com/package/shieldcortex
+- **GitHub:** https://github.com/Drakon-Systems-Ltd/ShieldCortex
+- **Website:** https://shieldcortex.ai
+- **Docs:** https://github.com/Drakon-Systems-Ltd/ShieldCortex#readme
+
+## 70 Exported APIs
+
+The library exports 70 named functions and types covering defence, memory, knowledge graph, skill scanning, and audit. Full list in the [CHANGELOG](https://github.com/Drakon-Systems-Ltd/ShieldCortex/blob/main/CHANGELOG.md#2100---2026-02-13).

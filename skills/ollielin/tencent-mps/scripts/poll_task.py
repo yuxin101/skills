@@ -114,6 +114,20 @@ def _print_video_result(result):
                     bucket = cos_out.get("Bucket", "")
                     region = cos_out.get("Region", "")
                     print(f"       📁 输出: COS - {bucket}:{out_path} (region: {region})")
+                    if bucket and out_path and _COS_SDK_AVAILABLE:
+                        try:
+                            cred = _get_credentials()
+                            cos_config = CosConfig(Region=region, SecretId=cred.secret_id, SecretKey=cred.secret_key)
+                            cos_client = CosS3Client(cos_config)
+                            signed_url = cos_client.get_presigned_url(
+                                Bucket=bucket,
+                                Key=out_path.lstrip("/"),
+                                Method="GET",
+                                Expired=3600
+                            )
+                            print(f"       🔗 下载链接（预签名，1小时有效）: {signed_url}")
+                        except Exception as e:
+                            print(f"       ⚠️  生成预签名 URL 失败: {e}")
                 elif out_path:
                     print(f"       📁 输出: {out_path}")
 

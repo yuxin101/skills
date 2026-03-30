@@ -1,0 +1,11 @@
+{
+  "owner": "aqbjqtd",
+  "slug": "openclaw-config-master",
+  "displayName": "OpenClaw Config Master",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774605877131,
+    "commit": "https://github.com/openclaw/skills/commit/f90263f228b76fcc6794b1528ff18f14d6429e2d"
+  },
+  "history": []
+}

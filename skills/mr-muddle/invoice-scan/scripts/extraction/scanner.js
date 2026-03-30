@@ -17,6 +17,7 @@ const { getAdapter, listProviders } = require('../adapters/index');
 const { validateArithmetic } = require('../validation/arithmetic');
 const { validateDocumentRules } = require('../validation/document-rules');
 const { validateSchema } = require('../schema/canonical');
+const { checkCompleteness, getRetryFields, buildRetryPrompt, mergeRetryResults } = require('../validation/completeness');
 
 /**
  * Scan an invoice document.
@@ -37,6 +38,7 @@ async function scanInvoice(filePath, options = {}) {
     model,
     preprocess = true,
     apiBaseUrl,
+    retryMissing = true,       // Enable completeness retry pass
     // Document type filtering
     // 'strict' = only invoice + credit-note
     // 'relaxed' = also accept receipt, other-financial (proforma, etc.)
@@ -99,7 +101,74 @@ async function scanInvoice(filePath, options = {}) {
     }
   }
 
-  // Step 8: Populate metadata
+  // Step 8: Completeness check + retry for missing fields
+  const completenessReport = checkCompleteness(invoice);
+  invoice.metadata.completeness = {
+    score: completenessReport.score,
+    populated: completenessReport.populated,
+    missing: completenessReport.missing,
+    notOnDocument: completenessReport.notOnDocument,
+    retried: false,
+    retryRecovered: 0,
+    retryConfirmedAbsent: 0,
+  };
+
+  if (retryMissing && completenessReport.missing > 0) {
+    const retryFields = getRetryFields(invoice);
+    if (retryFields.length > 0) {
+      try {
+        const retryPrompt = buildRetryPrompt(retryFields);
+        const retryResponse = await callProvider(provider, {
+          imageBuffer,
+          prompt: retryPrompt,
+          apiKey,
+          model,
+          apiBaseUrl,
+          filePath,
+        });
+
+        if (retryResponse.retryFields && Array.isArray(retryResponse.retryFields)) {
+          const mergeSummary = mergeRetryResults(invoice, retryResponse.retryFields);
+          invoice.metadata.completeness.retried = true;
+          invoice.metadata.completeness.retryRecovered = mergeSummary.recovered.length;
+          invoice.metadata.completeness.retryConfirmedAbsent = mergeSummary.confirmedAbsent.length;
+
+          // Log recovered fields as warnings for visibility
+          for (const r of mergeSummary.recovered) {
+            invoice.validation.warnings.push({
+              field: r.path,
+              message: `Recovered on retry pass: ${JSON.stringify(r.value)}`,
+            });
+          }
+          for (const a of mergeSummary.confirmedAbsent) {
+            invoice.validation.warnings.push({
+              field: a.path,
+              message: `Confirmed not on document: ${a.reason || 'no reason given'}`,
+            });
+          }
+
+          // Re-run validators after merge
+          invoice.validation.arithmeticValid = null;
+          validateArithmetic(invoice);
+          validateDocumentRules(invoice);
+        }
+      } catch (retryErr) {
+        invoice.validation.warnings.push({
+          field: 'completeness',
+          message: `Retry pass failed: ${retryErr.message}`,
+        });
+      }
+
+      // Recompute completeness after retry
+      const postRetry = checkCompleteness(invoice);
+      invoice.metadata.completeness.score = postRetry.score;
+      invoice.metadata.completeness.populated = postRetry.populated;
+      invoice.metadata.completeness.missing = postRetry.missing;
+      invoice.metadata.completeness.notOnDocument += postRetry.notOnDocument;
+    }
+  }
+
+  // Step 9: Populate metadata
   invoice.metadata.processingDurationMs = Date.now() - startTime;
   invoice.metadata.pageCount = 1; // TODO: multi-page support
 

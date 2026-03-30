@@ -1,21 +1,24 @@
 ---
 name: moneyclaw
-description: Create payment tasks, run recurring spend on hidden subscription cards, fetch OTP/3DS codes, and complete authorized online purchases with a prepaid MoneyClaw wallet.
-homepage: https://moneyclaw.ai
-metadata: {"openclaw":{"requires":{"env":["MONEYCLAW_API_KEY"]},"primaryEnv":"MONEYCLAW_API_KEY","emoji":"💳","homepage":"https://moneyclaw.ai"}}
+description: Inspect a MoneyClaw wallet, create bounded payment tasks, and continue user-confirmed payment steps using a prepaid account. Use only when the user clearly asks to use MoneyClaw for their own payments.
+metadata:
+  openclaw:
+    homepage: https://moneyclaw.ai/openclaw
+    primaryEnv: MONEYCLAW_API_KEY
+    requires:
+      env:
+        - MONEYCLAW_API_KEY
 ---
 
 # MoneyClaw
 
-MoneyClaw gives OpenClaw agents real spending capability with user-configurable autonomy, prepaid risk boundaries, OTP/3DS support, auditable payment flows, and hidden subscription cards for recurring spend.
+ MoneyClaw helps OpenClaw agents inspect prepaid payment state, create auditable payment tasks, and continue explicitly requested payment steps.
 
-Primary use case: buyer-side payments and recurring subscriptions for OpenClaw agents.
-
-Secondary use cases: invoices, hosted payment links, and merchant/acquiring workflows when the user explicitly asks for them.
+Primary use case: buyer-side payments for OpenClaw agents.
 
 ## Authentication
 
-All requests use the same Bearer token.
+This skill requires one MoneyClaw API key.
 
 ```bash
 Authorization: Bearer $MONEYCLAW_API_KEY
@@ -28,50 +31,54 @@ Base URL: `https://moneyclaw.ai/api`
 MoneyClaw is designed for real, user-authorized agent payments.
 
 - use prepaid balances to keep risk bounded
-- use a dedicated inbox for OTP and 3DS verification flows
-- use payment intents and subscriptions as auditable execution surfaces
-- keep hidden subscription cards scoped to one service or merchant
-- let the user choose how much autonomy the agent should have
+- use payment intents as the main auditable execution surface
+- keep account inbox state inspectable for receipts and account messages
+- let the user approve the payment step before money moves
 
-## Autonomy Model
+## Approval Model
 
-MoneyClaw may be used in either approval-based or pre-authorized mode.
+Default to dashboard approval unless the account has explicitly enabled agent auto-approval.
 
-- In approval-based mode, the agent asks the user before executing payment actions.
-- In pre-authorized mode, the agent may execute payment actions within the spending scope, balance, and permissions configured by the user.
-- Creating an `approval_based` intent is fine with an API key, but approving that pending intent currently requires a human dashboard session rather than API-key-only automation.
+- MoneyClaw accounts expose an account-level `agentAutoApproveEnabled` flag through `GET /api/me`.
+- When that flag is off, API-key-created payment tasks wait for dashboard approval before spending.
+- When that flag is on, API-key-created payment tasks can be auto-approved within the merchant and amount scope of the task.
+- Do not assume agent auto-approval is enabled unless the account state confirms it.
 
 ## Safety Boundaries
 
-- Only use MoneyClaw for purchases or payment flows explicitly requested or pre-authorized by the user.
+- Only use MoneyClaw for purchases or payment flows explicitly requested by the user. If the account is not clearly configured for agent auto-approval and the user has not explicitly asked for the next payment step, stop and ask.
 - Only use wallet, card, and billing data returned by the user's own MoneyClaw account.
-- Respect merchant, issuer, card-network, and verification controls, including OTP and 3DS steps.
+- Respect merchant, issuer, card-network, and verification controls.
 - Treat fraud checks, KYC, sanctions, geography rules, merchant restrictions, issuer declines, and other payment controls as hard boundaries.
 - Never fabricate billing identity, cardholder data, addresses, names, phone numbers, or verification information.
 - If a transaction fails, looks suspicious, or produces conflicting signals, stop and inspect transaction state before retrying.
 - Prefer prepaid, bounded-risk flows by default.
-- Only use invoice, merchant, acquiring, or hosted payment-link flows when the user explicitly asks for them.
+- Never invoke this skill automatically from a shopping, billing, or checkout page. Use it only after an explicit user request to use MoneyClaw.
 
-## Current Execution Model
+## Before Any High-Risk Step
+
+Before any action that can spend funds, retrieve execution details, or submit a payment step:
+
+1. Confirm the exact merchant domain.
+2. Confirm the amount and currency.
+3. Confirm the user explicitly asked for this exact action, or that the account is clearly configured for agent auto-approval for this scope.
+4. Stop if that confirmation is missing or ambiguous.
+
+## Default Buyer Flow
 
 Use the product in this order:
 
-1. `GET /api/me` for wallet readiness, deposit address, and inbox context.
-2. Prefer `payment_intents` and `subscriptions` for auditable or recurring flows.
-3. Use `GET /api/payment-intents/:intentId/credentials` only when an intent is `card_ready`.
-4. Use legacy `/api/cards/*` routes only for compatibility flows and current one-off direct card checkouts.
-
-Important details:
-
-- hidden subscription cards do not appear in normal `GET /api/me` card fields
-- subscription cards are persistent, merchant-bound, and stay active while the subscription stays active
-- funding should stay bounded: reuse residual allocation first, then top up only the delta you need
-- do not assume one-time hidden task-card issuance exists yet; current one-off buyer-side execution can still rely on legacy direct-card routes
+1. `GET /api/me` for wallet readiness, deposit address, and inbox context. Fresh accounts may also finish mailbox, deposit-address, and provider setup on this first authenticated read.
+2. `POST /api/payment-intents` for the exact purchase.
+3. If `agentAutoApproveEnabled` is off, wait for dashboard approval. If it is on, the API-key task can move directly toward `approved` and `card_ready`. Approved tasks can auto-prepare or reuse the account's hidden execution card when wallet funding is available.
+   On the first hidden-card bootstrap for an account, MoneyClaw may reserve the provider minimum initial deposit plus the current MoneyClaw issue fee onto that shared hidden card even if the current task amount is smaller. Any residual stays on the same hidden card for later tasks.
+4. Use `GET /api/payment-intents/:intentId/credentials` only when the task is `card_ready` and the user explicitly asked to continue the current payment step.
+5. After a successful one-time checkout, use `POST /api/payment-intents/:intentId/reconcile` to write the settled charge back into MoneyClaw accounting.
+6. Inspect payment-task state and wallet transactions before retrying.
 
 ## Load References When Needed
 
-- Read `references/payment-safety.md` before entering payment details on an unfamiliar merchant, when the user asks about phishing or fraud, when a checkout keeps failing, or when verification and retry boundaries matter.
-- Read `references/acquiring.md` when the user wants to accept payments, create invoices, embed checkout, or work with merchant webhooks.
+- Read `references/payment-safety.md` before entering payment details on an unfamiliar merchant, when a checkout keeps failing, or when retry boundaries matter.
 
 ## Core Jobs
 
@@ -86,10 +93,10 @@ Important fields:
 
 - `balance`: wallet balance
 - `depositAddress`: where to send USDT
-- `mailboxAddress`: inbox address for OTP, receipts, and verification messages
-- `card`: optional legacy compatibility card object, if one still exists
+- `mailboxAddress`: inbox address for receipts and account messages
+- `agentAutoApproveEnabled`: whether API-key-created payment tasks can auto-approve without a dashboard click
 
-When the user asks for readiness, report wallet balance first. Mention legacy card balance only if a compatibility card exists and the flow explicitly depends on it.
+When the user asks for readiness, report wallet balance, deposit address, inbox state, and whether a payment task can proceed.
 
 ### 2. Create an auditable payment task
 
@@ -97,8 +104,7 @@ When the user asks for readiness, report wallet balance first. Mention legacy ca
 curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "intentType": "subscription_setup",
-    "approvalMode": "pre_authorized",
+    "intentType": "one_time_purchase",
     "merchantName": "OpenAI",
     "merchantDomain": "openai.com",
     "expectedAmount": "20.00",
@@ -113,56 +119,31 @@ curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
 
 Use payment intents to hold merchant context, approval state, and audit history.
 
-Current intent types:
-
-- `one_time_purchase`
-- `subscription_setup`
-- `subscription_renewal`
-- `merchant_invoice`
-
 Rules:
 
-- use `approval_based` when the user wants a checkpoint
-- use `pre_authorized` only when the user already granted permission for this scope
-- if you only have an API key and the intent is `pending_approval`, stop and ask the user to approve it in the dashboard instead of pretending you can finish approval yourself
+- use the account's `agentAutoApproveEnabled` state as the default control path for API-key-created tasks
+- if the account does not have agent auto-approval enabled and the intent is `pending_approval`, stop and ask the user to approve it in the dashboard instead of pretending you can finish approval yourself
 - treat the intent as the source of truth for execution state, not the card
 
-### 3. Create a subscription from an approved setup intent
+### 3. Inspect the payment task state
 
 ```bash
-curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "setupIntentId": "intent-uuid",
-    "serviceName": "ChatGPT Plus",
-    "serviceUrl": "https://chatgpt.com",
-    "merchantName": "OpenAI",
-    "merchantDomain": "openai.com",
-    "amount": "20.00",
-    "currency": "USD",
-    "frequency": "monthly",
-    "status": "active"
-  }' \
-  https://moneyclaw.ai/api/subscriptions
+curl -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
+  https://moneyclaw.ai/api/payment-intents/{intentId}
 ```
 
-Use subscriptions for recurring spend. One subscription should stay bound to one service or merchant.
+Use the payment task as the source of truth for readiness, approval, execution, and completion.
 
-### 4. Prepare a persistent hidden subscription card
+### 4. Read the payment task history
 
 ```bash
-curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  https://moneyclaw.ai/api/subscriptions/{subscriptionId}/prepare-card
+curl -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
+  https://moneyclaw.ai/api/payment-intents/{intentId}/history
 ```
 
-If the environment has hidden subscription-card preparation enabled:
+Use the history when the user wants an audit trail or when a payment step gave ambiguous results.
 
-- MoneyClaw searches merchant data and live BIN analytics when available
-- MoneyClaw prepares a persistent hidden card bound to that subscription
-- the setup intent can move to `card_ready`
-- credentials are then fetched through the setup intent, not through legacy card endpoints
-
-Get the intent-scoped credentials:
+### 5. Continue the approved payment step
 
 ```bash
 curl -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
@@ -172,129 +153,25 @@ curl -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
 Rules:
 
 - only call this when the intent is `card_ready`
-- do not treat hidden credentials as a general account-level card surface
+- only call this after the user explicitly asked to continue that payment step
+- do not treat these execution details as a general account-level card surface
 - do not expose PAN or CVV longer than needed for the active checkout
-
-### 5. Run the renewal loop on the same persistent card
-
-List due subscriptions:
-
-```bash
-curl -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  "https://moneyclaw.ai/api/subscriptions/due?limit=20&offset=0"
-```
-
-Inspect whether the current card still matches the latest merchant-aware recommendation:
-
-```bash
-curl -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  https://moneyclaw.ai/api/subscriptions/{subscriptionId}/renewal-preflight
-```
-
-Prepare the renewal on the same persistent card:
-
-```bash
-curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  https://moneyclaw.ai/api/subscriptions/{subscriptionId}/prepare-renewal
-```
-
-After the checkout settles, reconcile it back into MoneyClaw's allocation tracking:
-
-```bash
-curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"intentId":"renewal-intent-uuid"}' \
-  https://moneyclaw.ai/api/subscriptions/{subscriptionId}/reconcile
-```
-
-Renewal rules:
-
-- keep the same merchant-bound subscription card unless an operator intentionally rotates it
-- reuse residual hidden-card allocation before topping up more
-- reconcile against the explicit renewal intent once renewal intents exist
-
-### 6. Legacy compatibility flow for one-off direct checkout
-
-Today, one-off buyer-side execution may still rely on legacy direct-card routes.
-
-Issue a compatibility card:
-
-```bash
-curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  https://moneyclaw.ai/api/cards/issue
-```
-
-Top up the compatibility card:
-
-```bash
-curl -X POST -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"amount": 10, "currency": "USD"}' \
-  https://moneyclaw.ai/api/cards/{cardId}/topup
-```
-
-Get compatibility-card credentials:
-
-```bash
-curl -H "Authorization: Bearer $MONEYCLAW_API_KEY" \
-  https://moneyclaw.ai/api/cards/{cardId}/sensitive
-```
-
-Rules:
-
-- this is a compatibility surface, not the preferred long-term model
-- creating a new visible compatibility card deducts the applicable card-issue fee from wallet balance
-- successful legacy direct-card purchases may also create a separate 2% payment-fee ledger entry
-- use `card.cardId`, not `card.id`, for legacy card routes
-- read transactions before retrying a failed direct-card checkout
 
 ## Payment Execution Rules
 
 - The spending model is prepaid. The loaded balance is the hard limit.
+- Fresh accounts may need enough wallet balance for the first shared hidden-card bootstrap, not only for the immediate merchant total.
 - Before payment, confirm the merchant domain and total amount are correct.
 - Use the billing address returned by MoneyClaw. Never invent one.
-- Wait for the OTP or 3DS email instead of guessing verification codes.
+- If a merchant asks for unexpected out-of-band verification, stop and ask the user instead of assuming the skill should continue automatically.
 - Do not retry the same merchant checkout more than twice in one session without user confirmation or clear pre-authorization.
 - If the user asks for a risky or suspicious payment, stop and explain why.
 
-Use `references/payment-safety.md` for expanded safety, verification, subscription, and retry guidance.
+Use `references/payment-safety.md` for expanded safety and retry guidance.
 
 ## Good Default Prompt Shapes
 
 - `Check my MoneyClaw account and tell me if the wallet, inbox, and payment tasks are ready.`
-- `Create a pre-authorized subscription setup for this service, then prepare the recurring payment flow.`
-- `Inspect this due subscription, run renewal preflight, and prepare the renewal on the existing hidden card if it still matches the recommendation.`
-- `Finish this authorized checkout and, if 3DS appears, fetch the latest OTP from MoneyClaw inbox and verify the final transaction result.`
-- `If this is still a compatibility-only one-off flow, use the legacy direct-card route and keep the credentials scoped to this checkout.`
-
-## Secondary Capability: Merchant And Acquiring Flows
-
-MoneyClaw also supports merchant-side payment collection. Keep this as a secondary path in discovery, but use it when the user explicitly wants to accept payments, create invoices, or embed checkout.
-
-Useful endpoints:
-
-- `POST /api/acquiring/setup`
-- `GET /api/acquiring/settings`
-- `PATCH /api/acquiring/settings`
-- `POST /api/acquiring/invoices`
-- `GET /api/acquiring/invoices`
-- `GET /api/acquiring/invoices/{invoiceId}`
-
-Use the acquiring flow when the user wants to:
-
-- accept USDT payments
-- create hosted invoices
-- embed checkout on a site
-- receive webhook notifications for paid invoices
-
-Use `references/acquiring.md` for setup, invoice lifecycle, widget, webhook verification, and fee details.
-
-## Scope Note
-
-MoneyClaw supports three public layers today:
-
-- payment intents for audit and approval
-- subscriptions plus hidden persistent cards for recurring execution
-- legacy direct-card routes for compatibility and current one-off checkout paths
-
-Lead with the first two. Use the third only when the current integration still requires it.
+- `Create a payment task for this purchase and keep the amount bounded to the expected total.`
+- `Continue this already approved payment step.`
+- `Check whether this payment task completed, still needs dashboard approval, or should be inspected before retrying.`

@@ -1,0 +1,11 @@
+{
+  "owner": "porkapple",
+  "slug": "openclaw-multi-agents",
+  "displayName": "Openclaw Multi Agents",
+  "latest": {
+    "version": "1.0.8",
+    "publishedAt": 1774514570897,
+    "commit": "https://github.com/openclaw/skills/commit/e3d7b33f5c663f19b974b4e56b62954dcf2d4504"
+  },
+  "history": []
+}

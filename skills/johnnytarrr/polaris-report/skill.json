@@ -1,7 +1,7 @@
 {
   "name": "polaris-report",
   "description": "Verified intelligence from The Polaris Report. Hundreds of curated sources, 18 categories, bias scored, confidence rated. Read-only, no credentials required.",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "author": "The Polaris Report",
   "homepage": "https://thepolarisreport.com/integrations/openclaw",
   "license": "MIT",
@@ -206,6 +206,12 @@
       "description": "Create price or sentiment alerts with webhook delivery",
       "usage": "/alerts [action] [params]",
       "examples": ["/alerts list", "/alerts create NVDA price_above 150"]
+    },
+    {
+      "name": "report",
+      "description": "Generate an AI analysis report for any ticker",
+      "usage": "/report [symbol] [tier]",
+      "examples": ["/report NVDA", "/report AAPL full", "/report BTC deep"]
     }
   ]
 }

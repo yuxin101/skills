@@ -1,11 +1,13 @@
 {
   "openclaw": {
-    "emoji": "📊",
+    "emoji": "🦐",
     "requires": {
       "anyBins": [
         "python3"
       ]
     },
-    "primaryEnv": "GEO_API_TOKEN"
+    "env": [
+      "AIDSO_CONSOLE_URL"
+    ]
   }
 }

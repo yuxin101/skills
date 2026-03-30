@@ -7,17 +7,40 @@ description: 小米/米家智能家居设备控制。通过 MCP Server 工具控
 
 你可以通过 MCP Server 提供的工具控制用户家中的小米/米家智能设备。
 
+## 首次配置
+
+每次收到设备控制请求时，先调用 `xiaomi_auth_status` 检查认证状态。
+
+如果状态为 `not_configured` 或 `not_authenticated`，引导用户完成配置：
+
+1. 告诉用户需要提供小米账号和密码
+2. 用户提供后，调用 `xiaomi_setup(username, password, country)` 发起登录
+3. 如果返回 `verification_required`，告诉用户查看手机/邮箱验证码
+4. 用户提供验证码后，调用 `xiaomi_verify(code)` 完成认证
+5. 认证成功后继续执行原始的设备控制请求
+
+如果状态为 `pending_verification`，直接询问用户验证码。
+
+如果状态为 `authenticated`，跳过配置直接操作设备。
+
 ## 可用工具
 
 MCP Server `xiaomi-home` 提供以下工具：
 
 | 工具 | 用途 |
 |------|------|
+| `xiaomi_auth_status` | 检查认证状态 |
+| `xiaomi_setup` | 配置账号并发起登录 |
+| `xiaomi_verify` | 提交二次验证码 |
 | `xiaomi_list_devices` | 列出所有设备，获取设备 did |
 | `xiaomi_find_device` | 按名称模糊搜索设备 |
 | `xiaomi_get_properties` | 读取设备属性 |
 | `xiaomi_set_property` | 设置设备属性 |
 | `xiaomi_call_action` | 调用设备动作 |
+| `xiaomi_camera_list` | 列出已配置的摄像头 |
+| `xiaomi_camera_add` | 添加/更新摄像头 |
+| `xiaomi_camera_remove` | 移除摄像头 |
+| `xiaomi_camera_snapshot` | 摄像头截图 |
 
 ## 工作流程
 
@@ -88,9 +111,10 @@ MCP Server `xiaomi-home` 提供以下工具：
 ## 场景联动
 
 用户可能描述一个场景而非单个设备操作，例如：
-- "我要睡觉了" → 关灯 + 净化器睡眠模式 + 电暖气调低
-- "出门了" → 关闭所有设备
-- "客厅太暗了" → 开灯并调高亮度
+- "我要睡觉了" -> 关灯 + 净化器睡眠模式 + 电暖气调低
+- "出门了" -> 关闭所有设备
+- "客厅太暗了" -> 开灯并调高亮度
+- "看看门口" -> 截图 + 分析 + 建议联动
 
 遇到场景指令时，拆解为多个设备操作，依次执行并汇报结果。
 
@@ -100,3 +124,17 @@ MCP Server `xiaomi-home` 提供以下工具：
 - siid/piid 因型号而异，失败时用探测方式确认正确的属性 ID
 - 布尔值使用 true/false，不是 0/1
 - 设备 did 是字符串，不要猜测，必须从 list 或 find 工具获取
+
+## 摄像头与视觉感知
+
+当用户想"看看"某个位置时，使用摄像头截图功能：
+
+1. 调用 `xiaomi_camera_list` 确认有哪些摄像头
+2. 调用 `xiaomi_camera_snapshot(name)` 截取图片
+3. 用 Read 工具读取返回的图片路径，分析图片内容
+4. 用自然语言描述看到的内容，并根据场景建议联动操作
+
+触发关键词："看看"、"门口有没有人"、"摄像头"、"监控"、"拍一张"等。
+
+如果用户想添加摄像头，引导使用 `xiaomi_camera_add(name, rtsp_url)`。
+测试时可用 `mock://文件名` 或 `mock://目录名` 加载本地图片。

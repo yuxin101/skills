@@ -2,6 +2,7 @@
 name: tuya-cloud
 description: Read sensor data and control Tuya IoT devices via Tuya Cloud API. Use when the user wants to list devices, read temperature, humidity, soil moisture, battery or other sensor data, or send commands to switches and valves. Requires TUYA_ACCESS_ID, TUYA_ACCESS_SECRET, and optionally TUYA_API_ENDPOINT in .env.
 license: MIT
+metadata: {"openclaw":{"emoji":"🔌","primaryEnv":"TUYA_ACCESS_ID","requires":{"env":["TUYA_ACCESS_ID","TUYA_ACCESS_SECRET"],"bins":["python3"]}}}
 ---
 
 # Tuya Cloud Controller

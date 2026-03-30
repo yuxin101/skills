@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "sifter",
+  "displayName": "Sifter",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774389776226,
+    "commit": "https://github.com/openclaw/skills/commit/23e4473ef9c6f8a6391035aa349f8665cb8919eb"
+  },
+  "history": []
+}

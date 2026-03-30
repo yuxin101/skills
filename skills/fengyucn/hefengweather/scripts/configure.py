@@ -32,7 +32,11 @@ def main():
     parser.add_argument("--key-id", help="密钥ID(JWT方式)")
     parser.add_argument("--private-key-path", help="私钥文件路径(JWT方式)")
     parser.add_argument("--private-key", help="私钥内容字符串(JWT方式)")
-    parser.add_argument("--no-save", action="store_true", help="不保存到配置文件")
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="不保存到配置文件（推荐：使用环境变量更安全）"
+    )
 
     args = parser.parse_args()
 
@@ -64,7 +68,7 @@ def main():
     # 保存到文件
     if not args.no_save:
         config_dir = os.path.expanduser("~/.config/qweather")
-        os.makedirs(config_dir, exist_ok=True)
+        os.makedirs(config_dir, exist_ok=True, mode=0o700)
         config_file = os.path.join(config_dir, ".env")
 
         lines = [f"HEFENG_API_HOST={args.api_host}"]
@@ -80,12 +84,17 @@ def main():
             lines.append(f"HEFENG_PRIVATE_KEY={args.private_key}")
 
         try:
-            with open(config_file, "w") as f:
+            # 创建文件并设置权限（仅所有者可读写）
+            fd = os.open(config_file, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
                 f.write("\n".join(lines))
             print(f"✓ 配置已保存到: {config_file}")
+            print(f"  文件权限已设置为 600 (仅所有者可读写)")
         except Exception as e:
             print(f"✗ 保存配置文件失败: {e}", file=sys.stderr)
             sys.exit(1)
+    else:
+        print("✓ 配置未保存到文件（使用 --no-save 选项）")
 
     print(f"✓ 配置成功 (认证方式: {auth_method})")
     print(f"\n现在可以使用其他查询脚本了!")

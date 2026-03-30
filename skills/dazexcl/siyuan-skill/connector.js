@@ -13,7 +13,7 @@ const https = require('https');
  */
 const DEFAULT_TLS_CONFIG = {
   allowSelfSignedCerts: false,
-  allowedHosts: ['localhost', '127.0.0.1', '::1']
+  allowedHosts: ['localhost']
 };
 
 /**
@@ -34,7 +34,7 @@ class SiyuanConnector {
    * @param {string[]} options.tls.allowedHosts - 允许自签名证书的主机列表
    */
   constructor(options = {}) {
-    this.baseURL = options.baseURL || 'http://127.0.0.1:6806';
+    this.baseURL = options.baseURL || 'http://localhost:6806';
     this.token = options.token || '';
     this.timeout = options.timeout || 10000;
     this.maxRetries = options.maxRetries || 3;
@@ -76,7 +76,11 @@ class SiyuanConnector {
           console.log(`请求失败，${delay}ms 后重试 (${retryCount}/${this.maxRetries}):`, endpoint);
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
-          console.error(`请求失败: ${endpoint}`, error.message);
+          const businessErrors = ['tree not found', 'block not found', 'invalid ID argument', '未找到 ID 为'];
+          const isBusinessError = businessErrors.some(e => error.message && error.message.includes(e));
+          if (!isBusinessError) {
+            console.error(`请求失败: ${endpoint}`, error.message);
+          }
           throw this.formatError(error, endpoint, data);
         }
       }
@@ -140,15 +144,6 @@ class SiyuanConnector {
               }
               return;
             }
-            
-            // 记录响应（调试用）- 已过滤敏感信息
-            if (process.env.DEBUG) {
-              const sanitizedData = responseData.replace(/"token"\s*:\s*"[^"]*"/gi, '"token":"***"')
-                .replace(/"password"\s*:\s*"[^"]*"/gi, '"password":"***"')
-                .replace(/"Authorization"\s*:\s*"[^"]*"/gi, '"Authorization":"***"');
-              console.log(`API响应 [${statusCode}]:`, sanitizedData.substring(0, 200) + (sanitizedData.length > 200 ? '...' : ''));
-            }
-            
             const parsedData = JSON.parse(responseData);
             
             // 检查响应格式
@@ -234,25 +229,6 @@ class SiyuanConnector {
   }
   
   /**
-   * 设置 API 令牌
-   * @param {string} token - 新的 API 令牌
-   */
-  setToken(token) {
-    this.token = token;
-    console.log('API令牌已更新');
-  }
-  
-  /**
-   * 设置基础 URL
-   * @param {string} url - 新的基础 URL
-   */
-  setBaseURL(url) {
-    this.baseURL = url;
-    this.updateURL(url);
-    console.log('基础URL已更新:', url);
-  }
-  
-  /**
    * 设置超时时间
    * @param {number} timeout - 新的超时时间（毫秒）
    */
@@ -275,6 +251,57 @@ class SiyuanConnector {
       console.error('URL解析失败:', error.message);
       throw new Error(`无效的URL: ${url}`);
     }
+  }
+  
+  /**
+   * 检测是否为 TLS 证书错误
+   * @param {Error} error - 错误对象
+   * @returns {Object|null} TLS 错误信息，如果不是 TLS 错误则返回 null
+   */
+  detectTlsError(error) {
+    const msg = error.message || '';
+    const code = error.code || '';
+    
+    const tlsErrorPatterns = [
+      { pattern: /unable to verify the first certificate/i, type: '自签名/不可信证书' },
+      { pattern: /UNABLE_TO_VERIFY_LEAF_SIGNATURE/i, type: '证书签名验证失败' },
+      { pattern: /CERT_HAS_EXPIRED/i, type: '证书已过期' },
+      { pattern: /DEPTH_ZERO_SELF_SIGNED_CERT/i, type: '自签名证书' },
+      { pattern: /SELF_SIGNED_CERT_IN_CHAIN/i, type: '证书链中包含自签名证书' },
+      { pattern: /ERR_TLS_CERT_ALTNAME_INVALID/i, type: '证书域名不匹配' },
+      { pattern: /certificate/i, type: '证书验证失败' }
+    ];
+    
+    for (const { pattern, type } of tlsErrorPatterns) {
+      if (pattern.test(msg) || pattern.test(code)) {
+        return {
+          isTlsError: true,
+          errorType: type,
+          solution: this.getTlsSolution()
+        };
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * 获取 TLS 错误的解决方案
+   * @returns {string} 解决方案说明
+   */
+  getTlsSolution() {
+    const host = this.hostname || 'your-host';
+    return `TLS 证书验证失败。解决方案：
+
+方法1 - 在 config.json 中添加 TLS 配置：
+  "tls": {
+    "allowSelfSignedCerts": true,
+    "allowedHosts": ["localhost", "${host}"]
+  }
+
+方法2 - 设置环境变量：
+  SIYUAN_TLS_ALLOW_SELF_SIGNED=true
+  SIYUAN_TLS_ALLOWED_HOSTS=localhost,${host}`;
   }
   
   /**
@@ -301,7 +328,16 @@ class SiyuanConnector {
       errorInfo.requestData = safeData;
     }
     
-    const formattedError = new Error(`Siyuan API 错误: ${error.message}`);
+    let formattedMessage = `Siyuan API 错误: ${error.message}`;
+    
+    const tlsError = this.detectTlsError(error);
+    if (tlsError) {
+      errorInfo.isTlsError = true;
+      errorInfo.tlsErrorType = tlsError.errorType;
+      formattedMessage = `TLS 证书错误 [${tlsError.errorType}]: ${error.message}\n\n${tlsError.solution}`;
+    }
+    
+    const formattedError = new Error(formattedMessage);
     formattedError.details = errorInfo;
     formattedError.originalError = error;
     

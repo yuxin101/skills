@@ -4,6 +4,10 @@
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE_FILE="$SKILL_DIR/assets/needs-state.json"
+
+# Acquire state file lock (same fd as mark-satisfied.sh)
+exec 200>"$STATE_FILE.lock"
+if ! flock -n 200; then flock 200; fi
 CROSS_IMPACT_FILE="$SKILL_DIR/assets/cross-need-impact.json"
 
 if [[ ! -f "$CROSS_IMPACT_FILE" ]]; then
@@ -59,7 +63,7 @@ for NEED in $(jq -r 'to_entries[] | select(.value | type == "object" and has("sa
             jq --arg t "$TARGET" --argjson sat "$NEW_SAT" --arg s "$NEED" --arg now "$NOW_ISO" '
                 .[$t].satisfaction = $sat |
                 .[$t].deprivation_applied[$s] = $now
-            ' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+            ' "$STATE_FILE" > "$STATE_FILE.tmp.$$" && mv "$STATE_FILE.tmp.$$" "$STATE_FILE"
             
             if [[ "$APPLIED" -eq 0 ]]; then
                 echo "⚠️  Deprivation cascades:"

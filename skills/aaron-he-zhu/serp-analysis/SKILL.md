@@ -1,18 +1,14 @@
 ---
 name: serp-analysis
-version: "3.0.0"
-description: 'This skill should be used when the user asks to "analyze search results", "SERP analysis", "what ranks for", "SERP features", "why does this page rank", "what is on page one for this query", "who ranks for this keyword", or "what does Google show for". Analyzes search engine results pages (SERPs) to understand ranking factors, SERP features, user intent patterns, and AI overview triggers. Essential for understanding what it takes to rank. For tracking rankings over time, see rank-tracker. For keyword discovery, see keyword-research.'
+version: "4.1.0"
+description: 'Analyze search engine results pages to understand ranking factors, SERP features, user intent patterns, and AI overview triggers. Use when the user asks to "analyze search results", "SERP analysis", "what ranks for", "SERP features", "why does this page rank", "featured snippets", "AI overviews", or "what does Google show for". For tracking rankings over time, see rank-tracker. For keyword discovery, see keyword-research.'
 license: Apache-2.0
 compatibility: "Claude Code ≥1.0, skills.sh marketplace, ClawHub marketplace, Vercel Labs skills ecosystem. No system packages required. Optional: MCP network access for SEO tool integrations."
 allowed-tools: WebFetch
+homepage: "https://github.com/aaron-he-zhu/seo-geo-claude-skills"
 metadata:
-  openclaw:
-    requires:
-      env: []
-      bins: []
-    primaryEnv: AHREFS_API_KEY
   author: aaron-he-zhu
-  version: "3.0.0"
+  version: "4.1.0"
   geo-relevance: "high"
   tags:
     - seo
@@ -49,20 +45,20 @@ metadata:
 # SERP Analysis
 
 
-> **[SEO & GEO Skills Library](https://skills.sh/aaron-he-zhu/seo-geo-claude-skills)** · 20 skills for SEO + GEO · Install all: `npx skills add aaron-he-zhu/seo-geo-claude-skills`
+> **[SEO & GEO Skills Library](https://github.com/aaron-he-zhu/seo-geo-claude-skills)** · 20 skills for SEO + GEO · [ClawHub](https://clawhub.ai/u/aaron-he-zhu) · [skills.sh](https://skills.sh/aaron-he-zhu/seo-geo-claude-skills)
 
 <details>
 <summary>Browse all 20 skills</summary>
 
-**Research** · [keyword-research](../keyword-research/) · [competitor-analysis](../competitor-analysis/) · **serp-analysis** · [content-gap-analysis](../content-gap-analysis/)
+**Research** · [keyword-research](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/keyword-research/SKILL.md) · [competitor-analysis](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/competitor-analysis/SKILL.md) · **serp-analysis** · [content-gap-analysis](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/content-gap-analysis/SKILL.md)
 
-**Build** · [seo-content-writer](../../build/seo-content-writer/) · [geo-content-optimizer](../../build/geo-content-optimizer/) · [meta-tags-optimizer](../../build/meta-tags-optimizer/) · [schema-markup-generator](../../build/schema-markup-generator/)
+**Build** · [seo-content-writer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/build/seo-content-writer/SKILL.md) · [geo-content-optimizer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/build/geo-content-optimizer/SKILL.md) · [meta-tags-optimizer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/build/meta-tags-optimizer/SKILL.md) · [schema-markup-generator](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/build/schema-markup-generator/SKILL.md)
 
-**Optimize** · [on-page-seo-auditor](../../optimize/on-page-seo-auditor/) · [technical-seo-checker](../../optimize/technical-seo-checker/) · [internal-linking-optimizer](../../optimize/internal-linking-optimizer/) · [content-refresher](../../optimize/content-refresher/)
+**Optimize** · [on-page-seo-auditor](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/optimize/on-page-seo-auditor/SKILL.md) · [technical-seo-checker](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/optimize/technical-seo-checker/SKILL.md) · [internal-linking-optimizer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/optimize/internal-linking-optimizer/SKILL.md) · [content-refresher](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/optimize/content-refresher/SKILL.md)
 
-**Monitor** · [rank-tracker](../../monitor/rank-tracker/) · [backlink-analyzer](../../monitor/backlink-analyzer/) · [performance-reporter](../../monitor/performance-reporter/) · [alert-manager](../../monitor/alert-manager/)
+**Monitor** · [rank-tracker](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/monitor/rank-tracker/SKILL.md) · [backlink-analyzer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/monitor/backlink-analyzer/SKILL.md) · [performance-reporter](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/monitor/performance-reporter/SKILL.md) · [alert-manager](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/monitor/alert-manager/SKILL.md)
 
-**Cross-cutting** · [content-quality-auditor](../../cross-cutting/content-quality-auditor/) · [domain-authority-auditor](../../cross-cutting/domain-authority-auditor/) · [entity-optimizer](../../cross-cutting/entity-optimizer/) · [memory-management](../../cross-cutting/memory-management/)
+**Cross-cutting** · [content-quality-auditor](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/cross-cutting/content-quality-auditor/SKILL.md) · [domain-authority-auditor](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/cross-cutting/domain-authority-auditor/SKILL.md) · [entity-optimizer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/cross-cutting/entity-optimizer/SKILL.md) · [memory-management](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/cross-cutting/memory-management/SKILL.md)
 
 </details>
 
@@ -118,7 +114,9 @@ Why does [URL] rank #1 for [keyword]?
 
 ## Data Sources
 
-> See [CONNECTORS.md](../../CONNECTORS.md) for tool category placeholders.
+> **Note:** All integrations are optional. This skill works without any API keys — users provide data manually when no tools are connected.
+
+> See [CONNECTORS.md](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/CONNECTORS.md) for tool category placeholders.
 
 **With ~~SEO tool + ~~search console + ~~AI monitor connected:**
 Automatically fetch SERP snapshots for target keywords, extract ranking page metrics (domain authority, backlinks, content length), pull SERP feature data, and check AI Overview presence using ~~AI monitor. Historical SERP change data and mobile vs. desktop variations can be retrieved automatically.
@@ -173,7 +171,7 @@ When a user requests SERP analysis:
 
    Produce a summary with: Key Findings, Content Requirements to Rank (minimum requirements + differentiators), SERP Feature Strategy, Recommended Content Outline, and Next Steps.
 
-   > **Reference**: See [references/analysis-templates.md](./references/analysis-templates.md) for detailed templates for each step.
+   > **Reference**: See [references/analysis-templates.md](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/serp-analysis/references/analysis-templates.md) for detailed templates for each step.
 
 ## Validation Checkpoints
 
@@ -192,7 +190,7 @@ When a user requests SERP analysis:
 
 ## Example
 
-> **Reference**: See [references/example-report.md](./references/example-report.md) for a complete example analyzing the SERP for "how to start a podcast".
+> **Reference**: See [references/example-report.md](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/serp-analysis/references/example-report.md) for a complete example analyzing the SERP for "how to start a podcast".
 
 ## Advanced Analysis
 
@@ -232,17 +230,17 @@ Analyze mobile vs desktop SERP differences for [keyword]
 
 ## Reference Materials
 
-- [Analysis Templates](./references/analysis-templates.md) — Detailed templates for each analysis step (SERP composition, top results, ranking patterns, features, intent, difficulty, recommendations)
-- [SERP Feature Taxonomy](./references/serp-feature-taxonomy.md) — Complete taxonomy of SERP features with trigger conditions, AI overview framework, intent signals, and volatility assessment
-- [Example Report](./references/example-report.md) — Complete example analyzing the SERP for "how to start a podcast"
+- [Analysis Templates](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/serp-analysis/references/analysis-templates.md) — Detailed templates for each analysis step (SERP composition, top results, ranking patterns, features, intent, difficulty, recommendations)
+- [SERP Feature Taxonomy](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/serp-analysis/references/serp-feature-taxonomy.md) — Complete taxonomy of SERP features with trigger conditions, AI overview framework, intent signals, and volatility assessment
+- [Example Report](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/serp-analysis/references/example-report.md) — Complete example analyzing the SERP for "how to start a podcast"
 
 ## Related Skills
 
-- [keyword-research](../keyword-research/) — Find keywords to analyze
-- [competitor-analysis](../competitor-analysis/) — Deep dive on ranking competitors
-- [on-page-seo-auditor](../../optimize/on-page-seo-auditor/) — Optimize based on findings
-- [geo-content-optimizer](../../build/geo-content-optimizer/) — Optimize for AI citations
-- [meta-tags-optimizer](../../build/meta-tags-optimizer/) — Optimize SERP appearance with meta tags
-- [rank-tracker](../../monitor/rank-tracker/) — Track keyword position changes in SERPs
-- [performance-reporter](../../monitor/performance-reporter/) — Track SERP visibility metrics over time
+- [keyword-research](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/keyword-research/SKILL.md) — Find keywords to analyze
+- [competitor-analysis](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/research/competitor-analysis/SKILL.md) — Deep dive on ranking competitors
+- [on-page-seo-auditor](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/optimize/on-page-seo-auditor/SKILL.md) — Optimize based on findings
+- [geo-content-optimizer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/build/geo-content-optimizer/SKILL.md) — Optimize for AI citations
+- [meta-tags-optimizer](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/build/meta-tags-optimizer/SKILL.md) — Optimize SERP appearance with meta tags
+- [rank-tracker](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/monitor/rank-tracker/SKILL.md) — Track keyword position changes in SERPs
+- [performance-reporter](https://github.com/aaron-he-zhu/seo-geo-claude-skills/blob/main/monitor/performance-reporter/SKILL.md) — Track SERP visibility metrics over time
 

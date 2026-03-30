@@ -7,6 +7,7 @@ API 文档：https://www.jisuapi.com/
 
 import json
 import os
+import re
 import sys
 from typing import Any
 
@@ -98,6 +99,41 @@ API_LIST = [
 ]
 
 
+ALLOWED_APIS = {item["api"] for item in API_LIST}
+
+
+def _normalize_and_validate_api_path(api_path: str) -> str:
+    """
+    对 API 路径做严格校验并限制在白名单内，避免 URL 注入/越权调用：
+    - 仅允许字母、数字、下划线、斜杠、点（点会被转换为斜杠）
+    - 禁止出现 @、?、#、:、\\ 等可导致 URL 语义变化的字符
+    - 禁止以 / 开头、禁止空段、禁止 . / .. 路径段
+    - 仅允许调用 API_LIST 中声明的接口
+    """
+    s = (api_path or "").strip()
+    if not s:
+        raise ValueError("api is required")
+
+    if re.search(r"[@?:#\\]", s):
+        raise ValueError("api contains forbidden characters")
+
+    if not re.fullmatch(r"[A-Za-z0-9_./]+", s):
+        raise ValueError("api contains invalid characters")
+
+    s = s.replace(".", "/")
+    if s.startswith("/"):
+        raise ValueError("api must be relative path")
+
+    parts = s.split("/")
+    if any(p in ("", ".", "..") for p in parts):
+        raise ValueError("api path is invalid")
+
+    if s not in ALLOWED_APIS:
+        raise ValueError("api is not in allowed list")
+
+    return s
+
+
 def _call_jisu_api(api_path: str, appkey: str, params: dict = None) -> Any:
     """
     统一调用：https://api.jisuapi.com/{api_path}
@@ -105,9 +141,10 @@ def _call_jisu_api(api_path: str, appkey: str, params: dict = None) -> Any:
     - 部分识别类接口（vinrecognition/generalrecognition/idcardrecognition/bankcardcognition）
       官方文档推荐使用 POST，这里自动切换为 POST，并将参数放在表单中。
     """
-    api_path = api_path.strip().replace(".", "/")
-    if not api_path:
-        return {"error": "invalid_api", "message": "api is required"}
+    try:
+        api_path = _normalize_and_validate_api_path(api_path)
+    except ValueError as e:
+        return {"error": "invalid_api", "message": str(e)}
 
     url = f"{BASE_URL}/{api_path}"
     all_params = {"appkey": appkey}

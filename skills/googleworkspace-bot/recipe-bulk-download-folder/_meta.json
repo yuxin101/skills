@@ -3,11 +3,16 @@
   "slug": "recipe-bulk-download-folder",
   "displayName": "Recipe Bulk Download Folder",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1774380496232,
-    "commit": "https://github.com/openclaw/skills/commit/93bc94f0c04af885b30fd417388815a2c5d0f0cc"
+    "version": "1.0.10",
+    "publishedAt": 1774551106818,
+    "commit": "https://github.com/openclaw/skills/commit/027197f789b8727ef2d27730f39b7a797ee253fe"
   },
   "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1774380496232,
+      "commit": "https://github.com/openclaw/skills/commit/93bc94f0c04af885b30fd417388815a2c5d0f0cc"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1774300561837,

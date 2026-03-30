@@ -2,11 +2,13 @@
 name: harness
 description: >
   Agent engineering harness for any repo. Creates a short AGENTS.md table-of-contents,
-  structured docs/ knowledge base (ARCHITECTURE, QUALITY, CONVENTIONS, COORDINATION),
+  structured docs/ knowledge base (ARCHITECTURE, QUALITY, CONVENTIONS, COORDINATION, RESILIENCE),
   custom agent-readable linters (WHAT/FIX/REF format), CI enforcement, and execution plan
-  templates. Supports Rust, Go, TypeScript, and Python. Use when setting up any repo for
-  agent-first development, upgrading an existing AGENTS.md, or enforcing architectural lint
-  gates. Includes --audit flag for tool lifecycle checks and L1/L2/L3 progressive disclosure.
+  templates. Supports Rust, Go, TypeScript, and Python. Integrates agent-motivator recovery
+  protocols into docs/RESILIENCE.md (7-point checklist, VBR standards, failure pattern library).
+  Use when setting up any repo for agent-first development, upgrading an existing AGENTS.md,
+  or enforcing architectural lint gates. Includes --audit flag for tool lifecycle checks and
+  L1/L2/L3 progressive disclosure.
 license: MIT
 ---
 
@@ -67,7 +69,8 @@ uv run python "$SKILL_DIR/scripts/plan.py" \
 | `docs/ARCHITECTURE.md` | Layer diagram + dependency rules (auto-generated from repo structure) |
 | `docs/QUALITY.md` | Coverage targets + security invariants |
 | `docs/CONVENTIONS.md` | Naming rules (language-specific) |
-| `docs/COORDINATION.md` | Multi-agent task ownership + conflict resolution rules ← new |
+| `docs/COORDINATION.md` | Multi-agent task ownership + conflict resolution rules |
+| `docs/RESILIENCE.md` | Agent recovery protocols, 7-point checklist, VBR standards ← from agent-motivator |
 | `docs/EXECUTION_PLAN_TEMPLATE.md` | Structured plan format for complex tasks |
 | `scripts/agent-lint.sh` | Custom linter with agent-readable errors (WHAT / FIX / REF) |
 | `.github/workflows/agent-lint.yml` | CI gate on every PR |

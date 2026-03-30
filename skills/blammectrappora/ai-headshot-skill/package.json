@@ -1,7 +1,16 @@
 {
   "name": "ai-headshot-skill",
-  "version": "1.0.5",
+  "version": "1.4.0",
   "type": "module",
   "description": "AI Professional Headshot Generator — AI-powered ai professional headshot generator",
-  "license": "MIT"
+  "license": "MIT",
+  "clawhub": {
+    "env": [
+      {
+        "name": "NETA_TOKEN",
+        "description": "Neta AI API token. Get it at https://www.neta.art/open/",
+        "required": true
+      }
+    ]
+  }
 }

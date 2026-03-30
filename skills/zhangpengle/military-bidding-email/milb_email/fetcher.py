@@ -29,9 +29,7 @@ from milb_email.config import get_email_config
 
 def _import_fetcher():
     """延迟导入避免循环依赖"""
-    sys.modules.pop('config', None)
-    sys.path.insert(0, '/home/ubuntu/.openclaw/workspace/skills/military-bidding-fetcher')
-    from fetcher import fetch_all_bidding
+    from milb_fetcher.fetcher import fetch_all_bidding
     return fetch_all_bidding
 
 
@@ -100,6 +98,9 @@ def send_email(date_str, df_weain, df_military, df_nudt, dates_info, to_override
     subject_prefix = env_config['subject_prefix']
     body_intro = env_config['body_intro']
 
+    # 构建邮件主题
+    subject = f"【{subject_prefix}】{date_str}"
+
     # 获取高推荐项目
     high_items = get_high_recommend_items(df_weain, df_military, df_nudt)
 
@@ -142,7 +143,7 @@ def send_email(date_str, df_weain, df_military, df_nudt, dates_info, to_override
 {sender_name}"""
 
     # 获取Excel文件路径
-    excel_path = f"/home/ubuntu/.openclaw/workspace/military-bidding/商机信息汇总_{date_str}.xlsx"
+    excel_path = os.path.expanduser(f"~/.openclaw/workspace/military-bidding/商机信息汇总_{date_str}.xlsx")
 
     # 确定收件人/抄送人
     env_config = get_email_config()
@@ -153,11 +154,8 @@ def send_email(date_str, df_weain, df_military, df_nudt, dates_info, to_override
         to_list = env_config['to']
         cc_list = env_config['cc']
 
-    # 构建并发送邮件
-    mml_content = build_mml_message(date_str, body, excel_path, to_list, cc_list)
-
     try:
-        send_email_via_himalaya(mml_content, to_list, cc_list)
+        send_email_via_smtp(subject, body, excel_path, to_list, cc_list)
         print("[SUCCESS] 邮件发送成功")
         return True
     except Exception as e:
@@ -165,83 +163,16 @@ def send_email(date_str, df_weain, df_military, df_nudt, dates_info, to_override
         return False
 
 
-def build_mml_message(date_str, body, excel_path, to_list, cc_list):
-    """
-    构建 MML 格式邮件内容。
-
-    Args:
-        date_str: 报告日期
-        body: 邮件正文
-        excel_path: Excel 附件路径
-        to_list: 收件人列表
-        cc_list: 抄送人列表
-
-    Returns:
-        str: MML 格式邮件内容
-    """
-    env_config = get_email_config()
-    from_addr = env_config['from']
-    subject_prefix = env_config['subject_prefix']
-
-    msg = f"""From: {from_addr}
-To: {', '.join(to_list)}
-Cc: {', '.join(cc_list)}
-Subject: 【{subject_prefix}】{date_str}
-
-<#multipart type=mixed>
-<#part type=text/plain>
-{body}
-"""
-
-    if excel_path and os.path.exists(excel_path):
-        msg += f"<#part filename={excel_path} name={os.path.basename(excel_path)}><#/part>\n"
-
-    msg += "<#/multipart>\n"
-    return msg
-
-
-def send_email_via_himalaya(mml_content, to_list, cc_list):
-    """
-    使用 himalaya CLI 发送邮件，失败时自动回退到 SMTP。
-
-    Args:
-        mml_content: MML 格式邮件内容
-        to_list: 收件人列表
-        cc_list: 抄送人列表
-
-    Returns:
-        bool: 发送成功返回 True
-    """
-    import subprocess
-    import os
-
-    himalaya_path = os.path.expanduser('~/.local/bin/himalaya')
-
-    if not os.path.exists(himalaya_path):
-        print(f"[WARN] himalaya 不存在 ({himalaya_path})，直接使用 SMTP")
-        return send_email_via_smtp(mml_content, to_list, cc_list)
-
-    result = subprocess.run(
-        [himalaya_path, 'message', 'send'],
-        input=mml_content,
-        capture_output=True,
-        text=True
-    )
-
-    if result.returncode == 0:
-        print(f"[INFO] 邮件已发送至: {', '.join(to_list)}, 抄送: {', '.join(cc_list)}")
-        return True
-
-    print(f"[WARN] himalaya 发送失败，回退到 SMTP")
-    return send_email_via_smtp(mml_content, to_list, cc_list)
-
-
-def send_email_via_smtp(mml_content, to_list, cc_list):
+def send_email_via_smtp(subject, body, excel_path, to_list, cc_list):
     """
     使用 SMTP 直接发送邮件（回退方案）。
 
+    接收原始参数，不依赖 MML 解析，避免格式歧义导致的乱码和附件丢失。
+
     Args:
-        mml_content: MML 格式邮件内容
+        subject: 邮件主题字符串
+        body: 邮件正文纯文本字符串
+        excel_path: Excel 附件文件路径（文件不存在时跳过附件）
         to_list: 收件人列表
         cc_list: 抄送人列表
 
@@ -249,7 +180,6 @@ def send_email_via_smtp(mml_content, to_list, cc_list):
         bool: 发送成功返回 True
     """
     import smtplib
-    import re
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
     from email.mime.application import MIMEApplication
@@ -262,51 +192,25 @@ def send_email_via_smtp(mml_content, to_list, cc_list):
     SMTP_USER = env_config['smtp_user']
     SMTP_PASSWORD = env_config['smtp_password']
 
-    # 解析 MML 内容
-    lines = mml_content.split('\n')
-    subject = ''
-    body = ''
-    in_body = False
-    attachments = []
-    for line in lines:
-        if line.startswith('Subject:'):
-            subject = line.replace('Subject:', '').strip()
-        elif line.startswith('<#part filename='):
-            match = re.search(r'filename=(\S+)', line)
-            name_match = re.search(r'name=([^>/\s]+)', line)
-            if match:
-                filepath = match.group(1)
-                filename = name_match.group(1) if name_match else os.path.basename(filepath)
-                attachments.append({'path': filepath, 'name': filename})
-        elif line.startswith('<#multipart') or line.startswith('<#part type='):
-            in_body = True
-        elif line == '<#/multipart>':
-            break
-        elif in_body and not line.startswith('<#'):
-            body += line + '\n'
-
-    # 创建邮件
+    # 创建邮件，主题使用 RFC 2047 编码防止中文乱码
     msg = MIMEMultipart()
     msg['From'] = SMTP_USER
     msg['To'] = ', '.join(to_list)
     msg['Cc'] = ', '.join(cc_list)
-    msg['Subject'] = subject
+    msg['Subject'] = Header(subject, 'utf-8').encode()
     msg['Date'] = formatdate()
 
     msg.attach(MIMEText(body.strip(), 'plain', 'utf-8'))
 
-    # 添加附件
-    for att in attachments:
-        att_path = att['path']
-        att_name = att['name']
-        if os.path.exists(att_path):
-            with open(att_path, 'rb') as f:
-                part = MIMEApplication(f.read(), _subtype='xlsx')
-            filename_encoded = Header(att_name, 'utf-8').encode()
-            part.add_header('Content-Disposition', 'attachment', filename=filename_encoded)
-            msg.attach(part)
-        else:
-            print(f"[WARNING] 附件不存在: {att_path}")
+    # 添加附件（直接使用原始路径，无需从 MML 中解析）
+    if excel_path and os.path.exists(excel_path):
+        with open(excel_path, 'rb') as f:
+            part = MIMEApplication(f.read(), _subtype='xlsx')
+        filename_encoded = Header(os.path.basename(excel_path), 'utf-8').encode()
+        part.add_header('Content-Disposition', 'attachment', filename=filename_encoded)
+        msg.attach(part)
+    elif excel_path:
+        print(f"[WARNING] 附件不存在，跳过: {excel_path}")
 
     # 发送邮件
     smtp = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)

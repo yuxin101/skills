@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.5.2] - 2026-03-29
+
+### Fixed
+- Removed personal chat_id from published config
+
+## [1.5.1] - 2026-03-29
+
+### Fixed
+- **Critical: `alert_on` config was completely ignored** — topics with `alert_on: ["github_release"]` never triggered high-priority alerts because the code never read the field. GitHub releases were scored like regular web search results and often fell below the importance threshold. This was a day-1 bug present since the feature was documented.
+- Now: when a result's source matches any entry in `alert_on`, it is automatically forced to HIGH priority with score 0.9, bypassing normal scoring.
+
+## [1.5.0] - 2026-03-26
+
+### Added
+- RSS/Atom feed monitoring as first-class source alongside web search
+- Feed auto-discovery from any URL
+- OPML import/export support
+- ETag/Last-Modified caching for efficient feed polling
+- Boolean query filters: `exclude_keywords` and `required_keywords` per topic
+- Sentiment analysis (positive/negative/neutral/mixed) in importance scoring
+- `alert_on_sentiment_shift` config option per topic
+- Sentiment history tracking in state
+- GitHub release monitoring via `github_repos` config
+- Vendored feedparser (zero pip install needed)
+- Feed discovery via `manage_topics.py discover-feed`
+- OPML import via `manage_topics.py import-opml`
+
 ## [1.3.5] - 2026-03-03
 
 ### Changed

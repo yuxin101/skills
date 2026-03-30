@@ -24,11 +24,13 @@ When the user wants to read/practice reading a book:
 
 When the user gives a new word:
 
-1. Give **pronunciation** (IPA, American English)
+1. Give **pronunciation** in **American English IPA** first (for example: `/ˈtrɑːli/`)
 2. Give **meaning** — clear, simple
 3. Give **synonyms** — similar words they might know
 4. **Add to tracker immediately** unless the user says not to add it
 5. **Show the word card** after adding
+
+Always prefer **IPA** over ad-hoc respelling in both the explanation and the word card. If a plain-English pronunciation hint is helpful, include it only **after** the IPA, not instead of it.
 
 If the user says they are focusing on **pronunciation**, ask which words they confuse (for example: seem / same / sim). In pronunciation-focused mode:
 - Treat the set as a **single comparison entry** if the user's goal is sound comparison, not three separate vocabulary items
@@ -99,7 +101,7 @@ Trust-based pronunciation — no voice/ASR check. User types word to confirm.
 
 If the user wants pronunciation practice instead of meaning-first vocabulary study:
 - Ask which words they confuse
-- Show the pronunciation for **each word** clearly
+- Show the pronunciation for **each word** clearly, using **IPA first**
 - Highlight the key sound contrast briefly
 - Explain **how to say the sounds** (mouth shape, long/short vowel, tongue or lip position when useful) instead of focusing on dictionary meaning
 - Record the set as one pronunciation comparison entry when that is more useful than separate entries

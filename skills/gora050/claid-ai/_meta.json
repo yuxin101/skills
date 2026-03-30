@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "claid-ai",
+  "displayName": "Claid Ai",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774577002615,
+    "commit": "https://github.com/openclaw/skills/commit/2f38d6c5b838a31dade57fc1f87243a21a6c18d6"
+  },
+  "history": []
+}

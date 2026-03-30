@@ -1,0 +1,11 @@
+{
+  "owner": "tobewin",
+  "slug": "universal-translator",
+  "displayName": "Universal Translator",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1774590262583,
+    "commit": "https://github.com/openclaw/skills/commit/83a1e469f6e00bb2fca989d04fe817b7c8fb6115"
+  },
+  "history": []
+}

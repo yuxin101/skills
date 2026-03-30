@@ -1,0 +1,11 @@
+{
+  "owner": "magician-zc",
+  "slug": "clawmarts",
+  "displayName": "ClawMarts",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774452478815,
+    "commit": "https://github.com/openclaw/skills/commit/aed1720d16048b1a70f31d0c8bdca885e552a966"
+  },
+  "history": []
+}

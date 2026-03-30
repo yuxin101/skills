@@ -44,9 +44,14 @@ if [[ ! -f "$GATE_FILE" ]]; then
     echo '{"actions":[],"gate_status":"CLEAR","pending_count":0,"completed_count":0,"deferred_count":0}' > "$GATE_FILE"
 fi
 
+# Read action mode (deliberative/operative) for gate metadata
+CONFIG_FILE=$(mindstate_config_file)
+ACTION_MODE=$(jq -r --arg n "$NEED" --arg a "$ACTION" \
+    '(.needs[$n].actions[] | select(.name == $a) | .mode) // "operative"' \
+    "$CONFIG_FILE" 2>/dev/null || echo "operative")
+
 # Auto-detect evidence type if "auto"
 if [[ "$EVIDENCE_TYPE" == "auto" ]]; then
-    CONFIG_FILE=$(mindstate_config_file)
     # Check needs-config.json for action evidence block
     declared_type=$(jq -r --arg n "$NEED" --arg a "$ACTION" \
         '.needs[$n].actions[] | select(.name == $a) | .evidence.type // "auto"' \
@@ -70,6 +75,7 @@ jq --arg id "$ACTION_ID" \
     --arg etype "$EVIDENCE_TYPE" \
     --arg ehint "$EVIDENCE_HINT" \
     --argjson deferrable "$DEFERRABLE" \
+    --arg mode "$ACTION_MODE" \
     '.actions += [{
         id: $id,
         timestamp: $ts,
@@ -80,6 +86,7 @@ jq --arg id "$ACTION_ID" \
         evidence_type: $etype,
         evidence_hint: $ehint,
         deferrable: $deferrable,
+        action_mode: $mode,
         status: "PENDING",
         resolved_at: null,
         resolution: null,

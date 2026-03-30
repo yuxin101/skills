@@ -10,7 +10,6 @@ Complete API specification for the DeepEvidence OpenAI-compatible interface.
 
 - [Authentication](#authentication)
 - [Chat Completions](#chat-completions)
-- [Models](#models)
 - [Conversations (Extension)](#conversations-extension)
 - [Error Handling](#error-handling)
 - [Rate Limits & Quotas](#rate-limits--quotas)
@@ -110,48 +109,6 @@ Create a chat completion with the medical AI assistant.
 }
 ```
 
-### Streaming Response
-
-Server-Sent Events (SSE) format:
-
-```
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1705123456,"model":"deepevidence-agent-v1","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
-
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1705123456,"model":"deepevidence-agent-v1","choices":[{"index":0,"delta":{"content":"Diabetes"},"finish_reason":null}]}
-
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1705123456,"model":"deepevidence-agent-v1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":15,"completion_tokens":120,"total_tokens":135}}
-
-data: [DONE]
-```
-
----
-
-## Models
-
-> These endpoints exist for OpenAI SDK compatibility. The model is fixed at `deepevidence-agent-v1`.
-
-### GET /v1/models
-
-List available models.
-
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "id": "deepevidence-agent-v1",
-      "object": "model",
-      "created": 1705123456,
-      "owned_by": "deepevidence"
-    }
-  ]
-}
-```
-
-### GET /v1/models/:model_id
-
-Get a single model's details.
-
 ---
 
 ## Conversations (Extension)
@@ -206,35 +163,6 @@ Delete a conversation.
   "id": "abc123",
   "object": "conversation.deleted",
   "deleted": true
-}
-```
-
-### GET /v1/conversations/:id/messages
-
-Get message list for a conversation.
-
-**Response**:
-
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "id": "msg_001",
-      "object": "message",
-      "role": "user",
-      "content": "What are the symptoms of diabetes?",
-      "created_at": 1705123456
-    },
-    {
-      "id": "msg_002",
-      "object": "message",
-      "role": "assistant",
-      "content": "Diabetes symptoms include...",
-      "created_at": 1705123460
-    }
-  ],
-  "conversation_id": "abc123"
 }
 ```
 

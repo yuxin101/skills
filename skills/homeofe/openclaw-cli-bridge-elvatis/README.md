@@ -1,8 +1,8 @@
 # openclaw-cli-bridge-elvatis
 
-> OpenClaw plugin that bridges locally installed AI CLIs (Codex, Gemini, Claude Code) as model providers — with slash commands for instant model switching, restore, health testing, and model listing.
+> OpenClaw plugin that bridges locally installed AI CLIs (Codex, Gemini, Claude Code, OpenCode, Pi) as model providers — with slash commands for instant model switching, restore, health testing, and model listing.
 
-**Current version:** `1.9.2`
+**Current version:** `2.1.3`
 
 ---
 
@@ -25,6 +25,8 @@ Starts a local OpenAI-compatible HTTP proxy on `127.0.0.1:31337` and configures 
 | `vllm/cli-claude/claude-sonnet-4-6` | `claude -p --output-format text --model claude-sonnet-4-6` (stdin) | ~2–4s |
 | `vllm/cli-claude/claude-opus-4-6` | `claude -p --output-format text --model claude-opus-4-6` (stdin) | ~3–5s |
 | `vllm/cli-claude/claude-haiku-4-5` | `claude -p --output-format text --model claude-haiku-4-5` (stdin) | ~1–3s |
+| `vllm/opencode/default` | `opencode run "prompt"` (CLI arg) | varies |
+| `vllm/pi/default` | `pi -p "prompt"` (CLI arg) | varies |
 
 ### Phase 3 — Slash commands
 
@@ -56,6 +58,18 @@ All commands use gateway-level `commands.allowFrom` for authorization (`requireA
 | `/cli-codex52` | `openai-codex/gpt-5.2-codex` | ✅ Tested |
 | `/cli-codex54` | `openai-codex/gpt-5.4` | May require upgraded OAuth scope |
 | `/cli-codex-mini` | `openai-codex/gpt-5.1-codex-mini` | ✅ Tested |
+
+**OpenCode CLI** (via local proxy, prompt as CLI argument):
+
+| Command | Model | Notes |
+|---|---|---|
+| `/cli-opencode` | `vllm/opencode/default` | Requires `opencode` CLI installed |
+
+**Pi CLI** (via local proxy, prompt as `-p` flag):
+
+| Command | Model | Notes |
+|---|---|---|
+| `/cli-pi` | `vllm/pi/default` | Requires `pi` CLI installed |
 
 **BitNet local inference** (via local proxy → llama-server on 127.0.0.1:8082, no API key):
 
@@ -294,15 +308,20 @@ OpenClaw agent
   │
   └─ vllm/cli-gemini/*  ─┐
      vllm/cli-claude/*   ─┤─► localhost:31337  (openclaw-cli-bridge proxy)
-                          │       ├─ cli-gemini/* → gemini -m <model> -p ""
-                          │       │                 stdin=prompt, cwd=/tmp
+     vllm/opencode/*     ─┤       ├─ cli-gemini/* → gemini -m <model> -p ""
+     vllm/pi/*           ─┘       │                 stdin=prompt, cwd=/tmp
                           │       │                 (neutral cwd prevents agentic mode)
-                          │       └─ cli-claude/* → claude -p --model <model>
-                          │                         stdin=prompt
+                          │       ├─ cli-claude/* → claude -p --model <model>
+                          │       │                 stdin=prompt
+                          │       ├─ opencode/*   → opencode run "prompt"
+                          │       │                 prompt as CLI arg
+                          │       └─ pi/*         → pi -p "prompt"
+                          │                         prompt as -p flag
 
 Slash commands (requireAuth=false, gateway commands.allowFrom is the auth layer):
   /cli-sonnet|opus|haiku|gemini|gemini-flash|gemini3|gemini3-flash
   /cli-codex|codex-spark|codex52|codex54|codex-mini
+  /cli-opencode|cli-pi
      └─► saves current model → ~/.openclaw/cli-bridge-state.json
      └─► openclaw models set <model>
 
@@ -357,6 +376,22 @@ npm run ci          # lint + typecheck + test
 ---
 
 ## Changelog
+
+### v2.1.3
+- **docs:** All documentation updated to reflect current version (README, SKILL.md, STATUS.md, MANIFEST.json)
+
+### v2.1.2
+- **fix:** Updated ChatGPT web session model list: gpt-4o, gpt-4o-mini, gpt-4.1, gpt-4.1-mini, o3, o4-mini, gpt-5, gpt-5-mini
+- **fix:** `server.unref()` — proxy server no longer keeps `openclaw doctor` hanging indefinitely
+
+### v2.1.1
+- **fix:** `server.unref()` on proxy server so `openclaw doctor` (and short-lived CLI commands) exit cleanly
+
+### v2.1.0
+- **feat:** Session manager for isolated per-request workdirs
+- **feat:** Register OpenCode and Pi slash commands (`/cli-opencode`, `/cli-pi`)
+- **feat:** Codex auth auto-import support
+- **feat:** Workdir isolation for all CLI runners
 
 ### v1.9.2
 - **fix:** Correct `maxTokens` and `contextWindow` for all CLI_MODELS — were hardcoded to 8192 output tokens

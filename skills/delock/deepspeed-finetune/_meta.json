@@ -1,0 +1,11 @@
+{
+  "owner": "delock",
+  "slug": "deepspeed-finetune",
+  "displayName": "Finetune LLM with DeepSpeed",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774452008088,
+    "commit": "https://github.com/openclaw/skills/commit/43447d6a41165f78b35368bca1ccfbe24137c495"
+  },
+  "history": []
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "matthew-b-simpson",
+  "slug": "echosaw",
+  "displayName": "Echosaw",
+  "latest": {
+    "version": "1.2.3",
+    "publishedAt": 1774479455913,
+    "commit": "https://github.com/openclaw/skills/commit/e09b7dc7830d32f6192f0b5c7a9cc660424b0ae6"
+  },
+  "history": []
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "googleworkspace-bot",
+  "slug": "gws-script-push",
+  "displayName": "Gws Script Push",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774551035960,
+    "commit": "https://github.com/openclaw/skills/commit/e1cdd621598141b13a19decee7de45e04f22b4fd"
+  },
+  "history": []
+}

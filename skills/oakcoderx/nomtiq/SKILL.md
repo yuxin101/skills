@@ -1,7 +1,7 @@
 ---
 name: nomtiq
 description: "Nomtiq — finds restaurants worth going to. No rankings, no ads. Remembers your taste, knows your budget. 小饭票：找餐厅、推荐餐厅、吃什么、附近好吃的。"
-version: "0.4.5"
+version: "0.4.6"
 author: oak lee
 cover: cover.jpg
 env:

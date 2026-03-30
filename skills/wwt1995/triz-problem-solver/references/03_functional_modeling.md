@@ -51,9 +51,37 @@ bash scripts/call_triz_analysis.sh "functional_modeling" "<user_input>"
 
 ---
 
+## Tool Result Parsing
+
+The tool returns JSON-format data directly, with the following structure:
+
+```json
+{
+  "functional_relations": [
+    {
+      "function_carrier": "Function carrier name",
+      "action": "Action",
+      "function_object": "Function object name",
+      "performance_level": "N (Normal)"
+    }
+  ]
+}
+```
+
+### Parsing Rules
+
+1. Parse the JSON data returned by the tool
+2. Convert the `functional_relations` array into a Markdown table with field mappings:
+   - `function_carrier` → `Function Carrier`
+   - `action` → `Action`
+   - `function_object` → `Function Object`
+   - `performance_level` → `Performance Level` (extract the letter part, e.g., `N (Normal)` → `N`)
+
+---
+
 ## Output Format
 
-The tool returns a JSON string with the structure `{"content": "..."}`. Extract the functional modeling result from the `content` field. The result is in Markdown table format, containing four fields: function carrier, action, function object, and performance level (H/I/N/E).
+Display the parsed data in Markdown table format, containing four fields: function carrier, action, function object, and performance level (H/I/N/E).
 - **H (Harmful)**: Causes performance degradation >20%, creates safety risks, or causes user discomfort
 - **I (Insufficient)**: Function completion <70%, fails to meet design specifications
 - **E (Excessive)**: Function output >130% of requirement, causes resource waste >20%
@@ -62,7 +90,7 @@ The tool returns a JSON string with the structure `{"content": "..."}`. Extract 
 **Output example**:
 
 | Function Carrier | Action | Function Object | Performance Level |
-|---------|------|---------|---------|
+|-----------------|--------|-----------------|-------------------|
 | Cooling system | Cools | Top panel | N |
 | Condensate water | Wets | Connection structure | H |
 | Sealing structure | Blocks | Condensate water | I |

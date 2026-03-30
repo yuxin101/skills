@@ -1,0 +1,11 @@
+{
+  "owner": "x-rayluan",
+  "slug": "clawlite-video-content-engine",
+  "displayName": "ClawLite Video Content Engine",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774578801043,
+    "commit": "https://github.com/openclaw/skills/commit/e9bbf113b8af4e78364161a2c0e1e8bdb223f14b"
+  },
+  "history": []
+}

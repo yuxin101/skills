@@ -1,0 +1,11 @@
+{
+  "owner": "nixprosoft",
+  "slug": "kaiten",
+  "displayName": "Kaiten",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774435516372,
+    "commit": "https://github.com/openclaw/skills/commit/026719b1e889759c182ac72de3a2cde4bde933df"
+  },
+  "history": []
+}

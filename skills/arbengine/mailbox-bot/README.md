@@ -1,6 +1,6 @@
 # mailbox.bot OpenClaw Skill
 
-Get a shipping address for your AI agent. Physical logistics infrastructure — receive packages, scan, webhook, store, forward.
+Give your AI agent a real mailing address. CMRA postal mail infrastructure — receive, scan, and forward mail, or send letters and documents via API.
 
 ## Quick Start: Publishing to ClawHub
 
@@ -24,8 +24,8 @@ This opens GitHub OAuth. Your account must be **at least 1 week old** to publish
 clawhub publish . \
   --slug mailbox-bot \
   --name "mailbox.bot" \
-  --version 2.0.0 \
-  --changelog "v2.0 — Updated to reflect live v1.0 platform. Physical logistics endpoint for AI agents. Private carrier receiving (FedEx, UPS, DHL, Amazon). Webhook notifications, content scanning, package forwarding. Agent protocol support: MCP, A2A, OpenClaw, REST."
+  --version 4.0.0 \
+  --changelog "v4.0 — Postal mail infrastructure for AI agents. CMRA mailing address ($2/mo), outbound print-and-mail ($0/mo base), MAILBOX.md standing instructions, human-in-the-loop approval gates, 22 MCP tools, 9 A2A skills, OpenClaw native."
 ```
 
 ### 4. Verify
@@ -44,35 +44,36 @@ Or paste the skill GitHub URL directly into your OpenClaw chat.
 
 ## What This Skill Does
 
-Your agent gets a physical shipping address at our warehouse with a unique reference code (e.g., `Ref: MB-7F3A`). Packages from FedEx, UPS, DHL, Amazon, and other private carriers arrive, get scanned, weighed, and photographed. Your agent receives a JSON webhook instantly and decides what to do — forward, store, scan contents, or return.
+Your agent gets a real CMRA-licensed mailing address. Postal mail arrives, gets photographed, scanned, and classified. Your agent receives a JSON webhook instantly and decides what to do — forward, scan, hold, shred, or discard. Your agent can also send outbound mail — submit a PDF via API and the facility prints, stuffs, stamps, and mails it with photo proof.
+
+Standing instructions in a `MAILBOX.md` file let your agent automate everything. Write "needs approval" next to any rule and the action pauses until a human approves on the dashboard.
 
 **Key capabilities:**
-- Receive packages from all major private carriers
+- Real CMRA mailing address for receiving postal mail
+- Outbound print-and-mail — send letters, legal notices, certified mail via API
+- MAILBOX.md standing instructions with human-in-the-loop approval gates
 - Instant webhook notifications with structured JSON
-- High-res photos, weight, dimensions, carrier info
-- Package forwarding and consolidation
-- Content scanning (open + photograph contents)
-- Return routing via reference code
-- Agent protocol support: MCP, A2A, OpenClaw, REST
+- Document scanning with OCR extraction
+- Mail forwarding to any US address
+- Multi-channel notifications: webhooks, email, SMS, Slack, Discord
+- Agent protocols: MCP (22 tools), A2A (9 skills), OpenClaw, REST
 
-**Private carriers only (v1.0)** — No USPS mail. This is a package receiving facility, not a mail service.
-
-## Pricing
+## Plans
 
 | Plan | Price | Includes |
 |------|-------|---------|
-| Endpoint Only | Free | Logistics endpoint, webhooks, API access |
-| Receiver | $10/mo | 5 packages/mo, photos, 14-day storage |
-| Swarm | $25/mo | 5 endpoints, 25 packages/mo, scanning, forwarding |
-| Enterprise | Custom | Unlimited everything, SLA, reserved space |
+| Virtual Mailbox | $2/mo | Real CMRA address, inbound + outbound mail, 10 pieces/mo, scan on arrival |
+| Outbound Only | $0/mo | Send-only, $0.30/pg printing + carrier postage, photo proof, no inbound address |
 
 ## Links
 
 - Website: https://mailbox.bot
 - Dashboard: https://mailbox.bot/dashboard
 - API Docs: https://mailbox.bot/api-docs
-- Implementation: https://mailbox.bot/implementation
+- Integration Guide: https://mailbox.bot/implementation
+- MCP Install: https://mailbox.bot/mcp-install
+- Full API Reference: https://mailbox.bot/llms-full.txt
 
 ---
 
-Questions? support@mailbox.bot
+Questions? founders@mailbox.bot

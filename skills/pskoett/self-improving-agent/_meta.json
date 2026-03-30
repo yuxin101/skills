@@ -3,11 +3,16 @@
   "slug": "self-improving-agent",
   "displayName": "self-improving-agent",
   "latest": {
-    "version": "3.0.5",
-    "publishedAt": 1773760428300,
-    "commit": "https://github.com/openclaw/skills/commit/e6bef470931f7840075598cb4620ad6863c70bda"
+    "version": "3.0.8",
+    "publishedAt": 1774635886601,
+    "commit": "https://github.com/openclaw/skills/commit/27783672bf4fc019fb2f28658eb882b30d8bd6e8"
   },
   "history": [
+    {
+      "version": "3.0.5",
+      "publishedAt": 1773760428300,
+      "commit": "https://github.com/openclaw/skills/commit/e6bef470931f7840075598cb4620ad6863c70bda"
+    },
     {
       "version": "3.0.2",
       "publishedAt": 1773468977287,

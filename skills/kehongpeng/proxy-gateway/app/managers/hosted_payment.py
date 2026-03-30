@@ -192,11 +192,40 @@ class HostedPaymentManager(BasePaymentManager):
     
     async def _deduct_with_lua(self, key: str, user_id: str, amount: Decimal) -> Tuple[bool, str, Decimal]:
         """使用 Redis Lua 脚本实现原子扣减"""
+        # 输入校验 - 防止注入攻击
+        if amount is None:
+            amount = self.cost_per_request
+        
+        # 严格校验 amount 格式和范围
+        try:
+            amount = Decimal(str(amount))
+            if amount <= 0:
+                raise ValueError("Amount must be positive")
+            if amount > Decimal("1000"):  # 最大单次扣减限制
+                raise ValueError("Amount exceeds maximum limit")
+            # 确保最多6位小数（USDC精度）
+            amount = amount.quantize(Decimal("0.000001"))
+        except Exception as e:
+            logger.error(f"Invalid amount: {amount}, error: {e}")
+            raise ValueError(f"Invalid amount: {e}")
+        
+        # 校验 user_id 格式（只允许字母数字和下划线）
+        if not user_id or not all(c.isalnum() or c == '_' for c in user_id):
+            raise InvalidUserIdError()
+        
         lua_script = """
             local balance_key = KEYS[1]
             local deduct_amount = tonumber(ARGV[1])
             local user_id = ARGV[2]
             local tx_id = ARGV[3]
+            
+            -- 参数校验
+            if not deduct_amount or deduct_amount <= 0 then
+                return {-1, "Invalid amount"}
+            end
+            if deduct_amount > 1000 then
+                return {-1, "Amount exceeds limit"}
+            end
             
             local balance = redis.call('hget', balance_key, 'available')
             if not balance then
@@ -250,6 +279,21 @@ class HostedPaymentManager(BasePaymentManager):
     async def _deduct_with_lock(self, key: str, user_id: str, amount: Decimal) -> Tuple[bool, str, Decimal]:
         """使用内存锁实现扣减（非Redis环境）"""
         import multiprocessing
+        
+        # 输入校验
+        if amount is None:
+            amount = self.cost_per_request
+        
+        try:
+            amount = Decimal(str(amount))
+            if amount <= 0:
+                raise ValueError("Amount must be positive")
+            if amount > Decimal("1000"):
+                raise ValueError("Amount exceeds maximum limit")
+            amount = amount.quantize(Decimal("0.000001"))
+        except Exception as e:
+            logger.error(f"Invalid amount: {amount}, error: {e}")
+            raise ValueError(f"Invalid amount: {e}")
         
         # 检查多进程环境警告
         if multiprocessing.cpu_count() > 1:

@@ -17,13 +17,14 @@ Both are conditional jobs in `.github/workflows/npm-publish.yml`. Manual trigger
 
 ## Project Structure
 
-- `src/cli.ts` — CLI entry point, 15 commands, `getClient()` is the single cookie→client funnel
+- `src/cli.ts` — CLI entry point, 21 commands, `getClient()` is the single cookie→client funnel
 - `src/lib/client.ts` — XHS API client (`postComment`, `replyComment`, etc.)
 - `src/lib/cookies.ts` — Cookie extraction with Chrome profile auto-discovery
 - `src/lib/signing.ts` — Request signing
 - `src/lib/analyze.ts` — Viral note analysis and question detection
 - `src/lib/reply-strategy.ts` — Batch reply filtering, templating, rate-limited execution
 - `src/lib/template.ts` — Viral content template extraction
+- `src/lib/health.ts` — Note health check: level detection, sensitive words, tag count
 - `src/lib/render.ts` — Card rendering (markdown → PNG via puppeteer-core, optional dep)
 - `SKILL.md` — Skill documentation (serves both Claude Code and OpenClaw/ClawHub)
 - `.github/workflows/npm-publish.yml` — CI: build, npm publish, ClawHub publish

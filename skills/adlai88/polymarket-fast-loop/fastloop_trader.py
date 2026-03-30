@@ -687,7 +687,42 @@ def run_fast_market_strategy(dry_run=True, positions_only=False, show_config=Fal
         return
 
     # Initialize client early to validate API key (paper mode when not live)
-    get_client(live=not dry_run)
+    client = get_client(live=not dry_run)
+
+    # GTC stale order cleanup: cancel any open GTC orders from previous cycles.
+    # GTC orders sit on the CLOB indefinitely — if a previous cycle's order wasn't
+    # filled, it locks collateral and can fill unexpectedly after the market window
+    # has passed. Cancel them before placing new trades.
+    if ORDER_TYPE == "GTC" and not dry_run:
+        try:
+            open_orders = client.get_open_orders()
+            orders = open_orders.get("orders", [])
+            if orders:
+                # Only cancel orders placed by this skill — don't touch other skills' GTC orders
+                stale_count = 0
+                for order in orders:
+                    source = (order.get("source") or "").lower()
+                    slug = (order.get("skill_slug") or "").lower()
+                    question = (order.get("question") or "").lower()
+                    is_ours = (
+                        source == TRADE_SOURCE
+                        or slug == SKILL_SLUG
+                        or "up or down" in question  # fast-market pattern
+                    )
+                    if not is_ours:
+                        continue
+                    oid = order.get("order_id") or order.get("id")
+                    if oid:
+                        cancel_result = client.cancel_order(oid)
+                        if cancel_result.get("success"):
+                            stale_count += 1
+                            log(f"  🧹 Cancelled stale GTC order {oid[:16]}...")
+                        elif cancel_result.get("warning"):
+                            log(f"  ℹ️  Order {oid[:16]}... already filled (not stale)")
+                if stale_count > 0:
+                    log(f"  🧹 Cleaned up {stale_count} stale GTC order(s) from previous cycles", force=True)
+        except Exception as e:
+            log(f"  ⚠️  GTC cleanup check failed (non-fatal): {e}")
 
     # Show positions if requested
     if positions_only:

@@ -1,6 +1,7 @@
 ---
 name: hitem3d
 description: Generate production-grade 3D models from images with the Hitem3D API. Use when the user wants to turn product shots, concept art, character images, portraits, or multi-view image sets into downloadable 3D assets; create printable STL files; export AR-ready GLB/USDZ; batch-convert folders of images; check Hitem3D balance/credits; or wait for and download finished task results. Supports intent-based mode selection, cost-aware defaults, multi-view vs batch routing, portrait/bust generation, quality/format control, and end-to-end submit→wait→download workflows.
+metadata: {"openclaw":{"emoji":"🧊","homepage":"https://hitem3d.ai","requires":{"bins":["curl","python3","base64"],"env":["HITEM3D_AK","HITEM3D_SK"]},"primaryEnv":"HITEM3D_AK"}}
 ---
 
 # Hitem3D
@@ -38,6 +39,12 @@ Act like a production 3D operator, not a thin API wrapper.
 - Never echo secrets, bearer tokens, or raw Authorization headers.
 
 ## Required setup
+
+## Runtime requirements
+
+- Binaries: `curl`, `python3`, `base64`
+- Required env vars: `HITEM3D_AK`, `HITEM3D_SK`
+- Optional env var: `HITEM3D_TOKEN`
 
 The user must provide credentials through environment variables:
 

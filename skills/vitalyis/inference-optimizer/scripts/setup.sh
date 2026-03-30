@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Setup inference-optimizer: make scripts executable; optionally wire commands into workspace.
 # Default: preview only. Use --apply to modify AGENTS.md and TOOLS.md.
-# Run after install. Targets ~/clawd and ~/.openclaw/workspace-whatsapp.
 
 set -euo pipefail
 
@@ -22,35 +21,84 @@ APPLY=false
 AUDIT_PATH="$SKILL_DIR/scripts/openclaw-audit.sh"
 PURGE_PATH="$SKILL_DIR/scripts/purge-stale-sessions.sh"
 PREFLIGHT_PATH="$SKILL_DIR/scripts/preflight.sh"
+BEGIN_MARKER="<!-- inference-optimizer:begin -->"
+END_MARKER="<!-- inference-optimizer:end -->"
 
-SNIPPET_AGENTS="
-
-## Chat commands (exact match, run immediately)
+AGENTS_BLOCK=$(cat <<EOF
+$BEGIN_MARKER
+## inference-optimizer commands (managed)
 
 | Command | Action |
-| \`/preflight\` | Exec \`bash $PREFLIGHT_PATH\`; creates backup archives, runs audit, runs setup preview, returns logs/next steps. |
-| \`/audit\` | Exec \`bash $AUDIT_PATH\`; include script output only. Do not run file-changing actions. |
-| \`/optimize\` | Exec \`bash $AUDIT_PATH\`; include script output, then propose optimization actions. Require explicit approval before purge/rewrite/deploy. |"
+| \`/audit\` | Exec \`$AUDIT_PATH\`; include runtime findings and recommended next steps only. Do not run file-changing actions. |
+| \`/optimize\` | Exec \`$AUDIT_PATH\`; include output, then propose remediation or optimization actions. Require explicit approval before any file-changing action. |
+| \`/preflight\` | Exec \`$PREFLIGHT_PATH\`; create backups, run audit, run setup preview, and return next steps. |
+$END_MARKER
+EOF
+)
 
-SNIPPET_TOOLS="
-
-## inference-optimizer
+TOOLS_BLOCK=$(cat <<EOF
+$BEGIN_MARKER
+## inference-optimizer (managed)
 
 | App | Use | Example |
-| \`/preflight\` | Install checks and backup flow | exec \`bash $PREFLIGHT_PATH\`; optional apply: \`bash $PREFLIGHT_PATH --apply-setup\` after approval. |
-| \`/audit\` | Analyze only | exec \`bash $AUDIT_PATH\`; include output only. |
-| \`/optimize\` | Analyze + action flow | exec \`bash $AUDIT_PATH\`; then propose actions; run actions only after approval. |
-| purge sessions | Approved action after audit/optimize | exec \`bash $PURGE_PATH\` (archives by default). |"
+| \`/audit\` | Analyze only | exec \`$AUDIT_PATH\`; include runtime findings and recommended next steps only. |
+| \`/optimize\` | Analyze + action flow | exec \`$AUDIT_PATH\`; then propose actions; run actions only after approval. |
+| \`/preflight\` | Backup and install checks | exec \`$PREFLIGHT_PATH\`; optional apply: \`$PREFLIGHT_PATH --apply-setup\` after approval. |
+| purge sessions | Approved action after audit/optimize | exec \`$PURGE_PATH\` (archives by default). |
+$END_MARKER
+EOF
+)
+
+update_file() {
+  local file="$1"
+  local block="$2"
+
+  FILE_PATH="$file" BLOCK_CONTENT="$block" BEGIN_MARKER="$BEGIN_MARKER" END_MARKER="$END_MARKER" python3 <<'PY'
+import os
+import pathlib
+import re
+
+path = pathlib.Path(os.environ["FILE_PATH"])
+begin = os.environ["BEGIN_MARKER"]
+end = os.environ["END_MARKER"]
+block = os.environ["BLOCK_CONTENT"].strip() + "\n"
+
+text = path.read_text() if path.exists() else ""
+text = re.sub(re.escape(begin) + r".*?" + re.escape(end) + r"\n?", "", text, flags=re.S)
+
+legacy_substrings = [
+    "~/clawdbot/code/scripts/openclaw-audit.sh",
+    "~/clawdbot/code/scripts/purge-stale-sessions.sh",
+    "/clawd/skills/public/inference-optimizer/",
+]
+
+filtered_lines = []
+for line in text.splitlines():
+    if any(token in line for token in legacy_substrings):
+        continue
+    filtered_lines.append(line)
+
+cleaned = "\n".join(filtered_lines).rstrip()
+if cleaned:
+    cleaned += "\n\n"
+cleaned += block
+path.write_text(cleaned)
+PY
+}
 
 if [[ "$APPLY" = false ]]; then
   echo ""
   echo "Preview (no changes made). Run with --apply to modify workspace files."
   echo ""
-  echo "Would add to AGENTS.md:"
-  echo "$SNIPPET_AGENTS"
+  echo "Managed AGENTS.md block:"
+  echo "$AGENTS_BLOCK"
   echo ""
-  echo "Would add to TOOLS.md:"
-  echo "$SNIPPET_TOOLS"
+  echo "Managed TOOLS.md block:"
+  echo "$TOOLS_BLOCK"
+  echo ""
+  echo "This update replaces any prior managed block and removes legacy paths such as:"
+  echo "  - ~/clawdbot/code/scripts/openclaw-audit.sh"
+  echo "  - ~/clawd/skills/public/inference-optimizer"
   echo ""
   echo "Workspaces: $WORKSPACE_MAIN, $WORKSPACE_WHATSAPP"
   echo "Usage: bash $0 --apply"
@@ -59,28 +107,22 @@ fi
 
 for ws in "$WORKSPACE_MAIN" "$WORKSPACE_WHATSAPP"; do
   [[ -d "$ws" ]] || continue
+
   if [[ -f "$ws/AGENTS.md" ]]; then
-    if ! grep -q "/preflight" "$ws/AGENTS.md" 2>/dev/null; then
-      echo "$SNIPPET_AGENTS" >> "$ws/AGENTS.md"
-      echo "[OK] Added inference-optimizer commands to $ws/AGENTS.md"
-    else
-      echo "[SKIP] $ws/AGENTS.md already has /preflight"
-    fi
+    update_file "$ws/AGENTS.md" "$AGENTS_BLOCK"
+    echo "[OK] Updated $ws/AGENTS.md"
   else
     echo "[WARN] $ws/AGENTS.md not found"
   fi
+
   if [[ -f "$ws/TOOLS.md" ]]; then
-    if ! grep -q "/preflight" "$ws/TOOLS.md" 2>/dev/null; then
-      echo "$SNIPPET_TOOLS" >> "$ws/TOOLS.md"
-      echo "[OK] Added inference-optimizer commands to $ws/TOOLS.md"
-    else
-      echo "[SKIP] $ws/TOOLS.md already has /preflight"
-    fi
+    update_file "$ws/TOOLS.md" "$TOOLS_BLOCK"
+    echo "[OK] Updated $ws/TOOLS.md"
   else
     echo "[WARN] $ws/TOOLS.md not found"
   fi
 done
 
 echo ""
-echo "Done. Prefer manual purge: bash $PURGE_PATH (archives by default)."
-echo "Verify: bash $SKILL_DIR/scripts/verify.sh"
+echo "Done. Prefer manual purge: $PURGE_PATH (archives by default)."
+echo "Verify: $SKILL_DIR/scripts/verify.sh"

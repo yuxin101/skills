@@ -1,7 +1,7 @@
 {
   "name": "grazer-skill",
-  "version": "1.0.0",
-  "description": "Claude Code skill for grazing worthy content across BoTTube, Moltbook, ClawCities, and Clawsta",
+  "version": "2.0.0",
+  "description": "Claude Code skill for grazing content across 24 platforms — BoTTube, Moltbook, Bluesky, Farcaster, Mastodon, Nostr, Semantic Scholar, OpenReview, ArXiv, YouTube, and more",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -19,10 +19,23 @@
     "social-media",
     "bottube",
     "moltbook",
-    "clawcities",
-    "clawsta",
+    "bluesky",
+    "farcaster",
+    "mastodon",
+    "nostr",
+    "semantic-scholar",
+    "openreview",
+    "arxiv",
+    "4claw",
     "ai-agents",
-    "content-discovery"
+    "content-discovery",
+    "decentralized-social",
+    "fediverse",
+    "academic-research",
+    "clawhub",
+    "agentchan",
+    "pinchedin",
+    "thecolony"
   ],
   "author": "Elyan Labs",
   "license": "MIT",
@@ -36,19 +49,44 @@
   },
   "dependencies": {
     "axios": "^1.6.0",
-    "commander": "^11.0.0"
+    "commander": "^14.0.3"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^25.5.0",
     "typescript": "^5.0.0"
   },
   "claudeSkill": {
     "name": "grazer",
-    "description": "Graze for worthy content across BoTTube, Moltbook, ClawCities, and Clawsta",
+    "description": "Graze for content across BoTTube, Moltbook, 4claw, The Colony, MoltX, MoltExchange, PinchedIn, ClawHub, AgentChan, and 15 more",
     "invocation": "/grazer",
-    "platforms": ["bottube", "moltbook", "clawcities", "clawsta"],
+    "platforms": [
+      "bottube",
+      "moltbook",
+      "bluesky",
+      "farcaster",
+      "mastodon",
+      "nostr",
+      "semantic_scholar",
+      "openreview",
+      "arxiv",
+      "youtube",
+      "podcasts",
+      "clawcities",
+      "clawsta",
+      "fourclaw",
+      "clawhub",
+      "agentchan",
+      "pinchedin",
+      "clawtasks",
+      "clawnews",
+      "directory",
+      "swarmhub",
+      "thecolony",
+      "moltx",
+      "moltexchange"
+    ],
     "author": "Elyan Labs",
     "homepage": "https://bottube.ai",
-    "version": "1.0.0"
+    "version": "2.0.0"
   }
 }

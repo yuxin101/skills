@@ -1,7 +1,7 @@
 ---
 name: stock-review
 description: A股市场自动化复盘分析系统，基于Gemini AI生成每日市场洞察报告，支持发布到Hugo博客和微信公众号
-version: 1.0.0
+version: 1.0.1
 metadata:
   openclaw:
     homepage: https://github.com/donvink/stock-review
@@ -14,6 +14,8 @@ metadata:
 # 🚀 Stock Review
 
 👉 **[在线演示博客](https://donvink.github.io/stock-review/)**
+
+### GitHub: 👉 **[https://github.com/Donvink/stock-review](https://github.com/Donvink/stock-review)**
 
 ## Language
 

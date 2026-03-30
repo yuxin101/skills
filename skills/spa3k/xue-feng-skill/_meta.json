@@ -1,0 +1,11 @@
+{
+  "owner": "spa3k",
+  "slug": "xue-feng-skill",
+  "displayName": "XueFeng Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774415466374,
+    "commit": "https://github.com/openclaw/skills/commit/413f7c74f715d378485dcb05d6c124c6beb123d2"
+  },
+  "history": []
+}

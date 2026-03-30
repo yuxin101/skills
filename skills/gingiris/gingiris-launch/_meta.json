@@ -1,13 +1,18 @@
 {
   "owner": "gingiris",
   "slug": "gingiris-launch",
-  "displayName": "Go-to-Market & Product Hunt Playbook",
+  "displayName": "Gingiris Launch",
   "latest": {
-    "version": "1.4.0",
-    "publishedAt": 1773543708701,
-    "commit": "https://github.com/openclaw/skills/commit/0cef37a4fd006b6b81186424982f6f9e74c22314"
+    "version": "2.0.0",
+    "publishedAt": 1774329621392,
+    "commit": "https://github.com/openclaw/skills/commit/d1c1e1162f7bad896672ab5664abf8734496776b"
   },
   "history": [
+    {
+      "version": "1.4.0",
+      "publishedAt": 1773543708701,
+      "commit": "https://github.com/openclaw/skills/commit/0cef37a4fd006b6b81186424982f6f9e74c22314"
+    },
     {
       "version": "1.8.2",
       "publishedAt": 1772721859654,

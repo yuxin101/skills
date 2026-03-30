@@ -1,0 +1,11 @@
+{
+  "owner": "mzlzyca",
+  "slug": "extract-formulas-from-pdf",
+  "displayName": "extract-formulas-from-pdf",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774605235854,
+    "commit": "https://github.com/openclaw/skills/commit/978959bbadc44e656cbc05da6de1c9c9a8db6155"
+  },
+  "history": []
+}

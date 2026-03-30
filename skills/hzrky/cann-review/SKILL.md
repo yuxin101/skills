@@ -225,6 +225,10 @@ curl -H "Authorization: Bearer 5_EtXLq3jGyQvb6tWwrN3byz" \
 - <列出代码中做得好的地方>
 
 总体评价：<简要总结>
+
+---
+
+> ⚠️ **声明**: 本审查报告由 AI 自动生成，仅供参考。建议人工复核后再做最终决定。
 ```
 
 ### 步骤 5: 发布审查评论
@@ -266,28 +270,14 @@ curl -X POST \
   "https://api.gitcode.com/api/v5/repos/cann/runtime/pulls/628/comments"
 ```
 
-### 步骤 6: 发布 LGTM (如适用)
-
-如果审查结果为 **低风险** 或 **中低风险**，使用 API 发布 LGTM：
-
-```bash
-curl -X POST \
-  -H "Authorization: Bearer 5_EtXLq3jGyQvb6tWwrN3byz" \
-  -H "Content-Type: application/json" \
-  -d '{"body":"/lgtm"}' \
-  "https://api.gitcode.com/api/v5/repos/cann/runtime/pulls/628/comments"
-```
-
-**注意**：`/lgtm` 是一个斜杠命令，GitCode 可能会自动添加 `lgtm` 标签到 PR。
-
 ## 严重程度判定标准
 
-| 等级 | 条件 | 是否可合入 | 是否发 /lgtm |
-|------|------|------------|--------------|
-| Low | 仅有建议性改进 | ✅ 可以 | ✅ 是 |
-| Medium | 有一般性问题，不影响功能 | ⚠️ 建议 | ✅ 是 |
-| High | 有严重问题，可能导致缺陷 | ❌ 需要 | ❌ 否 |
-| Critical | 有安全漏洞或严重内存问题 | ❌ 需要 | ❌ 否 |
+| 等级 | 条件 | 是否可合入 |
+|------|------|------------|
+| Low | 仅有建议性改进 | ✅ 可以 |
+| Medium | 有一般性问题，不影响功能 | ⚠️ 建议 |
+| High | 有严重问题，可能导致缺陷 | ❌ 需要 |
+| Critical | 有安全漏洞或严重内存问题 | ❌ 需要 |
 
 ## C/C++ 常见问题模式
 
@@ -339,7 +329,6 @@ void process(Object* obj) {
 
 - **pr_url**: PR 页面链接 (必需)
 - **focus_areas**: 审查重点 (memory/security/readability/all)，默认 all
-- **severity_threshold**: 发布 /lgtm 的阈值 (low/medium/high)，默认 medium
 
 ## 输出
 
@@ -350,31 +339,31 @@ void process(Object* obj) {
   "can_merge": true,
   "issues_count": 2,
   "comment_posted": true,
-  "lgtm_posted": true,
   "summary": "代码质量良好，可以合入"
 }
 ```
 
 ## 自动审查模式
 
-当 skill 被定时任务触发时，执行单次自动审查流程。
+当 skill 被定时任务触发时，执行批量自动审查流程。
 
 ### ⚡ 工作方式
 
-**重要改进**：为避免上下文窗口超限，自动审查采用**单次模式**：
+**10分钟间隔扫描，逐个审查**：
 
-1. **扫描配置的仓库** → 读取 `config/repos.conf`
-2. **找到第一个未审查的 PR** → 避免一次性处理太多数据
-3. **审查这一个 PR** → 完整的代码审查流程
-4. **发布审查评论** → 使用 GitCode API
-5. **记录审查状态** → 避免重复审查
-6. **等待下次触发** → 下次审查下一个 PR
+1. **扫描所有配置的仓库** → 读取 `config/repos.conf`
+2. **筛选过去10分钟内提交的 PR** → 根据更新时间过滤
+3. **收集所有待审查 PR** → 保存到 `.pending-reviews.json`
+4. **逐个审查每个 PR** → 完整的代码审查流程
+5. **发布审查评论** → 使用 GitCode API
+6. **生成汇总报告** → 展示所有审查结果
 
-**优点**：
-- ✅ 避免上下文窗口超限
-- ✅ 每次只处理一个 PR，确保质量
-- ✅ 持续审查，不会遗漏
-- ✅ 自动记录状态，避免重复
+**特点**：
+- ✅ 每10分钟扫描过去10分钟内新提交的 PR
+- ✅ 逐个审查，确保每个 PR 都得到完整审查
+- ✅ 无状态设计，不记录历史审查记录
+- ✅ 生成汇总报告，一目了然
+- ✅ 支持跨小时、跨天的时间区间计算
 
 ### 🔧 配置审查仓库
 
@@ -405,50 +394,129 @@ cann/driver
 export CANN_REVIEW_REPOS="cann/runtime,cann/compiler,cann/driver"
 ```
 
-### 1. 获取开放的 PR 列表
+### 🔧 配置审查仓库
 
-对配置的每个仓库，使用 API 获取所有开放的 PR：
+**首次使用需要配置要审查的仓库列表：**
+
+#### 方法 1：使用配置文件（推荐）
+
 ```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  "https://api.gitcode.com/api/v5/repos/{owner}/{repo}/pulls?state=opened"
+cd ~/.openclaw/workspace/skills/cann-review
+
+# 复制配置模板
+cp config/repos.conf.example config/repos.conf
+
+# 编辑配置文件
+nano config/repos.conf
 ```
 
-### 2. 筛选需要审查的 PR
+添加需要审查的仓库（格式: `owner/repo`），示例：
+```
+cann/runtime
+cann/compiler
+cann/driver
+```
 
-根据以下条件筛选：
-- 未被当前用户审查过的 PR
-- 没有 `lgtm` 标签的 PR
-- 创建时间在最近 N 天内的 PR
+#### 方法 2：使用环境变量
 
-### 3. 逐个审查
+```bash
+export CANN_REVIEW_REPOS="cann/runtime,cann/compiler,cann/driver"
+```
 
-对每个需要审查的 PR：
-1. 使用 API 获取 PR 详情和文件变更
-2. 执行代码审查（步骤 3）
-3. 生成审查报告（步骤 4）
-4. 使用 API 发布评论（步骤 5）
-5. 如适用，发布 LGTM（步骤 6）
-6. 记录审查结果
+### 📋 自动审查流程
 
-### 4. 生成汇总报告
+当定时任务触发时，执行以下流程：
+
+#### 1. 扫描所有仓库
+
+运行扫描脚本：
+```bash
+bash ~/.openclaw/workspace/skills/cann-review/auto-review-final.sh
+```
+
+输出示例：
+```
+🤖 CANN 自动审查（10分钟间隔扫描模式）
+======================================
+开始时间: 2026-03-28 16:30:00
+扫描范围: 2026-03-28T16:20:00+08:00 ~ 2026-03-28T16:29:59+08:00
+
+📊 配置信息:
+  仓库数量: 3
+
+🔍 扫描所有仓库...
+  检查: cann/runtime
+    ✅ 发现 2 个10分钟内提交的 PR
+  检查: cann/oam-tools
+    ✅ 发现 1 个10分钟内提交的 PR
+  检查: cann/oam-tools-diag
+    ℹ️  时间段内无新 PR
+
+======================================
+扫描完成
+  待审查 PR 总数: 3
+
+📋 待审查 PR 列表:
+  1. cann/runtime#1270 - fix memory leak
+     作者: zhaozhixuan
+     链接: https://gitcode.com/cann/runtime/merge_requests/1270
+  ...
+
+💡 接下来将逐个审查这些 PR...
+```
+
+#### 2. 解析待审查列表
+
+脚本会输出 JSON 格式的待审查列表（在 `PENDING_REVIEWS_JSON_START` 和 `PENDING_REVIEWS_JSON_END` 之间）：
+```json
+{
+  "pending": [
+    {
+      "repo": "cann/runtime",
+      "pr_number": 666,
+      "title": "for msprof block dim",
+      "author": "zhaozhixuan",
+      "url": "https://gitcode.com/cann/runtime/merge_requests/666"
+    },
+    ...
+  ],
+  "scan_time": "2026-03-06T10:34:15+08:00"
+}
+```
+
+#### 3. 逐个审查 PR
+
+对每个待审查的 PR：
+1. 调用 `cann-review` skill 进行审查
+2. 使用 API 获取 PR 详情和文件变更
+3. 执行代码审查（步骤 3）
+4. 生成审查报告（步骤 4）
+5. 使用 API 发布评论（步骤 5）
+6. 如适用，发布 LGTM（步骤 6）
+7. 标记为已审查
+
+#### 4. 生成汇总报告
 
 向用户发送汇总消息：
 ```markdown
 ## 自动审查完成
 
-已审查 3 个 MR：
+已审查 25 个 MR：
 
-1. **PR #628** - fix memory leak
-   - 严重程度: Low
-   - 状态: ✅ 已发布 /lgtm
+✅ **cann/runtime** (6 个)
+- #666: for msprof block dim - Low - 已发布审查报告
+- #665: Dump 支持 - Medium - 已发布审查报告
+...
 
-2. **PR #629** - add new feature
-   - 严重程度: Medium
-   - 状态: ✅ 已发布审查报告
+✅ **cann/oam-tools** (13 个)
+- #81: 支持用户离线编译 - Low - 已发布审查报告
+...
 
-3. **PR #630** - security fix
-   - 严重程度: High
-   - 状态: ⚠️ 鎟要人工确认
+✅ **cann/oam-tools-diag** (6 个)
+- #24: revert safe link - Low - 已发布审查报告
+...
+
+总计: 25 个 PR 已审查
 ```
 
 ## 注意事项
@@ -563,6 +631,48 @@ COMMENT_ESCAPED=$(python3 -c "import json; print(json.dumps('''$COMMENT'''))")
 
 ## 版本历史
 
+- **v4.2.1** (2026-03-28 17:35)
+  - 🐛 **重要修复**：定时任务不执行扫描脚本的 bug
+  - 📝 更新定时任务指令，  - ⚠️ 强制要求每次执行扫描脚本
+  - ⚠️ 禁止读取旧的扫描结果文件
+  - ✨ 新增标准化执行报告格式
+  - 📊 输出格式：任务执行概况 + 扫描结果 + 执行结果
+  - 📢 启用自动通知功能(delivery.mode=announce)
+
+- **v4.2.0** (2026-03-28)
+  - ⏰ **重大更新**：改为10分钟间隔扫描模式
+  - 🔄 从"整点扫描"改为"10分钟间隔扫描"，更及时的审查
+  - 🛠️ 修复UTF-8编码问题，使用临时文件传递JSON数据
+  - 🌏 修复时区比较问题，添加+08:00时区支持
+  - 📝 更新定时任务配置：从 `0 * * * *` 改为 `*/10 * * * *`
+  - 🎯 支持跨小时、跨天的时间区间计算
+
+- **v4.1.0** (2026-03-27)
+  - 🔧 重构自动审查逻辑：整点扫描模式
+  - 🚀 移除 max_reviews 限制，审查整点内所有新提交的 PR
+  - 🗑️ 移除状态跟踪（.review-state.json），改为无状态设计
+  - ⏰ 按更新时间筛选整点范围内的 PR
+
+- **v4.0.1** (2026-03-27)
+  - 📝 审查报告末尾添加 AI 生成声明提示
+  - ⚠️ 提醒用户 AI 审查仅供参考，建议人工复核
+
+- **v4.0.0** (2026-03-27)
+  - 📝 审查报告末尾添加 AI 生成声明提示
+  - ⚠️ 提醒用户 AI 审查仅供参考，建议人工复核
+
+- **v3.1.0** (2026-03-27)
+  - 📝 审查报告末尾添加 AI 生成声明提示
+  - ⚠️ 提醒用户 AI 审查仅供参考，建议人工复核
+
+- **v3.0.2** (2026-03-27)
+  - 📝 审查报告末尾添加 AI 生成声明提示
+  - ⚠️ 提醒用户 AI 审查仅供参考，建议人工复核
+
+- **v3.0.1** (2026-03-27)
+  - 📝 审查报告末尾添加 AI 生成声明提示
+  - ⚠️ 提醒用户 AI 审查仅供参考，建议人工复核
+
 - **v3.0.0** (2026-03-04)
   - 🎉 **重大更新**：全面改用 GitCode API，弃用浏览器自动化
   - ✨ 使用 API 获取 PR 信息和代码变更
@@ -600,5 +710,4 @@ COMMENT_ESCAPED=$(python3 -c "import json; print(json.dumps('''$COMMENT'''))")
   - 🔒 支持安全漏洞检查
   - 📖 支持代码可读性检查
   - 💬 自动发布审查评论
-  - ✅ 自动发布 /lgtm 标记
 

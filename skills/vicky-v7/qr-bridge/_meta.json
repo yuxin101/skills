@@ -1,0 +1,11 @@
+{
+  "owner": "vicky-v7",
+  "slug": "qr-bridge",
+  "displayName": "Qr Bridge",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774449396899,
+    "commit": "https://github.com/openclaw/skills/commit/d04966bb6d1e91b2ca858be821d571c3696fb7c0"
+  },
+  "history": []
+}

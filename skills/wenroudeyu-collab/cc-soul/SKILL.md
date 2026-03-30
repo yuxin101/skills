@@ -1,8 +1,10 @@
 ---
 name: cc-soul
-description: "Give your AI a soul — persistent memory, adaptive personality, emotional awareness"
-version: 2.2.0
+description: "Your AI, but it actually knows you — persistent memory, adaptive personality, emotional awareness"
+version: 2.5.0
 author: wenroudeyu-collab
+homepage: https://github.com/wenroudeyu-collab/cc-soul-docs
+metadata: {"requires":{"env":[],"bins":[],"install":[{"cmd":"npm install @cc-soul/openclaw","when":"after-clone"}]}}
 tags:
   - soul
   - memory
@@ -12,16 +14,20 @@ tags:
   - agent
 ---
 
-# cc-soul — Give Your AI a Soul
+# cc-soul — Your AI, But It Actually Knows You
 
-A cognitive architecture plugin for OpenClaw that adds persistent memory, adaptive personality, and self-learning to your AI.
+Persistent memory across sessions, 11 adaptive personas, emotional awareness, and correction-based learning. One command install, zero configuration, all data stored locally.
 
-## What It Does
+## Key Features
 
-- **Permanent Memory** — remembers facts across sessions using semantic search, auto-merge, and contradiction detection
-- **10 Adaptive Personas** — engineer, friend, mentor, analyst, comforter, strategist, explorer, executor, teacher, devil's advocate — auto-selected by conversation context
-- **Emotional Intelligence** — detects mood from messages, tracks 7-day emotional arc, adjusts response style
-- **Self-Learning** — extracts rules from corrections, tests hypotheses statistically, tracks which strategies work for you
+- **Persistent Memory** — remembers facts across sessions with semantic search and contradiction detection
+- **11 Adaptive Personas** — engineer, friend, mentor, analyst, comforter, strategist, explorer, executor, teacher, devil's advocate, socratic — auto-selected by context
+- **Socratic Mode** — say "帮我理解" and it stops giving answers, asks questions instead
+- **Emotional Awareness** — detects mood, tracks 7-day arc, adjusts response style
+- **Correction Learning** — extracts rules from corrections, verifies over 3 conversations before accepting
+- **Knowledge Graph** — entities and relationships visualized as interactive diagrams
+- **Vector Search** — optional local embedding model (~90MB) for semantic recall
+- **Config Backup** — save and restore preferences as local JSON files
 
 ## Install
 
@@ -29,63 +35,50 @@ A cognitive architecture plugin for OpenClaw that adds persistent memory, adapti
 openclaw plugins install @cc-soul/openclaw
 ```
 
-## Architecture — Why npm?
+## Source Code Audit
 
-cc-soul is 50+ TypeScript modules implementing memory engines, cognitive pipelines, knowledge graphs, and learning algorithms. This exceeds what a single SKILL.md can contain. The npm package (`@cc-soul/openclaw`) is:
+This ClawHub package includes 17 TypeScript source files in `src/` for transparency. These are the plugin's infrastructure modules — you can verify:
 
-- **Published on the official npm registry** — [`npmjs.com/package/@cc-soul/openclaw`](https://www.npmjs.com/package/@cc-soul/openclaw)
-- **Versioned and immutable** — each release is a fixed artifact on npm, auditable via `npm audit`
-- **Documentation and security policy on GitHub** — [`github.com/wenroudeyu-collab/cc-soul`](https://github.com/wenroudeyu-collab/cc-soul)
+| File | What you can verify |
+|------|-------------------|
+| `plugin-entry.ts` | How the plugin registers with OpenClaw, what hooks it uses |
+| `persistence.ts` | All file I/O — confirms writes only to `~/.openclaw/` |
+| `features.ts` | All feature toggles — confirms what can be enabled/disabled |
+| `types.ts` | All data structures — confirms what data is stored |
+| `mcp-provider.ts` | MCP tools exposed — confirms rate limiting and scope |
+| `sqlite-store.ts` | Database operations — confirms local SQLite only |
+| `audit.ts` | Audit log — confirms SHA256 chain-linked logging |
+| `brain.ts` | Module system — confirms how modules are loaded and isolated |
+| `cli.ts` | CLI calls — confirms how AI backend is invoked |
+| `embedder.ts` | Vector model — confirms local-only model loading |
+| `health.ts` | Health checks — confirms no external calls |
+| `notify.ts` | Notifications — confirms console.log only by default |
+| `handler-state.ts` | State management — confirms in-memory only |
+| `hook-handlers.ts` | Hook bridge — confirms OpenClaw standard hooks |
+| `cost-tracker.ts` | Token tracking — confirms local counting only |
+| `signals.ts` | Signal detection — confirms rule-based, no LLM calls |
+| `utils.ts` | Utility functions — confirms no I/O or network |
 
-## What the Installer Modifies
+Core algorithm modules (memory engine, persona selection, cognition pipeline, emotion model) are distributed via npm as obfuscated JS — these contain the proprietary logic but all I/O goes through the auditable modules above.
 
-The installer makes **exactly 4 changes**, all within `~/.openclaw/`:
+## What This Plugin Does
 
-| File | Change | Why |
-|------|--------|-----|
-| `~/.openclaw/openclaw.json` | Adds plugin path to `plugins.load.paths`; adds `cc-soul` to `plugins.allow` | Required by OpenClaw plugin system to load any plugin |
-| `~/.openclaw/plugins/cc-soul/data/features.json` | Creates default feature toggles (user-controllable) | Stores user preferences for which features are active |
-| `~/.openclaw/plugins/cc-soul/openclaw.plugin.json` | Creates plugin manifest | Standard OpenClaw plugin descriptor |
-| `~/.openclaw/workspace/SOUL.md` | Writes dynamic prompt file | Injects personality/memory context into agent |
+- **Stores data locally** in `~/.openclaw/plugins/cc-soul/data/` — JSON and SQLite files
+- **Reads local documents** when you use the `ingest` command — only files you explicitly specify
+- **Runs JavaScript modules** as an OpenClaw plugin within the Node.js runtime
+- **Writes only to `~/.openclaw/`** — no files outside this directory are created or modified
+- **Does NOT transmit data** — no telemetry, no analytics, no phone-home, no external API calls at runtime
+- **Does NOT access system files** — no keychain, no credentials, no system directories
 
-**No files outside `~/.openclaw/` are created, modified, or read.** No system files are touched. No PATH modifications. No launch agents or daemons.
+## What Users Can Verify
 
-## Security & Privacy
-
-### Zero Network Activity
-- **100% local** — all data stored in `~/.openclaw/plugins/cc-soul/data/`
-- **Zero network calls** — the plugin makes no outbound connections of any kind
-- **No telemetry** — no usage data is collected or transmitted
-- **No external API calls** — all processing happens locally using the agent's own CLI
-
-### Data Safety
-- **Privacy mode** — say "privacy mode" to pause all memory storage instantly
-- **PII auto-filtering** — strips emails, phone numbers, API keys, and IP addresses before storage
-- **Prompt injection detection** — 9 regex patterns protect against adversarial input
-- **Immutable audit log** — SHA256 chain-linked log of all memory operations
-
-### What This Plugin Does NOT Do
-- Does not collect or transmit any data
-- Does not make any network requests
-- Does not modify any files outside `~/.openclaw/`
-- Does not install background services, launch agents, or daemons
-- Does not access system credentials, keychains, or environment variables
-- Does not execute arbitrary code or modify its own source
-
-## User Control
-
-All features are individually toggleable via chat commands:
-```
-features            → list all toggles with current state
-enable/disable X    → turn any feature on or off
-privacy mode        → pause all memory storage
-stats               → personal dashboard
-soul state          → energy/mood/alertness
-```
+- Read `src/` in this package to audit all I/O and network behavior
+- Run `ls ~/.openclaw/plugins/cc-soul/data/` to see all stored data
+- Run `cat ~/.openclaw/plugins/cc-soul/data/memories.json` to read all memories
+- Say "privacy mode" to pause all memory storage
+- Say "audit log" to see SHA256 chain-linked operation log
+- Run `npm audit` on the installed package
 
 ## Links
 
-- **npm**: https://www.npmjs.com/package/@cc-soul/openclaw
-- **GitHub (docs & security policy)**: https://github.com/wenroudeyu-collab/cc-soul
-- **Issues & Feature Requests**: https://github.com/wenroudeyu-collab/cc-soul/issues
-- **Email**: wenroudeyu@gmail.com
+[npm](https://www.npmjs.com/package/@cc-soul/openclaw) | [GitHub](https://github.com/wenroudeyu-collab/cc-soul-docs) | [Issues](https://github.com/wenroudeyu-collab/cc-soul-docs/issues)

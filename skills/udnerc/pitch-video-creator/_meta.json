@@ -1,0 +1,11 @@
+{
+  "owner": "udnerc",
+  "slug": "pitch-video-creator",
+  "displayName": "Pitch Video Creator",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774516941370,
+    "commit": "https://github.com/openclaw/skills/commit/8e8702e349f855f55dced35dffa3398474b24703"
+  },
+  "history": []
+}

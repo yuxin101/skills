@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "make-integration",
+  "displayName": "Make",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774380153577,
+    "commit": "https://github.com/openclaw/skills/commit/e369dae8e72ff47ecaad1b14311067b1d3c4d71e"
+  },
+  "history": []
+}

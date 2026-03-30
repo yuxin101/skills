@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "shippo-integration",
+  "displayName": "Shippo",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774433007911,
+    "commit": "https://github.com/openclaw/skills/commit/a02e6fb6e6e8f102b7993ab23042b5f06a14d086"
+  },
+  "history": []
+}

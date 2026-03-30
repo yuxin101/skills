@@ -1,44 +1,47 @@
-# Daily Memory Save
+# daily-memory-save
 
-A cron skill that gives your AI agent persistent memory by periodically reviewing conversations and writing structured memory files.
+An [OpenClaw](https://openclaw.app) skill that gives AI agents persistent memory across sessions. Periodically reviews conversation history and writes memory files using a dual-layer system.
 
-## The Problem
+## How It Works
 
-AI agents wake up fresh each session with no memory of previous interactions. Important context — decisions, preferences, project state — is lost.
+Runs as a recurring system event in the main session. Reviews recent conversations and captures what matters into two layers:
 
-## The Solution
+### Daily Notes (`memory/YYYY-MM-DD.md`)
+Raw daily logs — decisions made, preferences expressed, project updates, lessons learned, notable interactions.
 
-This skill runs every 2 hours during waking hours, reviewing recent conversations and writing two types of memory files:
+### Long-Term Memory (`MEMORY.md`)
+Curated, distilled insights that persist beyond daily context. Updated only when something is significant enough to remember long-term.
 
-1. **Daily notes** (`memory/YYYY-MM-DD.md`) — Raw daily logs of what happened
-2. **Long-term memory** (`MEMORY.md`) — Curated insights that persist
+## Cron Setup
 
-## What Gets Captured
+Schedule as a main-session system event during waking hours:
 
-- 🎯 Decisions made
-- 💡 Preferences expressed
-- 📋 Project updates and status changes
-- 📚 Lessons learned
-- 🧠 Things the user explicitly asked to remember
-- 💭 Emotional context worth noting
+```
+Schedule: 0 9,11,13,15,17,19,21,23 * * *
+Target: main (system event)
+```
 
-## Setup
+The skill runs silently by default — no user notifications. See `SKILL.md` for notification mode opt-in.
 
-1. Create a `memory/` directory in your workspace
-2. Set up a cron job with the prompt from `SKILL.md`
-3. Target the **main session** (not isolated) so it has access to conversation history
+## Key Design Decisions
 
-## Key Design Points
+- **Main session target** — runs as a system event so it has access to conversation history
+- **Silent by default** — configurable notification mode available
+- **Selective capture** — signal over noise; skips quiet periods entirely
+- **Dual-layer memory** — daily notes for raw context, MEMORY.md for distilled wisdom
 
-- **Silent** — never messages the user about saves
-- **Selective** — captures signal, not noise; skips quiet periods
-- **Dual-layer** — daily notes for raw context, MEMORY.md for distilled wisdom
-- **Future-oriented** — writes like future-you will need this context
+## ⚠️ Privacy Notice
+
+- Reads your conversation history to extract memories
+- Writes summaries to local files only — **no network access**
+- No credentials used or stored
+- Review saved memory files periodically; delete anything you don't want persisted
 
 ## Requirements
 
-- OpenClaw with cron and system event support
-- Writable workspace directory
+- [OpenClaw](https://openclaw.app) with cron support
+- Main session system event capability
+- Writable `memory/` directory in workspace
 
 ## License
 

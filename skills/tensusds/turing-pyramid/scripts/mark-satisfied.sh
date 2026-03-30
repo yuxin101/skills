@@ -20,6 +20,7 @@ fi
 NEED=""
 IMPACT="3.0"
 REASON=""
+CONCLUSION=""
 FOLLOWUP_WHAT=""
 FOLLOWUP_IN=""
 
@@ -31,6 +32,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --reason=*)
             REASON="${1#*=}"
+            shift
+            ;;
+        --conclusion)
+            CONCLUSION="$2"
+            shift 2
+            ;;
+        --conclusion=*)
+            CONCLUSION="${1#*=}"
             shift
             ;;
         --followup)
@@ -78,6 +87,8 @@ scrub_sensitive() {
     local text="$1"
     # Remove potential secrets/tokens (patterns)
     text=$(echo "$text" | sed -E '
+        s/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[IP]/g;
+        s|/home/[a-z]+/|~/|g;
         s/[a-zA-Z0-9_-]{20,}/[REDACTED]/g;
         s/[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/[CARD]/g;
         s/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/[EMAIL]/g;
@@ -88,6 +99,7 @@ scrub_sensitive() {
 }
 
 REASON_SCRUBBED=$(scrub_sensitive "$REASON")
+CONCLUSION_SCRUBBED=$(scrub_sensitive "${CONCLUSION:-}")
 
 NOW_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 CALLER="${TURING_CALLER:-manual}"
@@ -135,7 +147,7 @@ jq --arg need "$NEED" --arg now "$NOW_ISO" --argjson impact "$IMPACT" --argjson 
   .[$need].last_decay_check = $now |
   .[$need].last_impact = $impact |
   .[$need].last_action_at = $now
-' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+' "$STATE_FILE" > "$STATE_FILE.tmp.$$" && mv "$STATE_FILE.tmp.$$" "$STATE_FILE"
 
 echo "✅ $NEED marked as satisfied (impact: $IMPACT)"
 echo "   satisfaction: $CURRENT_SAT → $NEW_SAT"
@@ -153,7 +165,7 @@ HIGH_THRESHOLD="${HIGH_THRESHOLD:-2.0}"
 if (( $(echo "$IMPACT >= $HIGH_THRESHOLD" | bc -l) )); then
     jq --arg need "$NEED" --arg now "$NOW_ISO" \
        '.[$need].last_high_action_at = $now' \
-       "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+       "$STATE_FILE" > "$STATE_FILE.tmp.$$" && mv "$STATE_FILE.tmp.$$" "$STATE_FILE"
     echo "   📊 High-impact action recorded (boredom noise reset)"
 fi
 
@@ -166,7 +178,8 @@ AUDIT_ENTRY=$(jq -cn \
     --arg new_sat "$NEW_SAT" \
     --arg reason "$REASON_SCRUBBED" \
     --arg caller "$CALLER" \
-    '{timestamp: $ts, need: $need, impact: $impact, old_sat: $old_sat, new_sat: $new_sat, reason: $reason, caller: $caller}')
+    --arg conclusion "$CONCLUSION_SCRUBBED" \
+    '{timestamp: $ts, need: $need, impact: $impact, old_sat: $old_sat, new_sat: $new_sat, reason: $reason, caller: $caller, conclusion: (if $conclusion == "" then null else $conclusion end)}')
 echo "$AUDIT_ENTRY" >> "$AUDIT_FILE"
 
 # Apply cross-need impacts (on_action)
@@ -209,7 +222,7 @@ if [[ -f "$CROSS_IMPACT_FILE" ]]; then
             # Update target satisfaction (root level)
             jq --arg t "$TARGET" --argjson sat "$NEW_TARGET" '
                 .[$t].satisfaction = $sat
-            ' "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+            ' "$STATE_FILE" > "$STATE_FILE.tmp.$$" && mv "$STATE_FILE.tmp.$$" "$STATE_FILE"
             
             if (( $(echo "$DELTA > 0" | bc -l) )); then
                 echo "   → $TARGET: +$DELTA (now: $NEW_TARGET)"

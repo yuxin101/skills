@@ -1,9 +1,9 @@
 ---
 name: image-gen-compare
-version: 1.0.0
+version: 1.0.1
 description: Side-by-side comparison of paid vs local image generation models — DALL-E 3, FLUX.1-schnell, Gemini Imagen, and others. Generates images from the same prompt, logs metadata, and stores run history. Use when evaluating which image model to use for a project.
 metadata:
-  {"openclaw": {"emoji": "🖼️", "requires": {"bins": ["python3"], "env": ["OPENAI_API_KEY"]}, "primaryEnv": "OPENAI_API_KEY", "network": {"outbound": true, "reason": "Calls OpenAI DALL-E API for paid image generation. Local models (FLUX via mflux) run on-device."}}}
+  {"openclaw": {"emoji": "🖼️", "requires": {"bins": ["python3"], "env": ["OPENAI_API_KEY", "OP_SERVICE_ACCOUNT_TOKEN"]}, "primaryEnv": "OPENAI_API_KEY", "network": {"outbound": true, "reason": "Calls OpenAI DALL-E API for paid image generation. Local models (FLUX via mflux) run on-device."}, "security_notes": "base64 used to encode image binary data returned by image generation APIs — standard API response format. OP_SERVICE_ACCOUNT_TOKEN is used to retrieve API keys from 1Password CLI."}}
 ---
 
 # Image Gen Compare

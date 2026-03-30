@@ -1,13 +1,18 @@
 {
   "owner": "allenfancy-gan",
   "slug": "ima-image-ai",
-  "displayName": "IMA Studio Image — SeeDream, Midjourney, Nano Banana",
+  "displayName": "IMA Image Generator",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773771536668,
-    "commit": "https://github.com/openclaw/skills/commit/a980701f5f4f37bb53a759bf76374c02059338b0"
+    "version": "1.0.9",
+    "publishedAt": 1774607090339,
+    "commit": "https://github.com/openclaw/skills/commit/14b48178049ebdad3e86d744f7f93ce0401260d6"
   },
   "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773771536668,
+      "commit": "https://github.com/openclaw/skills/commit/a980701f5f4f37bb53a759bf76374c02059338b0"
+    },
     {
       "version": "1.0.5",
       "publishedAt": 1773331906760,

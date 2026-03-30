@@ -4,7 +4,17 @@
 # 包基本信息
 package:
   name: cann-review
-  version: 2.0.3
+  version: 3.2.0
+  description: |
+    CANN runtime 自动化代码审查技能。
+    自动分析 PR 代码变更，检查内存泄漏、安全漏洞和可读性问题，
+    生成专业审查报告并发布评论。
+    
+    ✨ 批量扫描模式：扫描所有配置仓库，逐个审查所有待审查的 PR
+    - 🚀 使用 GitCode API，无需浏览器自动化
+    - 📊 添加汇总报告功能
+    - 🔧 完善文档和安装指南
+    - 🔒 安全性：配置文件权限自动设置为 600
   description: |
     CANN runtime 自动化代码审查技能。
     自动分析 PR 代码变更，检查内存泄漏、安全漏洞和可读性问题，

@@ -12,7 +12,6 @@ metadata: { "openclaw": { "emoji": "⚡", "requires": { "bins": ["python3"], "en
 
 使用前请在极速数据官网申请 API Key 并开通需要的数据接口；各接口计费与额度以官网为准。
 
-## 环境变量配置
 
 ```bash
 # Linux / macOS
@@ -111,7 +110,7 @@ python3 skills/jisu/jisu.py call '{"api":"exchange/convert","params":{"from":"CN
 - 接口返回业务错误：`{"error": "api_error", "code": xxx, "message": "..."}`。
 - 网络/解析错误：`request_failed` / `http_error` / `invalid_json`。
 
-## 在 OpenClaw 中的推荐用法
+## 推荐用法
 
 1. 用户提问：「北京天气怎么样」「300917 股票今天多少钱」「人民币兑美元汇率」等。
 2. 代理先调用 `python3 skills/jisu/jisu.py list` 确认接口名，再按需调用 `call`，例如：  

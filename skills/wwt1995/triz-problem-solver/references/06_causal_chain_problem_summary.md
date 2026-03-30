@@ -38,9 +38,35 @@ bash scripts/call_triz_analysis.sh "causal_chain_problem_summary" "<user_input>"
 
 ---
 
+## Tool Result Parsing
+
+The tool returns JSON-format data directly, with the following structure:
+
+```json
+{
+  "selected_problems": [
+    {
+      "id": 1,
+      "user_friendly_description": "User-friendly description",
+      "technical_description": "Technical detailed description"
+    }
+  ]
+}
+```
+
+### Parsing Rules
+
+1. Parse the JSON data returned by the tool
+2. Convert the `selected_problems` array into a Markdown table with field mappings:
+   - `id` → `#`
+   - `user_friendly_description` → `User-Friendly Description`
+   - `technical_description` → `Technical Detailed Description`
+
+---
+
 ## Output Format
 
-The tool returns a JSON string with the structure `{"content": "..."}`. Extract the causal chain problem filtering result from the `content` field. The result is in Markdown table format, containing three fields: number, user-friendly description, and technical detailed description. The number of problems matches the number of key problem identifiers in the input (maximum 3).
+Display the parsed data in Markdown table format, containing three fields: number, user-friendly description, and technical detailed description. The number of problems matches the number of key problem identifiers in the input (maximum 3).
 
 **Output example**:
 

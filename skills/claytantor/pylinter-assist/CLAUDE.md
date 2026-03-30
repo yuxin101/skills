@@ -1,0 +1,171 @@
+# pylinter-assist — OpenClaw Skill
+
+## Skill: `/lint-review`
+
+A soft PR reviewer that combines Pylint with context-aware pattern heuristics to catch
+things traditional linters miss. Complements hard CI tests; branches are assignable by
+the user.
+
+---
+
+### Invocation
+
+```
+/lint-review [TARGET] [OPTIONS]
+```
+
+**TARGET** (optional, default: current staged changes)
+- `pr <number>` — lint all files changed in a GitHub PR
+- `staged` — lint git-staged files
+- `diff <file>` — lint files from a unified diff file
+- `files <path>...` — lint explicit files or directories
+
+**OPTIONS**
+| Flag | Description |
+|------|-------------|
+| `--format text\|json\|markdown` | Output format (default: markdown) |
+| `--config <path>` | Custom `.linting-rules.yml` path |
+| `--post-comment` / `--no-post-comment` | Post result as GitHub PR comment |
+| `--fail-on-warning` | Also fail on warnings (default: errors only) |
+
+---
+
+### What it checks
+
+| Check | Code | Severity | Catches |
+|-------|------|----------|---------|
+| Pylint | C/W/R/E/F | varies | Standard Python quality issues |
+| Hardcoded password/secret | HCS001 | ERROR | `password = "abc123"` |
+| Credentials in URL | HCS002 | ERROR | `https://user:pass@host` |
+| Hardcoded IP address | HCS003 | ERROR | `HOST = "10.0.0.5"` |
+| Hardcoded localhost URL | HCS004 | ERROR | `"http://localhost:8000"` |
+| AWS/GCP access key | HCS005 | ERROR | `AKIAIOSFODNN7EXAMPLE` |
+| FastAPI missing docstring | FAD001 | WARNING | `@router.get("/")` without docstring |
+| useEffect missing deps | RUE001 | WARNING | `useEffect(() => { ... })` with no `[]` |
+| useEffect suspicious deps | RUE002 | INFO | `useEffect(..., [])` references outer vars |
+
+---
+
+### Usage examples
+
+```bash
+# Install dependencies
+uv sync
+
+# Lint PR #42 and post a comment
+uv run lint-pr pr 42 --post-comment
+
+# Lint staged files before commit
+uv run lint-pr staged --format text
+
+# Lint from a saved diff
+uv run lint-pr diff changes.patch
+
+# Lint a whole directory, output JSON
+uv run lint-pr files src/ --format json
+
+# Use custom rules
+uv run lint-pr files src/ --config my-rules.yml
+
+# Run directly without install (script embeds its own deps)
+uv run scripts/lint_pr.py pr 42
+```
+
+---
+
+### Configuration
+
+Copy `.linting-rules.yml` to your project root and edit:
+
+```yaml
+pylint:
+  enabled: true
+  disable: [C0114, C0115]   # suppress module/class docstring warnings
+
+hardcoded_secrets:
+  enabled: true
+  skip_ip_check: false
+
+fastapi_docstring:
+  severity: warning
+
+react_useeffect_deps:
+  severity: warning
+
+github:
+  post_comment: true
+  fail_on_error: true
+  fail_on_warning: false
+```
+
+---
+
+### Triggering the GitHub Action as an agent
+
+The `lint-pr.yml` workflow supports `workflow_dispatch`, so it can be triggered
+programmatically via the GitHub API:
+
+```bash
+gh workflow run lint-pr.yml \
+  -f pr_number=42 \
+  -f format=markdown \
+  -f post_comment=true
+```
+
+Or via the API:
+
+```bash
+curl -X POST \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github.v3+json" \
+  https://api.github.com/repos/OWNER/REPO/actions/workflows/lint-pr.yml/dispatches \
+  -d '{"ref":"main","inputs":{"pr_number":"42","format":"markdown","post_comment":"true"}}'
+```
+
+---
+
+### Extending with custom checks
+
+Implement the `PatternCheck` protocol in `pylinter_assist/checks/`:
+
+```python
+from pylinter_assist.checks.base import CheckResult, PatternCheck, Severity
+from dataclasses import dataclass
+
+@dataclass
+class MyCustomCheck:
+    name: str = "my-check"
+    enabled: bool = True
+
+    def check(self, file_path: str, source: str, config: dict) -> list[CheckResult]:
+        results = []
+        # ... your logic here ...
+        return results
+```
+
+Register it in `pylinter_assist/linter.py` → `Linter.__init__` → `self._pattern_checks`.
+
+---
+
+### Project layout
+
+```
+pylinter-assist/
+├── pylinter_assist/
+│   ├── checks/
+│   │   ├── base.py          # PatternCheck protocol + CheckResult + Severity
+│   │   ├── secrets.py       # HCS001–HCS005 hardcoded secrets/URLs/IPs
+│   │   ├── fastapi.py       # FAD001 FastAPI missing docstrings
+│   │   └── react.py         # RUE001–RUE002 React useEffect deps
+│   ├── linter.py            # Orchestrator: pylint + pattern checks
+│   ├── reporter.py          # text / JSON / Markdown rendering
+│   ├── config.py            # .linting-rules.yml loader with defaults
+│   └── cli.py               # Click CLI (pr / staged / diff / files)
+├── scripts/
+│   └── lint_pr.py           # uv script shebang — runnable without install
+├── .github/workflows/
+│   └── lint-pr.yml          # GitHub Actions using astral-sh/setup-uv
+├── .linting-rules.yml       # Default configuration
+├── .gitignore
+└── pyproject.toml           # uv-managed (dev deps in [tool.uv])
+```

@@ -3,13 +3,35 @@
 Search ground transport options between two cities via SerpAPI Google Maps Directions.
 Returns trains, buses, ferries with duration, price, operator and booking links.
 
-Usage: python3 search_transport.py --from "Rome, Italy" --to "Florence, Italy" --key YOUR_KEY
+Usage: python3 search_transport.py --from "Rome, Italy" --to "Florence, Italy"
+
+API key is read from the SERPAPI_KEY environment variable, or from ~/.serpapi_credentials /
+~/.travel_agent_config (key=value format). Never pass the key as a CLI argument.
 """
 
 import argparse
 import json
+import os
 import sys
 import requests
+
+
+def load_api_key():
+    """Load SerpAPI key from env var or credential files. Never from CLI args."""
+    key = os.environ.get("SERPAPI_KEY")
+    if key:
+        return key
+    for path in [os.path.expanduser("~/.serpapi_credentials"),
+                 os.path.expanduser("~/.travel_agent_config")]:
+        if os.path.exists(path):
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("SERPAPI_KEY="):
+                        return line.split("=", 1)[1].strip()
+    print("ERROR: SERPAPI_KEY not found. Set it as an environment variable or store it in "
+          "~/.serpapi_credentials (SERPAPI_KEY=yourkey).", file=sys.stderr)
+    sys.exit(1)
 
 
 def search_transport(origin, destination, api_key, currency=None):
@@ -114,12 +136,11 @@ def main():
                         help="Origin city/place (e.g. 'Rome, Italy')")
     parser.add_argument("--to", dest="destination", required=True,
                         help="Destination city/place (e.g. 'Florence, Italy')")
-    parser.add_argument("--key", required=True, help="SerpAPI key")
     parser.add_argument("--currency", default=None,
                         help="Preferred currency for display (informational only)")
 
     args = parser.parse_args()
-    search_transport(args.origin, args.destination, args.key, args.currency)
+    search_transport(args.origin, args.destination, load_api_key(), args.currency)
 
 
 if __name__ == "__main__":

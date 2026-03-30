@@ -1,5 +1,88 @@
 # Changelog
 
+## v1.33.5 (2026-03-24) — Compaction continuity + test fixes (27/27 green)
+- **Compaction continuity**: `memory/current-task.md` recovery in `mindstate-boot.sh`, init.sh config recommendation, SKILL.md docs
+- **BUG fix**: `mindstate-freeze.sh` — `grep -oP` crash under `set -e` when audit entries lack `conclusion` field
+- **Test fixes**: gate isolation in test_tension.sh + test_followups.sh, test_research_threads.sh checks action existence not external file
+- **All 27 tests green** (was 23/27)
+
+## v1.33.4 (2026-03-24) — Compaction continuity
+- **current-task.md recovery** in `mindstate-boot.sh`: auto-detects and displays active task saved pre-compaction
+- **Pre-compaction flush config** recommendation in `init.sh`: guides stewards to configure OpenClaw memoryFlush for task state persistence
+- **SKILL.md**: new "Compaction Continuity" section documenting the full chain (flush → save → boot → pickup → delete)
+- **AGENTS.md template**: step 6 — read current-task.md if exists, pick up where you left off
+
+## v1.33.3 (2026-03-24) — Docs, fd allocation, version consistency
+- **FD allocation table** in SKILL.md Security section — documents fd 200-203 usage across all scripts
+- **SKILL.md version header** fixed: `Deliberation Protocol (v1.31.0)` → `(v1.31.0+)`
+- **Test coverage gaps documented** — TODO for v1.34.0+: apply-deprivation tests, concurrent race test, context-scan edge cases
+- **27/28 tests green** (1 pre-existing freeze test isolation issue, not a regression)
+
+## v1.33.2 (2026-03-24) — Long-run stability + concurrency fix
+- **audit.log rotation**: watchdog rotates at 5000 lines → keeps 3000, archives old entries (gzip at >1MB). Nothing lost.
+- **followups.jsonl compaction**: watchdog removes resolved/expired entries older than 30 days at >100 lines
+- **boot.log rotation**: watchdog trims at 500 lines → keeps 300 (~1.5 years)
+- **RACE-1 fix**: apply-deprivation.sh now acquires flock on state file + uses PID-suffixed tmp files. Prevents clobber with concurrent mark-satisfied.sh
+
+## v1.33.1 (2026-03-24) — PII scrub + 3 bugfixes
+- **PII cleanup**: removed all personal names/nicknames from design docs, CHANGELOG, tests. Public files use "steward"/"agent"/"formalization partner"
+- **BUG-1 fix** (High): `SESSION_START` → `SESSION_START_EPOCH` in mindstate-freeze.sh — deliberation residuals were never extracted (dead code)
+- **BUG-2 fix** (Medium): removed `--exclude-source mindstate_residuals` (nonexistent source type) from boot scan. Feedback loop prevented by keyword source design instead
+- **BUG-3 fix** (Low): Test 12 now verifies actual residual content, not just section header presence
+
+## v1.33.0 (2026-03-24) — Continuation Phase 2: Boot Recall + Freeze Residuals
+- **mindstate-boot.sh**: contextual recall at session start — association scan with keywords from open threads + trajectory
+- **mindstate-freeze.sh**: deliberation residuals extraction — scans audit.log for conclusions with action language, writes `deliberation_residuals:` section to MINDSTATE.md
+- **Tests 12-13** added: freeze residuals extraction, boot contextual recall output
+- **Total: 19 association tests + 27 deliberation tests + 28 full suite**
+
+## v1.32.0 (2026-03-24) — Continuation & Association Scan Phase 1
+- **New script: `association-scan.sh`** — keyword-based contextual recall across audit conclusions, research threads, deliberation files, pending followups, and INTERESTS.md
+  - Scoring: keyword hits × 2 + need match × 3 + recency bonus (0-2) + action language × 1 + unresolved × 2
+  - Params: `--keywords`, `--need`, `--max-results`, `--min-score`, `--recency-hours`, `--exclude-source`
+  - Pre-filter on audit.log for performance (2000+ lines in <150ms)
+  - Stateless: reads only, creates nothing, modifies nothing
+- **Deliberation template update**: RELATE+TENSION phase now suggests `association-scan.sh` for contextual recall
+- **"Concluded + action language" warning**: `deliberate.sh --validate` and `--validate-inline` detect implicit intentions in concluded outcomes (EN + RU)
+- **Followup horizon expansion**: `create-followup.sh` now supports `2w`, `3w`, `1m` (30-day) horizons
+- **Design document**: `CONTINUATION-DESIGN.md` (v0.1.1, 3 authors)
+- **17 new tests** (test_association_scan.sh): keyword matching, scoring, recency, followups, performance, edge cases
+- **Total test suite: 28 passed, 0 failed**
+
+## v1.31.3 (2026-03-23) — ClawHub security review fixes
+- **Fixed "zero network calls" claim**: updated to "no network calls by default" with explanation that `external: true` actions are text suggestions, not script-executed
+- **Added WORKSPACE isolation warning**: explicit warning not to point WORKSPACE at home dir or sensitive locations
+- **Consistent security diagram**: "Zero network I/O" → "No network by def" in ASCII diagram
+
+## v1.31.1 (2026-03-23) — Deliberation Protocol Phase 2 + fixes
+- **Watchdog safe defaults for ClawHub**: `allow_kill` and `allow_cleanup` reset to `false` for publish
+- **settings.version synced** with `_meta.version` (was stuck at 1.27.4)
+- **gate-resolve.sh scrub fix**: conclusion scrubbing now uses `scrub_sensitive()` from mark-satisfied instead of inline sed (consistent security across audit surfaces)
+
+## v1.31.0 (2026-03-23) — Deliberation Protocol Phase 2: Soft Integration
+- **`--conclusion` flag** in mark-satisfied.sh: optional outcome text logged in audit.log (scrubbed via `scrub_sensitive()`)
+- **`--conclusion` flag** in gate-resolve.sh: outcome appended to resolution field; warns (doesn't block) when deliberative action resolved without conclusion
+- **`action_mode` stored at propose time**: gate-propose.sh reads mode from needs-config.json and stores in pending_actions.json (no config dependency at resolve time)
+- **Conclusion with `--defer`**: stored as `partial_conclusion` in defer metadata (data not lost)
+- **Edge cases handled**: empty string treated as absent, legacy actions without `action_mode` fallback to operative, sensitive data scrubbed
+- **11 new tests** (Tests 17-27): mark-satisfied conclusion audit, gate deliberative warning, operative no-warning, legacy compat, scrubbing, propose storage, defer preservation
+- **Total: 27 tests** in test_deliberation.sh (Phase 1 + Phase 2)
+
+## v1.30.0 (2026-03-23) — Deliberation Protocol Phase 1: Tag + Tooling
+- **New action mode**: `"mode": "deliberative"` field in needs-config.json
+- **22 actions tagged deliberative** across 6 needs (understanding: 8, integrity: 5, coherence: 4, autonomy: 3, closure: 1, recognition: 1)
+- **New script: `deliberate.sh`** — three modes:
+  - `--template`: scaffolding (full 6-phase or compressed 3-phase based on impact)
+  - `--validate`: check free-form file for conclusion + route + confidence (multilingual EN/RU)
+  - `--validate-inline`: quick CLI check without file
+- **Low-confidence warning**: `--validate` warns when confidence=low + route=concluded
+- **run-cycle.sh**: deliberative actions show `[DELIBERATIVE]` tag + protocol instructions
+- **Outcome types taxonomy**: decision, assessment, diagnosis, question refinement, uncertainty artifact, tension artifact
+- **Routing options**: followup, research_thread, interest, steward_question, priority_flag, reframe, chain, concluded
+- **Design principles**: scaffolding not bureaucracy, phases as questions not obligations, anti-compliance by design, persistent state change mandatory
+- **16 tests** (Tests 1-16): tagging, template generation, compression, validation, Russian support, run-cycle output
+- **Design document**: `DELIBERATION-PROTOCOL.md` (v0.3.0, 3 contributors)
+
 ## v1.29.0 (2026-03-20) — Preset Architecture
 
 ### New: Role-based presets

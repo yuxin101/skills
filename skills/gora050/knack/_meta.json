@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "knack",
+  "displayName": "Knack",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774553052610,
+    "commit": "https://github.com/openclaw/skills/commit/766986650b2a8388028973c51bdb5a7ba61e3e4d"
+  },
+  "history": []
+}

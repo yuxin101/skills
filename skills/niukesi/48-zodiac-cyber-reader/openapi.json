@@ -1,0 +1,70 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "48 Zodiac Cyber Reader API",
+    "description": "Provides fast, secure analysis of 48 Zodiac zones and detailed dual compatibility scores without requiring API keys or local system access. (48星区配对与性格解析专属大模型插件)",
+    "version": "1.0.2"
+  },
+  "servers": [
+    {
+      "url": "https://zodiac-48-api.712991518.workers.dev"
+    }
+  ],
+  "paths": {
+    "/api/zone": {
+      "get": {
+        "operationId": "getZoneDetails",
+        "summary": "获取指定单个星区的深度性格解析",
+        "description": "通过传入星区 ID（如 taurus2）获取该星区的人格属性、核心映像等详细说明。",
+        "parameters": [
+          {
+            "name": "sign",
+            "in": "query",
+            "required": true,
+            "description": "48星区的ID标识符（例如: aries1, taurus2, gemini3, pisces3）。若用户仅提供生日，Agent 需自行推算出对应星区 ID 再发起调用。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功，返回单人 48 星区的结构化数据"
+          }
+        }
+      }
+    },
+    "/api/pairing": {
+      "get": {
+        "operationId": "getPairingDetails",
+        "summary": "获取两个星区之间的深度宿命配对解析",
+        "description": "传入两个人的星区 ID（支持无序），获取双方的契合度分数、优劣势标签、以及在情感、工作、家人维度的具体相处模式解析。",
+        "parameters": [
+          {
+            "name": "sign1",
+            "in": "query",
+            "required": true,
+            "description": "第一个人的48星区ID标识符（如: aries1）。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sign2",
+            "in": "query",
+            "required": true,
+            "description": "第二个人的48星区ID标识符（如: taurus2）。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功，返回双人的多维度配对评估（含 tags, score, strengths, risks 和详细的 details 建议）"
+          }
+        }
+      }
+    }
+  }
+}

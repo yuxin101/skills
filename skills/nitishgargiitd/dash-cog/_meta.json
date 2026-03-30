@@ -1,13 +1,18 @@
 {
   "owner": "nitishgargiitd",
   "slug": "dash-cog",
-  "displayName": "dash-cog",
+  "displayName": "Dash Cog",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1770774030022,
-    "commit": "https://github.com/openclaw/skills/commit/e01eba5742e9de2e451b49557073a619ae42f16a"
+    "version": "1.0.3",
+    "publishedAt": 1774585033706,
+    "commit": "https://github.com/openclaw/skills/commit/f435a1e5451982f5ad442c9a40cbefed386e44c8"
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1770774030022,
+      "commit": "https://github.com/openclaw/skills/commit/e01eba5742e9de2e451b49557073a619ae42f16a"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1770270630187,

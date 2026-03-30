@@ -1,13 +1,18 @@
 {
   "owner": "nitishgargiitd",
   "slug": "story-cog",
-  "displayName": "story-cog",
+  "displayName": "Story Cog",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1770774488347,
-    "commit": "https://github.com/openclaw/skills/commit/c5ee483f39c402df6dee361ac8ffa3b1eb88ce31"
+    "version": "1.0.2",
+    "publishedAt": 1774585093086,
+    "commit": "https://github.com/openclaw/skills/commit/997747e769aaa589cf10cb296e94dbad6bf3db35"
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1770774488347,
+      "commit": "https://github.com/openclaw/skills/commit/c5ee483f39c402df6dee361ac8ffa3b1eb88ce31"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1770408670748,

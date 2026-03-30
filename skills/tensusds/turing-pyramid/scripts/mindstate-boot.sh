@@ -195,6 +195,16 @@ if (( ${#confirmations[@]} > 0 || ${#prediction_errors[@]} > 0 )); then
     echo ""
 fi
 
+# ─── 5a. Current task recovery (post-compaction continuity) ───
+CURRENT_TASK_FILE="${WORKSPACE:-}/memory/current-task.md"
+if [[ -f "$CURRENT_TASK_FILE" ]]; then
+    echo "⚡ ACTIVE TASK (saved pre-compaction):"
+    cat "$CURRENT_TASK_FILE" | head -20
+    echo ""
+    echo "  → Pick up where you left off, then delete memory/current-task.md"
+    echo ""
+fi
+
 # Open threads (from cognition)
 echo "Open threads:"
 in_threads=false
@@ -210,6 +220,46 @@ while IFS= read -r line; do
     fi
 done < "$MINDSTATE_FILE"
 echo ""
+
+# ─── 5b. Contextual recall (association scan) ───
+ASSOC_SCRIPT="$SCRIPT_DIR/association-scan.sh"
+if [[ -x "$ASSOC_SCRIPT" ]]; then
+    # Build keywords from open threads + high-level context
+    boot_keywords=""
+
+    # Extract open thread words (>4 chars)
+    in_threads=false
+    while IFS= read -r line; do
+        if [[ "$line" == "open_threads:" ]]; then
+            in_threads=true; continue
+        fi
+        if $in_threads && [[ "$line" =~ ^[[:space:]]*-[[:space:]] ]]; then
+            thread_text=$(echo "$line" | sed 's/^[[:space:]]*-[[:space:]]*//')
+            thread_words=$(echo "$thread_text" | tr ' ' '\n' | awk 'length > 4' | head -3 | tr '\n' ' ')
+            boot_keywords="$boot_keywords $thread_words"
+        elif $in_threads && [[ ! "$line" =~ ^[[:space:]] ]]; then
+            break
+        fi
+    done < "$MINDSTATE_FILE"
+
+    # Add trajectory words if available
+    if [[ -n "${trajectory:-}" ]]; then
+        traj_words=$(echo "$trajectory" | tr ' ' '\n' | awk 'length > 4' | head -3 | tr '\n' ' ')
+        boot_keywords="$boot_keywords $traj_words"
+    fi
+
+    boot_keywords=$(echo "$boot_keywords" | xargs) # trim
+
+    if [[ -n "$boot_keywords" ]]; then
+        echo "Contextual recall:"
+        # Note: no --exclude-source needed — boot keywords come from open_threads
+        # and trajectory only, not from deliberation_residuals section.
+        # Residuals are already shown in MINDSTATE cognition block above.
+        bash "$ASSOC_SCRIPT" --keywords "$boot_keywords" --max-results 5 \
+            --recency-hours 336 2>/dev/null || true
+        echo ""
+    fi
+fi
 
 echo "═══════════════════════════════════════"
 

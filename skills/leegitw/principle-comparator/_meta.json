@@ -3,11 +3,16 @@
   "slug": "principle-comparator",
   "displayName": "Principle Comparator",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1771895604524,
-    "commit": "https://github.com/openclaw/skills/commit/b21d5386c069292bfd42b587b93edf29b47c2ff3"
+    "version": "1.0.3",
+    "publishedAt": 1774471989275,
+    "commit": "https://github.com/openclaw/skills/commit/2e36a2fb8687477b25ec2af1a36cd6143998181a"
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1771895604524,
+      "commit": "https://github.com/openclaw/skills/commit/b21d5386c069292bfd42b587b93edf29b47c2ff3"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1770708218318,

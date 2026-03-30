@@ -45,7 +45,7 @@ backup_dir "$WORKSPACE_WHATSAPP" "workspace-whatsapp"
 echo ""
 echo "=== Audit ==="
 AUDIT_LOG="$RUN_DIR/audit.txt"
-bash "$SKILL_DIR/scripts/openclaw-audit.sh" | tee "$AUDIT_LOG"
+"$SKILL_DIR/scripts/openclaw-audit.sh" | tee "$AUDIT_LOG"
 echo "[OK] Audit log: $AUDIT_LOG"
 
 echo ""
@@ -63,8 +63,18 @@ if [[ "$APPLY_SETUP" = true ]]; then
 fi
 
 echo ""
+echo "=== Verification ==="
+VERIFY_LOG="$RUN_DIR/verify.txt"
+if bash "$SKILL_DIR/scripts/verify.sh" | tee "$VERIFY_LOG"; then
+  echo "[OK] Verify log: $VERIFY_LOG"
+else
+  echo "[WARN] Verify reported issues: $VERIFY_LOG"
+fi
+
+echo ""
 echo "=== Next ==="
 echo "1) Review backup archives under: $RUN_DIR"
-echo "2) Review logs: audit.txt and setup-preview.txt"
-echo "3) If setup was not applied, run preflight with --apply-setup or run setup.sh --apply after review"
-echo "4) For purge, use approval flow and run purge script without --delete unless immediate removal is intended"
+echo "2) Review logs: audit.txt, setup-preview.txt, and verify.txt"
+echo "3) If verify reports legacy paths or stale workspace wiring, run setup.sh --apply from the installed skill path"
+echo "4) If setup was not applied, run preflight with --apply-setup or run setup.sh --apply after review"
+echo "5) For purge, use approval flow and run purge script without --delete unless immediate removal is intended"

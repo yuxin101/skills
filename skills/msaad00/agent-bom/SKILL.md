@@ -1,13 +1,13 @@
 ---
 name: agent-bom
 description: >-
-  Security scanner for AI infrastructure and supply chain — discovers MCP clients
-  and servers, scans for CVEs, maps blast radius, generates SBOMs, runs CIS
-  benchmarks (AWS, Azure, GCP, Snowflake), OWASP/NIST/MITRE compliance, AISVS
-  v1.0, MAESTRO layer tagging, and vector database security checks. Use when the
-  user mentions vulnerability scanning, MCP server trust, compliance, SBOM
-  generation, CIS benchmarks, blast radius, or AI supply chain risk.
-version: 0.75.0
+  Open security platform for agentic infrastructure — broad scanning plus MCP
+  discovery, CVEs, blast radius, SBOMs, CIS benchmarks (AWS, Azure, GCP,
+  Snowflake), OWASP/NIST/MITRE compliance, AISVS v1.0, MAESTRO layer tagging,
+  and vector database security checks. Use when the user mentions vulnerability
+  scanning, MCP server trust, compliance, SBOM generation, CIS benchmarks,
+  blast radius, or AI supply chain risk.
+version: 0.75.10
 license: Apache-2.0
 compatibility: >-
   Requires Python 3.11+. Install via pipx or pip. No credentials required for
@@ -24,7 +24,7 @@ metadata:
   install:
     pipx: agent-bom
     pip: agent-bom
-    docker: ghcr.io/msaad00/agent-bom:0.75.0
+    docker: ghcr.io/msaad00/agent-bom:0.75.10
   openclaw:
     requires:
       bins: []
@@ -239,7 +239,7 @@ agent-bom where             # show all discovery paths
 | [scan](scan/SKILL.md) | CVE scanning, image scanning, SBOM, provenance | "check package", "scan image", "verify", "blast radius" |
 | [scan-infra](scan-infra/SKILL.md) | IaC, cloud config, secrets scanning | "check terraform", "scan kubernetes", "find secrets" |
 | [enforce](enforce/SKILL.md) | Runtime policy enforcement, MCP proxy | "block risky calls", "apply policy", "proxy" |
-| [compliance](compliance/SKILL.md) | 14-framework compliance, SBOM generation | "compliance report", "NIST", "SOC 2", "OWASP" |
+| [compliance](compliance/SKILL.md) | 11-framework compliance, SBOM generation | "compliance report", "NIST", "SOC 2", "OWASP" |
 | [monitor](monitor/SKILL.md) | Fleet monitoring, trust scores, lifecycle | "fleet", "watch agents", "trust scores" |
 | [analyze](analyze/SKILL.md) | Blast radius, attack paths, context graph | "blast radius", "threat intel", "attack path" |
 | [troubleshoot](troubleshoot/SKILL.md) | Diagnostics, doctor, config validation | "doctor", "debug", "why failing", "validate config" |
@@ -398,6 +398,6 @@ provider's own APIs.
 ## Verification
 
 - **Source**: [github.com/msaad00/agent-bom](https://github.com/msaad00/agent-bom) (Apache-2.0)
-- **Sigstore signed**: `agent-bom verify agent-bom@0.75.0`
+- **Sigstore signed**: `agent-bom verify agent-bom@0.75.10`
 - **6,533+ tests** with CodeQL + OpenSSF Scorecard
 - **No telemetry**: Zero tracking, zero analytics

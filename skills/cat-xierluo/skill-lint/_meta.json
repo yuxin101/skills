@@ -1,0 +1,11 @@
+{
+  "owner": "cat-xierluo",
+  "slug": "skill-lint",
+  "displayName": "Skill Lint",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774355256022,
+    "commit": "https://github.com/openclaw/skills/commit/961c395ade1f8837ca2df220d48633e52fa8a225"
+  },
+  "history": []
+}

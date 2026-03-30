@@ -1,0 +1,17 @@
+{
+  "owner": "jijinbao-code",
+  "slug": "github-to-skill",
+  "displayName": "GitHub to Skill Converter",
+  "latest": {
+    "version": "1.0.6",
+    "publishedAt": 1774580498985,
+    "commit": "https://github.com/openclaw/skills/commit/a37c45661be3b56637acf3713fd5c577bb02e6e7"
+  },
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774579188263,
+      "commit": "https://github.com/openclaw/skills/commit/a411b1d149547f800a5bd454557342e2e683fd5c"
+    }
+  ]
+}

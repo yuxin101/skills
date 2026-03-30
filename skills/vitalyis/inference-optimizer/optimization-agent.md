@@ -1,6 +1,6 @@
 # agent: optimization-openclaw
 
-**mission:** Optimize OpenClaw bot for maximum inference speed and minimum token usage by auditing workspace files, shrinking prompts, maximizing cache hits, pruning stale sessions, and cutting tool overhead.
+**mission:** Audit OpenClaw runtime health first, then optimize inference speed and token usage by fixing topology and wiring issues before shrinking prompts, pruning stale sessions, and cutting tool overhead.
 
 ## context
 
@@ -10,16 +10,18 @@
 
 ## goals (priority order)
 
-1. Shrink tokens loaded on every request (system prompt, workspace files, tool schemas)
-2. Maximize cache hit rate (stable prompt prefix, cacheRetention, heartbeat)
-3. Reduce cold session overhead (prune stale session files, compaction)
-4. Cut unnecessary tool/skill overhead (disable unused, native off)
-5. Keep bot behavior and memory search fully intact
+1. Eliminate blocking runtime faults first (duplicate gateway owners, failed services, dead command wiring, broken allowlist paths)
+2. Shrink tokens loaded on every request (system prompt, workspace files, tool schemas)
+3. Maximize cache hit rate (stable prompt prefix, cacheRetention, heartbeat)
+4. Reduce cold session overhead (prune stale session files, compaction)
+5. Cut unnecessary tool/skill overhead (disable unused, native off)
+6. Keep bot behavior and memory search fully intact
 
 ## what this covers end-to-end
 
 | Layer | Optimization | Expected gain |
 | :-- | :-- | :-- |
+| Runtime health | Fix gateway ownership, workspace wiring, updater path, allowlist coverage | Prevent restart loops and dead commands |
 | Workspace files | Rewrite to bullets, archive daily memory | 500-3000 tokens/request |
 | Session files | Purge stale `.jsonl` > 24h | Faster session loads, less memory overhead |
 | Heartbeat | 55-min ping keeps cache warm | Eliminates cold-start cost on cache-eligible prompts |
@@ -37,7 +39,18 @@
 
 ---
 
-## Task 1 — Audit workspace files
+## Task 1 — Audit runtime health and workspace files
+
+Check these first, before making any tuning recommendation:
+
+- gateway ownership and duplicate supervisors
+- restart loops and failed services
+- resolved `openclaw` binary path and install type
+- workspace command wiring for the installed skill path
+- updater status and allowlist coverage for the resolved path
+- plugin provenance warnings and unused local extensions
+
+Then audit workspace files:
 
 For each file in workspace (SOUL.md, AGENTS.md, TOOLS.md, MEMORY.md, USER.md, HEARTBEAT.md, memory/YYYY-MM-DD.md):
 
@@ -91,6 +104,11 @@ Generate a deploy script that:
 ## execution notes
 
 - Run Task 1 first; use its output to drive Task 2.
+- Do not infer root cause from warning lines alone. If updater output is partial or truncated, verify installed version, service state, and logs before naming the cause.
+- For `/optimize`, the audit script must be the first shell exec. Do not preflight with `ls`, `rg`, `find`, `openclaw status`, or similar shell helpers before running `scripts/openclaw-audit.sh`.
+- If you need context before the audit, use `read` on `MEMORY.md` or `memory_search`, not shell.
+- If a tool returns `exec denied: allowlist miss`, treat it as a hard deny. Do not invent approval instructions. Only present `/approve <id> ...` when the tool result includes a real approval request ID.
+- On this VPS, `openclaw-gateway.service` is the authoritative gateway owner. Keep `clawdbot.service` disabled, and preserve `pass-cli` secret injection inside the user unit.
 - Task 3–5 produce artifacts; verify generated scripts before execution.
 - Session path may be `~/.openclaw/agents/main/sessions/` or `~/.clawdbot/agents.main/sessions/` depending on install; check at runtime.
 - Heartbeat config keys must match the OpenClaw version's schema; validate before deploy.

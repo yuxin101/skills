@@ -1,4 +1,5 @@
 const db = require('./db');
+const { embed } = require('./embedding-client');
 const {
   getPhase2Config,
   shouldScrubForContext,
@@ -6,18 +7,6 @@ const {
   mergeTagsWithMetadata,
   deriveMergePlan
 } = require('./brainx-phase2');
-
-// Env loading moved to CLI entry points (brainx-v5, scripts/*).
-// This library only reads process.env at runtime.
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
-const EMBEDDING_DIMENSIONS = parseInt(process.env.OPENAI_EMBEDDING_DIMENSIONS || '1536', 10);
-
-function requireOpenAIConfig() {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is required');
-  }
-}
 
 function normalizeLifecycle(memory = {}) {
   const now = new Date();
@@ -47,74 +36,6 @@ function tierImpact(tier) {
     case 'archive': return 0.2;
     default: return 0.5;
   }
-}
-
-// ── Rate limiting & retry config ─────────────────────
-const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 1000;
-const MAX_DELAY_MS = 10000;
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function calculateDelay(attempt) {
-  const exponential = BASE_DELAY_MS * Math.pow(2, attempt);
-  const jitter = Math.random() * 1000;
-  return Math.min(exponential + jitter, MAX_DELAY_MS);
-}
-
-async function embed(text) {
-  requireOpenAIConfig();
-
-  if (text === null || text === undefined) {
-    throw new Error('embed() requires a non-null/undefined input');
-  }
-  const inputText = typeof text === 'string' ? text : String(text);
-
-  let lastError;
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: EMBEDDING_MODEL,
-          input: inputText,
-          dimensions: EMBEDDING_DIMENSIONS
-        })
-      });
-
-      if (res.status === 429) {
-        const retryAfter = res.headers.get('retry-after');
-        const delayMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : calculateDelay(attempt);
-        if (attempt < MAX_RETRIES - 1) {
-          await sleep(delayMs);
-          continue;
-        }
-      }
-
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(`OpenAI embeddings failed: ${res.status} ${msg}`);
-      }
-
-      const data = await res.json();
-      const vec = data?.data?.[0]?.embedding;
-      if (!Array.isArray(vec)) throw new Error('Invalid embedding response');
-      return vec;
-    } catch (err) {
-      lastError = err;
-      if (attempt < MAX_RETRIES - 1) {
-        await sleep(calculateDelay(attempt));
-      }
-    }
-  }
-
-  throw lastError || new Error('embed() failed after max retries');
 }
 
 async function upsertPatternRecord(client, memory) {
@@ -387,6 +308,7 @@ async function search(query, options = {}) {
     WHERE importance >= $2
       AND superseded_by IS NULL
       AND (expires_at IS NULL OR expires_at > NOW())
+      AND embedding IS NOT NULL
   `;
 
   const params = [JSON.stringify(queryEmbedding), minImportance];
@@ -421,6 +343,19 @@ async function search(query, options = {}) {
        WHERE id = ANY($1)`,
       [ids]
     );
+  }
+
+  // PII scrub on search results (defense-in-depth)
+  const cfg = getPhase2Config();
+  for (const row of filtered) {
+    if (row.content) {
+      const scrubbed = scrubTextPII(row.content, { enabled: true, replacement: cfg.piiScrubReplacement });
+      row.content = scrubbed.text || scrubbed;
+    }
+    if (row.context) {
+      const scrubbed = scrubTextPII(row.context, { enabled: true, replacement: cfg.piiScrubReplacement });
+      row.context = scrubbed.text || scrubbed;
+    }
   }
 
   return filtered;

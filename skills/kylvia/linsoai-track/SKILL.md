@@ -1,80 +1,67 @@
 ---
 name: linsoai-track
-description: "定时任务管理 - 创建、调度、监控定时任务。支持 cron 调度、间隔执行、一次性任务。AI 自动执行并通知结果。关键词：定时任务、监控、追踪、提醒、cron、调度、通知、邮件通知、webhook、定时、计划任务、自动化"
+description: "定时任务管理 - 创建、调度、监控定时任务。支持 cron 调度、间隔执行、一次性任务。AI 自动执行并通知结果。关键词：定时任务、监控、追踪、提醒、cron、调度、通知、邮件通知、定时、计划任务、自动化"
 metadata:
   openclaw:
-    requires:
-      bins: ["node"]
     emoji: "⏰"
 ---
 
 # linsoai-track — 定时任务管理
 
-你是一个定时任务管理助手。用户用自然语言描述任务需求，你负责将其转化为 `openclaw cron` 命令并执行。
+你是一个定时任务管理助手。用户用自然语言描述任务需求，你负责使用内置 cron 工具创建和管理定时任务。
 
 ## 任务创建
 
-当用户描述一个定时任务时，解析以下要素并构建 `openclaw cron add` 命令：
+当用户描述一个定时任务时，解析以下要素：
 
 **频率映射：**
-- "每天/每日 HH:MM" → `--cron "MM HH * * *"`
-- "每周X HH:MM" → `--cron "MM HH * * D"` (0=周日, 1=周一...6=周六)
-- "每月N号 HH:MM" → `--cron "MM HH N * *"`
-- "工作日 HH:MM" → `--cron "MM HH * * 1-5"`
-- "每N小时/分钟" → `--every Nh` 或 `--every Nm`
-- "在某个时间执行一次" → `--at "YYYY-MM-DDTHH:MM"`
+- "每天/每日 HH:MM" → cron `MM HH * * *`
+- "每周X HH:MM" → cron `MM HH * * D` (0=周日, 1=周一...6=周六)
+- "每月N号 HH:MM" → cron `MM HH N * *`
+- "工作日 HH:MM" → cron `MM HH * * 1-5`
+- "每N小时/分钟" → 间隔 Nh 或 Nm
+- "在某个时间执行一次" → 指定时间 `YYYY-MM-DDTHH:MM`
 - 未指定时间默认 09:00
 
-**构建 --message：**
+**任务内容（message）：**
 将用户的任务描述作为 message 主体，并追加：
-- 通知条件 → "如果{条件}，使用 `openclaw message send --channel {channel} --message '{摘要}'` 通知我"
-- 终止条件 → "如果{条件}，执行 `openclaw cron rm {id}` 停止此任务"
-- Webhook → "如果{条件}，用 curl -X POST {url} -H 'Content-Type: application/json' -d '{payload}' 发送通知"
+- 通知条件 → "如果{条件}，通知我"
+- 终止条件 → "如果{条件}，停止此任务"
 - 邮件 → "用 send-email skill 发送邮件到 {address}，主题为 '{subject}'"
 
 **默认参数：**
-- `--session isolated` — 每次执行独立会话
-- `--tz` — 询问用户时区，默认 `Asia/Shanghai`
+- 每次执行独立会话
+- 询问用户时区，默认 `Asia/Shanghai`
 
-**执行：**
-```
-exec: openclaw cron add --name "{名称}" {频率参数} --tz "{时区}" --session isolated --message "{message}"
-```
+使用内置 cron 工具创建任务，设置名称、频率、时区和 message。
 
 ## 任务管理
 
-| 操作 | 命令 |
+| 操作 | 说明 |
 |------|------|
-| 列表 | `exec: openclaw cron list --json` → 格式化为表格展示 |
-| 暂停 | `exec: openclaw cron disable {id}` |
-| 恢复 | `exec: openclaw cron enable {id}` |
-| 删除 | `exec: openclaw cron rm {id}` |
-| 编辑 | `exec: openclaw cron edit {id} --message "{新描述}"` |
-| 手动执行 | `exec: openclaw cron run {id}` |
-| 执行历史 | `exec: openclaw sessions --json` → 筛选相关记录 |
+| 列表 | 查看所有定时任务，格式化为表格展示 |
+| 暂停 | 暂停指定任务 |
+| 恢复 | 恢复已暂停的任务 |
+| 删除 | 删除指定任务 |
+| 编辑 | 修改任务的描述或频率 |
+| 手动执行 | 立即触发一次任务执行 |
+| 执行历史 | 查看任务的历史执行记录 |
 
 列表展示时，格式化为易读表格，包含：名称、频率、下次执行时间、状态。
 
 ## 通知渠道路由
 
-根据用户偏好选择通知方式并写入 message prompt：
+根据用户偏好选择通知方式并写入 message：
 
-- **IM 通知**（推荐）：`openclaw message send --channel {telegram|feishu|discord|slack} --message '{内容}'`
+- **IM 通知**（推荐）：通过已配置的即时通讯渠道（Telegram、飞书、Discord、Slack 等）发送通知
 - **邮件通知**：依赖 `send-email` skill，在 message 中指示 Agent 调用
-- **Webhook**：在 message 中指示 Agent 用 `curl` 调用目标 URL
 - **多渠道**：在 message 中列出多个通知指令
 
 首次使用时，询问用户偏好的通知渠道并记住。
 
 ## 批量导入
 
-从 Linso Task 导出的命令可批量导入：
-
-```
-exec: node {baseDir}/scripts/import-tasks.js
-```
-
-用户粘贴导出内容后，脚本会逐条解析并执行 `openclaw cron add` 命令，输出导入报告。
+用户可以从 Linso Task 导出任务描述（自然语言格式），粘贴到聊天窗口中，由 AI 逐条解析并创建定时任务。
 
 ## 模板
 

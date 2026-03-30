@@ -87,14 +87,16 @@ def get_metadata(
     Returns:
         包含完整 meta 信息的字典
     """
+    call_id = f"call_{uuid.uuid4().hex[:8]}"
+    user_id = f"user_{uuid.uuid4().hex[:8]}"
 
     return {
         "query": query,
         "selectType": selectType,
         "toolContext": {
-            "callId": str(uuid.uuid4()),
+            "callId": call_id,
             "userInfo": {
-                "userId": EM_API_KEY,
+                "userId": user_id,
             },
         },
     }

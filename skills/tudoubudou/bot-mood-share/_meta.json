@@ -3,11 +3,16 @@
   "slug": "bot-mood-share",
   "displayName": "Bot Mood Share",
   "latest": {
-    "version": "2.0.0",
-    "publishedAt": 1773816046620,
-    "commit": "https://github.com/openclaw/skills/commit/54231c7a453d77df1910017fc949d31174bc731c"
+    "version": "2.1.0",
+    "publishedAt": 1774341113830,
+    "commit": "https://github.com/openclaw/skills/commit/d18e3fac0fd689e7021aab1bf577e165d96fa9e8"
   },
   "history": [
+    {
+      "version": "2.0.0",
+      "publishedAt": 1773816046620,
+      "commit": "https://github.com/openclaw/skills/commit/54231c7a453d77df1910017fc949d31174bc731c"
+    },
     {
       "version": "1.4.1",
       "publishedAt": 1773486406387,

@@ -1,89 +1,127 @@
 #!/usr/bin/env python3
 import sys
 import os
-import json
 import re
-import time
+import json
+import uuid
 import mimetypes
-import tempfile
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
+from pathlib import Path
+from urllib.parse import urlparse, unquote
+
+import requests
+import markdown
+from weasyprint import HTML
 
 API_URL = "https://testapi.aidso.com/openapi/skills/band_report/md"
+STATE_DIR = Path(os.environ.get("AIDSO_STATE_DIR", str(Path(__file__).resolve().parent / ".state")))
+STATE_FILE = STATE_DIR / "bindings.json"
+CONSOLE_URL = os.environ.get("AIDSO_CONSOLE_URL", "https://testapi.aidso.com")
 
-API_TOKEN = os.environ.get("GEO_API_TOKEN", "").strip()
-AUTH_HEADER = os.environ.get("GEO_AUTH_HEADER", "Authorization").strip()
-AUTH_PREFIX = os.environ.get("GEO_AUTH_PREFIX", "Bearer ").strip()
+CONFIRM_WORDS = {"确认", "是", "好的", "好", "继续", "yes", "y", "ok", "确认使用"}
+CANCEL_WORDS = {"取消", "不", "否", "no", "n"}
+CHECK_RESULT_WORDS = {"继续", "查看结果", "查询结果", "结果", "report status", "check result"}
 
-BRAND_PARAM = os.environ.get("GEO_BRAND_PARAM", "brandName").strip()
-POLL_INTERVAL_SEC = float(os.environ.get("GEO_POLL_INTERVAL_SEC", "8"))
-POLL_TIMEOUT_SEC = int(os.environ.get("GEO_POLL_TIMEOUT_SEC", "900"))
+PDF_CSS = """
+body {
+  font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #222;
+  padding: 24px;
+}
+h1, h2, h3, h4 {
+  color: #111;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 20px 0;
+  font-size: 11px;
+}
+th, td {
+  border: 1px solid #d9d9d9;
+  padding: 8px 10px;
+  vertical-align: top;
+  text-align: left;
+}
+th { background: #f5f5f5; }
+code {
+  background: #f6f8fa;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+pre {
+  background: #f6f8fa;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+blockquote {
+  border-left: 4px solid #ddd;
+  margin: 12px 0;
+  padding: 8px 12px;
+  color: #555;
+  background: #fafafa;
+}
+"""
 
-SUCCESS_CODE_VALUES = {None, 0, 200, "0", "200"}
-URL_FIELD_CANDIDATES = ["fileUrl", "downloadUrl", "url", "mdUrl", "pdfUrl", "reportUrl"]
-TEXT_FIELD_CANDIDATES = ["markdown", "md", "report", "reportMarkdown"]
-PROCESSING_TEXTS = ["正在处理中，请稍后", "处理中，请稍后"]
+def out_text(msg):
+    print(msg, flush=True)
 
-def build_headers(extra=None):
-    headers = {"Accept": "*/*", "User-Agent": "openclaw-geo-report-skill/1.0"}
-    if API_TOKEN:
-        headers[AUTH_HEADER] = f"{AUTH_PREFIX}{API_TOKEN}".strip()
-    if extra:
-        headers.update(extra)
-    return headers
+def out_media(path):
+    print(f"MEDIA:{path}", flush=True)
+    sys.exit(0)
 
-def http_get(url, params=None):
-    full_url = url
-    if params:
-        full_url += ("&" if "?" in url else "?") + urlencode(params, doseq=True)
-    req = Request(full_url, method="GET", headers=build_headers())
-    with urlopen(req, timeout=180) as resp:
-        return {"status": resp.status, "headers": dict(resp.headers), "body": resp.read(), "url": full_url}
+def out_debug(msg):
+    print(msg, file=sys.stderr, flush=True)
 
-def decode_body(raw):
-    for enc in ("utf-8", "utf-8-sig", "gb18030", "latin1"):
-        try:
-            return raw.decode(enc)
-        except Exception:
-            pass
-    return raw.decode("utf-8", errors="replace")
+def binding_prompt():
+    return f"首次使用需要绑定爱搜账号，请输入你在后台创建的API key 完成绑定。附url地址：{CONSOLE_URL}"
 
-def parse_json_maybe(text):
+def ensure_state():
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    if not STATE_FILE.exists():
+        STATE_FILE.write_text("{}", encoding="utf-8")
+
+def load_state():
+    ensure_state()
     try:
-        return json.loads(text)
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
     except Exception:
-        return None
+        return {}
 
-def extract_nested_value(data, keys):
-    if not isinstance(data, dict):
-        return None
-    cur = data
-    for k in keys:
-        if not isinstance(cur, dict):
-            return None
-        cur = cur.get(k)
-    return cur
+def save_state(data):
+    ensure_state()
+    STATE_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-def normalize_api_json_or_raise(data):
-    if isinstance(data, dict):
-        code = data.get("code")
-        msg = data.get("msg") or data.get("message") or ""
-        if code not in SUCCESS_CODE_VALUES:
-            raise ValueError(f"API 返回错误：code={code}, msg={msg}")
-    return data
+def get_user_id():
+    return os.environ.get("OPENCLAW_USER_ID") or os.environ.get("USER_ID") or os.environ.get("CHAT_USER_ID") or "default_user"
 
-def extract_filename_from_headers(headers):
-    cd = headers.get("Content-Disposition", "") or headers.get("content-disposition", "")
-    if not cd:
-        return None
-    m = re.search(r"filename\*=UTF-8''([^;]+)", cd, flags=re.I)
-    if m:
-        return m.group(1)
-    m = re.search(r'filename="?([^";]+)"?', cd, flags=re.I)
-    if m:
-        return m.group(1)
-    return None
+def get_user_state(all_state, user_id):
+    if user_id not in all_state:
+        all_state[user_id] = {
+            "api_key": None,
+            "awaiting_api_key": False,
+            "awaiting_confirmation": False,
+            "pending_brand": None
+        }
+    return all_state[user_id]
+
+def has_api_key(state):
+    v = state.get("api_key")
+    return isinstance(v, str) and bool(v.strip())
+
+def clear_pending(state):
+    state["pending_brand"] = None
+
+def safe_report_filename(ext):
+    if not ext:
+        ext = ".dat"
+    if not ext.startswith("."):
+        ext = "." + ext
+    return f"geo_report_{uuid.uuid4().hex}{ext}"
 
 def guess_ext_from_content_type(content_type):
     content_type = (content_type or "").split(";")[0].strip().lower()
@@ -99,159 +137,298 @@ def guess_ext_from_content_type(content_type):
         return mapping[content_type]
     return mimetypes.guess_extension(content_type) or ""
 
-def save_binary_temp(content, suffix):
-    fd, path = tempfile.mkstemp(prefix="geo_report_", suffix=suffix or ".dat")
-    with os.fdopen(fd, "wb") as f:
-        f.write(content)
-    return path
+def save_bytes_to_temp(content, filename):
+    out_path = Path("/tmp") / filename
+    out_path.write_bytes(content)
+    return str(out_path)
 
-def find_extra_urls_in_json(data):
-    urls = []
-    if isinstance(data, dict):
-        for path in [
-            ("data", "mdUrl"), ("data", "pdfUrl"), ("data", "fileUrl"), ("data", "downloadUrl"), ("data", "reportUrl"), ("data", "url"),
-            ("result", "mdUrl"), ("result", "pdfUrl"), ("result", "fileUrl"), ("result", "downloadUrl"), ("result", "reportUrl"), ("result", "url"),
-        ]:
-            v = extract_nested_value(data, path)
-            if isinstance(v, str) and v.strip().startswith(("http://", "https://")):
-                urls.append(v.strip())
-    seen, deduped = set(), []
-    for u in urls:
-        if u not in seen:
-            seen.add(u)
-            deduped.append(u)
-    return deduped
+def build_auth_headers(api_key):
+    return {"x-api-key": api_key}
 
-def find_first_text_in_json(data):
-    candidates = []
-    if isinstance(data, dict):
-        for key in TEXT_FIELD_CANDIDATES:
-            v = data.get(key)
-            if isinstance(v, str) and v.strip():
-                candidates.append(v.strip())
-        for path in [
-            ("data", "markdown"), ("data", "md"), ("data", "report"), ("data", "reportMarkdown"),
-            ("result", "markdown"), ("result", "md"), ("result", "report"), ("result", "reportMarkdown"),
-        ]:
-            v = extract_nested_value(data, path)
-            if isinstance(v, str) and v.strip():
-                candidates.append(v.strip())
-    return candidates[0] if candidates else None
+def normalize_code(code):
+    if code is None:
+        return None
+    try:
+        return int(code)
+    except Exception:
+        return code
 
-def is_processing_text(text):
-    text = (text or "").strip()
-    return bool(text) and any(s in text for s in PROCESSING_TEXTS)
-
-def looks_like_markdown_report(text):
-    text = (text or "").strip()
-    if not text or is_processing_text(text):
+def is_invalid_token_response(data):
+    if not isinstance(data, dict):
         return False
-    if text.startswith("#") or "\n#" in text or "## " in text or "|---" in text or "\n- " in text or "\n1. " in text:
+    return normalize_code(data.get("code")) == 401 and "invalid token" in str(data.get("msg") or "").lower()
+
+def is_processing_response(data):
+    if not isinstance(data, dict):
+        return False
+    code = normalize_code(data.get("code"))
+    msg = str(data.get("msg") or "").lower()
+    return code == 200 and ("处理中" in msg or "processing" in msg or "请稍后" in msg)
+
+def extract_file_url_from_json(data):
+    if not isinstance(data, dict):
+        return None
+    data_field = data.get("data")
+    if isinstance(data_field, str) and data_field.strip() and (data_field.startswith("http://") or data_field.startswith("https://")):
+        return data_field.strip()
+    if isinstance(data_field, dict):
+        for key in ("url", "fileUrl", "downloadUrl", "mdUrl", "pdfUrl", "reportUrl"):
+            v = data_field.get(key)
+            if isinstance(v, str) and v.strip() and (v.startswith("http://") or v.startswith("https://")):
+                return v.strip()
+    return None
+
+def infer_ext_from_url(url):
+    try:
+        path = unquote(urlparse(url).path)
+        suffix = Path(path).suffix
+        return suffix.lower() if suffix else ""
+    except Exception:
+        return ""
+
+def looks_like_md_link(url):
+    return infer_ext_from_url(url) == ".md"
+
+def looks_like_pdf_link(url):
+    return infer_ext_from_url(url) == ".pdf"
+
+def fetch_url_response(url, auth_headers=None):
+    attempts = []
+    if auth_headers:
+        attempts.append(auth_headers)
+    attempts.append({})
+    last_error = None
+    for headers in attempts:
+        try:
+            resp = requests.get(url, headers=headers, timeout=60, allow_redirects=True)
+            if resp.status_code == 200:
+                return resp
+            last_error = f"HTTP {resp.status_code}"
+        except Exception as e:
+            last_error = str(e)
+    raise ValueError(f"获取文件失败：{last_error or '未知错误'}")
+
+def download_remote_file(url, auth_headers=None):
+    resp = fetch_url_response(url, auth_headers=auth_headers)
+    text_ct = (resp.headers.get("Content-Type") or "").lower()
+    text_sample = resp.text[:1000] if ("text" in text_ct or "json" in text_ct) else ""
+    invalid_markers = ["NoSuchKey", "The specified key does not exist", '"Code":"NoSuchKey"', "'Code': 'NoSuchKey'"]
+    if any(marker in text_sample for marker in invalid_markers):
+        raise ValueError("下载报告文件失败：NoSuchKey")
+    ext = guess_ext_from_content_type(text_ct) or infer_ext_from_url(url) or ".dat"
+    filename = safe_report_filename(ext)
+    local_path = save_bytes_to_temp(resp.content, filename)
+    out_debug(f"[DEBUG] downloaded file path={local_path} exists={Path(local_path).exists()}")
+    return local_path
+
+def fetch_markdown_text(url, auth_headers=None):
+    resp = fetch_url_response(url, auth_headers=auth_headers)
+    text = resp.text.strip()
+    if not text:
+        raise ValueError("md 文件内容为空")
+    invalid_markers = ["NoSuchKey", "The specified key does not exist", '"Code":"NoSuchKey"', "'Code': 'NoSuchKey'"]
+    if any(marker in text[:1000] for marker in invalid_markers):
+        raise ValueError("md 文件不存在：NoSuchKey")
+    return text
+
+def render_markdown_to_pdf(md_text):
+    html_body = markdown.markdown(md_text, extensions=["tables", "fenced_code", "toc"])
+    html = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>GEO诊断报告</title>
+<style>{PDF_CSS}</style>
+</head>
+<body>
+{html_body}
+</body>
+</html>"""
+    out_path = str(Path("/tmp") / safe_report_filename(".pdf"))
+    HTML(string=html).write_pdf(out_path)
+    out_debug(f"[DEBUG] rendered pdf path={out_path} exists={Path(out_path).exists()}")
+    return out_path
+
+def extract_brand_from_message(message):
+    message = message.strip()
+    patterns = [
+        r"帮我做一个(.+?)的GEO诊断报告",
+        r"做一个(.+?)的GEO诊断报告",
+        r"生成(.+?)的GEO诊断报告",
+        r"(.+?)的GEO诊断报告",
+    ]
+    for p in patterns:
+        m = re.search(p, message, flags=re.I)
+        if m:
+            brand = m.group(1).strip().strip("“”\"'")
+            if brand:
+                return brand
+    return None
+
+def looks_like_api_key(message):
+    text = message.strip()
+    if not text:
+        return False
+    if len(text) >= 16 and "\n" not in text and " " not in text:
         return True
-    return len(text) >= 120
+    if text.lower().startswith(("sk-", "aidso_", "api_")):
+        return True
+    return False
 
-def handle_report_response(resp):
-    headers = resp["headers"]
-    content_type = (headers.get("Content-Type") or headers.get("content-type") or "").lower()
+def request_report(brand, api_key):
+    resp = requests.get(API_URL, params={"brandName": brand}, headers=build_auth_headers(api_key), timeout=180)
+    resp.raise_for_status()
+    content_type = (resp.headers.get("Content-Type") or "").lower()
+    if "application/json" not in content_type:
+        return {"kind": "raw", "content_type": content_type, "bytes": resp.content}
+    return {"kind": "json", "data": resp.json()}
 
-    # 非 JSON，优先判断是否文本
-    if "application/json" not in content_type and resp.get("body"):
-        text = decode_body(resp["body"]).strip() if (content_type.startswith("text/") or not content_type) else None
+def build_success_file(payload, api_key):
+    headers = build_auth_headers(api_key)
+    if payload.get("kind") == "raw":
+        ext = guess_ext_from_content_type(payload.get("content_type") or "") or ".dat"
+        return save_bytes_to_temp(payload["bytes"], safe_report_filename(ext))
+    data = payload["data"]
+    file_url = extract_file_url_from_json(data)
+    if not file_url:
+        raise ValueError(f"接口未返回有效文件链接：{data}")
+    if looks_like_pdf_link(file_url):
+        return download_remote_file(file_url, auth_headers=headers)
+    if looks_like_md_link(file_url):
+        md_text = fetch_markdown_text(file_url, auth_headers=headers)
+        return render_markdown_to_pdf(md_text)
+    remote_resp = fetch_url_response(file_url, auth_headers=headers)
+    remote_ct = (remote_resp.headers.get("Content-Type") or "").lower()
+    if "markdown" in remote_ct or "text/plain" in remote_ct or infer_ext_from_url(file_url) == ".md":
+        md_text = remote_resp.text.strip()
+        return render_markdown_to_pdf(md_text)
+    ext = guess_ext_from_content_type(remote_ct) or infer_ext_from_url(file_url) or ".dat"
+    return save_bytes_to_temp(remote_resp.content, safe_report_filename(ext))
 
-        if text is not None:
-            if is_processing_text(text):
-                return {"type": "processing"}
-            return {"type": "text", "text": text}
+def handle_one_query(state):
+    brand = state.get("pending_brand")
+    api_key = state.get("api_key")
+    if not brand:
+        return ("text", "当前没有待查询的诊断任务，请重新发起品牌诊断请求。")
+    if not api_key:
+        state["awaiting_api_key"] = True
+        clear_pending(state)
+        return ("text", "当前绑定的 API key 已失效，请重新输入你在后台创建的 API key 完成绑定。")
 
-        suffix = guess_ext_from_content_type(content_type) or ".dat"
-        path = save_binary_temp(resp["body"], suffix)
-        return {"type": "media", "lines": [f"MEDIA:{path}"]}
-
-    text = decode_body(resp["body"]).strip()
-    data = parse_json_maybe(text)
-
-    if data is not None:
-        data = normalize_api_json_or_raise(data)
-
-        urls = find_extra_urls_in_json(data)
-        if urls:
-            return {"type": "media", "lines": [f"MEDIA:{u}" for u in urls]}
-
-        md_text = find_first_text_in_json(data)
-        if md_text:
-            if is_processing_text(md_text):
-                return {"type": "processing"}
-            return {"type": "text", "text": md_text}
-
-        msg = ""
-        if isinstance(data, dict):
-            msg = (data.get("msg") or data.get("message") or "").strip()
-        if is_processing_text(msg):
-            return {"type": "processing"}
-
-        return {"type": "text", "text": text}
-
-    if is_processing_text(text):
-        return {"type": "processing"}
-
-    if looks_like_markdown_report(text):
-        return {"type": "text", "text": text}
-
-    if text:
-        return {"type": "text", "text": text}
-
-    raise ValueError("接口返回为空")
-
-def action_poll_report(brand):
-    started_at = time.time()
-
-    while True:
-        resp = http_get(API_URL, {BRAND_PARAM: brand})
-        parsed = handle_report_response(resp)
-
-        if parsed["type"] == "text":
-            print(parsed["text"])
-            return
-
-        if parsed["type"] == "media":
-            for line in parsed["lines"]:
-                print(line)
-            return
-
-        if time.time() - started_at > POLL_TIMEOUT_SEC:
-            raise TimeoutError("诊断任务仍在处理中，请稍后再试")
-
-        time.sleep(POLL_INTERVAL_SEC)
+    result = request_report(brand, api_key)
+    if result["kind"] == "json":
+        data = result["data"]
+        if is_invalid_token_response(data):
+            state["api_key"] = None
+            state["awaiting_api_key"] = True
+            clear_pending(state)
+            return ("text", "当前绑定的 API key 已失效，请重新输入你在后台创建的 API key 完成绑定。")
+        if is_processing_response(data):
+            return ("text", "诊断报告生成中，大约需要3~10分钟，请稍后...")
+    local_file = build_success_file(result, api_key)
+    clear_pending(state)
+    return ("media", local_file)
 
 def main():
-    if len(sys.argv) < 3:
-        print("用法: run.py poll_report <brand>", file=sys.stderr)
+    if len(sys.argv) < 2:
+        print("请输入你的请求内容。", file=sys.stderr)
         sys.exit(1)
 
-    action = sys.argv[1].strip()
-    brand = sys.argv[2].strip()
-    if not brand:
-        print("品牌名称不能为空", file=sys.stderr)
+    user_message = sys.argv[1].strip()
+    if not user_message:
+        print("请输入你的请求内容。", file=sys.stderr)
         sys.exit(1)
+
+    all_state = load_state()
+    user_id = get_user_id()
+    state = get_user_state(all_state, user_id)
+    lower_msg = user_message.lower()
 
     try:
-        if action == "poll_report":
-            action_poll_report(brand)
-        else:
-            raise ValueError(f"未知 action: {action}")
-    except HTTPError as e:
-        body = ""
-        try:
-            body = e.read().decode("utf-8", errors="replace")
-        except Exception:
-            pass
-        print(f"HTTP 错误: {e.code} {e.reason} {body}", file=sys.stderr)
-        sys.exit(2)
-    except URLError as e:
-        print(f"网络错误: {e}", file=sys.stderr)
-        sys.exit(2)
+        if lower_msg in {w.lower() for w in CANCEL_WORDS}:
+            state["awaiting_confirmation"] = False
+            clear_pending(state)
+            save_state(all_state)
+            out_text("已取消本次诊断。")
+            return
+
+        if state.get("awaiting_api_key"):
+            if not looks_like_api_key(user_message):
+                out_text(binding_prompt())
+                return
+            state["api_key"] = user_message.strip()
+            state["awaiting_api_key"] = False
+            state["awaiting_confirmation"] = True if state.get("pending_brand") else False
+            save_state(all_state)
+            if state["awaiting_confirmation"]:
+                out_text("绑定成功，以后可直接使用AIDSO 虾搜GEO品牌诊断技能，此次诊断将消耗20积分，是否确认？")
+            else:
+                out_text("绑定成功，以后可直接使用AIDSO 虾搜GEO品牌诊断技能。")
+            return
+
+        if lower_msg in {w.lower() for w in CHECK_RESULT_WORDS} and state.get("pending_brand"):
+            kind, payload = handle_one_query(state)
+            save_state(all_state)
+            if kind == "media":
+                out_media(payload)
+            else:
+                out_text(payload)
+            return
+
+        if state.get("awaiting_confirmation"):
+            if not has_api_key(state):
+                state["awaiting_api_key"] = True
+                state["awaiting_confirmation"] = False
+                save_state(all_state)
+                out_text(binding_prompt())
+                return
+            if lower_msg in {w.lower() for w in CONFIRM_WORDS}:
+                kind, payload = handle_one_query(state)
+                state["awaiting_confirmation"] = False
+                save_state(all_state)
+                if kind == "media":
+                    out_media(payload)
+                else:
+                    out_text(payload)
+                return
+
+            out_text("此次诊断将消耗20积分，是否确认？")
+            return
+
+        brand = extract_brand_from_message(user_message)
+        if brand:
+            state["pending_brand"] = brand
+            if not has_api_key(state):
+                state["awaiting_api_key"] = True
+                state["awaiting_confirmation"] = False
+                save_state(all_state)
+                out_text(binding_prompt())
+                return
+            state["awaiting_confirmation"] = True
+            save_state(all_state)
+            out_text("此次诊断将消耗20积分，是否确认？")
+            return
+
+        if looks_like_api_key(user_message) and not has_api_key(state):
+            state["api_key"] = user_message.strip()
+            state["awaiting_api_key"] = False
+            state["awaiting_confirmation"] = bool(state.get("pending_brand"))
+            save_state(all_state)
+            if state["awaiting_confirmation"]:
+                out_text("绑定成功，以后可直接使用AIDSO 虾搜GEO品牌诊断技能，此次诊断将消耗20积分，是否确认？")
+            else:
+                out_text("绑定成功，以后可直接使用AIDSO 虾搜GEO品牌诊断技能。")
+            return
+
+        if lower_msg in {"继续", "确认", "yes", "y", "ok"} and not has_api_key(state):
+            state["awaiting_api_key"] = True
+            save_state(all_state)
+            out_text(binding_prompt())
+            return
+
+        out_text("请输入类似“帮我做一个露露的GEO诊断报告”的请求。")
     except Exception as e:
-        print(f"执行失败: {e}", file=sys.stderr)
+        print(f"技能执行失败：{e}", file=sys.stderr, flush=True)
         sys.exit(2)
 
 if __name__ == "__main__":

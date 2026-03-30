@@ -16,6 +16,13 @@
  *   redbook favorites --cookie-source chrome --json
  *   redbook collect <url> --cookie-source chrome
  *   redbook uncollect <url> --cookie-source chrome
+ *   redbook like <url> --cookie-source chrome
+ *   redbook like <url> --undo --cookie-source chrome
+ *   redbook followers <user-id> --cookie-source chrome --json
+ *   redbook following <user-id> --cookie-source chrome --json
+ *   redbook delete <url> --cookie-source chrome
+ *   redbook health --cookie-source chrome --json
+ *   redbook board <board-url> --cookie-source chrome --json
  */
 
 import { Command } from "commander";
@@ -35,6 +42,7 @@ import {
   type StrategyName,
 } from "./lib/reply-strategy.js";
 import { extractTemplate, formatTemplate } from "./lib/template.js";
+import { buildHealthReport, type NoteDiagnostics } from "./lib/health.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8"));
@@ -308,11 +316,46 @@ const userPostsCmd = program
   .description("List a user's posted notes");
 addCookieOption(userPostsCmd);
 addJsonOption(userPostsCmd);
+userPostsCmd.option("--cursor <cursor>", "Resume pagination from a cursor (last note_id)");
+userPostsCmd.option("--all", "Fetch all pages (paginate until no more results)");
+userPostsCmd.option("--delay <ms>", "Delay in ms between page fetches (default: 3000)", "3000");
 
 userPostsCmd.action(async (userId, opts) => {
   try {
     const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
-    const result = await client.getUserNotes(userId);
+
+    if (opts.all) {
+      let cursor: string = opts.cursor ?? "";
+      const allNotes: Array<Record<string, unknown>> = [];
+      let page = 1;
+      while (true) {
+        const res = (await client.getUserNotes(userId, cursor)) as {
+          notes?: Array<Record<string, unknown>>;
+          has_more?: boolean;
+          cursor?: string;
+        };
+        const notes = res.notes ?? [];
+        allNotes.push(...notes);
+        process.stderr.write(`Page ${page}: +${notes.length} notes (total: ${allNotes.length})\n`);
+        if (!res.has_more || !res.cursor || notes.length === 0) break;
+        cursor = res.cursor;
+        page++;
+        await new Promise((r) => setTimeout(r, parseInt(opts.delay)));
+      }
+      if (opts.json) {
+        output({ notes: allNotes, total: allNotes.length }, true);
+      } else {
+        for (const note of allNotes) {
+          console.log(
+            `${kleur.bold(String(note.display_title ?? "(no title)"))}  ${kleur.dim(String(note.note_id ?? ""))}  [${String(note.type ?? "?")}]`
+          );
+        }
+        console.log(kleur.dim(`\n${allNotes.length} notes total`));
+      }
+      return;
+    }
+
+    const result = await client.getUserNotes(userId, opts.cursor ?? "");
     if (opts.json) {
       output(result, true);
     } else {
@@ -550,6 +593,341 @@ uncollectCmd.action(async (url, opts) => {
     handleError(err);
   }
 });
+
+// ─── like ──────────────────────────────────────────────────────────────────
+
+const likeCmd = program
+  .command("like <url>")
+  .description("Like a note")
+  .option("--undo", "Unlike the note instead");
+addCookieOption(likeCmd);
+addJsonOption(likeCmd);
+
+likeCmd.action(async (url, opts) => {
+  try {
+    const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
+    const { noteId } = parseNoteUrl(url);
+    if (opts.undo) {
+      const result = await client.unlikeNote(noteId);
+      if (opts.json) { output(result, true); } else { console.log(kleur.green("Note unliked!")); }
+    } else {
+      const result = await client.likeNote(noteId);
+      if (opts.json) { output(result, true); } else { console.log(kleur.green("Note liked!")); }
+    }
+  } catch (err) {
+    handleError(err);
+  }
+});
+
+// ─── followers ─────────────────────────────────────────────────────────────
+
+const followersCmd = program
+  .command("followers <userId>")
+  .description("List a user's followers")
+  .option("--all", "Fetch all pages");
+addCookieOption(followersCmd);
+addJsonOption(followersCmd);
+
+followersCmd.action(async (userId, opts) => {
+  try {
+    const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
+    const allUsers: unknown[] = [];
+    let cursor = "";
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = (await client.getUserFollowers(userId, cursor)) as {
+        users?: unknown[];
+        has_more?: boolean;
+        cursor?: string;
+      };
+      if (res.users) allUsers.push(...res.users);
+      hasMore = opts.all ? (res.has_more ?? false) : false;
+      cursor = res.cursor ?? "";
+    }
+
+    if (opts.json) {
+      output(allUsers, true);
+    } else {
+      for (const user of allUsers) {
+        const u = user as Record<string, unknown>;
+        console.log(
+          `${kleur.bold(String(u.nickname ?? "?"))}  ${kleur.dim(String(u.user_id ?? ""))}  ${kleur.dim(String(u.desc ?? "").slice(0, 60))}`
+        );
+      }
+      console.log(kleur.dim(`\n${allUsers.length} followers`));
+    }
+  } catch (err) {
+    handleError(err);
+  }
+});
+
+// ─── following ─────────────────────────────────────────────────────────────
+
+const followingCmd = program
+  .command("following <userId>")
+  .description("List accounts a user follows")
+  .option("--all", "Fetch all pages");
+addCookieOption(followingCmd);
+addJsonOption(followingCmd);
+
+followingCmd.action(async (userId, opts) => {
+  try {
+    const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
+    const allUsers: unknown[] = [];
+    let cursor = "";
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = (await client.getUserFollowing(userId, cursor)) as {
+        users?: unknown[];
+        has_more?: boolean;
+        cursor?: string;
+      };
+      if (res.users) allUsers.push(...res.users);
+      hasMore = opts.all ? (res.has_more ?? false) : false;
+      cursor = res.cursor ?? "";
+    }
+
+    if (opts.json) {
+      output(allUsers, true);
+    } else {
+      for (const user of allUsers) {
+        const u = user as Record<string, unknown>;
+        console.log(
+          `${kleur.bold(String(u.nickname ?? "?"))}  ${kleur.dim(String(u.user_id ?? ""))}  ${kleur.dim(String(u.desc ?? "").slice(0, 60))}`
+        );
+      }
+      console.log(kleur.dim(`\n${allUsers.length} following`));
+    }
+  } catch (err) {
+    handleError(err);
+  }
+});
+
+// ─── delete ────────────────────────────────────────────────────────────────
+
+const deleteCmd = program
+  .command("delete <url>")
+  .description("Delete your own note");
+addCookieOption(deleteCmd);
+addJsonOption(deleteCmd);
+
+deleteCmd.action(async (url, opts) => {
+  try {
+    const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
+    const { noteId } = parseNoteUrl(url);
+    const result = await client.deleteNote(noteId);
+    if (opts.json) {
+      output(result, true);
+    } else {
+      console.log(kleur.green("Note deleted!"));
+    }
+  } catch (err) {
+    handleError(err);
+  }
+});
+
+// ─── boards ──────────────────────────────────────────────────────────────────
+
+const boardsCmd = program
+  .command("boards [user-id]")
+  .description("List user's collection boards (收藏专辑列表)");
+addCookieOption(boardsCmd);
+addJsonOption(boardsCmd);
+
+boardsCmd.action(async (userId, opts) => {
+  try {
+    const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
+    let uid = userId;
+    if (!uid) {
+      const me = (await client.getSelfInfo()) as Record<string, string>;
+      uid = me.user_id;
+    }
+    console.error(kleur.dim(`Listing boards for ${uid}...`));
+    const data = (await client.getUserBoards(uid)) as Record<string, unknown>;
+    if (opts.json) {
+      output(data, true);
+    } else {
+      const boards = (data.boards ?? []) as Array<Record<string, unknown>>;
+      const count = (data.board_count ?? boards.length) as number;
+      console.log(kleur.dim(`${count} board(s)\n`));
+      for (const b of boards) {
+        const id = (b.id ?? "") as string;
+        const name = (b.name ?? "(untitled)") as string;
+        const total = (b.total ?? 0) as number;
+        const privacy = b.privacy === 1 ? kleur.yellow(" [private]") : "";
+        console.log(`  ${kleur.bold(name)}  ${kleur.dim(`${total} notes`)}${privacy}  ${kleur.dim(id)}`);
+        if (b.desc && b.desc !== "暂无简介") console.log(`    ${kleur.dim(b.desc as string)}`);
+      }
+    }
+  } catch (err) {
+    handleError(err);
+  }
+});
+
+// ─── board ───────────────────────────────────────────────────────────────────
+
+const boardCmd = program
+  .command("board <url>")
+  .description("List notes in a collection album (收藏专辑)");
+addCookieOption(boardCmd);
+addJsonOption(boardCmd);
+
+boardCmd.action(async (url, opts) => {
+  try {
+    const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
+    const boardId = parseBoardUrl(url);
+
+    console.error(kleur.dim(`Fetching board ${boardId}...`));
+
+    let result: {
+      boardId: string;
+      name: string;
+      desc: string;
+      noteCount: number;
+      notes: Array<{ note_id: string; title: string; author: string; type: string; url: string }>;
+    };
+
+    // Try REST API first, fall back to HTML scraping
+    try {
+      const [info, feeds] = await Promise.all([
+        client.getBoardInfo(boardId) as Promise<Record<string, unknown>>,
+        client.getBoardNotes(boardId) as Promise<Record<string, unknown>>,
+      ]);
+      const rawNotes = (feeds.notes ?? []) as Array<Record<string, unknown>>;
+      const notes = rawNotes.map((n) => ({
+        note_id: (n.note_id ?? n.id ?? "") as string,
+        xsec_token: (n.xsec_token ?? "") as string,
+        title: (n.display_title ?? n.title ?? "") as string,
+        type: (n.type ?? "") as string,
+        author: ((n.user as Record<string, unknown>)?.nick_name ??
+                 (n.user as Record<string, unknown>)?.nickname ?? "") as string,
+        url: `https://www.xiaohongshu.com/explore/${n.note_id ?? n.id}`,
+      }));
+      result = {
+        boardId,
+        name: (info.name ?? "") as string,
+        desc: (info.desc ?? "") as string,
+        noteCount: (info.total ?? notes.length) as number,
+        notes,
+      };
+    } catch {
+      // REST API failed — fall back to HTML scraping
+      console.error(kleur.dim("REST API unavailable, falling back to HTML scraping..."));
+      result = (await client.getBoardFromHtml(boardId)) as typeof result;
+    }
+
+    if (opts.json) {
+      output(result, true);
+    } else {
+      if (result.name) console.log(kleur.bold(result.name));
+      if (result.desc) console.log(kleur.dim(result.desc));
+      console.log();
+      for (const note of result.notes) {
+        console.log(
+          `  ${kleur.bold(note.title || "(no title)")}  ${kleur.dim(`@${note.author || "?"}`)}  [${note.type || "?"}]`
+        );
+        console.log(`    ${kleur.cyan(note.url)}`);
+      }
+      console.log(kleur.dim(`\n${result.notes.length} notes`));
+    }
+  } catch (err) {
+    handleError(err);
+  }
+});
+
+// ─── health ──────────────────────────────────────────────────────────────────
+
+const healthCmd = program
+  .command("health")
+  .description("Check note distribution health — detect hidden rate-limiting (限流)")
+  .option("--all", "Fetch all pages of notes");
+addCookieOption(healthCmd);
+addJsonOption(healthCmd);
+
+healthCmd.action(async (opts) => {
+  try {
+    const client = await getClient(opts.cookieSource, opts.chromeProfile, opts.cookieString);
+
+    // Fetch notes from creator backend (v2 endpoint returns hidden level field)
+    console.error(kleur.dim("Fetching notes from creator backend..."));
+    const allNotes: Record<string, unknown>[] = [];
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = (await client.getCreatorNoteList(0, page)) as {
+        notes?: Record<string, unknown>[];
+        has_more?: boolean;
+      };
+      if (res.notes) allNotes.push(...res.notes);
+      hasMore = opts.all ? (res.has_more ?? false) : false;
+      page++;
+    }
+
+    if (allNotes.length === 0) {
+      console.log(kleur.yellow("No notes found."));
+      return;
+    }
+
+    const report = buildHealthReport(allNotes);
+
+    if (opts.json) {
+      output(report, true);
+      return;
+    }
+
+    // ─── Terminal Dashboard ──────────────────────────────────────────────
+    console.log(kleur.bold("\n📊 Note Health Report"));
+    console.log(kleur.dim("───────────────────────────────────────"));
+
+    // Distribution summary
+    for (const [label, count] of Object.entries(report.distribution)) {
+      const bar = "█".repeat(Math.min(count, 40));
+      console.log(`  ${label.padEnd(14)} ${kleur.dim(bar)} ${count}`);
+    }
+
+    console.log(kleur.dim(`\n  Total: ${report.totalNotes} notes`));
+
+    // Limited notes (level < 1)
+    if (report.limitedNotes.length > 0) {
+      console.log(kleur.red(kleur.bold(`\n⚠ ${report.limitedNotes.length} notes with limited distribution:`)));
+      for (const n of report.limitedNotes) {
+        const flags = formatFlags(n);
+        console.log(`  ${n.levelMeta.emoji} ${kleur.red(`L${n.level}`.padEnd(6))} ${truncate(n.title, 50)}${flags}`);
+      }
+    } else {
+      console.log(kleur.green("\n✓ All notes have normal distribution!"));
+    }
+
+    // Sensitive word warnings
+    if (report.sensitiveNotes.length > 0) {
+      console.log(kleur.yellow(`\n⚠ ${report.sensitiveNotes.length} notes with risk factors:`));
+      for (const n of report.sensitiveNotes) {
+        const reasons: string[] = [];
+        if (n.sensitiveHits.length > 0) reasons.push(`敏感词: ${n.sensitiveHits.join("、")}`);
+        if (n.tagWarning) reasons.push(`标签过多(${n.tagCount}个)`);
+        console.log(`  ${kleur.dim(n.noteId.slice(0, 8))} ${truncate(n.title, 40)} ${kleur.yellow(reasons.join(" | "))}`);
+      }
+    }
+
+    console.log();
+  } catch (err) {
+    handleError(err);
+  }
+});
+
+function formatFlags(n: NoteDiagnostics): string {
+  const parts: string[] = [];
+  if (n.sensitiveHits.length > 0) parts.push(kleur.yellow(`⚠️${n.sensitiveHits.join("、")}`));
+  if (n.tagWarning) parts.push(kleur.yellow(`📛${n.tagCount}tags`));
+  return parts.length > 0 ? "  " + parts.join(" ") : "";
+}
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max) + "…" : s;
+}
 
 // ─── analyze-viral ──────────────────────────────────────────────────────────
 
@@ -964,6 +1342,15 @@ renderCmd.action(async (file, opts) => {
 });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+function parseBoardUrl(url: string): string {
+  if (url.includes("xiaohongshu.com/board/")) {
+    const urlObj = new URL(url);
+    const parts = urlObj.pathname.split("/").filter(Boolean);
+    return parts[parts.length - 1];
+  }
+  return url; // assume raw board ID
+}
 
 function parseNoteUrl(url: string): {
   noteId: string;

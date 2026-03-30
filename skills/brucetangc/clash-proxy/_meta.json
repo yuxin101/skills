@@ -1,0 +1,11 @@
+{
+  "owner": "brucetangc",
+  "slug": "clash-proxy",
+  "displayName": "Clash Proxy",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774496027099,
+    "commit": "https://github.com/openclaw/skills/commit/3db381925c294f7bbaa1136c51068f3b1d72ce04"
+  },
+  "history": []
+}

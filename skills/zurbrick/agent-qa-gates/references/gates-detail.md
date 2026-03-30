@@ -114,6 +114,54 @@ Briefings, summaries, task updates, dashboards.
 - ✅ 2-3 critical paths spot-checked
 - ✅ Passes the relevant gate (1, 2, or 3)
 
+### Isolated Agent / Cron Output (real-world data)
+For any scheduled job or sub-agent that reports external data (bookings, email, health, finance, calendar, API responses) **without going through an orchestrator review step first**:
+
+- ✅ Agent made a verifiable live tool call — the raw API response or CLI output is present or referenced
+- ✅ No proper nouns (names, places, amounts, IDs) that cannot be traced to a tool result
+- ✅ If the tool call failed: output is `DATA_UNAVAILABLE — [reason]`, not plausible-sounding fabricated data
+- ✅ No dates, statuses, or metrics that weren't returned by the live call
+- ✅ The cron/agent prompt includes the Real-World Data Verification Rule (see battle-tested-agent Pattern 2a)
+
+**Severity:** Fabricated real-world data is 🔴 BLOCK. Treat as equivalent to hallucinated metrics in a human-facing briefing.
+
+**Real incident:** A Lodgify cron fabricated three guest names, arrival/departure dates, and cancellation statuses. None existed. Delivered directly to the operator. (2026-03-27)
+
+**Prevention:** Inject this into every external-data cron prompt:
+```
+If the API call fails or returns empty: output ONLY "DATA_UNAVAILABLE — [reason]".
+NEVER invent names, numbers, dates, or statuses. Silence > fabrication.
+```
+
+### Delegated Work Acceptance Gate
+For any non-trivial delegated task (build, config change, audit, migration, or external deliverable), do not accept completion until all checks pass:
+
+- ✅ Expected artifact exists
+- ✅ Artifact matches the brief
+- ✅ Exact commands run are listed
+- ✅ Verification was actually performed, with results
+- ✅ Output is non-empty and specific
+- ✅ Known gaps / next actions are named explicitly
+
+**Severity:** Empty or artifact-free "success" = 🔴 BLOCK. Treat as a failed delivery claim, not a soft warning.
+
+**Valid dispositions:**
+- `Done` — acceptance checks pass
+- `Revision Needed` — artifact exists but brief mismatch / weak verification / missing detail
+- `Blocked` — real dependency prevents completion or verification
+- `Failed` — no usable artifact or unrecoverable execution failure
+- `Stale` — accepted run exists but work has gone quiet beyond freshness thresholds
+
+### Silent Worker / Stale Task Gate
+For delegated work that appears to be running:
+
+- ✅ Accepted spawn exists before describing the task as running
+- ✅ Start signal appears within 10 minutes after accepted spawn, or the task is marked `Stale`
+- ✅ Materially new output appears within 30 minutes on active work, unless the task explicitly allows a longer quiet window
+- ✅ `Stale` work is investigated, re-briefed, killed+respawned, or escalated — never left as indefinite `In Progress`
+
+**Severity:** Misreporting silent work as active progress = 🟡 FIX at minimum; repeated cases should be promoted to a hard protocol gate.
+
 ---
 
 ## Post-Ship Failure Protocol

@@ -1,4 +1,4 @@
--- ride-receipts-llm schema (SQLite)
+-- ride-receipts-gateway-llm schema (SQLite)
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS rides (
@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS rides (
 
   notes TEXT,
 
-  source_email_json TEXT,
   extracted_ride_json TEXT,
 
   inserted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),

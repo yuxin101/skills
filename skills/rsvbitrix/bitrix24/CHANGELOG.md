@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.0.0] - 2026-03-25
+
+### Changed
+- **BREAKING:** Migrated from webhook-based API to Vibe Platform (vibecode.bitrix24.tech)
+- Authentication now uses Vibe API key instead of webhook URL
+- All CLI scripts replaced: `bitrix24_call.py` → `vibe.py`, `bitrix24_config.py` → `vibe_config.py`, `check_webhook.py` → `check_connection.py`
+- Field names changed from UPPER_CASE to camelCase
+- Filter syntax changed from key-prefix (`>=FIELD`) to MongoDB-style (`{"$gte": value}`)
+- Pagination changed from `start` to `page`/`pageSize`
+- All 18 reference files rewritten with new command format
+
+### Added
+- 6 new domains: Bots, Telephony, Workflows, E-commerce, Duplicates, Timeline Logs
+- 5 new scenarios: duplicates check, workflow start, call statistics, workday report, feed post
+- 2 new scheduled task templates: duplicate monitor, call digest
+- Config migration: old webhook configs automatically backed up
+
+### Removed
+- Webhook-based scripts: `bitrix24_call.py`, `bitrix24_batch.py`, `bitrix24_config.py`, `save_webhook.py`, `check_webhook.py`
+- Webhook setup flow in `access.md`
+
 ## 0.15.5 — 2026-03-11
 
 ### Added

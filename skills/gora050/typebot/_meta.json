@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "typebot",
+  "displayName": "Typebot",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774380241054,
+    "commit": "https://github.com/openclaw/skills/commit/ae0619c834c4783be68f30e18789cdfe6365d53f"
+  },
+  "history": []
+}

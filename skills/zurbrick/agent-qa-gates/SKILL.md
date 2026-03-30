@@ -1,6 +1,7 @@
 ---
 name: agent-qa-gates
-description: Output validation gates for AI agent systems. Prevents hallucinated data, leaked internal context, wrong formats, duplicate sends, and post-compaction drift. Use when building or operating an agent that delivers output to humans or external systems. Provides a tiered gate system (internal → user-facing → external → code), protocol gates for recurring failure modes, severity classification, and a feedback loop for gate evolution. Triggers on phrases like "QA gates", "validation", "output quality", "prevent hallucination", "delivery checklist", "agent QA".
+version: 1.2.0
+description: Output validation gates for AI agent systems. Prevents hallucinated data, leaked internal context, wrong formats, duplicate sends, post-compaction drift, and false delegated completions. Use when building or operating an agent that delivers output to humans or external systems. Provides a tiered gate system (internal → user-facing → external → code), protocol gates for recurring failure modes, delegated-work acceptance gates, severity classification, and a feedback loop for gate evolution. Triggers on phrases like "QA gates", "validation", "output quality", "prevent hallucination", "delivery checklist", "agent QA".
 ---
 
 # Agent QA Gates
@@ -64,6 +65,31 @@ Recurring failure modes need dedicated gates. These are the most common:
 - Does output match the brief's success criteria?
 - Any uncertainty flags unresolved?
 - Is the reasoning (not just the conclusion) sound?
+
+### Isolated Agent / Cron Output (real-world data)
+For any cron or sub-agent that reports external data without orchestrator review:
+- Did the agent make a verifiable live tool call? Is the raw response traceable?
+- Any names, dates, amounts, or IDs that can't be traced to a tool result? → 🔴 BLOCK
+- If tool call failed: output must be `DATA_UNAVAILABLE — [reason]`, not fabricated data
+- Does the cron prompt include the Real-World Data Verification Rule?
+**Severity:** Fabricated real-world data = 🔴 BLOCK. Same as hallucinated metrics.
+
+### Delegated Work Acceptance
+For any non-trivial delegated task (especially builds, audits, config changes, or external deliverables):
+- Does the handoff include a clear artifact path or proof object?
+- Did the worker report exact commands run rather than vague claims?
+- Did verification actually happen, with results stated?
+- Is the output non-empty and specific, not just "done" or "completed successfully"?
+- Are known gaps / next actions named explicitly?
+- If the handoff is empty, artifact-free, or self-certifying without proof → 🔴 BLOCK
+- Valid dispositions: `Done`, `Revision Needed`, `Blocked`, `Failed`, `Stale`
+
+### Silent Worker / Stale Task Classification
+For delegated work that appears to be running:
+- Was the spawn actually accepted? If not, it is not running.
+- No start signal within 10 minutes after accepted spawn → `Stale`
+- No materially new output for 30 minutes on active work → `Stale` unless the task explicitly justifies a longer quiet window
+- Stale work must be investigated, respawned, or escalated — never left as indefinite `In Progress`
 
 ## Gate Evolution
 

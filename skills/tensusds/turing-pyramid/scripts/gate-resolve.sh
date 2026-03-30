@@ -19,11 +19,13 @@ flock -w 5 203 || { echo "gate-resolve: lock timeout" >&2; exit 1; }
 [[ ! -f "$GATE_FILE" ]] && { echo "No pending actions file" >&2; exit 1; }
 
 # Parse args
-ACTION_ID="" NEED="" EVIDENCE="" SELF_REPORT=false DEFER=false DEFER_REASON=""
+ACTION_ID="" NEED="" EVIDENCE="" SELF_REPORT=false DEFER=false DEFER_REASON="" CONCLUSION=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --need) NEED="$2"; shift 2 ;;
         --evidence) EVIDENCE="$2"; shift 2 ;;
+        --conclusion) CONCLUSION="$2"; shift 2 ;;
+        --conclusion=*) CONCLUSION="${1#*=}"; shift ;;
         --self-report) SELF_REPORT=true; shift ;;
         --defer) DEFER=true; ACTION_ID="$2"; shift 2 ;;
         --reason) DEFER_REASON="$2"; shift 2 ;;
@@ -32,6 +34,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 NOW_ISO=$(now_iso)
+
+# Scrub sensitive data early (before defer/resolve branch)
+_scrub_sensitive() {
+    echo "$1" | sed -E '
+        s/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[IP]/g;
+        s|/home/[a-z]+/|~/|g;
+        s/[a-zA-Z0-9_-]{20,}/[REDACTED]/g;
+        s/[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}/[CARD]/g;
+        s/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/[EMAIL]/g;
+        s/(password|secret|token|key|api_key|apikey)[=: ]+[^ ]+/\1=[REDACTED]/gi;
+        s/Bearer [^ ]+/Bearer [REDACTED]/g;
+    '
+}
+CONCLUSION_SCRUBBED=$(_scrub_sensitive "${CONCLUSION:-}")
+
 
 # ─── Defer path ───
 if $DEFER; then
@@ -46,9 +63,9 @@ if $DEFER; then
         exit 1
     fi
 
-    jq --arg id "$ACTION_ID" --arg ts "$NOW_ISO" --arg reason "${DEFER_REASON:-no reason}" \
+    jq --arg id "$ACTION_ID" --arg ts "$NOW_ISO" --arg reason "${DEFER_REASON:-no reason}" --arg conclusion "$CONCLUSION_SCRUBBED" \
         '(.actions[] | select(.id == $id and .status == "PENDING")) |=
-        (.status = "DEFERRED" | .resolved_at = $ts | .defer_reason = $reason) |
+        (.status = "DEFERRED" | .resolved_at = $ts | .defer_reason = $reason | .partial_conclusion = (if $conclusion == "" then null else $conclusion end)) |
         .pending_count = ([.actions[] | select(.status == "PENDING")] | length) |
         .deferred_count = ([.actions[] | select(.status == "DEFERRED")] | length) |
         .gate_status = (if .pending_count > 0 then "BLOCKED" else "CLEAR" end)' \
@@ -127,6 +144,23 @@ esac
 # Allow completion when explicit evidence is provided even if auto-check failed
 if [[ "$verification_result" == UNVERIFIED* && -n "$EVIDENCE" ]]; then
     verification_result="agent-provided: $EVIDENCE"
+fi
+
+# ─── Deliberation conclusion handling ───
+# Read action_mode from gate file (stored at propose time, not from config)
+action_mode=$(jq -r --arg id "$ACTION_ID" \
+    '.actions[] | select(.id == $id) | .action_mode // "operative"' "$GATE_FILE" 2>/dev/null || echo "operative")
+
+# Scrub conclusion if provided
+if [[ -n "$CONCLUSION" ]]; then
+    verification_result="${verification_result} | conclusion: ${CONCLUSION_SCRUBBED}"
+fi
+
+# Warn if deliberative action resolved without conclusion
+if [[ "$action_mode" == "deliberative" && -z "$CONCLUSION" ]]; then
+    echo "⚠️  Deliberative action resolved without --conclusion."
+    echo "   Recommended: gate-resolve.sh --need $need --evidence '...' --conclusion '...'"
+    echo "   (Resolving anyway — outcome is recommended, not required)"
 fi
 
 # ─── Update status ───

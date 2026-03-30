@@ -1,0 +1,11 @@
+{
+  "owner": "hanxueyuan",
+  "slug": "sony",
+  "displayName": "Sony",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774385338090,
+    "commit": "https://github.com/openclaw/skills/commit/f663f6760fe1817e26635becef4d8bd60ad2107c"
+  },
+  "history": []
+}

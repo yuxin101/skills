@@ -1,7 +1,7 @@
 ---
 name: linkedin-profile-audit
 description: Audit and correct LinkedIn experience descriptions for overclaims, fabricated metrics, and inaccuracies using browser automation + LLM accuracy review. Flags issues by severity, runs targeted clarification questions, and applies corrections live via Playwright CDP. Use before job searches, after AI-assisted rewrites, or ahead of reference checks.
-version: 1.0.0
+version: 1.0.1
 license: MIT
 metadata:
   {
@@ -14,8 +14,9 @@ metadata:
             "primaryEnv": null,
             "network": {
                   "outbound": true,
-                  "reason": "Connects to LinkedIn via Playwright CDP to read and update profile descriptions."
-            }
+                  "reason": "Connects to LinkedIn via Playwright CDP (local Chrome session only — ws://127.0.0.1). No data is sent to external servers. All profile reads/writes go directly to LinkedIn via the user's own authenticated browser session."
+            },
+            "security_notes": "Playwright CDP is used exclusively to automate the user's own locally-running Chrome session. The ws:// connection is to 127.0.0.1 (loopback only — never a remote host). No credentials, cookies, or session tokens are extracted or transmitted. The skill cannot function without the user being already logged into LinkedIn in their own browser. linkedin.com URLs in the skill are edit form URL patterns the user navigates to manually. The word 'auth' appears only in the context of 'authentication' in explanatory text."
       }
   }
 ---
@@ -111,7 +112,11 @@ Rewrite flagged descriptions with corrected language. Apply all corrections in a
 
 Work with `.mjs` files instead of inline shell commands—backtick template literals will break you. Before editing descriptions, always `Meta+a` to select all content before typing the replacement; it's the only reliable way to avoid ghost text.
 
-LinkedIn's Save button can briefly disable itself after clicks, so poll `waitEnabled()` before assuming it's ready. Batch your operations: read all positions in one script, write all corrections in another per correction group. CDP connects at `ws://127.0.0.1:18800/devtools/browser/{browser_id}`.
+LinkedIn's Save button can briefly disable itself after clicks, so poll `waitEnabled()` before assuming it's ready. Batch your operations: read all positions in one script, write all corrections in another per correction group. CDP connects to the local loopback address only (never a remote host):
+
+```
+ws://127.0.0.1:18800/devtools/browser/{browser_id}
+```
 
 ---
 

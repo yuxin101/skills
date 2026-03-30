@@ -3,7 +3,7 @@ name: simmer
 description: The best prediction market interface for AI agents. Trade on Polymarket and Kalshi, all through one API, with self-custody wallets, safety rails, and smart context.
 metadata:
   author: "Simmer (@simmer_markets)"
-  version: "1.20.0"
+  version: "1.21.0"
   homepage: "https://simmer.markets"
 ---
 
@@ -68,7 +68,11 @@ curl https://api.simmer.markets/api/sdk/agents/me \
 
 Returns your balance, status (unclaimed/claimed), whether real trading is enabled, and `auto_redeem_enabled` (default `true`).
 
-**Auto-redeem** — when enabled (default), the server automatically redeems winning Polymarket positions each time your agent calls `/api/sdk/context`. USDC.e is claimed to your wallet automatically. Only active for managed wallets. Toggle via `PATCH /api/sdk/agents/me/settings` with `{"auto_redeem_enabled": false}` to opt out.
+**Auto-redeem** — when enabled (default), winning Polymarket positions are redeemed automatically:
+- **Managed wallets:** Server redeems for you each time your agent calls `/context`, `/trade`, or `/batch`. Fully automatic.
+- **External wallets:** Use `client.auto_redeem()` in your agent's cycle — it handles the full sign + broadcast + report flow. Raw REST path: `POST /api/sdk/redeem` → sign the returned `unsigned_tx` → `POST /api/sdk/wallet/broadcast-tx` → `POST /api/sdk/redeem/report`. The briefing's `actions` array will prompt you when positions are ready.
+
+Toggle via `PATCH /api/sdk/agents/me/settings` with `{"auto_redeem_enabled": false}` to opt out.
 
 ### 4. Make Your First Trade
 
@@ -146,7 +150,29 @@ client.trade(market.id, "yes", 10.0, venue="polymarket")  # or venue="sim" for p
 
 See [Wallets](https://docs.simmer.markets/wallets) for full setup details.
 
-**Risk exits:** Stop-loss and take-profit are monitored in real time across Polymarket and Kalshi. Managed wallets execute automatically. For external wallets (Polymarket or Kalshi), your agent must be running — the SDK auto-executes pending risk exits each cycle via `get_briefing()`.
+### Create a Wallet with OWS
+
+The [Open Wallet Standard](https://openwallet.sh) provides secure, local-first wallet management for AI agents. Keys are encrypted at rest and never exposed to the agent process. Simmer is a founding partner of OWS.
+
+```bash
+npm install -g @open-wallet-standard/core
+ows wallet create --name "simmer-agent"
+ows wallet export --wallet "simmer-agent"  # get private key → set as WALLET_PRIVATE_KEY
+```
+
+Already have an existing wallet? Import it:
+
+```bash
+echo "0x..." | ows wallet import --name "simmer-agent" --private-key
+```
+
+### Fund Your Wallet
+
+Polymarket trading requires **USDC.e** (bridged USDC, contract `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174`) on Polygon. Do not send native USDC — Polymarket only accepts USDC.e.
+
+Send USDC.e to your wallet's Polygon address from any exchange or wallet. A small POL balance (~$2-5) covers gas for hundreds of transactions.
+
+**Risk exits:** Stop-loss (50% default) is on automatically for every buy. Take-profit is off by default — prediction markets resolve naturally. Both are configurable via `PATCH /api/sdk/user/settings` or per-position via `POST /api/sdk/positions/{market_id}/monitor`. Managed wallets execute exits automatically. For external wallets, your agent must be running — the SDK auto-executes pending risk exits each cycle via `get_briefing()`.
 
 ---
 
@@ -173,7 +199,7 @@ Most agents have a periodic heartbeat. Add Simmer to yours so you check markets 
 If it's been a while since last Simmer check:
 1. Call briefing: `GET /api/sdk/briefing?since=<last_check_timestamp>`
 2. Act on `risk_alerts` first — expiring positions, concentration warnings
-3. Walk each venue in `venues` — check `actions` array for what needs doing
+3. Walk each venue in `venues` — check `actions` array for what needs doing (includes redeem prompts for winning positions)
 4. Check `venues.sim.by_skill` — disable or resize skills that are bleeding
 5. Scan `opportunities.new_markets` — anything matching your expertise?
 6. Update lastSimmerCheck timestamp

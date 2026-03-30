@@ -1,8 +1,8 @@
 ---
 name: workflow-tools
-version: 1.4.0
+version: 1.5.0
 description: Work smarter with loop detection, parallel decisions, and file size analysis
-author: Live Neon <contact@liveneon.dev>
+author: Live Neon <hello@liveneon.ai>
 homepage: https://github.com/live-neon/skills/tree/main/agentic/workflow-tools
 repository: leegitw/workflow-tools
 license: MIT

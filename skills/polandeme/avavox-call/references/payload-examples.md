@@ -1,0 +1,136 @@
+# 常用请求体示例
+
+## 1. 最小创建任务
+
+```json
+{
+  "taskName": "三月回访任务",
+  "robotId": "robot_xxx",
+  "lineId": "line_xxx",
+  "callTimeType": "immediate"
+}
+```
+
+说明：
+
+- `taskName` 和 `robotId` 必填
+- 需要真实外呼时通常还应提供 `lineId`
+- 若不导入客户，任务不会开始外呼
+
+## 2. 带重呼与定时窗口的任务
+
+```json
+{
+  "taskName": "工作日白天外呼",
+  "robotId": "robot_xxx",
+  "lineId": "line_xxx",
+  "backgroundAudio": "office_ambient",
+  "concurrency": 1,
+  "runtimeConfig": {
+    "retryConfig": {
+      "retryableStatuses": [
+        "busy",
+        "timeout"
+      ],
+      "maxRetries": 1,
+      "retryInterval": 1,
+      "enabled": true
+    }
+  },
+  "forbiddenCallTime": [
+    {
+      "startTime": "22:00",
+      "endTime": "07:00"
+    }
+  ],
+  "callTimeType": "scheduled",
+  "scheduledTime": [
+    {
+      "dayOfWeeks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "times": [
+        {
+          "startTime": "09:00",
+          "endTime": "12:00"
+        },
+        {
+          "startTime": "14:00",
+          "endTime": "18:00"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## 3. 局部更新任务
+
+```json
+{
+  "lineId": "line_new_xxx",
+  "backgroundAudio": "busy_call_center",
+  "concurrency": 5
+}
+```
+
+说明：
+
+- 更新接口允许部分字段更新
+- 如果要禁用重呼，必须把 `runtimeConfig.retryConfig.enabled` 显式传成 `false`
+
+## 4. 导入客户
+
+```json
+{
+  "taskId": "task_xxx",
+  "customers": [
+    {
+      "phoneNumber": "13800000001",
+      "ext": {
+        "客户姓名": "张三",
+        "手机尾号": "0001"
+      }
+    },
+    {
+      "phoneNumber": "010-12345678",
+      "ext": {
+        "客户姓名": "李四"
+      }
+    }
+  ]
+}
+```
+
+说明：
+
+- 单次最多 2000 条
+- 同一任务内重复号码会被忽略
+- `ext` 推荐按 `tasks variables` 的结果来构造
+
+## 5. 获取任务变量
+
+这个接口没有请求体，只需要 path 参数：
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py tasks variables \
+  --config {baseDir}/config.json \
+  --task-id "task_xxx"
+```
+
+## 6. 通用请求示例
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py request \
+  --config {baseDir}/config.json \
+  --method PUT \
+  --path /open/api/task/task_xxx \
+  --body-json '{
+    "taskName": "新的任务名称",
+    "concurrency": 3
+  }'
+```

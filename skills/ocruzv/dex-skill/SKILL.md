@@ -10,9 +10,19 @@ description: >
   (9) Authenticate with Dex via /dex-login,
   or any other personal CRM task involving their professional network.
 metadata:
-  version: "2.0.0"
-  openclaw-emoji: "\U0001F91D"
-  openclaw-homepage: https://getdex.com
+  version: "2.0.2"
+  openclaw:
+    emoji: "\U0001F91D"
+    homepage: https://getdex.com
+    skillKey: "dex-skill"
+    requires:
+      bins: ["dex"]
+    install:
+      - id: "npm"
+        kind: "node"
+        package: "@getdex/cli"
+        bins: ["dex"]
+        label: "Install Dex CLI (npm)"
 ---
 
 # Dex Personal CRM
@@ -46,6 +56,14 @@ npm install -g @getdex/cli
 ```
 
 Works with npm, pnpm, and yarn. No postinstall scripts — the binary is bundled in a platform-specific package.
+
+**Keeping the CLI up to date:**
+
+The CLI auto-generates commands from the MCP server's tool schemas at build time. When tools are added or updated on the server, users need to update the CLI to get the new commands. If a user reports a missing command or parameter, suggest updating:
+
+```bash
+npm install -g @getdex/cli@latest
+```
 
 **Path C — No Node.js:**
 
@@ -151,6 +169,15 @@ create contact → (optionally) add to groups → apply tags → set reminder
 - Immediately organize: add relevant tags and groups
 - Set a follow-up reminder if the user just met this person
 
+**Bulk import (CSV, spreadsheet, list):**
+```
+batch create contacts → add to group → create note for all
+```
+
+- Use `dex_create_contact` with the `contacts` array (up to 100 per call) for batch creation
+- Use the returned contact IDs to add them all to a group with `dex_add_contacts_to_group`
+- Use `dex_create_note` with `contact_ids` to log a shared note across all imported contacts
+
 ### 3. Log an Interaction
 
 ```
@@ -160,6 +187,7 @@ create contact → (optionally) add to groups → apply tags → set reminder
 - Discover note types first with `dex_list_note_types` to pick the right one (Meeting, Call, Coffee, Note, etc.)
 - Set `event_time` to when the interaction happened, not when logging it
 - Keep notes concise but capture key details, action items, and personal context
+- Use `contact_ids` (plural) to link a single note to multiple contacts (e.g. a group meeting)
 
 ### 4. Set a Reminder
 

@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "ftrack",
+  "displayName": "Ftrack",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774440254887,
+    "commit": "https://github.com/openclaw/skills/commit/348f96db294f2dbae165730233825129d7542e2d"
+  },
+  "history": []
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "tiger-xzp",
+  "slug": "senpub",
+  "displayName": "mypub",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774581785585,
+    "commit": "https://github.com/openclaw/skills/commit/c6707e897a1a84b4a1b59ac920689d19f8ad928b"
+  },
+  "history": []
+}

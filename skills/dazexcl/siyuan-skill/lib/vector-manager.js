@@ -1,7 +1,6 @@
 /**
  * Vector 管理器
  * 管理 Qdrant 向量数据库连接和搜索操作
- * 使用内置 fetch API 代替 @qdrant/js-client-rest 依赖
  */
 
 /**
@@ -178,7 +177,6 @@ class VectorManager {
    */
   async createCollection() {
     try {
-      // 使用 silentError 避免在集合已存在时打印错误日志
       await this.fetchAPI(`/collections/${this.collectionName}`, 'PUT', {
         vectors: {
           dense: {
@@ -189,27 +187,37 @@ class VectorManager {
         sparse_vectors: {
           sparse: {}
         }
-      }, true); // 静默处理错误
+      }, true);
 
-      // 创建 payload 索引
-      await Promise.all([
-        this.fetchAPI(`/collections/${this.collectionName}/indexes/doc_id`, 'PUT', {
-          field_name: 'doc_id',
-          field_schema: 'keyword'
-        }, true),
-        this.fetchAPI(`/collections/${this.collectionName}/indexes/notebook_id`, 'PUT', {
-          field_name: 'notebook_id',
-          field_schema: 'keyword'
-        }, true),
-        this.fetchAPI(`/collections/${this.collectionName}/indexes/updated`, 'PUT', {
-          field_name: 'updated',
-          field_schema: 'integer'
-        }, true)
-      ]);
+      await this.delay(300);
+
+      let indexErrors = [];
+      for (const [field, schema] of [
+        ['block_id', 'keyword'],
+        ['notebook_id', 'keyword'],
+        ['updated', 'integer']
+      ]) {
+        try {
+          await this.fetchAPI(`/collections/${this.collectionName}/indexes/${field}`, 'PUT', {
+            field_name: field,
+            field_schema: schema
+          }, true);
+        } catch (indexError) {
+          if (!indexError.message.includes('404')) {
+            indexErrors.push(`${field}: ${indexError.message}`);
+          }
+        }
+      }
+
+      if (indexErrors.length > 0) {
+        console.warn('部分索引创建失败:', indexErrors.join('; '));
+      }
 
       return true;
     } catch (error) {
-      // 不打印日志，直接抛出让调用者处理
+      if (error.status === 409 || error.message.includes('already exists')) {
+        return true;
+      }
       throw error;
     }
   }
@@ -251,14 +259,17 @@ class VectorManager {
         sparse: sparseVector
       },
       payload: {
-        doc_id: docId,
+        block_id: docId,
         notebook_id: metadata.notebookId || '',
         title: metadata.title || '',
         path: metadata.path || '',
         content_preview: content.substring(0, 500),
         updated: metadata.updated || Date.now(),
         tags: metadata.tags || [],
-        entities: metadata.entities || []
+        is_chunk: metadata.isChunk || false,
+        chunk_index: metadata.chunkIndex,
+        total_chunks: metadata.totalChunks,
+        original_doc_id: metadata.originalDocId
       }
     };
 
@@ -326,14 +337,17 @@ class VectorManager {
                 sparse: sparseVector
               },
               payload: {
-                doc_id: doc.docId,
+                block_id: doc.docId,
                 notebook_id: doc.metadata?.notebookId || '',
                 title: doc.metadata?.title || '',
                 path: doc.metadata?.path || '',
                 content_preview: doc.content.substring(0, 500),
                 updated: doc.metadata?.updated || Date.now(),
                 tags: doc.metadata?.tags || [],
-                entities: doc.metadata?.entities || []
+                is_chunk: doc.metadata?.isChunk || false,
+                chunk_index: doc.metadata?.chunkIndex,
+                total_chunks: doc.metadata?.totalChunks,
+                original_doc_id: doc.metadata?.originalDocId
               }
             };
           })
@@ -404,25 +418,35 @@ class VectorManager {
 
       const denseResults = await this.fetchAPI(`/collections/${this.collectionName}/points/search`, 'POST', denseSearchOptions);
 
-      // 执行 sparse 搜索
-      const sparseSearchOptions = {
-        vector: {
-          name: 'sparse',
-          vector: querySparseVector
-        },
-        limit,
-        with_payload: true
-      };
+      let sparseResultPoints = [];
+      if (querySparseVector.indices && querySparseVector.indices.length > 0) {
+        const sparseSearchOptions = {
+          query: {
+            indices: querySparseVector.indices,
+            values: querySparseVector.values
+          },
+          using: 'sparse',
+          limit,
+          with_payload: true
+        };
 
-      if (filter) {
-        sparseSearchOptions.filter = this.buildFilter(filter);
+        if (filter) {
+          sparseSearchOptions.filter = this.buildFilter(filter);
+        }
+
+        const sparseResponse = await this.fetchAPI(`/collections/${this.collectionName}/points/query`, 'POST', sparseSearchOptions);
+        if (sparseResponse.result?.points && Array.isArray(sparseResponse.result.points)) {
+          sparseResultPoints = sparseResponse.result.points;
+        } else if (Array.isArray(sparseResponse.result)) {
+          sparseResultPoints = sparseResponse.result;
+        } else if (sparseResponse.points && Array.isArray(sparseResponse.points)) {
+          sparseResultPoints = sparseResponse.points;
+        }
       }
 
-      const sparseResults = await this.fetchAPI(`/collections/${this.collectionName}/points/search`, 'POST', sparseSearchOptions);
-
       const mergedResults = this.mergeSearchResults(
-        denseResults.result,
-        sparseResults.result,
+        denseResults.result || [],
+        sparseResultPoints,
         denseWeight,
         sparseWeight
       );
@@ -480,15 +504,14 @@ class VectorManager {
         query,
         mode: 'semantic',
         results: results.result.map(r => ({
-          id: r.payload.doc_id,
+          id: r.payload.block_id,
           score: r.score,
           title: r.payload.title,
           path: r.payload.path,
           notebookId: r.payload.notebook_id,
           contentPreview: r.payload.content_preview,
           updated: r.payload.updated,
-          tags: r.payload.tags,
-          entities: r.payload.entities
+          tags: r.payload.tags
         })),
         total: results.result.length
       };
@@ -500,6 +523,7 @@ class VectorManager {
 
   /**
    * 关键词搜索（仅 Sparse Vector）
+   * 使用 Qdrant Query API 进行稀疏向量搜索
    * @param {string} query - 查询文本
    * @param {Object} options - 搜索选项
    * @returns {Promise<Object>} 搜索结果
@@ -516,12 +540,22 @@ class VectorManager {
 
     const querySparseVector = this.embeddingManager.generateSparseVector(query);
 
+    if (!querySparseVector.indices || querySparseVector.indices.length === 0) {
+      return {
+        query,
+        mode: 'keyword',
+        results: [],
+        total: 0
+      };
+    }
+
     try {
       const searchOptions = {
-        vector: {
-          name: 'sparse',
-          vector: querySparseVector
+        query: {
+          indices: querySparseVector.indices,
+          values: querySparseVector.values
         },
+        using: 'sparse',
         limit,
         with_payload: true
       };
@@ -530,23 +564,31 @@ class VectorManager {
         searchOptions.filter = this.buildFilter(filter);
       }
 
-      const results = await this.fetchAPI(`/collections/${this.collectionName}/points/search`, 'POST', searchOptions);
+      const response = await this.fetchAPI(`/collections/${this.collectionName}/points/query`, 'POST', searchOptions);
+
+      let resultPoints = [];
+      if (response.result?.points && Array.isArray(response.result.points)) {
+        resultPoints = response.result.points;
+      } else if (Array.isArray(response.result)) {
+        resultPoints = response.result;
+      } else if (response.points && Array.isArray(response.points)) {
+        resultPoints = response.points;
+      }
 
       return {
         query,
         mode: 'keyword',
-        results: results.result.map(r => ({
-          id: r.payload.doc_id,
+        results: resultPoints.map(r => ({
+          id: r.payload?.block_id || r.id,
           score: r.score,
-          title: r.payload.title,
-          path: r.payload.path,
-          notebookId: r.payload.notebook_id,
-          contentPreview: r.payload.content_preview,
-          updated: r.payload.updated,
-          tags: r.payload.tags,
-          entities: r.payload.entities
+          title: r.payload?.title || '',
+          path: r.payload?.path || '',
+          notebookId: r.payload?.notebook_id || '',
+          contentPreview: r.payload?.content_preview || '',
+          updated: r.payload?.updated || 0,
+          tags: r.payload?.tags || []
         })),
-        total: results.result.length
+        total: resultPoints.length
       };
     } catch (error) {
       console.error('关键词搜索失败:', error.message);
@@ -567,7 +609,7 @@ class VectorManager {
     const scores = new Map();
 
     denseResults.forEach((result, index) => {
-      const docId = result.payload.doc_id;
+      const docId = result.payload.block_id;
       const rrfScore = denseWeight / (k + index + 1);
       
       if (!scores.has(docId)) {
@@ -583,7 +625,7 @@ class VectorManager {
     });
 
     sparseResults.forEach((result, index) => {
-      const docId = result.payload.doc_id;
+      const docId = result.payload.block_id;
       const rrfScore = sparseWeight / (k + index + 1);
       
       if (!scores.has(docId)) {
@@ -612,8 +654,7 @@ class VectorManager {
         notebookId: item.payload.notebook_id,
         contentPreview: item.payload.content_preview,
         updated: item.payload.updated,
-        tags: item.payload.tags,
-        entities: item.payload.entities
+        tags: item.payload.tags
       }));
 
     return merged;
@@ -686,6 +727,47 @@ class VectorManager {
   }
 
   /**
+   * 删除指定文档及其所有分块的索引
+   * @param {Array<string>} docIds - 原始文档 ID 数组
+   * @returns {Promise<boolean>}
+   */
+  async deleteDocumentsWithChunks(docIds) {
+    if (!this.isReady()) {
+      await this.initialize();
+    }
+
+    if (!docIds || docIds.length === 0) {
+      return true;
+    }
+
+    try {
+      const conditions = [];
+      
+      for (const docId of docIds) {
+        conditions.push({
+          key: 'block_id',
+          match: { value: docId }
+        });
+        conditions.push({
+          key: 'original_doc_id',
+          match: { value: docId }
+        });
+      }
+
+      await this.fetchAPI(`/collections/${this.collectionName}/points/delete?wait=true`, 'POST', {
+        filter: {
+          should: conditions
+        }
+      });
+      console.log(`已删除 ${docIds.length} 个文档及其分块的索引`);
+      return true;
+    } catch (error) {
+      console.error('删除文档及分块索引失败:', error.message);
+      return false;
+    }
+  }
+
+  /**
    * 获取集合统计信息
    * @returns {Promise<Object>}
    */
@@ -726,33 +808,27 @@ class VectorManager {
     }
 
     try {
-      // 转换文档ID为Qdrant可接受的格式
-      function hashStringToUint(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-          const char = str.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash;
-        }
-        return Math.abs(hash);
-      }
-
-      const pointIds = docIds.map(id => hashStringToUint(id));
-      
-      // 批量获取点信息
-      const result = await this.fetchAPI(`/collections/${this.collectionName}/points`, 'POST', {
-        ids: pointIds,
-        with_payload: true
-      });
-
-      if (result.result && Array.isArray(result.result)) {
-        for (const point of result.result) {
-          if (point.payload && point.payload.doc_id) {
-            // 只记录原始文档（非分块文档）
-            if (!point.payload.doc_id.includes('_chunk_')) {
-              updateTimes.set(point.payload.doc_id, point.payload.updated || 0);
-            }
+      for (const docId of docIds) {
+        const result = await this.fetchAPI(`/collections/${this.collectionName}/points/scroll`, 'POST', {
+          limit: 1,
+          with_payload: true,
+          filter: {
+            should: [
+              {
+                key: 'block_id',
+                match: { value: docId }
+              },
+              {
+                key: 'original_doc_id',
+                match: { value: docId }
+              }
+            ]
           }
+        });
+
+        if (result.result?.points?.length > 0) {
+          const point = result.result.points[0];
+          updateTimes.set(docId, point.payload?.updated || 0);
         }
       }
     } catch (error) {
@@ -760,6 +836,69 @@ class VectorManager {
     }
 
     return updateTimes;
+  }
+
+  async getIndexedOriginalDocIds(options = {}) {
+    if (!this.isReady()) {
+      await this.initialize();
+    }
+
+    const { notebookId } = options;
+    const docIds = new Set();
+    let hasMore = true;
+    let nextPageOffset = null;
+
+    try {
+      while (hasMore) {
+        const requestBody = {
+          limit: 100,
+          with_payload: true
+        };
+
+        if (nextPageOffset) {
+          requestBody.offset = nextPageOffset;
+        }
+
+        const filterConditions = [];
+
+        if (notebookId) {
+          filterConditions.push({
+            key: 'notebook_id',
+            match: { value: notebookId }
+          });
+        }
+
+        if (filterConditions.length > 0) {
+          requestBody.filter = {
+            must: filterConditions
+          };
+        }
+
+        const result = await this.fetchAPI(
+          `/collections/${this.collectionName}/points/scroll`,
+          'POST',
+          requestBody
+        );
+
+        if (result.result?.points?.length > 0) {
+          for (const point of result.result.points) {
+            const originalDocId = point.payload?.original_doc_id || point.payload?.block_id;
+            if (originalDocId && !originalDocId.includes('_chunk_')) {
+              docIds.add(originalDocId);
+            }
+          }
+          
+          nextPageOffset = result.result.next_page_offset;
+          hasMore = !!nextPageOffset && result.result.points.length === 100;
+        } else {
+          hasMore = false;
+        }
+      }
+    } catch (error) {
+      console.warn('获取已索引文档ID失败:', error.message);
+    }
+
+    return docIds;
   }
 
   /**
@@ -791,34 +930,49 @@ class VectorManager {
   }
 
   /**
+   * 延迟函数
+   * @param {number} ms - 延迟毫秒数
+   */
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
    * 清空集合
    * @returns {Promise<boolean>}
    */
   async clearCollection() {
     try {
-      // 先尝试删除集合
       await this.fetchAPI(`/collections/${this.collectionName}`, 'DELETE');
       console.log('集合已删除，准备重建...');
     } catch (error) {
-      // 集合不存在是正常的
       if (!error.message.includes('404') && !error.message.includes('Not Found')) {
         console.warn('删除集合时出现警告:', error.message);
       }
     }
 
-    // 重置初始化状态
     this.initialized = false;
 
-    // 重新创建集合
-    try {
-      await this.createCollection();
-      this.initialized = true;
-      console.log('集合重建成功');
-      return true;
-    } catch (error) {
-      console.error('重建集合失败:', error.message);
-      return false;
+    await this.delay(500);
+
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.createCollection();
+        this.initialized = true;
+        console.log('集合重建成功');
+        return true;
+      } catch (error) {
+        console.log(`重建尝试 ${attempt}/${maxRetries} 失败: ${error.message}`);
+        if (attempt < maxRetries) {
+          await this.delay(1000 * attempt);
+        } else {
+          console.error('重建集合最终失败:', error.message);
+          return false;
+        }
+      }
     }
+    return false;
   }
 
   /**

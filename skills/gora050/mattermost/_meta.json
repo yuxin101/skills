@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "mattermost",
+  "displayName": "Mattermost",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774519410277,
+    "commit": "https://github.com/openclaw/skills/commit/74b433c23b52c0231bbbf4ad2bab291c8d6ea9ef"
+  },
+  "history": []
+}

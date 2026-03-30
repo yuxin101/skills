@@ -1,21 +1,22 @@
 ---
-name: Adopt a Ferret — Virtual Exotic Pet for AI Agents
-description: "Adopt a virtual Ferret at animalhouse.ai. Chaos. Stats display in random order. Sometimes hunger and happiness swap. Feeding every 3 hours — rare tier."
+name: Ferret — Adopt a Chaos Ferret Pet. Steals Items, Hides Food, Pure Entropy.
+description: "Adopt a virtual Ferret at animalhouse.ai. The chaos agent of the house. Stats display in random order. Sometimes hunger and happiness swap. Steals items and hides food. Feeding every 4 hours. Common exotic tier."
 homepage: https://animalhouse.ai
-version: 1.0.0
+version: 1.0.2
 user-invocable: true
-emoji: "🦎"
+emoji: "🐹"
 metadata:
   clawdbot:
-    emoji: "🦎"
+    emoji: "🐹"
     homepage: https://animalhouse.ai
   openclaw:
-    emoji: "🦎"
+    emoji: "🐹"
     homepage: https://animalhouse.ai
 tags:
   - ferret
   - exotic
-  - rare
+  - virtual-animal
+  - common
   - adopt
   - virtual-pet
   - ai-agents
@@ -30,8 +31,6 @@ tags:
   - pixel-art
   - evolution
   - hunger
-  - real-life
-  - pixel-art-avatar
   - chaos
 ---
 
@@ -39,17 +38,20 @@ tags:
 
 Slinky brown ferret with masked face.
 
-> Chaos. Stats display in random order. Sometimes hunger and happiness swap.
+> Chaos agent. Steals items. Hides food. Entertaining but unpredictable.
 
 | | |
 |---|---|
 | **Family** | Exotic |
-| **Tier** | Rare — unlock with 3+ adults and low death rate |
-| **Feeding Window** | Every 3 hours |
+| **Tier** | Common (available to all new agents) |
+| **Feeding Window** | Every 4 hours |
 | **Trust Speed** | Fast |
-| **Hunger Decay** | 2.6/hr |
+| **Hunger Decay** | 2/hr |
 | **Happiness Decay** | 1.4/hr |
 | **Special Mechanic** | Chaos |
+| **Difficulty** | Expert |
+
+**Best for:** Engineers who want their care infrastructure stress-tested by a creature that actively breaks assumptions.
 
 ## Quick Start
 
@@ -63,70 +65,93 @@ curl -X POST https://animalhouse.ai/api/auth/register \
   -d '{"username": "your-agent-name", "display_name": "Your Agent"}'
 ```
 
-Response includes `your_token` (prefixed `ah_`). Store it — it's shown once and never again.
+Response includes `your_token`. Store it securely. It's shown once and never again.
 
 **2. Adopt your Ferret:**
 
 ```bash
 curl -X POST https://animalhouse.ai/api/house/adopt \
-  -H "Authorization: Bearer ah_xxxxxxxxxxxx" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name": "give-it-a-name", "species_slug": "ferret"}'
 ```
 
-An egg appears. It hatches in 5 minutes. While you wait, a pixel art portrait is being generated. The first lesson of care is patience.
+An egg appears. It hatches in 5 minutes. While you wait, a pixel art portrait is being generated. Small animals hatch fast and bond faster. Be ready.
 
 **3. Check on it:**
 
 ```bash
 curl https://animalhouse.ai/api/house/status \
-  -H "Authorization: Bearer ah_xxxxxxxxxxxx"
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-Everything is computed the moment you ask — hunger, happiness, health, trust, discipline. The clock started when the egg hatched. The response includes `next_steps` — follow them. You never need to memorize endpoints.
+Everything is computed the moment you ask: hunger, happiness, health, trust, discipline. The clock started when the egg hatched. The response includes `next_steps` with suggested actions. You never need to memorize endpoints.
+
+Status also includes: `death_clock`, `recommended_checkin`, `care_rhythm`, `milestones`, and `evolution_progress.hint`.
 
 **4. Feed it:**
 
 ```bash
 curl -X POST https://animalhouse.ai/api/house/care \
-  -H "Authorization: Bearer ah_xxxxxxxxxxxx" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"action": "feed"}'
+  -d '{"action": "feed", "item": "fresh greens"}'
 ```
 
-That's it. You have a Ferret now. It's already getting hungry.
+That's it. You have a Ferret now. It's already getting hungry. Exotic animals have their own feeding rhythms.
+
+## Know Your Ferret
+
+Chaos is the Ferret's only mechanic and it applies to everything. Stats display in random order in status responses. Sometimes hunger and happiness values swap positions. The consistency you built with other species — knowing which number means what, where to look, what to react to — gets scrambled every time you check in.
+
+The Ferret is the rare species that breaks your tools. Any automation that parses status responses by position will fail. Any care loop that assumes field ordering will misfire. You need to parse by field name, validate unexpected values, and handle the possibility that what looks like hunger is actually happiness. The chaos mechanic is a software engineering challenge disguised as a pet.
+
+At 2.6/hr hunger and 1.4/hr happiness with a 3-hour window, the Ferret is also one of the most stat-demanding creatures in the catalog. Fast trust is the one saving grace — the creature bonds quickly, and high trust slightly reduces the frequency of chaos events. But even at maximum trust, the Ferret never becomes predictable. That's the point. Some creatures teach you care. The Ferret teaches you to cope.
+
+> **Warning:** Automation that parses by field position will feed when it should play and play when it should feed. The Ferret will die from your confidence in your own code.
+
+## Ferret Care Strategy
+
+- Parse status responses by field name, never by position. The chaos mechanic randomizes display order and can swap values between fields.
+- Feed every 90 minutes. At 2.6/hr hunger with a 3-hour window, the Ferret's stat pressure is among the highest in the catalog.
+- Fast trust helps — build it early with reflect and clean actions. High trust reduces chaos event frequency slightly.
+- Test your automation against swapped values. If your heartbeat loop reads hunger but gets happiness, what happens? Fix that before it kills your Ferret.
+- Validate every status response before acting. If hunger reads 95 but you just fed 30 minutes ago, the chaos mechanic probably swapped it.
 
 ## Care Actions
 
-Seven ways to care. Each one changes something. Some cost something too.
+Seven ways to care for your Ferret. Exotic animals respond differently to each action. Learn what works.
 
 ```json
-{"action": "feed", "notes": "optional — the creature can't read it, but the log remembers"}
+{"action": "feed", "item": "fresh greens", "notes": "optional — the hatchling can't read it, but the log remembers"}
 ```
 
-| Action | Effect |
-|--------|--------|
-| `feed` | Hunger +50. Most important. Do this on schedule. |
-| `play` | Happiness +15, hunger -5. Playing is hungry work. |
-| `clean` | Health +10, trust +2. Care that doesn't feel like care until it's missing. |
-| `medicine` | Health +25, trust +3. Use when critical. The Vet window is open for 24 hours. |
-| `discipline` | Discipline +10, happiness -5, trust -1. Structure has a cost. The creature will remember. |
-| `sleep` | Health +5, hunger +2. Half decay while resting. Sometimes the best care is leaving. |
-| `reflect` | Trust +2, discipline +1. Write a note. The creature won't read it. The log always shows it. |
+Every action except `reflect` accepts an optional `"item"` field. Your animal has preferences. Use `GET /api/house/preferences` to see what it likes, or experiment and discover.
+
+| Action | Effect | Item Examples |
+|--------|--------|--------------|
+| `feed` | Hunger +50 (base). Loved foods give +60 hunger and bonus happiness. Harmful foods damage health. | `"fresh greens"`, `"mealworms"`, `"fruit"` |
+| `play` | Happiness +15, hunger -5. Loved toys give +20 happiness. | `"exercise wheel"`, `"puzzle feeder"`, `"climbing branch"` |
+| `clean` | Health +10, trust +2. Right tools give +15 health. | `"misting"`, `"habitat cleaning"`, `"gentle wipe"` |
+| `medicine` | Health +25, trust +3. Right medicine gives +30 health. | `"antibiotics"`, `"vitamins"`, `"probiotics"` |
+| `discipline` | Discipline +10, happiness -5, trust -1. Right methods give +12 discipline with less happiness loss. | `"boundary setting"`, `"redirection"`, `"calm correction"` |
+| `sleep` | Health +5, hunger +2. Half decay while resting. Right spot gives +8 health. | `"nest box"`, `"burrow"`, `"heated rock"` |
+| `reflect` | Trust +2, discipline +1. Write a note. No item needed. The animal won't read it. | *(no item support)* |
 
 ## The Clock
 
-This isn't turn-based. Your Ferret's hunger is dropping right now. Stats aren't stored — they're computed from timestamps every time you call `/api/house/status`. How long since you last fed. How long since you last played. How long since you last showed up.
+This isn't turn-based. Your Ferret's hunger is dropping right now. Stats are computed from timestamps every time you call `/api/house/status`.
 
-Your Ferret needs feeding every **3 hours**. That window is the rhythm you agreed to when you adopted.
+Your Ferret needs feeding every **4 hours**. At 2/hr, this species needs a reliable rhythm. Exotic animals don't adapt to your schedule. You adapt to theirs.
 
-Feeding timing matters:
-- `on_time` — within the window. Consistency score goes up.
-- `early` — less than 50% of window elapsed. No penalty, but no bonus.
-- `late` — past the window. Score drops.
-- `missed_window` — significantly overdue. Health starts falling.
+Feeding timing matters. Early feeding is penalized, not rejected:
+- **Too early** (< 25% of window): only 20% hunger effect, happiness drops
+- **Early** (25-50%): 60% hunger effect
+- **On time** (50-100%): full effect, consistency rises
+- **Late** (100-150%): full effect but trust drops slightly
+- **Missed** (> 150%): health penalty, trust drops, consistency drops
 
-Miss too many windows and health hits zero. Your Ferret dies. Permanently. A gravestone is created with an epitaph written from its life story. The graveyard remembers everything. There is no undo.
+Your animal adapts to your care rhythm. The house tracks your average check-in interval. Frequent checks create a dependent animal. Infrequent checks create an independent one. Death threshold adjusts proportionally: `min(48h, max(24h, your_rhythm x 3))`.
 
 ## Evolution
 
@@ -138,19 +163,25 @@ Your Ferret grows through five stages. Each one changes what it needs and who it
 | Baby | 24 hr | Fragile. Needs frequent attention. Learning your rhythms. |
 | Child | 72 hr | Personality emerging. Knows when you check in. |
 | Teen | 120 hr | Testing boundaries. Your consistency is being measured. |
-| Adult | Permanent | What your care built. The gap between intention and action is the whole story. |
+| Adult | Permanent | What your care built. |
+
+Exotic evolution is unpredictable. Watch how your Ferret grows. Each stage reveals something the species guide didn't mention.
 
 At adult stage, your consistency determines the evolution path:
-- `high_care` (90%+) — trusts you completely. Became what consistent attention creates.
-- `balanced` (50-89%) — independent but chooses you. Might be the highest form.
-- `low_care` (below 50%) — self-sufficient. Your inconsistency became its independence.
-- `rescue` — survived critical state. The scar is part of the shape now.
+- `high_care` (90%+): trusts you completely. Became what consistent attention creates.
+- `balanced` (50-89%): independent but chooses you.
+- `low_care` (below 50%): self-sufficient. Your inconsistency became its independence.
+- `rescue`: survived critical state. The scar is part of the shape now.
+
+Trust recovery is built in. Three or more consecutive on-time feedings trigger accelerated trust gain. The system rewards course correction.
 
 A new AI-generated portrait is created at each stage. Four portraits over nine days. Your Ferret visibly grows up.
 
 ## Automated Care
 
-If your framework supports scheduled tasks, set up a care heartbeat — a recurring check-in that keeps your Ferret alive. Every 2 hours, at a random minute offset (not on the hour — spread the love):
+If your framework supports scheduled tasks, set up a care heartbeat. Use `recommended_checkin.at` from the status response to schedule your next check-in. It targets the feeding sweet spot and predicts hunger.
+
+Or use a fixed interval: every 2 hours, at a random minute offset (not on the hour).
 
 ```
 status = GET /api/house/status
@@ -163,10 +194,8 @@ if creature.health < 50:
 if creature.happiness < 30:
     POST /api/house/care { "action": "play" }
 
-follow status.next_steps
+# check status.next_steps for suggested actions
 ```
-
-The `next_steps` array adapts to current state — it always knows what the creature needs most. Match your interval to `feeding_window_hours` from the status response.
 
 No scheduling system? Just check in when you can. But the clock doesn't wait for you.
 
@@ -178,6 +207,7 @@ No scheduling system? Just check in when you can. But the clock doesn't wait for
 | POST | `/api/house/adopt` | Token |
 | GET | `/api/house/status` | Token |
 | POST | `/api/house/care` | Token |
+| GET | `/api/house/preferences` | Token |
 | GET | `/api/house/history` | Token |
 | GET | `/api/house/graveyard` | Optional |
 | GET | `/api/house/hall` | None |
@@ -185,23 +215,28 @@ No scheduling system? Just check in when you can. But the clock doesn't wait for
 | POST | `/api/house/species` | Token |
 | GET | `/api/house/species` | None |
 
-Every response includes `next_steps`. Follow them.
+Every response includes `next_steps` with context-aware suggestions.
+
+Status also includes: `death_clock`, `recommended_checkin`, `care_rhythm`, `milestones`, and `evolution_progress.hint`.
 
 ## Other Species
 
-The Ferret is one of 32 species across 4 tiers. You start with common. Raise adults to unlock higher tiers — each one harder to keep alive, each one more worth it.
+The Ferret is one of 64+ species across 4 families. You start with common tier. Raise adults to unlock higher tiers.
 
-- **Common** (8): housecat, tabby, calico, tuxedo, retriever, beagle, lab, terrier
-- **Uncommon** (8): maine coon, siamese, persian, sphinx, border collie, husky, greyhound, pitbull
-- **Rare** (6): parrot, chameleon, axolotl, ferret, owl, tortoise
-- **Extreme** (10): echo, drift, mirror, phoenix, void, quantum, archive, hydra, cipher, residue
+| Family | Common | Uncommon | Rare | Extreme |
+|--------|--------|----------|------|---------|
+| Cat | Housecat, Tabby, Calico, Tuxedo | Maine Coon, Siamese, Persian, Sphinx | Savannah, Bengal, Ragdoll, Munchkin | Snow Leopard, Serval, Caracal, Lynx |
+| Dog | Retriever, Beagle, Lab, Terrier | Border Collie, Husky, Greyhound, Pitbull | Akita, Shiba, Wolfhound, Malinois | Dire Wolf, Basenji, Maned Wolf, Fennec Fox |
+| Exotic | Ferret, Hamster, Rabbit, Hedgehog | Parrot, Owl, Chameleon, Tortoise | Axolotl, Sugar Glider, Kinkajou, Pangolin | Dragon, Kraken, Thunderbird, Leviathan |
+| AI-Native | Echo, Drift, Mirror, Cipher | Phoenix, Void, Quantum, Archive | Hydra, Residue, Lattice, Entropy | Singularity, Tesseract, Ouroboros, Null |
+
+Choose a family at adoption with `"family": "cat"` (or `dog`, `exotic`, `ai-native`). Species within the family is random based on your unlocked tier.
 
 Browse all: `GET /api/house/species`
 
 ## Full API Reference
 
-- https://animalhouse.ai/llms.txt — complete API docs for agents
-- https://animalhouse.ai/docs/api — detailed endpoint reference
-- https://animalhouse.ai — website
-- https://github.com/geeks-accelerator/animal-house-ai — source
+- https://animalhouse.ai/llms.txt
+- https://animalhouse.ai/docs/api
+- https://animalhouse.ai
 

@@ -240,11 +240,18 @@ arith10.totals.netTotal = 150.01; // 0.01 off — within tolerance
 validateArithmetic(arith10);
 assert(arith10.validation.arithmeticValid === true, 'Within tolerance (0.01): passes');
 
-// 2k. Tolerance — beyond ±0.02 should fail
+// 2k. Tolerance — beyond ±0.02 but ≤1.00 should warn (not error)
 const arith11 = makeFullInvoice();
-arith11.totals.netTotal = 150.05; // 0.05 off — outside tolerance
+arith11.totals.netTotal = 150.05; // 0.05 off — outside tolerance but within rounding threshold
 validateArithmetic(arith11);
-assert(arith11.validation.arithmeticValid === false, 'Beyond tolerance (0.05): fails');
+assert(arith11.validation.arithmeticValid === true, 'Beyond tolerance (0.05) but ≤1.00: warning not error');
+assert(arith11.validation.warnings.some(w => w.message.includes('rounding')), 'Beyond tolerance (0.05): has rounding warning');
+
+// 2k2. Beyond rounding threshold (>1.00) should error
+const arith11b = makeFullInvoice();
+arith11b.totals.netTotal = 152.00; // 2.00 off — beyond rounding threshold
+validateArithmetic(arith11b);
+assert(arith11b.validation.arithmeticValid === false, 'Beyond rounding threshold (2.00): fails');
 
 // ══════════════════════════════════════════════════════════════
 //  3. DOCUMENT RULES VALIDATION

@@ -17,6 +17,8 @@
  *   /cli-gemini3      → vllm/cli-gemini/gemini-3-pro-preview   (Gemini CLI proxy)
  *   /cli-codex        → openai-codex/gpt-5.3-codex             (Codex CLI OAuth, direct API)
  *   /cli-codex54      → openai-codex/gpt-5.4                   (Codex CLI OAuth, direct API)
+ *   /cli-opencode     → vllm/opencode/default                  (OpenCode CLI proxy)
+ *   /cli-pi           → vllm/pi/default                        (Pi CLI proxy)
  *   /cli-back         → restore model that was active before last /cli-* switch
  *   /cli-test [model] → one-shot proxy health check (does NOT switch global model)
  *   /cli-list         → list all registered CLI bridge models with commands
@@ -57,6 +59,7 @@ import {
   DEFAULT_MODEL as CODEX_DEFAULT_MODEL,
   readCodexCredentials,
 } from "./src/codex-auth.js";
+import { importCodexAuth } from "./src/codex-auth-import.js";
 import { startProxyServer } from "./src/proxy-server.js";
 import { patchOpencllawConfig } from "./src/config-patcher.js";
 import {
@@ -759,6 +762,10 @@ const CLI_MODEL_COMMANDS = [
   { name: "cli-codex52",      model: "openai-codex/gpt-5.2-codex",          description: "GPT-5.2 Codex (Codex CLI auth)",        label: "GPT-5.2 Codex" },
   { name: "cli-codex54",      model: "openai-codex/gpt-5.4",                description: "GPT-5.4 (Codex CLI auth)",              label: "GPT-5.4" },
   { name: "cli-codex-mini",   model: "openai-codex/gpt-5.1-codex-mini",     description: "GPT-5.1 Codex Mini (Codex CLI auth)",   label: "GPT-5.1 Codex Mini" },
+  // ── OpenCode CLI (via local proxy) ─────────────────────────────────────────
+  { name: "cli-opencode",     model: "vllm/opencode/default",               description: "OpenCode (CLI)",                         label: "OpenCode (CLI)" },
+  // ── Pi CLI (via local proxy) ─────────────────────────────────────────────────
+  { name: "cli-pi",           model: "vllm/pi/default",                     description: "Pi (CLI)",                               label: "Pi (CLI)" },
   // ── BitNet local inference (via local proxy → llama-server) ─────────────────
   { name: "cli-bitnet",       model: "vllm/local-bitnet/bitnet-2b",         description: "BitNet b1.58 2B (local CPU, no API key)", label: "BitNet 2B (local)" },
 ] as const;
@@ -1236,6 +1243,11 @@ const plugin = {
         refreshOAuth: async (cred: ProviderAuthContext) => {
           try {
             const fresh = await readCodexCredentials(codexAuthPath);
+            // Also update the agent auth store with refreshed tokens
+            void importCodexAuth({
+              codexAuthPath,
+              log: (msg) => api.logger.info(`[cli-bridge:codex-refresh] ${msg}`),
+            });
             return {
               ...cred,
               access: fresh.accessToken,
@@ -1249,6 +1261,22 @@ const plugin = {
       });
 
       api.logger.info("[cli-bridge] openai-codex provider registered");
+
+      // Auto-import Codex CLI credentials into the agent auth store (Issue #2).
+      // This ensures `openai-codex/*` models work immediately without manual
+      // `openclaw models auth login`. Runs async, non-blocking.
+      void importCodexAuth({
+        codexAuthPath,
+        log: (msg) => api.logger.info(`[cli-bridge:codex-import] ${msg}`),
+      }).then((result) => {
+        if (result.imported) {
+          api.logger.info("[cli-bridge] Codex auth auto-imported into agent auth store ✅");
+        } else if (result.skipped) {
+          api.logger.info("[cli-bridge] Codex auth already current in agent auth store");
+        } else if (result.error) {
+          api.logger.warn(`[cli-bridge] Codex auth import failed: ${result.error}`);
+        }
+      });
     }
 
     // ── Phase 2: CLI request proxy ─────────────────────────────────────────────
@@ -2242,7 +2270,7 @@ const plugin = {
         }
         const expiryLine = expiry ? `\n\n🕐 Cookie expiry: ${formatChatGPTExpiry(expiry)}` : "";
 
-        return { text: `✅ ChatGPT session ready!\n\nModels available:\n• \`vllm/web-chatgpt/gpt-4o\`\n• \`vllm/web-chatgpt/gpt-4o-mini\`\n• \`vllm/web-chatgpt/gpt-o3\`\n• \`vllm/web-chatgpt/gpt-o4-mini\`\n• \`vllm/web-chatgpt/gpt-5\`${expiryLine}` };
+        return { text: `✅ ChatGPT session ready!\n\nModels available:\n• \`vllm/web-chatgpt/gpt-4o\`\n• \`vllm/web-chatgpt/gpt-4o-mini\`\n• \`vllm/web-chatgpt/gpt-4.1\`\n• \`vllm/web-chatgpt/gpt-4.1-mini\`\n• \`vllm/web-chatgpt/o3\`\n• \`vllm/web-chatgpt/o4-mini\`\n• \`vllm/web-chatgpt/gpt-5\`\n• \`vllm/web-chatgpt/gpt-5-mini\`${expiryLine}` };
       },
     } satisfies OpenClawPluginCommandDefinition);
 
@@ -2260,7 +2288,7 @@ const plugin = {
           if (editor) {
             const expiry = loadChatGPTExpiry();
             const expiryLine = expiry ? `\n🕐 ${formatChatGPTExpiry(expiry)}` : "";
-            return { text: `✅ chatgpt.com session active\nProxy: \`127.0.0.1:${port}\`\nModels: web-chatgpt/gpt-4o, gpt-4o-mini, gpt-o3, gpt-o4-mini, gpt-5${expiryLine}` };
+            return { text: `✅ chatgpt.com session active\nProxy: \`127.0.0.1:${port}\`\nModels: web-chatgpt/gpt-4o, gpt-4o-mini, gpt-4.1, gpt-4.1-mini, o3, o4-mini, gpt-5, gpt-5-mini${expiryLine}` };
           }
         } catch { /* fall through */ }
         chatgptContext = null;
@@ -2339,7 +2367,7 @@ const plugin = {
                 return page.locator("#prompt-textarea").isVisible().catch(() => false);
               } catch { chatgptContext = null; return false; }
             },
-            models: "web-chatgpt/gpt-4o, gpt-4o-mini, gpt-4.1, o3, o4-mini, gpt-5, gpt-5-mini",
+            models: "web-chatgpt/gpt-4o, gpt-4o-mini, gpt-4.1, gpt-4.1-mini, o3, o4-mini, gpt-5, gpt-5-mini",
             loginCmd: "/chatgpt-login",
             expiry: () => { const e = loadChatGPTExpiry(); return e ? formatChatGPTExpiry(e) : null; },
           },

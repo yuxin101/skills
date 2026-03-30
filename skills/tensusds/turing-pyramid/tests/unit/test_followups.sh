@@ -61,11 +61,11 @@ assert "need=competence" "$(head -1 "$FOLLOWUPS" | jq -r '.need')" "competence"
 # ─── Test 2: Create steward follow-up ───
 echo ""
 echo "=== Test 2: Create steward follow-up ==="
-OUTPUT=$(bash "$SCRIPTS/create-followup.sh" --what "review PR CI" --in 4h --need competence --source steward --parent "Max asked" 2>&1)
+OUTPUT=$(bash "$SCRIPTS/create-followup.sh" --what "review PR CI" --in 4h --need competence --source steward --parent "steward asked" 2>&1)
 assert_contains "steward follow-up created" "$OUTPUT" "Follow-up created"
 assert "2 entries" "$(wc -l < "$FOLLOWUPS")" "2"
 assert "source=steward" "$(tail -1 "$FOLLOWUPS" | jq -r '.source')" "steward"
-assert "parent recorded" "$(tail -1 "$FOLLOWUPS" | jq -r '.parent_action')" "Max asked"
+assert "parent recorded" "$(tail -1 "$FOLLOWUPS" | jq -r '.parent_action')" "steward asked"
 
 # ─── Test 3: Dedup blocks duplicate ───
 echo ""
@@ -196,9 +196,17 @@ RIPE_EPOCH=$((NOW_EPOCH - 3600))
 RIPE_ISO=$(date -u -d "@$RIPE_EPOCH" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
 echo "{\"id\":\"f_cycle_test\",\"created\":\"$RIPE_ISO\",\"check_at\":\"$RIPE_ISO\",\"check_at_epoch\":$RIPE_EPOCH,\"need\":\"coherence\",\"what\":\"test cycle\",\"source\":\"auto\",\"parent_action\":null,\"status\":\"pending\"}" >> "$FOLLOWUPS"
 
+# Clear gate so cycle can run (gate blocks if pending actions exist)
+PENDING_FILE="$SKILL_DIR/assets/pending_actions.json"
+cp "$PENDING_FILE" "$PENDING_FILE.test_backup" 2>/dev/null || true
+echo '{"actions":[],"last_cycle":"test"}' > "$PENDING_FILE"
+
 OUTPUT=$(WORKSPACE="$WORKSPACE" bash "$SCRIPTS/run-cycle.sh" --no-scans 2>&1)
 assert_contains "cycle shows follow-ups" "$OUTPUT" "Follow-ups due"
 assert_contains "cycle completes" "$OUTPUT" "Summary:"
+
+# Restore gate state
+mv "$PENDING_FILE.test_backup" "$PENDING_FILE" 2>/dev/null || true
 
 # ─── Test 15: auto_followup config valid ───
 echo ""

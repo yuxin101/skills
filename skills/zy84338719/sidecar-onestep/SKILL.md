@@ -1,6 +1,6 @@
 ---
 name: sidecar-onestep
-description: Control SidecarOneStep - A macOS Sidecar enhancement tool. One-click iPad connection, remote control, automation integration. Manage devices via MCP integration with 10 powerful tools.
+description: Control SidecarOneStep - A macOS Sidecar enhancement tool. One-click iPad connection, remote control, automation integration. Manage devices via MCP integration with 15 powerful tools.
 homepage: https://sidecaronestep.app.murphyyi.com/
 metadata:
   {
@@ -56,7 +56,8 @@ metadata:
 - 🚀 **One-Click Connection** - Instantly connect/disconnect iPad from menu bar
 - 📱 **Remote Control** - Web console for controlling Sidecar from your phone
 - 🔌 **Wired Mode** - Force wired connection for low-latency stability
-- 🛠️ **Full Automation** - Complete REST API + MCP integration (10 tools)
+- 🖥️ **Virtual Display** - Create virtual displays for extended workspace (v1.4.0+)
+- 🛠️ **Full Automation** - Complete REST API + MCP integration (15 tools)
 - 🤖 **AI Integration** - Let AI assistants manage your connections
 
 ### 📥 Installation
@@ -151,7 +152,7 @@ Response:
 }
 ```
 
-### 🛠️ Available Tools (10)
+### 🛠️ Available Tools (15)
 
 | Tool | Description | Blocking |
 |------|-------------|----------|
@@ -165,6 +166,11 @@ Response:
 | `stop_http_server` | Stop HTTP server | ❌ |
 | `get_status` | Get app/connection status | ❌ |
 | `get_logs` | Get recent server logs | ❌ |
+| `virtual_display_status` | Get virtual display status | ❌ |
+| `list_virtual_display_sizes` | List available virtual display sizes | ❌ |
+| `set_virtual_display_size` | Set virtual display size | ❌ |
+| `enable_virtual_display` | Enable virtual display | ❌ |
+| `disable_virtual_display` | Disable virtual display | ❌ |
 
 ### 🔔 Trigger Examples (for AI Assistants)
 
@@ -296,7 +302,8 @@ MIT License - Free to use
 - 🚀 **一键连接** - 菜单栏即时连接/断开 iPad
 - 📱 **远程控制** - Web 控制台，手机管理 Sidecar
 - 🔌 **有线模式** - 强制有线连接，低延迟稳定
-- 🛠️ **完整自动化** - 完整 REST API + MCP 集成（10 个工具）
+- 🖥️ **虚拟显示器** - 创建虚拟显示器扩展工作空间（v1.4.0+）
+- 🛠️ **完整自动化** - 完整 REST API + MCP 集成（15 个工具）
 - 🤖 **AI 集成** - 让 AI 助手管理你的连接
 
 ### 📥 安装
@@ -391,7 +398,7 @@ mcporter call sidecar-onestep.get_status
 }
 ```
 
-### 🛠️ 可用工具（10 个）
+### 🛠️ 可用工具（15 个）
 
 | 工具 | 说明 | 阻塞 |
 |------|------|------|
@@ -405,6 +412,11 @@ mcporter call sidecar-onestep.get_status
 | `stop_http_server` | 停止 HTTP 服务器 | ❌ |
 | `get_status` | 获取应用/连接状态 | ❌ |
 | `get_logs` | 获取最近服务器日志 | ❌ |
+| `virtual_display_status` | 获取虚拟显示器状态 | ❌ |
+| `list_virtual_display_sizes` | 列出可用虚拟显示器尺寸 | ❌ |
+| `set_virtual_display_size` | 设置虚拟显示器尺寸 | ❌ |
+| `enable_virtual_display` | 启用虚拟显示器 | ❌ |
+| `disable_virtual_display` | 禁用虚拟显示器 | ❌ |
 
 ### 🔔 触发示例（AI 助手用）
 
@@ -445,6 +457,20 @@ mcporter call sidecar-onestep.get_status
 ```
 → AI 调用：`list_devices`
 
+**示例 6：虚拟显示器**
+```
+用户："Enable virtual display"
+用户："开启虚拟显示器"
+```
+→ AI 调用：`enable_virtual_display`
+
+**示例 7：设置虚拟显示器尺寸**
+```
+用户："Set virtual display to iPad Pro 13 size"
+用户："设置虚拟显示器为 iPad Pro 13 尺寸"
+```
+→ AI 调用：`set_virtual_display_size definition_id=440`
+
 ### 🎯 使用场景
 
 #### 每日工作流
@@ -471,6 +497,24 @@ mcporter call sidecar-onestep.connect_device_async device_name="iPad Air" wired=
 mcporter call sidecar-onestep.connect_device_async device_name="iPad Pro" wired=true
 ```
 
+#### 虚拟显示器使用
+```bash
+# 1. 查看可用尺寸
+mcporter call sidecar-onestep.list_virtual_display_sizes
+
+# 2. 设置尺寸（可选，默认 16:9）
+mcporter call sidecar-onestep.set_virtual_display_size definition_id=440
+
+# 3. 启用虚拟显示器
+mcporter call sidecar-onestep.enable_virtual_display
+
+# 4. 查看状态
+mcporter call sidecar-onestep.virtual_display_status
+
+# 5. 禁用虚拟显示器
+mcporter call sidecar-onestep.disable_virtual_display
+```
+
 ### 🤖 AI 助手集成
 
 SidecarOneStep 与 AI 助手无缝协作：
@@ -482,6 +526,10 @@ SidecarOneStep 与 AI 助手无缝协作：
 - "断开 iPad 连接" → `disconnect_device`
 - "启动 Web 控制台" → `start_http_server`
 - "查看 Sidecar 状态" → `get_status`
+- "开启虚拟显示器" → `enable_virtual_display`
+- "关闭虚拟显示器" → `disable_virtual_display`
+- "设置虚拟显示器尺寸" → `set_virtual_display_size`
+- "查看虚拟显示器状态" → `virtual_display_status`
 
 ### 🔧 故障排查
 

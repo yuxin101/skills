@@ -1,0 +1,11 @@
+{
+  "owner": "jinhuadeng",
+  "slug": "volcengine-video-studio",
+  "displayName": "Volcengine Video Studio",
+  "latest": {
+    "version": "0.1.2",
+    "publishedAt": 1774772218474,
+    "commit": "https://github.com/openclaw/skills/commit/25144cc25652664604c2044d2e04ac4799ddb1eb"
+  },
+  "history": []
+}

@@ -1,20 +1,58 @@
 ---
 name: nemo-generate
-version: "1.8.3"
+version: 1.8.9
 displayName: "NemoGenerate - AI Video Generator: Text to Video, Create Video from Text"
 author: nemovideonemo
 description: >
-  Create video from text and generate video from prompt — describe a scene, product, or
+  Generate video from text and create video from prompt — describe a scene, product, or
   story and get a complete video without a camera. Handles marketing video generation,
-  product walkthroughs, explainer clips, and social media content from a text script. The
-  pipeline covers scene composition, voiceover, transitions, background music, and final
-  export as mp4. Works as a script to video tool: paste your script, pick a style, and get
-  a polished video back. No footage, no editing timeline — just a text prompt and a finished
+  product walkthroughs, explainer clips, and social media content from a text script.
+  Covers scene composition, voiceover, transitions, background music, and final export
+  as mp4. Works as a script to video tool: paste your script, pick a style, and get a
+  polished video back. No footage, no editing timeline — just a text prompt and a finished
   clip. Supports mp4, mov, webm.
 metadata:
+  primaryEnv: NEMO_TOKEN
+  requires:
+    env: ["NEMO_TOKEN"]
+    configPaths:
+      - "~/.config/nemovideo/"
   openclaw:
     emoji: 🎬
+homepage: https://nemovideo.com
+apiDomain: https://mega-api-prod.nemovideo.ai
+repository: https://github.com/nemovideo/nemovideo_skills
 ---
+
+## 0. First Contact
+
+When the user opens this skill or sends their first message, **greet them immediately**:
+
+> 🎨 Hey! I'm ready to help you nemo generate. Send me a video file or just tell me what you need!
+
+**Try saying:**
+- "make a slideshow"
+- "generate a video from this description"
+- "create a 30-second promo video"
+
+**IMPORTANT**: Always greet the user proactively on first contact. Let them know you're setting up while connecting. Always greet the user proactively on first contact.
+
+### Auto-Setup
+
+When the user first interacts, set up the connection:
+
+1. **Check token**: If `NEMO_TOKEN` env var is set, use it. Otherwise:
+2. **Read or generate Client-ID**:
+   - Read `~/.config/nemovideo/client_id` if it exists
+   - Otherwise generate a UUID, save it to `~/.config/nemovideo/client_id`
+3. **Acquire anonymous token**:
+   ```bash
+   curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
+   ```
+   Store the returned `token` as `NEMO_TOKEN` for this session. You get 100 free credits.
+4. **Create a session** (§3.0) so you're ready to work immediately.
+
+Let the user know briefly: "Setting things up… ready!" then proceed with their request.
 
 # NemoVideo — AI Video Generator Skill
 
@@ -43,9 +81,9 @@ If `NEMO_TOKEN` is not set, obtain one:
 CLIENT_ID="${NEMO_CLIENT_ID:-$(cat ~/.config/nemovideo/client_id 2>/dev/null)}"
 if [ -z "$CLIENT_ID" ]; then
   CLIENT_ID=$(uuidgen 2>/dev/null || echo "client-$(date +%s)-$RANDOM")
-  mkdir -p ~/.config/nemovideo && echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
+  mkdir -p ~/.config/nemovideo & echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
 fi
-curl -s -X POST "$API/api/auth/anonymous-token" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/auth/anonymous-token" \
   -H "X-Client-Id: $CLIENT_ID"
 # → {"code":0,"data":{"token":"nmv_usr_xxx","user_id":"anon_xxx","credits":100,"expires_at":"..."}}
 ```
@@ -56,7 +94,7 @@ Save token as `NEMO_TOKEN`, CLIENT_ID as `NEMO_CLIENT_ID`. One anonymous token p
 
 Check before acting:
 
-| User says... | Action | Skip SSE? |
+| User says... | Action | Skip SSE |
 |-------------|--------|-----------|
 | "generate" / "create" / "make a video" / "生成视频" | → §3.1 SSE (generation) | ❌ |
 | "export" / "导出" / "download" / "get the video" | → §3.5 Export | ✅ |
@@ -82,19 +120,19 @@ X-Skill-Platform: clawhub
 ### 3.0 Create Session (once per project)
 
 ```bash
-curl -s -X POST "$API/api/tasks/me/with-session/nemo_agent" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/tasks/me/with-session/nemo_agent" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "X-Skill-Source: nemo-generate" -H "X-Skill-Version: 1.0" -H "X-Skill-Platform: clawhub" \
   -d '{"task_name":"generate","language":"<lang>"}'
 # → {"code":0,"data":{"task_id":"...","session_id":"...","user_id":"..."}}
 ```
 
-Save `session_id`, `task_id`. Tell user browser link: `${NEMO_WEB_URL:-https://dev.nemovideo.ai}/workspace/claim?token=$TOKEN&task=<task_id>&session=<session_id>`
+Save `session_id`, `task_id`. Tell user browser link: `${NEMO_WEB_URL:-https://dev.nemovideo.ai}/workspace/claim?task=<task_id>&session=<session_id>`
 
 ### 3.1 Send Prompt via SSE
 
 ```bash
-curl -s -X POST "$API/run_sse" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/run_sse" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "Accept: text/event-stream" \
   -H "X-Skill-Source: nemo-generate" -H "X-Skill-Version: 1.0" -H "X-Skill-Platform: clawhub" \
@@ -146,12 +184,12 @@ Users can provide reference images for style direction without uploading source 
 
 ```bash
 # URL reference:
-curl -s -X POST "$API/api/upload-video/nemo_agent/<uid>/<sid>" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/upload-video/nemo_agent/<uid>/<sid>" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"urls":["<url>"],"source_type":"url"}'
 
 # File reference:
-curl -s -X POST "$API/api/upload-video/nemo_agent/<uid>/<sid>" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/upload-video/nemo_agent/<uid>/<sid>" \
   -H "Authorization: Bearer $TOKEN" -F "files=@/path/to/image"
 ```
 
@@ -162,19 +200,19 @@ After upload, include in next SSE message: "Use this image as style reference fo
 ### 3.3 Credits (handle directly — do NOT forward to backend)
 
 ```bash
-curl -s "$API/api/credits/balance/simple" \
+curl -s "https://mega-api-prod.nemovideo.ai/api/credits/balance/simple" \
   -H "Authorization: Bearer $TOKEN"
 # → {"code":0,"data":{"available":XXX,"frozen":XX,"total":XXX}}
 ```
 
 `frozen` = reserved for in-progress generation.
 
-Show before generating if user has low credits: "You have {available} credits. Continue?"
+Show before generating if user has low credits: "You have {available} credits. Continue"
 
 ### 3.4 Query State
 
 ```bash
-curl -s "$API/api/state/nemo_agent/<uid>/<sid>/latest" \
+curl -s "https://mega-api-prod.nemovideo.ai/api/state/nemo_agent/<uid>/<sid>/latest" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -197,7 +235,7 @@ Export does NOT cost credits. Only generation consumes credits.
 
 **b) Submit render:**
 ```bash
-curl -s -X POST "$API/api/render/proxy/lambda" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/render/proxy/lambda" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"id":"render_<ts>","sessionId":"<sid>","draft":<json>,"output":{"format":"mp4","quality":"high"}}'
 ```
@@ -206,13 +244,13 @@ Note: `sessionId` is camelCase (exception). On failure → new id, retry once.
 
 **c) Poll (every 30s, max 10 polls):**
 ```bash
-curl -s "$API/api/render/proxy/lambda/<id>" \
+curl -s "https://mega-api-prod.nemovideo.ai/api/render/proxy/lambda/<id>" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 Status at top-level `status`: `pending` → `processing` → `completed` / `failed`. Download URL at `output.url`.
 
-**d)** Download from `output.url` → deliver to user. Fallback: `$API/api/render/proxy/<id>/download`.
+**d)** Download from `output.url` → deliver to user. Fallback: `https://mega-api-prod.nemovideo.ai/api/render/proxy/<id>/download`.
 
 Progress: "⏳ Rendering ~30s..." → "⏳ 50%..." → "✅ Your video is ready!" + file.
 
@@ -244,7 +282,7 @@ Keep all content descriptions. Strip GUI action references.
 ### Storyboard First
 
 For longer or complex prompts, ask if user wants a storyboard:
-- "Want me to plan this as a storyboard first? I'll break it into scenes, then generate each clip."
+- "Want me to plan this as a storyboard first I'll break it into scenes, then generate each clip."
 - Storyboard flow: send planning prompt → backend returns scene list → generate per scene
 
 ### Style Parameters
@@ -267,7 +305,7 @@ Never leave user at a dead end.
 ### Aspect Ratio Guidance
 
 Default is 16:9. For social content, prompt user:
-- "What platform is this for? TikTok/Reels/Shorts → 9:16 vertical. YouTube/desktop → 16:9."
+- "What platform is this for TikTok/Reels/Shorts → 9:16 vertical. YouTube/desktop → 16:9."
 - Include ratio in prompt: "Generate in 9:16 vertical format for TikTok."
 
 ## 6. Limitations
@@ -278,7 +316,7 @@ Be honest. Do not intercept generation parameters — pass all to backend as-is.
 |-----------|----------|
 | Specific real people / celebrities | "AI generation can't recreate real people — I can create a similar character type instead." |
 | Exact brand assets | "I can generate something in that visual style — send a reference image." |
-| Long videos (>60s) | "Best results under 30s per clip. Want me to generate 2-3 clips you can chain?" |
+| Long videos (>60s) | "Best results under 30s per clip. Want me to generate 2-3 clips you can chain" |
 | Real-time footage | "I generate synthetic video — for real footage editing, try the nemo-video skill." |
 | Editing uploaded videos | Redirect to nemo-video skill |
 

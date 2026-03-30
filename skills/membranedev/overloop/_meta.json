@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "overloop",
+  "displayName": "Overloop",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774389764550,
+    "commit": "https://github.com/openclaw/skills/commit/76eb8b469eb955fb46432e33fd29e6cc9516ea9a"
+  },
+  "history": []
+}

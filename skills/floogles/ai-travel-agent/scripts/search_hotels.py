@@ -1,13 +1,35 @@
 #!/usr/bin/env python3
 """
 Search Google Hotels via SerpAPI.
-Usage: python3 search_hotels.py --location "Barcelona" --check-in 2026-06-15 --check-out 2026-06-22 --adults 2 --key YOUR_KEY [--stars 4] [--amenities "pool,beach"] [--sort lowest_price]
+Usage: python3 search_hotels.py --location "Barcelona" --check-in 2026-06-15 --check-out 2026-06-22 --adults 2 [--stars 4] [--amenities "pool,beach"] [--sort lowest_price]
+
+API key is read from the SERPAPI_KEY environment variable, or from ~/.serpapi_credentials /
+~/.travel_agent_config (key=value format). Never pass the key as a CLI argument.
 """
 
 import argparse
 import json
+import os
 import sys
 import requests
+
+
+def load_api_key():
+    """Load SerpAPI key from env var or credential files. Never from CLI args."""
+    key = os.environ.get("SERPAPI_KEY")
+    if key:
+        return key
+    for path in [os.path.expanduser("~/.serpapi_credentials"),
+                 os.path.expanduser("~/.travel_agent_config")]:
+        if os.path.exists(path):
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("SERPAPI_KEY="):
+                        return line.split("=", 1)[1].strip()
+    print("ERROR: SERPAPI_KEY not found. Set it as an environment variable or store it in "
+          "~/.serpapi_credentials (SERPAPI_KEY=yourkey).", file=sys.stderr)
+    sys.exit(1)
 
 
 def search_hotels(location, check_in, check_out, adults=1, children=0,
@@ -85,7 +107,6 @@ def main():
     parser.add_argument("--sort", default="lowest_price",
                         choices=["lowest_price", "highest_rating", "most_reviewed"])
     parser.add_argument("--currency", default="GBP")
-    parser.add_argument("--key", required=True, help="SerpAPI key")
 
     args = parser.parse_args()
 
@@ -101,7 +122,7 @@ def main():
         amenities=amenities,
         sort_by=args.sort,
         currency=args.currency,
-        api_key=args.key,
+        api_key=load_api_key(),
     )
 
 

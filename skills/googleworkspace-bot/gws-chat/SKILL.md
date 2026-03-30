@@ -1,8 +1,8 @@
 ---
 name: gws-chat
-version: 1.0.0
 description: "Google Chat: Manage Chat spaces and messages."
 metadata:
+  version: 0.22.3
   openclaw:
     category: "productivity"
     requires:
@@ -56,6 +56,7 @@ gws chat <resource> <method> [flags]
 
 ### users
 
+  - `sections` — Operations on the 'sections' resource
   - `spaces` — Operations on the 'spaces' resource
 
 ## Discovering Commands

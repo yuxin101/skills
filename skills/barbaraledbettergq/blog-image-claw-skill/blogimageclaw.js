@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-import { readFileSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 // --- Argument parsing ---
 const args = process.argv.slice(2);
@@ -27,28 +24,11 @@ if (!prompt) {
 }
 
 // --- Token resolution ---
-function readEnvFile(filePath) {
-  try {
-    const expanded = filePath.replace(/^~/, homedir());
-    const content = readFileSync(expanded, "utf8");
-    const match = content.match(/NETA_TOKEN=(.+)/);
-    return match ? match[1].trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-const TOKEN =
-  tokenFlag ||
-  process.env.NETA_TOKEN ||
-  readEnvFile("~/.openclaw/workspace/.env") ||
-  readEnvFile("~/developer/clawhouse/.env");
+const TOKEN = tokenFlag;
 
 if (!TOKEN) {
-  console.error('\n✗ NETA_TOKEN not found.');
-  console.error('  Global: sign up at https://www.neta.art/ → get token at https://www.neta.art/open/');
-  console.error('  China:  sign up at https://app.nieta.art/ → get token at https://app.nieta.art/security');
-  console.error('  Then:   export NETA_TOKEN=your_token_here');
+  console.error('\n✗ Token required. Pass via: --token YOUR_TOKEN');
+console.error('  Get yours at: https://www.neta.art/open/');
   process.exit(1);
 }
 
@@ -76,7 +56,7 @@ const body = {
   rawPrompt: [{ type: "freetext", value: prompt, weight: 1 }],
   width,
   height,
-  meta: { entrance: "PICTURE,CLI" },
+  meta: { entrance: "PICTURE,VERSE" },
   context_model_series: "8_image_edit",
 };
 
@@ -89,7 +69,7 @@ if (refUuid) {
 
 // --- Submit image generation job ---
 async function makeImage() {
-  const res = await fetch(`${process.env.NETA_API_URL || 'https://api.talesofai.cn'}/v3/make_image`, {
+  const res = await fetch("https://api.talesofai.com/v3/make_image", {
     method: "POST",
     headers: HEADERS,
     body: JSON.stringify(body),
@@ -116,7 +96,7 @@ async function makeImage() {
 
 // --- Poll for result ---
 async function pollTask(taskUuid) {
-  const url = `${process.env.NETA_API_URL || 'https://api.talesofai.cn'}/v1/artifact/task/${taskUuid}`;
+  const url = `https://api.talesofai.com/v1/artifact/task/${taskUuid}`;
   const MAX_ATTEMPTS = 90;
   const INTERVAL_MS = 2000;
 
@@ -133,11 +113,9 @@ async function pollTask(taskUuid) {
     const data = await res.json();
     const status = data.task_status;
 
-    if (['PENDING', 'MODERATION'].includes(status)) { continue; }
-  if (['FAILURE', 'TIMEOUT', 'DELETED', 'ILLEGAL_IMAGE'].includes(status)) {
-    console.error('Error: generation failed with status ' + status + (pollData.err_msg ? ' — ' + pollData.err_msg : ''));
-    process.exit(1);
-  }
+    if (status === "PENDING" || status === "MODERATION") {
+      continue;
+    }
 
     // Done — extract image URL
     const imageUrl =

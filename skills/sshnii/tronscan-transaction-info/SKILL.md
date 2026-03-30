@@ -112,3 +112,4 @@ Ensure the hash is a valid TRON transaction ID (64 hex chars). If tx not found, 
 - Always use `getTransactionDetail` first when user has a tx hash; token transfers within the tx are already in its response—no need to call `getTrc20Transfers` / `getTrc1155Transfers` / `getTransferList`.
 - `getTrc20Transfers`, `getTrc1155Transfers`, `getTransferList` are for address, contract, or time-range investigation; they **do not expose tx hash filter parameters**. Do not fabricate tx-hash filter or claim filtering by tx hash.
 - Energy/bandwidth in response are in the same unit as chain (energy in units, bandwidth in bytes).
+- Token entries in `trc20TransferInfo` and `transfersAllList` may include risk fields such as `tokenCanShow` and `tokenLevel`. If the transacted token has `tokenCanShow: false` or `tokenLevel` of `"3"` / `"4"`, warn the user that this transaction involves a potentially risky token. See **tronscan-token-scanner** for full field semantics.

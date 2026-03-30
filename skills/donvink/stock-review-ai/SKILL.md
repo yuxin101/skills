@@ -1,7 +1,7 @@
 ---
 name: stock-review
 description: A-share market automated review and analysis system, generating daily market insights with Gemini AI, supporting publishing to Hugo blog and WeChat Official Account
-version: 1.0.0
+version: 1.0.1
 metadata:
   openclaw:
     homepage: https://github.com/donvink/stock-review
@@ -14,6 +14,8 @@ metadata:
 # 🚀 Stock Review
 
 👉 **[Live Demo Blog](https://donvink.github.io/stock-review/)**
+
+### GitHub: 👉 **[https://github.com/Donvink/stock-review](https://github.com/Donvink/stock-review)**
 
 ## Language
 

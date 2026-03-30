@@ -1,13 +1,18 @@
 {
   "owner": "iret77",
   "slug": "clawsy",
-  "displayName": "Clawsy",
+  "displayName": "Clawsy Server",
   "latest": {
-    "version": "0.9.37",
-    "publishedAt": 1773927712570,
-    "commit": "https://github.com/openclaw/skills/commit/fbf9893d968f7dce83ee9c2cc8b540501ad80cdb"
+    "version": "1.0.0",
+    "publishedAt": 1774828402183,
+    "commit": "https://github.com/openclaw/skills/commit/44f3a69ba05b8aaf97d1f3b208d5ace1db8d414f"
   },
   "history": [
+    {
+      "version": "0.9.37",
+      "publishedAt": 1773927712570,
+      "commit": "https://github.com/openclaw/skills/commit/fbf9893d968f7dce83ee9c2cc8b540501ad80cdb"
+    },
     {
       "version": "0.9.35",
       "publishedAt": 1773341296889,

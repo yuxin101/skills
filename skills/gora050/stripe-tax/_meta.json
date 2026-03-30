@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "stripe-tax",
+  "displayName": "Stripe Tax",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774598650026,
+    "commit": "https://github.com/openclaw/skills/commit/47e974a1ce29c772bb395ac1dcfa79a7dee74618"
+  },
+  "history": []
+}

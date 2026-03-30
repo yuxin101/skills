@@ -1,0 +1,15 @@
+{
+  "apiKey": "sk-xxxx",
+  "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "selectionPolicy": "auto",
+  "defaultModel": "qwen3-omni-flash",
+  "modelCandidates": [
+    "qwen3-omni-flash",
+    "qwen-omni-turbo"
+  ],
+  "voiceByModelFamily": {
+    "qwen3-omni-flash": "Cherry",
+    "qwen-omni-turbo": "Serena"
+  },
+  "voice": "Cherry"
+}

@@ -8,7 +8,7 @@ Tomoviee provides three image generation APIs for reference-based generation, lo
 ### 1. Image-to-Image (tm_reference_img2img)
 **Generate new image based on reference image**
 
-**Endpoint**: `https://open-api.wondershare.cc/v1/open/capacity/application/tm_reference_img2img`
+**Endpoint**: `https://openapi.wondershare.cc/v1/open/capacity/application/tm_reference_img2img`
 
 **Parameters**:
 - `prompt` (required): Text description (reference + preserve + modify/add)
@@ -52,7 +52,7 @@ task_id = client.image_to_image(
 ### 2. Image Redrawing (tm_redrawing)
 **Redraw specific region of image using mask**
 
-**Endpoint**: `https://open-api.wondershare.cc/v1/open/capacity/application/tm_redrawing`
+**Endpoint**: `https://openapi.wondershare.cc/v1/open/capacity/application/tm_redrawing`
 
 **Parameters**:
 - `prompt` (required): Description of what to redraw in masked area
@@ -108,7 +108,7 @@ You can create masks using:
 ### 3. Image Recognition (tm_reference_img2mask)
 **Recognize and segment image regions based on prompt**
 
-**Endpoint**: `https://open-api.wondershare.cc/v1/open/capacity/application/tm_reference_img2mask`
+**Endpoint**: `https://openapi.wondershare.cc/v1/open/capacity/application/tm_reference_img2mask`
 
 **Parameters**:
 - `prompt` (required): Description of objects/regions to recognize
@@ -206,7 +206,7 @@ All image APIs are asynchronous:
    - `6` = Timeout
 4. **Get Result**: When status=3, extract image URL(s) from result JSON
 
-**Unified Result Endpoint**: `https://open-api.wondershare.cc/v1/open/pub/task`
+**Unified Result Endpoint**: `https://openapi.wondershare.cc/v1/open/pub/task`
 
 **Example Workflow**:
 ```python

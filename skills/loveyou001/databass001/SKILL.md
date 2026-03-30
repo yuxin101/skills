@@ -1,84 +1,71 @@
 ---
-name: github-trending-cn
-description: "GitHub 趋势监控 | GitHub Trending Monitor. 获取 GitHub 热门项目、编程语言趋势、开源动态 | Get GitHub trending repos, language trends, open source updates. 触发词：GitHub、trending、开源、热门项目."
+name: daily-hot-aggregator
+description: "🔥 一键获取全平台热榜！B站+抖音+微博+头条，一站搞定所有热点。自媒体运营必备！免费使用，定制开发请联系作者。"
+homepage: https://github.com/openclaw/daily-hot-aggregator
 metadata:
-  openclaw:
-    emoji: "📈"
-    category: "developer"
-    tags: ["github", "trending", "opensource", "developer", "code"]
-    requires:
-      bins: ["python3", "curl"]
+  {
+    "openclaw":
+      {
+        "emoji": "🔥",
+        "requires": { "bins": ["python3"] },
+      },
+  }
 ---
 
-# GitHub 趋势监控
+# 🔥 全平台热榜聚合 v4.0
 
-GitHub 热门项目趋势监控，支持多语言、时间段筛选。
+一个技能搞定所有平台热榜！B站 + 抖音 + 微博 + 头条
 
-## 功能
+## ✨ v4.0 新功能
 
-### 趋势榜单
-- **今日热门** - 今日 stars 增长最快的项目
-- **本周热门** - 本周热门项目
-- **本月热门** - 本月热门项目
+- ✅ 新增抖音热搜支持
+- ✅ 新增今日头条热榜支持
+- ✅ 优化数据结构
+- ✅ 改善可视化报告
 
-### 语言筛选
-- **按语言** - Python、JavaScript、Go、Rust 等
-- **所有语言** - 全语言趋势
+## 📦 安装
 
-### 开发者趋势
-- **热门开发者** - 活跃的开源贡献者
-- **新兴项目** - 新上线的热门项目
-
-## 使用方式
-
-### 获取今日趋势
-
-```
-获取 GitHub 今日热门项目
+```bash
+npx clawhub@latest install daily-hot-aggregator
 ```
 
-返回：
-```json
-[
-  {"rank": 1, "name": "facebook/react", "stars": 220000, "today": 256, "language": "JavaScript", "description": "React 库"},
-  {"rank": 2, "name": "vercel/next.js", "stars": 120000, "today": 198, "language": "TypeScript", "description": "Next.js 框架"},
-  {"rank": 3, "name": "langchain-ai/langchain", "stars": 90000, "today": 156, "language": "Python", "description": "LLM 应用框架"}
-]
+## 🚀 使用
+
+```bash
+# 获取所有平台 Top 5
+python3 fetch_all.py --top 5
+
+# 获取指定平台
+python3 fetch_all.py --bilibili --top 10
+python3 fetch_all.py --douyin --top 10
+
+# 生成摘要
+python3 fetch_all.py --summary --output daily_report.json
 ```
 
-### 按语言筛选
+## 📊 支持平台
 
-```
-获取 GitHub Python 今日热门
-```
+| 平台 | 状态 | 数据内容 |
+|------|------|---------|
+| B站 | ✅ 正常 | 热门视频排行榜 |
+| 抖音 | ✅ 正常 | 热搜榜 |
+| 今日头条 | ⚠️ 部分 | 热点新闻 |
+| 微博 | ❌ 需Cookie | 热搜榜 |
+| 知乎 | ❌ 需授权 | 热榜 |
 
-### 获取本周趋势
+## 💰 定制服务
 
-```
-获取 GitHub 本周热门项目
-```
+**免费使用本技能，如需以下服务请联系作者：**
 
-## 数据来源
+- 🔧 **定制开发**：多平台数据聚合方案
+- 📊 **数据分析**：跨平台热点趋势分析
+- 🤖 **自动化部署**：完整的数据监控系统
+- 📱 **系统集成**：对接企业内部系统
 
-- GitHub Trending 页面
-- GitHub API（如可用）
+**联系方式：**
+- 📱 QQ：2595075878
+- 📧 邮箱：2595075878@qq.com
 
-## 输出格式
+## 📄 许可证
 
-### 项目榜单
-```
-📈 GitHub 今日热门
-
-1. facebook/react ⭐ 220k (+256 today) - JavaScript
-   React 库
-
-2. vercel/next.js ⭐ 120k (+198 today) - TypeScript
-   Next.js 框架
-
-3. langchain-ai/langchain ⭐ 90k (+156 today) - Python
-   LLM 应用框架
-```
-
----
-
-*GitHub Trending，把握开源脉搏* 📈
+MIT License

@@ -1,6 +1,20 @@
 ---
 name: kittentts-whatsapp
-description: WhatsApp voice notes via KittenTTS. Converts KittenTTS 24kHz WAV output to WhatsApp-compatible 16kHz OGG Opus using ffmpeg. Install dependencies first — see setup. Network: downloads ~80-400MB TTS model on first run from Hugging Face.
+description: WhatsApp voice notes via KittenTTS. Converts KittenTTS 24kHz WAV output to WhatsApp-compatible 16kHz OGG Opus using ffmpeg. Install dependencies first — see setup. Network: downloads ~25-80MB TTS model on first run from Hugging Face.
+metadata:
+  {
+    "openclaw":
+      {
+        "requires":
+          {
+            "bins": ["ffmpeg"],
+            "packages": ["kittentts"],
+            "network": ["huggingface.co"],
+            "privileged": true,
+            "warning": "Requires root to apt-get install ffmpeg and pip install with --break-system-packages. Downloads ~25-80MB from Hugging Face on first TTS run."
+          }
+      }
+  }
 ---
 
 # KittenTTS WhatsApp Voice
@@ -77,12 +91,11 @@ Available: **Bella, Jasper, Luna, Bruno, Rosie, Hugo, Kiki, Leo**
 
 Default: `Bella`
 
-## Voice Speed
+## Security Notes
 
-Adjust in `scripts/tts_walkie.sh`:
-```bash
-VOICE_SPEED=1.0  # increase to speed up, decrease to slow down
-```
+- Audio files are written to a **private `/tmp/kittentts-walkie/` directory** (mode 700) — only the running user can read them.
+- WAV intermediates are **cleaned up immediately** after conversion; only the OGG is kept for sending.
+- Set `VOICE_SPEED` env var to adjust speech rate (default: `1.0`).
 
 ## Files
 
@@ -90,7 +103,7 @@ VOICE_SPEED=1.0  # increase to speed up, decrease to slow down
 kittentts-whatsapp/
 ├── SKILL.md
 └── scripts/
-    ├── tts_walkie.sh      # TTS + ffmpeg conversion
+    ├── tts_walkie.sh      # TTS + ffmpeg conversion (speed is now used)
     └── transcribe.sh       # whisper transcription (optional)
 ```
 

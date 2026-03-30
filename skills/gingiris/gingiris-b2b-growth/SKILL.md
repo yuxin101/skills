@@ -5,6 +5,8 @@ description: |
 
   🇨🇳 B2B SaaS 增长指南 | 🇯🇵 B2B SaaS成長ガイド | 🇰🇷 B2B SaaS 성장 가이드
 
+  Website: https://www.gingiris.com
+
   Keywords: B2B SaaS, PLG, product-led growth, SLG, sales-led growth, PMF, product-market fit, affiliate marketing, channel partners, enterprise sales, customer success, pricing strategy, B2B 增长, SaaS 运营
 ---
 

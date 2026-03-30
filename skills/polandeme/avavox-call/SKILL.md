@@ -1,0 +1,183 @@
+---
+name: avavox-智能外呼
+description: 通过 大模型语音数字员工-avavox的外呼机器人的技能, 用于在 小龙虾(OpenClaw)等 Agent平台中实现大模型语音外呼机器人。适用于批量外呼、客户回访、满意度调查、简历筛查约面试，以及定时提醒、任务安排等场景。
+metadata:
+  {
+    'openclaw':
+      {
+        'skillKey': 'avavox-call',
+        'homepage': 'https://avavox.com/avavox-docs/developer/app-key.html',
+        'requires': { 'anyBins': ['python3', 'python', 'py'] },
+        'primaryEnv': 'AVAVOX_APP_KEY',
+      },
+  }
+---
+
+# avavox 外呼技能
+
+当前版本：`0.6.0`
+
+按 avavox 开放接口工作，不依赖前端页面 session、企业后台 token 或内部接口。
+
+## 准备
+
+1. 先访问 `https://dashboard.avavox.com/login` 完成平台登录。
+2. 登录页支持两种方式：
+   - `手机号` 页签：手机号 + 短信验证码；页面文案明确写了“未注册的手机号将自动注册”
+   - `账号` 页签：账号/手机号/邮箱 + 密码
+3. 登录成功后进入 `https://dashboard.avavox.com/agent/api-paas`。
+4. 该页面对应控制台菜单 `空间管理 -> 接口回调`，包含两个页签：
+   - `回调设置`：配置通话结束后的回调端点、Header、启用/禁用状态与连通性测试
+   - `App Key 管理`：创建、复制、启用、禁用、删除 App Key
+5. 在 `App Key 管理` 中创建并复制 App Key，再填写 `config.json` 中的 `appKey` 和 `baseUrl`。
+6. 创建任务前，先查询当前空间是否存在可用的已发布机器人，再查询线路。
+
+脚本使用 Python 3 标准库实现，不依赖第三方包。对外发布时，优先使用 `python3`；在 Windows 上可用 `py -3`。
+
+## OpenClaw 配置建议
+
+按 OpenClaw 官方 skills 配置约定，这个 skill 优先支持两种配置来源：
+
+- `skills.entries."avavox-call".apiKey` 对应注入环境变量 `AVAVOX_APP_KEY`
+- `skills.entries."avavox-call".env` 可选注入：
+  - `AVAVOX_BASE_URL`
+  - `AVAVOX_DEFAULT_TASK_ID`
+  - `AVAVOX_DEFAULT_ROBOT_ID`
+  - `AVAVOX_DEFAULT_LINE_ID`
+  - `AVAVOX_DEFAULT_CONCURRENCY`
+  - `AVAVOX_DEFAULT_BACKGROUND_AUDIO`
+  - `AVAVOX_DEFAULT_CALL_TIME_TYPE`
+
+如果没有使用 OpenClaw 的 env/apiKey 注入，也可以继续使用 `{baseDir}/config.json`。
+
+## 官方文档
+
+对外发布时，以下线上文档应视为优先参考的权威来源；本 skill 目录下的 `references/` 是便于 OpenClaw 使用的精简摘要。
+
+- App Key 创建与管理： `https://avavox.com/avavox-docs/developer/app-key.html`
+- 创建任务： `https://avavox.com/avavox-docs/developer/create-task.html`
+
+如果在 OpenClaw 中直接运行，一般以 skill 根目录作为工作目录。命令示例默认都在 skill 根目录执行：
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py robots list --config {baseDir}/config.json
+python3 {baseDir}/scripts/avavox_call.py lines list --config {baseDir}/config.json
+```
+
+## 核心工作流
+
+### 1. 查询可用资源
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py robots list --config {baseDir}/config.json
+python3 {baseDir}/scripts/avavox_call.py lines list --config {baseDir}/config.json
+```
+
+创建任务前先执行以下判断：
+
+1. 先运行 `robots list`，把返回的已发布机器人列表展示给用户选择。
+2. 只有在返回结果非空，且用户已经从结果中明确选择了一个机器人后，才继续 `tasks create`。
+3. 如果 `robots list` 返回为空，不要继续创建任务，也不要假定某个 `robotId` 可用。
+4. 此时应打开浏览器访问 `https://dashboard.avavox.com/robot`，让用户先创建机器人并完成发布。
+5. 用户发布成功后，重新执行一次 `robots list`，再继续后续任务创建流程。
+
+### 2. 创建任务
+
+只有在 `robots list` 已经返回可选机器人，并且用户已选定机器人后，才进入这一步。
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py tasks create \
+  --config {baseDir}/config.json \
+  --task-name "三月回访任务" \
+  --robot-id "robot_xxx" \
+  --line-id "line_xxx" \
+  --concurrency 1 \
+  --call-time-type immediate
+```
+
+复杂配置直接用 JSON 透传：
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py tasks create \
+  --config {baseDir}/config.json \
+  --task-name "工作日白天外呼" \
+  --robot-id "robot_xxx" \
+  --call-time-type scheduled \
+  --runtime-config-json '{"retryConfig":{"retryableStatuses":["busy","timeout"],"maxRetries":1,"retryInterval":1,"enabled":true}}' \
+  --scheduled-time-json '[{"dayOfWeeks":[1,2,3,4,5],"times":[{"startTime":"09:00","endTime":"12:00"},{"startTime":"14:00","endTime":"18:00"}]}]'
+```
+
+### 3. 导入客户
+
+创建任务后，必须导入客户，系统才会开始外呼：
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py customers import \
+  --config {baseDir}/config.json \
+  --task-id "task_xxx" \
+  --customers-inline '[{"phoneNumber":"13800000001","ext":{"客户姓名":"张三"}}]'
+```
+
+### 4. 查询与维护任务
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py tasks list --config {baseDir}/config.json
+python3 {baseDir}/scripts/avavox_call.py tasks get --config {baseDir}/config.json --task-id "task_xxx"
+python3 {baseDir}/scripts/avavox_call.py tasks variables --config {baseDir}/config.json --task-id "task_xxx"
+python3 {baseDir}/scripts/avavox_call.py tasks pause --config {baseDir}/config.json --task-id "task_xxx"
+python3 {baseDir}/scripts/avavox_call.py tasks resume --config {baseDir}/config.json --task-id "task_xxx"
+```
+
+修改任务：
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py tasks update \
+  --config {baseDir}/config.json \
+  --task-id "task_xxx" \
+  --line-id "line_xxx" \
+  --background-audio office_ambient \
+  --concurrency 5
+```
+
+## 映射规则
+
+- “查机器人 / 查线路”: 用 `robots list` 或 `lines list`
+- “创建一个外呼任务”: 先执行 `robots list` 检查已发布机器人并让用户选择；如果没有可选机器人，打开浏览器到 `https://dashboard.avavox.com/robot` 让用户创建并发布机器人，完成后再确认 `taskName`、`robotId`，需要真实外呼时补 `lineId`
+- “把客户名单导入这个任务”: 用 `customers import`
+- “暂停 / 恢复 / 查看任务详情”: 用 `tasks pause`、`tasks resume`、`tasks get`
+- “看看这个任务有哪些机器人变量，ext 该怎么传”: 用 `tasks variables`
+- “文档里有接口，但脚本还没单独封装”: 用 `request`
+
+## 通用请求入口
+
+```bash
+python3 {baseDir}/scripts/avavox_call.py request \
+  --config {baseDir}/config.json \
+  --method PUT \
+  --path /open/api/task/task_xxx \
+  --body-json '{"concurrency":3}'
+```
+
+## 约束
+
+- 只调用开放接口文档里明确存在的能力，不伪造前端内部 API。
+- `App Key` 是空间级凭据，不同空间不能混用。
+- `https://dashboard.avavox.com/agent/api-paas` 需要先完成平台登录；未登录访问时会被重定向到登录页。
+- 创建任务前必须基于 `robots list` 的返回结果确认当前空间存在可用的已发布机器人。
+- 如果没有可选的已发布机器人，应先打开 `https://dashboard.avavox.com/robot` 让用户创建并发布机器人，再继续创建任务。
+- 创建任务后不会自动有客户，必须再调用一次 `customers import`。
+- 如果机器人配置了变量，先查 `tasks variables`，再构造 `ext`。
+- “通话记录”文档当前定义的是回调数据结构，不是查询接口。
+- 如果要接收通话结束回调，不要只创建 App Key，还应在 `接口回调 -> 回调设置` 中配置回调 URL 与 Header。
+- 不要在对用户可见的输出里回显完整 `appKey`。
+
+## 参考文件
+
+- 官方线上文档：
+  - `https://avavox.com/avavox-docs/developer/app-key.html`
+  - `https://avavox.com/avavox-docs/developer/create-task.html`
+- `references/auth-and-context.md`
+- `references/entity-and-endpoint-map.md`
+- `references/payload-examples.md`
+- `references/callback-schema.md`
+- `scripts/avavox_call.py`

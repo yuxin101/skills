@@ -3,11 +3,16 @@
   "slug": "elevenlabs-tts",
   "displayName": "Elevenlabs Tts",
   "latest": {
-    "version": "2.2.0",
-    "publishedAt": 1771087774137,
-    "commit": "https://github.com/openclaw/skills/commit/d410451dc2e0442e7c64a52c03f5be93b5f99f6b"
+    "version": "2.3.0",
+    "publishedAt": 1774206040931,
+    "commit": "https://github.com/openclaw/skills/commit/6f25dcfd8530ea956e338773f77dac9b2a87ba27"
   },
   "history": [
+    {
+      "version": "2.2.0",
+      "publishedAt": 1771087774137,
+      "commit": "https://github.com/openclaw/skills/commit/d410451dc2e0442e7c64a52c03f5be93b5f99f6b"
+    },
     {
       "version": "2.1.0",
       "publishedAt": 1770644808695,

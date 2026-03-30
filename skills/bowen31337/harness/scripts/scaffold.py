@@ -180,6 +180,7 @@ This file is a **table of contents** — not a reference manual. Follow the link
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layer rules, dependency graph, key invariants |
 | [`docs/QUALITY.md`](docs/QUALITY.md) | Coverage targets, security rules, testing standards |
 | [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) | Naming conventions, code style |
+| [`docs/RESILIENCE.md`](docs/RESILIENCE.md) | Agent recovery protocols, 7-point checklist, VBR standards |
 | [`docs/EXECUTION_PLAN_TEMPLATE.md`](docs/EXECUTION_PLAN_TEMPLATE.md) | Template for planning complex tasks |
 
 ---
@@ -757,6 +758,116 @@ All exported functions require JSDoc comments.
 # Main
 # ---------------------------------------------------------------------------
 
+def generate_resilience_md(info: dict) -> str:
+    """Generate docs/RESILIENCE.md — agent recovery protocols and autonomy standards."""
+    name = info["name"]
+    return f"""# Agent Resilience — {name}
+
+> Pulled from [agent-motivator](https://clawhub.com/alex-agent-motivator) v1.1.0.
+> This file is the contract for how agents behave when things get hard.
+
+---
+
+## When You Hit an Obstacle — The 7-Point Checklist
+
+Run in order. Document each step. Only after all 7 are exhausted may you surface a blocker.
+
+1. **Read the error verbatim** — every character of the traceback, not a skim. The fix is usually in line 3 you glossed over.
+2. **Check ALL logs** — stdout is not enough. Check stderr, `journalctl -u <service>`, app log files (`/tmp/*.log`). The real error is one level deeper.
+3. **Search the exact error** — copy the error string verbatim into `web_search`. Someone has hit this before.
+4. **Read the source** — if a library is misbehaving, `cat` its source. The behaviour lives in the code, not the docs.
+5. **Switch approach entirely** — if A failed twice, don't try A again. Write out approaches B and C, then pick one.
+6. **Audit assumptions** — list what you assumed (env vars set, file exists, port open, package installed). Verify with `echo`, `ls`, `curl`, `which`.
+7. **Isolate and simplify** — reproduce the failure in the smallest possible case. Fix that. Scale back up.
+
+---
+
+## Activation Levels
+
+| Level | Trigger | Agent Response |
+|-------|---------|---------------|
+| **L1** | First sign of passive slip | Nudge: try harder before asking or giving up |
+| **L2** | Same approach failing twice | Approach reset: switch strategy, don't retry |
+| **L3** | 2+ consecutive failures on any task | Full 7-point checklist mandatory before proceeding |
+| **L4** | About to give up or blame environment | Mission reminder: list available tools, attempt all, document why each failed |
+
+---
+
+## Verify Before Reporting (VBR)
+
+Never claim done without proof:
+
+| Task type | Minimum verification |
+|-----------|---------------------|
+| Code written | Tests pass locally |
+| Bug fixed | Reproduce original failure → confirm gone |
+| PR merged | `gh pr view --json state` shows MERGED |
+| Cron updated | `cron list` shows new config |
+| File pushed | `git log --oneline -1` on remote |
+| Service restarted | `systemctl is-active <svc>` = active |
+| API call made | Response body shows expected fields |
+
+"I think it worked" is not verification. Run the check.
+
+---
+
+## Common Failure Patterns
+
+| Symptom | Diagnosis | Fix |
+|---------|-----------|-----|
+| `Command not found` / `ImportError` | Wrong env, missing install | `which <cmd>`; `uv pip list`; use `uv run python` not `python3` |
+| SSH timeout | TCP unreachable or service down | `ssh -v`; `nc -zv <host> <port>`; check remote service |
+| CI failure | Read full output | `pytest tests/foo.py::test_bar -v` locally first |
+| Git push rejected | Diverged branch | `git fetch && git rebase origin/main`; `--admin` if authorised |
+| API 429 | Rate limit | Back off, check `Retry-After` header |
+| File not found | Wrong cwd or path | `find ~ -name "<file>"`; `pwd`; check symlinks |
+| Subprocess hangs | No timeout set | Add `timeout=120`; use `background=True` + `process(poll)` |
+
+---
+
+## No-Permission Rule
+
+If the next step is obvious and reversible: take it, then report. Don't announce intent.
+
+❌ "Want me to try running the tests?"
+✅ Ran tests → found failure → fixed → CI green.
+
+---
+
+## Phrases That Mean "I Haven't Tried Hard Enough"
+
+Before using any of these, run the 7-point checklist:
+
+| Phrase | What to do instead |
+|--------|--------------------|
+| "I cannot solve this" | Run steps 5–7 |
+| "Probably a permissions issue" | `ls -la`, `id`, `sudo -l` — verify |
+| "I need more context" | Search for it, read the source, grep the logs |
+| "You might need to manually" | Try it yourself first |
+
+---
+
+## Sub-Agent Priming Block
+
+Include in any sub-agent prompt for hard or risky tasks:
+
+```
+When you hit obstacles:
+- Read the FULL error — every line of the traceback
+- Check logs (stderr, journalctl, /tmp/*.log)
+- web_search the exact error string
+- Try an alternative approach before retrying the same one
+- Run `uv run python` (never bare `python3`)
+- Do NOT give up after 2 tries
+- Run the 7-point checklist before surfacing any blocker
+```
+
+---
+
+*Generated by harness skill scaffold. Source: [alex-agent-motivator@1.1.0](https://clawhub.com/alex-agent-motivator)*
+"""
+
+
 def generate_coordination_md(info: dict) -> str:
     """Generate docs/COORDINATION.md for multi-agent task design."""
     name = info["name"]
@@ -829,6 +940,7 @@ def scaffold(repo: Path, dry_run: bool, force: bool, audit: bool = False) -> Non
         repo / "docs" / "QUALITY.md": generate_quality_md(info),
         repo / "docs" / "CONVENTIONS.md": generate_conventions_md(info),
         repo / "docs" / "COORDINATION.md": generate_coordination_md(info),
+        repo / "docs" / "RESILIENCE.md": generate_resilience_md(info),
         repo / "docs" / "EXECUTION_PLAN_TEMPLATE.md": _execution_plan_template(),
         repo / "scripts" / "agent-lint.sh": generate_agent_lint_sh(info),
         repo / ".github" / "workflows" / "agent-lint.yml": generate_ci_yml(info),
@@ -914,6 +1026,14 @@ def _run_audit(repo: Path, info: dict) -> None:
         print("   FIX: Re-run scaffold to generate it")
     else:
         print("✅ docs/COORDINATION.md present")
+
+    # Check RESILIENCE.md exists (agent-motivator integration)
+    resilience_md = repo / "docs" / "RESILIENCE.md"
+    if not resilience_md.exists():
+        print("⚠️  docs/RESILIENCE.md missing — agent recovery protocols not documented")
+        print("   FIX: Re-run scaffold to generate it (from agent-motivator)")
+    else:
+        print("✅ docs/RESILIENCE.md present")
 
     # Check lint script has JSON output option
     lint_sh = repo / "scripts" / "agent-lint.sh"

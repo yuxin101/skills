@@ -1,0 +1,26 @@
+{
+  "name": "clash-proxy",
+  "version": "1.0.0",
+  "description": "Clash 代理管理服务（基于 Mihomo 内核），提供 HTTP/SOCKS 代理、订阅管理、节点切换、流量统计、自动更新等功能",
+  "main": "main.py",
+  "scripts": {
+    "start": "./start.sh",
+    "update-core": "python3 update-core.py --auto",
+    "status": "python3 main.py status",
+    "test": "python3 main.py test"
+  },
+  "keywords": [
+    "clash",
+    "proxy",
+    "mihomo",
+    "agent",
+    "skill",
+    "openclaw"
+  ],
+  "author": "BruceTang",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openclaw/openclaw"
+  }
+}

@@ -10,11 +10,13 @@ Description: GPU 精修独立模块
 import sys
 import gc
 from pathlib import Path
-from huggingface_hub import snapshot_download
-import torch
 import ensure_package
 ensure_package.pip("pycorrector", "pycorrector","MacBertCorrector")
+ensure_package.pip("huggingface_hub")
+ensure_package.pip("torch")
 from pycorrector import MacBertCorrector
+from huggingface_hub import snapshot_download
+import torch
 
 # ==================== 模型映射（支持别名 + 完整 repo） ====================
 MODEL_MAPPING = {

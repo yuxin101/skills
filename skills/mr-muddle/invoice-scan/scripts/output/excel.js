@@ -61,6 +61,14 @@ function toExcel(invoice) {
     }
   }
 
+  // Metadata — paid date and VAT-inclusive flag
+  if (invoice.metadata?.paidDate) {
+    headerData.push(['Paid Date', invoice.metadata.paidDate]);
+  }
+  if (invoice.metadata?.vatInclusive !== null && invoice.metadata?.vatInclusive !== undefined) {
+    headerData.push(['VAT Inclusive', invoice.metadata.vatInclusive ? 'YES' : 'NO']);
+  }
+
   // Totals block
   headerData.push(
     ['', ''],
@@ -79,8 +87,28 @@ function toExcel(invoice) {
     headerData.push(['  Charges Subtotal', chargesNet]);
   }
 
+  // VAT breakdown with type labels
+  const vatBkdn = invoice.totals.vatBreakdown || [];
+  if (vatBkdn.length > 0) {
+    for (const vb of vatBkdn) {
+      const label = vb.type ? `  VAT: ${vb.type}` : `  VAT @ ${vb.rate != null ? vb.rate + '%' : '?'}`;
+      headerData.push([label, vb.amount]);
+    }
+  }
+
   headerData.push(
     ['VAT Total', invoice.totals.vatTotal],
+  );
+
+  // Invoice-level discount
+  if (invoice.totals.discount != null) {
+    const discLabel = invoice.totals.discountRate != null
+      ? `Discount (${invoice.totals.discountRate}%)`
+      : 'Discount';
+    headerData.push([discLabel, -Math.abs(invoice.totals.discount)]);
+  }
+
+  headerData.push(
     ['Gross Total', invoice.totals.grossTotal],
     ['Amount Paid', invoice.totals.amountPaid],
     ['Amount Due', invoice.totals.amountDue],

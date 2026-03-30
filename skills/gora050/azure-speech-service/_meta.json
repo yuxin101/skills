@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "azure-speech-service",
+  "displayName": "Azure Speech Service",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774602293849,
+    "commit": "https://github.com/openclaw/skills/commit/8fc9e87aa24806f9a9efe7c6091671c993583226"
+  },
+  "history": []
+}

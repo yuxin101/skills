@@ -1,0 +1,11 @@
+{
+  "owner": "gate-exchange",
+  "slug": "gate-exchange-activitycenter",
+  "displayName": "Gate Exchange  Activity Center",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774618189564,
+    "commit": "https://github.com/openclaw/skills/commit/68c2367fc107ef26570e500ed4a6ea8aea5e0a73"
+  },
+  "history": []
+}

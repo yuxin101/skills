@@ -12,24 +12,17 @@
  *   header  1024×576  (16:9) — hero / OG image
  *   inline  1024×576  (16:9) — in-article image (same ratio, agent may vary)
  *
- * Token resolved from: NETA_TOKEN env → ~/.openclaw/workspace/.env → clawhouse .env
  */
 
-import { readFileSync } from 'node:fs';
 import { homedir }      from 'node:os';
 import { resolve }      from 'node:path';
 
-const BASE = 'https://api.talesofai.cn';
+const BASE = 'https://api.talesofai.com';
 
 function getToken() {
-  if (process.env.NETA_TOKEN) return process.env.NETA_TOKEN;
-  for (const p of [
-    resolve(homedir(), '.openclaw/workspace/.env'),
-    resolve(homedir(), 'developer/clawhouse/.env'),
-  ]) {
-    try { const m = readFileSync(p, 'utf8').match(/NETA_TOKEN=(.+)/); if (m) return m[1].trim(); } catch {}
-  }
-  throw new Error('API token not found. Add NETA_TOKEN to ~/.openclaw/workspace/.env');
+  const idx = process.argv.indexOf('--token');
+  if (idx !== -1 && process.argv[idx + 1]) return process.argv[idx + 1];
+  throw new Error('Token required. Pass via: --token YOUR_TOKEN');
 }
 
 const HEADERS = {

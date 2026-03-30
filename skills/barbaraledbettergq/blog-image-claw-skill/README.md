@@ -1,5 +1,7 @@
 # Blog Image Generator
 
+> Powered by the **Neta AI image generation API** (`api.talesofai.com`) — the same service as [neta.art](https://www.neta.art/open/).
+
 Generate stunning **ai blog image generator** images from a text description using AI — powered by the Neta talesofai API. Get back a direct image URL instantly, ready to embed anywhere.
 
 ---
@@ -48,7 +50,7 @@ https://cdn.talesofai.cn/.../<image>.jpg
 | `--size` | `square`, `portrait`, `landscape`, `tall` | `landscape` | Output image dimensions |
 | `--style` | `anime`, `cinematic`, `realistic` | `cinematic` | Visual style (passed via prompt) |
 | `--ref` | `<picture_uuid>` | — | Reference image UUID for style/param inheritance |
-| `--token` | `<token>` | — | Neta API token (overrides env / file) |
+| `--token` | `<token>` | — | Neta API token (required) |
 
 ### Size reference
 
@@ -63,19 +65,13 @@ https://cdn.talesofai.cn/.../<image>.jpg
 
 ## Token setup
 
-The script resolves your Neta API token in this order:
+This skill requires a Neta API token (free trial available at <https://www.neta.art/open/>).
 
-1. `--token` CLI flag
-2. `NETA_TOKEN` environment variable
-3. `~/.openclaw/workspace/.env` — line matching `NETA_TOKEN=...`
-4. `~/developer/clawhouse/.env` — line matching `NETA_TOKEN=...`
+Pass it via the `--token` flag:
 
-**Recommended:** add to your shell profile or `.env` file:
 ```bash
-export NETA_TOKEN=your_token_here
+node <script> "your prompt" --token YOUR_TOKEN
 ```
-
----
 
 ## Default prompt
 
@@ -99,50 +95,10 @@ node blogimageclaw.js "abstract data visualization, glowing blue network nodes o
 node blogimageclaw.js "soft bokeh office background, warm natural lighting" --size portrait
 ```
 
-## About Neta
+## Example Output
 
-[Neta](https://www.neta.art/) (by TalesofAI) is an AI image and video generation platform with a powerful open API. It uses a **credit-based system (AP — Action Points)** where each image generation costs a small number of credits. Subscriptions are available for heavier usage.
-
-### Register & Get Token
-
-| Region | Sign up | Get API token |
-|--------|---------|---------------|
-| Global | [neta.art](https://www.neta.art/) | [neta.art/open](https://www.neta.art/open/) |
-| China  | [nieta.art](https://app.nieta.art/) | [nieta.art/security](https://app.nieta.art/security) |
-
-New accounts receive free credits to get started. No credit card required to try.
-
-### Pricing
-
-Neta uses a pay-per-generation credit model. View current plans on the [pricing page](https://www.neta.art/pricing).
-
-- **Free tier:** limited credits on signup — enough to test
-- **Subscription:** monthly AP allowance via Stripe
-- **Credit packs:** one-time top-up as needed
-
-### Set up your token
-
-```bash
-# Step 1 — get your token:
-#   Global: https://www.neta.art/open/
-#   China:  https://app.nieta.art/security
-
-# Step 2 — set it
-export NETA_TOKEN=your_token_here
-
-# Step 3 — run
-node blogimageclaw.js "your prompt"
-```
-
-Or pass it inline:
-```bash
-node blogimageclaw.js "your prompt" --token your_token_here
-```
-
-> **API endpoint:** defaults to `api.talesofai.cn` (works with all token types).  
-> Override with `NETA_API_URL=https://api.talesofai.cn` if using a global Open Platform token.
-
+![Generated example](https://oss.talesofai.cn/picture/2c1de0c7-b4e8-4083-ba2f-62b73f893d2d.webp)
 
 ---
 
-Built with [Claude Code](https://claude.ai/claude-code) · Powered by [Neta](https://www.neta.art/) · [API Docs](https://www.neta.art/open/)
+This skill requires a Neta API token (free trial available at https://www.neta.art/open/).

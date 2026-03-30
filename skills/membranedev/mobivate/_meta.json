@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "mobivate",
+  "displayName": "Mobivate",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774497755139,
+    "commit": "https://github.com/openclaw/skills/commit/18c027b752fe5897a96a499b935cf91758c15efc"
+  },
+  "history": []
+}

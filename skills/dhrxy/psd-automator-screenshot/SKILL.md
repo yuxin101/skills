@@ -13,6 +13,16 @@ metadata:
 
 This skill dispatches screenshot-driven PSD text updates while keeping the existing psd-automator execution pipeline.
 
+## Preferred command
+
+Use the built-in command first:
+
+```text
+/main-image-editor <agentId> <中文需求> --screenshot ~/Desktop/修改3.png
+```
+
+Use `/psd-automator-screenshot` only when you need backward-compatible command behavior.
+
 ## Usage
 
 ```text

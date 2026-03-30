@@ -80,7 +80,28 @@ node $CLI temperature                        # 温度报告
 node $CLI extract <lesson-id> --skill-name x # 提炼 Skill
 ```
 
-## 安装后必做：Setup
+## Setup / Config / Scripts
+
+### Setup（必须执行一次）
+```bash
+node ~/.openclaw/skills/smart-agent-memory/scripts/memory-cli.js setup
+```
+自动发现 `~/.openclaw/workspace*` 下所有工作区，逐个注入 BOOTSTRAP.md。
+
+### Storage / Config
+- 依赖：`node`
+- 默认存储：`~/.openclaw/workspace/memory/`
+- 单 agent：直接使用本地 workspace 记忆
+- 共享 workspace / 多 agent：多个 agent 可共享同一记忆目录
+- 多 workspace 场景：setup 会自动扫描并注入
+
+### Session Init / Finish
+```bash
+node ~/.openclaw/skills/smart-agent-memory/scripts/memory-cli.js session-start
+node ~/.openclaw/skills/smart-agent-memory/scripts/memory-cli.js session-end "本次做了什么"
+```
+
+### Common Scripts
 
 安装技能后运行一次：
 ```bash

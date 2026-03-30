@@ -88,7 +88,9 @@ Extract ALL of:
 
 **References:** PO, contract, GRN, timesheet, project, proforma, invoice (original invoice if this is a credit/debit memo), credit-note, debit-note refs. For credit/debit memos, ALWAYS include the original invoice reference.
 
-**Totals:** netTotal, vatBreakdown (rate + amount per band), vatTotal, grossTotal, amountPaid, amountDue
+**Totals:** netTotal, vatBreakdown (rate + amount + type per band — type is the tax regime label e.g. "CGST", "SGST", "USt", "НДС", "IVA"), vatTotal, grossTotal, amountPaid, amountDue, discount (invoice-level discount amount), discountRate (percentage)
+
+**Metadata:** paidDate (YYYY-MM-DD — date from PAID stamp), vatInclusive (true if line totals include VAT, false if net, null if unknown)
 
 **Charges:** Surcharges/fees outside line items — shipping, postage, P&P, delivery, freight, carriage, dispatch, handling, insurance, eco-levy, surcharges. Each: type (shipping|handling|insurance|surcharge|discount|other), label (original text from document), amount, vatRate, vatAmount. Do NOT duplicate items already captured as line items.
 

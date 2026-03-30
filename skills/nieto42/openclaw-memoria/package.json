@@ -1,0 +1,24 @@
+{
+  "name": "memoria-plugin",
+  "version": "3.22.3",
+  "description": "Multi-layer persistent memory for OpenClaw. 7 memory layers, bring your own LLM (Ollama, LM Studio, or API), 100% local-first, zero cloud cost.",
+  "license": "Apache-2.0",
+  "author": "Primo Studio",
+  "main": "index.ts",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "compat": {
+      "pluginApi": "1"
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "typescript": "^6.0.2"
+  }
+}

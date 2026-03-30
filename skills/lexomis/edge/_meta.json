@@ -3,11 +3,21 @@
   "slug": "edge",
   "displayName": "Edge.Trade",
   "latest": {
-    "version": "4317.0.0",
-    "publishedAt": 1774259133314,
-    "commit": "https://github.com/openclaw/skills/commit/bc24d0d2507cf64df00ed424041e103e8f5b9c63"
+    "version": "4323.0.0",
+    "publishedAt": 1774674715787,
+    "commit": "https://github.com/openclaw/skills/commit/949437763eaf92b06654414de1c1720a541cf233"
   },
   "history": [
+    {
+      "version": "4320.0.0",
+      "publishedAt": 1774535566983,
+      "commit": "https://github.com/openclaw/skills/commit/8566dd6e645b16fd1676eea83adcbf886c1d9633"
+    },
+    {
+      "version": "4317.0.0",
+      "publishedAt": 1774259133314,
+      "commit": "https://github.com/openclaw/skills/commit/bc24d0d2507cf64df00ed424041e103e8f5b9c63"
+    },
     {
       "version": "4310.0.0",
       "publishedAt": 1773928741668,

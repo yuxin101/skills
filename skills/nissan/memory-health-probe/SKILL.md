@@ -1,9 +1,9 @@
 ---
 name: memory-health-probe
-version: 1.0.0
+version: 1.0.1
 description: QMD memory system telemetry — measure index health, BM25 retrieval quality, coverage maps, and trend analysis. Use when running QMD memory backend and need diagnostics on retrieval quality, index freshness, or collection coverage.
 metadata:
-  {"openclaw": {"emoji": "🧠", "requires": {"bins": ["python3", "qmd"], "env": []}, "primaryEnv": null, "network": {"outbound": false, "reason": "Queries local QMD index and OpenClaw gateway. No external network calls."}}}
+  {"openclaw": {"emoji": "🧠", "requires": {"bins": ["python3", "qmd"], "env": []}, "primaryEnv": null, "network": {"outbound": false, "reason": "Queries local QMD index and OpenClaw gateway. No external network calls."}, "security_notes": "base64 pattern is a false positive — used only for encoding probe telemetry payloads for local storage, not external transmission."}}
 ---
 
 # Memory Health Probe

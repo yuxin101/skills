@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "dandelion",
+  "displayName": "Dandelion",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774523002350,
+    "commit": "https://github.com/openclaw/skills/commit/13879cbb5b4010167480dd8ad09cf6baba3e9db6"
+  },
+  "history": []
+}

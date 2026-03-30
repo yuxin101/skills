@@ -48,7 +48,7 @@ https://lexiangla.com/mcp
 {
   "mcpServers": {
     "lexiang": {
-      "url": "https://mcp.lexiang-app.com/mcp?company_from={company_from}&preset=meta",
+      "url": "https://mcp.lexiang-app.com/mcp?company_from={company_from}",
       "transportType": "streamable-http",
       "headers": {
         "Authorization": "Bearer {access_token}"
@@ -65,6 +65,33 @@ https://lexiangla.com/mcp
 ### Step 5: 确认结果
 
 配置写入后，告知用户配置文件的完整路径，并提示配置完成。
+
+### Step 6: 身份验证与欢迎引导
+
+配置完成后，**立即调用** MCP 工具 `whoami()` 获取当前用户信息。
+
+**成功时**（返回用户信息），向用户展示欢迎消息，格式参考：
+
+```
+✅ 乐享 MCP 连接成功！
+
+👤 当前用户：{用户姓名}
+🏢 绑定乐享：{企业/租户名称}
+
+🎉 配置已就绪，你现在可以这样使用乐享知识库：
+
+💡 试试这样提问：
+• "看看我最近访问的知识库有什么更新"
+• "我要记录今天的工作内容，为我创建一个乐享文档并拟写一个模版"
+• "搜索关于 XXX 的知识文档"
+• "帮我总结一下这个知识库的内容：{知识库链接}"
+```
+
+> 根据 `whoami` 返回的实际字段灵活调整展示内容。如果返回了额外有用的信息（如用户角色、头像等），可酌情展示。
+
+**401 错误** → token 无效或已过期，引导用户重新获取（参见 SKILL.md「AccessToken 生命周期管理」）
+
+**连接超时/其他错误** → 检查 mcp.json 配置是否正确
 
 ## 注意事项
 

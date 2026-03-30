@@ -1,0 +1,11 @@
+{
+  "owner": "lroolle",
+  "slug": "wxclawbot-send",
+  "displayName": "WeixinClawBot Send",
+  "latest": {
+    "version": "0.5.1",
+    "publishedAt": 1774582613504,
+    "commit": "https://github.com/openclaw/skills/commit/8237c486be15237d439604c3ece507ac1f3006d2"
+  },
+  "history": []
+}

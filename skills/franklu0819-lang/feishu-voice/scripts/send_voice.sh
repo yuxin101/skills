@@ -60,15 +60,19 @@ echo ""
 
 # 1. 获取飞书访问令牌
 echo "🔑 获取飞书 token..."
-TOKEN=$(curl -s -X POST "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+TOKEN_RESPONSE=$(curl -s -X POST "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
   -H "Content-Type: application/json" \
-  -d "{\"app_id\": \"$APP_ID\", \"app_secret\": \"$APP_SECRET\"}" | jq -r '.tenant_access_token')
+  -d "{\"app_id\": \"$APP_ID\", \"app_secret\": \"$APP_SECRET\"}")
 
-if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.tenant_access_token')
+CODE=$(echo "$TOKEN_RESPONSE" | jq -r '.code')
+
+if [ "$CODE" != "0" ] || [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
   echo "❌ 获取 token 失败"
+  echo "错误信息：$TOKEN_RESPONSE"
   exit 1
 fi
-echo "✅ Token 获取成功"
+echo "✅ Token 获取成功 (有效期: $(echo "$TOKEN_RESPONSE" | jq -r '.expire')秒)"
 
 # 2. 生成 MP3 音频（使用 coze-tts）
 echo ""

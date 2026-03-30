@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "paymob",
+  "displayName": "Paymob",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774598640586,
+    "commit": "https://github.com/openclaw/skills/commit/15442dc2e53da438ea86568e02865603d8bcde81"
+  },
+  "history": []
+}

@@ -112,7 +112,7 @@ def cmd_abnormal(args, api_key: str):
 
 
 def cmd_sessions(args, api_key: str):
-    """List available sessions."""
+    """Show system health, session count, and publishing status."""
     data = api_request("/flow/sessions", api_key)
     print(json.dumps(data, indent=2))
 
@@ -151,7 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_abn.add_argument("--session", "-s", help="Session date (YYYY-MM-DD)")
 
     # sessions
-    sub.add_parser("sessions", help="List available sessions")
+    sub.add_parser("sessions", help="Show system health and session status")
 
     # usage
     sub.add_parser("usage", help="Show account usage stats")

@@ -3,11 +3,16 @@
   "slug": "finam",
   "displayName": "Finam",
   "latest": {
-    "version": "0.0.10",
-    "publishedAt": 1771939505965,
-    "commit": "https://github.com/openclaw/skills/commit/152b65417a1317ff90781b73613a396e9557f596"
+    "version": "1.0.1",
+    "publishedAt": 1774629178088,
+    "commit": "https://github.com/openclaw/skills/commit/c4799dc79823846da9482efa1aa2dfaea77ecc06"
   },
   "history": [
+    {
+      "version": "0.0.10",
+      "publishedAt": 1771939505965,
+      "commit": "https://github.com/openclaw/skills/commit/152b65417a1317ff90781b73613a396e9557f596"
+    },
     {
       "version": "0.0.6",
       "publishedAt": 1771578265778,

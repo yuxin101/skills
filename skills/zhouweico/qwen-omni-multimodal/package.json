@@ -1,0 +1,12 @@
+{
+  "name": "qwen-omni-multimodal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Qwen3-Omni-Flash multimodal skill for qclaw",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "omni": "node scripts/qwen-omni-chat.js"
+  }
+}

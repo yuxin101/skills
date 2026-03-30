@@ -43,6 +43,14 @@ Create or update workspace/memory/YYYY-MM-DD.md (today's date) with a daily note
 capturing what matters. If anything is significant enough for long-term memory,
 also update workspace/MEMORY.md.
 
+CRITICAL — DEDUP BEFORE WRITING:
+Before adding ANY section to a memory file, READ the file first and check if that
+section or substantially similar content already exists. If it does, SKIP it.
+Use the Edit tool to make surgical additions — do NOT rewrite or re-append the
+entire file. Compare section headers (## headings) and key phrases to detect dupes.
+If the file already covers a topic, only add genuinely NEW details under the
+existing section. Never append a section that duplicates an existing one.
+
 If it's been a quiet day with nothing notable, skip silently.
 Be selective — capture signal, not noise. Write like future-you will need this context.
 Do NOT message the user about this — just do it quietly.

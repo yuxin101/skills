@@ -1,0 +1,14 @@
+{
+  "name": "pipl-compliance",
+  "version": "1.0.0",
+  "description": "中国个人信息保护法（PIPL）合规专用工具",
+  "keywords": [
+    "PIPL",
+    "中国合规",
+    "个人信息保护法",
+    "隐私政策",
+    "用户同意"
+  ],
+  "author": "OpenClaw Community",
+  "license": "MIT"
+}

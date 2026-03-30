@@ -1,0 +1,11 @@
+{
+  "owner": "imwyvern",
+  "slug": "love-advisor",
+  "displayName": "Love Advisor Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774368404043,
+    "commit": "https://github.com/openclaw/skills/commit/d497b8370d0f920d8a21fd41aa940cb2c46677c9"
+  },
+  "history": []
+}

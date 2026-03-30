@@ -6,7 +6,6 @@ version: 1.0.0
 metadata:
   openclaw:
     requires:
-      bins: ["node"]
       env: BMAP_JSAPI_KEY
     primaryEnv: BMAP_JSAPI_KEY
 ---

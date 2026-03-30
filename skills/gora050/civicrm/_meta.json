@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "civicrm",
+  "displayName": "Civicrm",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774433053048,
+    "commit": "https://github.com/openclaw/skills/commit/9c90a9d085de28ee3b79cb140cae9cdbe3501630"
+  },
+  "history": []
+}

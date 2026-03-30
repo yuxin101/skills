@@ -1,0 +1,11 @@
+{
+  "owner": "canonxu",
+  "slug": "my-stock-decide-skill",
+  "displayName": "My Stock Decide Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774358676812,
+    "commit": "https://github.com/openclaw/skills/commit/fbf308899c9eaf8c9e9b924e775624b3b26c6cc2"
+  },
+  "history": []
+}

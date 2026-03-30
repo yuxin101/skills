@@ -3,30 +3,31 @@ name: MiniMax TTS Plus
 description: |
   MiniMax TTS skill (enhanced). Multi-agent voice support (each agent can select a unique voice written in SOUL.md), native voice message for Telegram (MP3) and Feishu (OGG/Opus).
   Activate when user explicitly requests text-to-speech. Say "文字模式" or "关闭语音" to stop voice generation.
+  Note: This skill uses the MiniMax secret key for API authentication. The API endpoint is https://api.minimaxi.com (not platform.minimax.io). See setup section for details.
 homepage: https://platform.minimax.io/docs/api-reference/speech-t2a-http
 metadata:
   openclaw:
     emoji: 🎙️
     requires:
       bins: [python3, ffmpeg]
-      env: [MINIMAX_API_KEY]
+      env: [MINIMAX_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_TARGET]
       pip: [requests]
     primaryEnv: MINIMAX_API_KEY
     envHelp:
       MINIMAX_API_KEY:
         required: true
-        description: MiniMax API Key
+        description: MiniMax API Key (secret key for API authentication)
         howToGet: |
           1. Open https://platform.minimax.io
           2. Register and log in
-          3. Get your API Key (Account Management → API Keys)
+          3. Get your API Secret Key (Account Management → API Keys)
         url: https://platform.minimax.io
       TELEGRAM_BOT_TOKEN:
-        required: true
-        description: Telegram Bot Token (from @BotFather) — used for sending voice messages
+        required: false
+        description: Telegram Bot Token (from @BotFather) — only needed for sending voice to Telegram. Use --generate-only or direct Python call if you only need audio generation.
       TELEGRAM_TARGET:
-        required: true
-        description: Telegram chat ID to send voice messages to
+        required: false
+        description: Telegram chat ID — only needed together with TELEGRAM_BOT_TOKEN
 ---
 
 # MiniMax TTS Plus
@@ -109,22 +110,24 @@ tts-xiaoye.sh --text "Text" [--voice VoiceID] [--model Model] [--caption Caption
 
 ## Setup
 
-1. Copy `env.example` to `.env` and fill in your credentials:
+1. Copy `setup.txt` to `.env` and fill in your credentials:
 ```bash
-cp skills/minimax-tts-cn/env.example skills/minimax-tts-cn/.env
+cp skills/minimax-tts-cn/setup.txt skills/minimax-tts-cn/.env
 # Then edit .env with your real values
 ```
 
 2. The script loads credentials from `.env` at runtime — **no hardcoded tokens in scripts**.
 
 **Required env vars:**
-| Variable | Description |
-|----------|-------------|
-| `MINIMAX_API_KEY` | MiniMax API key (from platform.minimax.io) |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token (from @BotFather) |
-| `TELEGRAM_TARGET` | Telegram chat ID to send voice messages to |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MINIMAX_API_KEY` | ✅ Yes | MiniMax API secret key (from platform.minimax.io) |
+| `TELEGRAM_BOT_TOKEN` | ❌ No | Telegram bot token — only needed for sending |
+| `TELEGRAM_TARGET` | ❌ No | Telegram chat ID — only needed together with bot token |
 
 > ⚠️ **Security note:** Credentials are loaded from `.env` only — no tokens are hardcoded in shell scripts. The `.env` file is gitignored and never published.
+
+> 💡 **API endpoint:** The TTS API uses `https://api.minimaxi.com` (MiniMax's official API server), which is separate from the developer portal at `platform.minimax.io`.
 
 ---
 

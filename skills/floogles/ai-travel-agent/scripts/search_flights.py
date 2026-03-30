@@ -1,13 +1,35 @@
 #!/usr/bin/env python3
 """
 Search Google Flights via SerpAPI.
-Usage: python3 search_flights.py --from LGW --to BCN --date 2026-06-15 --return-date 2026-06-22 --adults 2 --class economy --currency GBP --key YOUR_KEY
+Usage: python3 search_flights.py --from LGW --to BCN --date 2026-06-15 --return-date 2026-06-22 --adults 2 --class economy --currency GBP
+
+API key is read from the SERPAPI_KEY environment variable, or from ~/.serpapi_credentials /
+~/.travel_agent_config (key=value format). Never pass the key as a CLI argument.
 """
 
 import argparse
 import json
+import os
 import sys
 import requests
+
+
+def load_api_key():
+    """Load SerpAPI key from env var or credential files. Never from CLI args."""
+    key = os.environ.get("SERPAPI_KEY")
+    if key:
+        return key
+    for path in [os.path.expanduser("~/.serpapi_credentials"),
+                 os.path.expanduser("~/.travel_agent_config")]:
+        if os.path.exists(path):
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("SERPAPI_KEY="):
+                        return line.split("=", 1)[1].strip()
+    print("ERROR: SERPAPI_KEY not found. Set it as an environment variable or store it in "
+          "~/.serpapi_credentials (SERPAPI_KEY=yourkey).", file=sys.stderr)
+    sys.exit(1)
 
 
 def search_flights(departure_id, arrival_id, outbound_date, return_date=None,
@@ -88,7 +110,6 @@ def main():
     parser.add_argument("--class", dest="seat_class", default="economy",
                         choices=["economy", "premium_economy", "business", "first"])
     parser.add_argument("--currency", default="GBP")
-    parser.add_argument("--key", required=True, help="SerpAPI key")
 
     args = parser.parse_args()
 
@@ -103,7 +124,7 @@ def main():
         children=args.children,
         seat_class=class_map[args.seat_class],
         currency=args.currency,
-        api_key=args.key,
+        api_key=load_api_key(),
     )
 
 

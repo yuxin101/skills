@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "docusign-integration",
+  "displayName": "Docusign",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774494238779,
+    "commit": "https://github.com/openclaw/skills/commit/51f6a6c51f31deb4000d587ea27f78de906b2c40"
+  },
+  "history": []
+}

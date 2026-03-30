@@ -238,6 +238,20 @@ echo "$output" | grep -q "score:" && {
 echo "Test 10: Boot header"
 echo "$output" | grep -q "CONTINUITY BOOT" && pass "Header present" || fail "Missing"
 
+# ─── Test 11: Current-task recovery ───
+echo "Test 11: Current-task.md recovery (compaction continuity)"
+mkdir -p "$TEST_WORKSPACE/memory"
+cat > "$TEST_WORKSPACE/memory/current-task.md" << 'EOF'
+## Current Task
+- Working on: testing compaction continuity
+- Step: verifying boot reads current-task.md
+EOF
+rm -f "$TEST_ASSETS/mindstate.lock"
+output11=$(bash "$BOOT" 2>&1)
+echo "$output11" | grep -q "ACTIVE TASK" && pass "current-task.md detected" || fail "current-task.md not detected"
+echo "$output11" | grep -q "testing compaction continuity" && pass "task content displayed" || fail "task content missing"
+rm -f "$TEST_WORKSPACE/memory/current-task.md"
+
 echo ""
 if [[ $errors -eq 0 ]]; then echo "All boot tests PASSED"; exit 0
 else echo "Boot tests: $errors FAILED"; exit 1; fi

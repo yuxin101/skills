@@ -58,11 +58,13 @@ function createBlankInvoice() {
 
     totals: {
       netTotal: null,
-      vatBreakdown: [],            // [{ rate: number, amount: number }]
+      vatBreakdown: [],            // [{ rate: number, amount: number, type: string|null }]
       vatTotal: null,
       grossTotal: null,
       amountPaid: null,            // explicit "Amount Paid" if on document
       amountDue: null,             // explicit "Amount Due" / "Balance Due" if on document
+      discount: null,              // invoice-level discount amount (number, positive)
+      discountRate: null,          // invoice-level discount rate (e.g. 10 for 10%)
     },
 
     metadata: {
@@ -73,6 +75,8 @@ function createBlankInvoice() {
       provider: null,              // which AI provider was used
       extractionTimestamp: null,   // ISO 8601 datetime
       documentType: null,          // "invoice", "credit-note", etc.
+      paidDate: null,              // date from PAID stamp (YYYY-MM-DD)
+      vatInclusive: null,          // true if line totals include VAT, false if net, null if unknown
     },
 
     charges: [],

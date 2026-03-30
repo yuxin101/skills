@@ -98,7 +98,11 @@ def _handle_api_exception(exc: Exception) -> None:
 def get_client():
     api_key = os.environ.get("DEEPEVIDENCE_API_KEY")
     if not api_key:
-        _print_error("Missing configuration: DEEPEVIDENCE_API_KEY is not set. Please configure it and retry.")
+        _print_error(
+            "Missing configuration: DEEPEVIDENCE_API_KEY is not set.\n"
+            "Please apply for an API key at: https://app.medsci.cn/platform/api-keys\n"
+            "Then set it with: export DEEPEVIDENCE_API_KEY='your-key-here'"
+        )
         sys.exit(1)
     # Fixed base URL for security to prevent unauthorized request redirection.
     base_url = "https://deepevid.medsci.cn/"

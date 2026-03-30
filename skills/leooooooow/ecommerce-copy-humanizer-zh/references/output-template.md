@@ -3,7 +3,7 @@
 ## 1) AI-tone issues
 - 
 
-## 2) Main rewritten copy
+## 2) Rewritten copy (main)
 
 ## 3) Alternative version
 

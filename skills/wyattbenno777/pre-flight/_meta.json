@@ -1,11 +1,17 @@
 {
   "owner": "wyattbenno777",
   "slug": "pre-flight",
-  "displayName": "Pre-Flight by ICME",
+  "displayName": "PreFlight by ICME",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773162983780,
-    "commit": "https://github.com/openclaw/skills/commit/2da74028b81fda1eea18dd0571fc0f21aba53cc3"
+    "version": "1.0.4",
+    "publishedAt": 1774379176018,
+    "commit": "https://github.com/openclaw/skills/commit/330b6a3dba15e6b40f79fd1ade64d2658345267f"
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773162983780,
+      "commit": "https://github.com/openclaw/skills/commit/2da74028b81fda1eea18dd0571fc0f21aba53cc3"
+    }
+  ]
 }

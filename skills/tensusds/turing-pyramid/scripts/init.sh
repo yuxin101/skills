@@ -72,6 +72,17 @@ echo "   - Watchdog kills hung processes (>5min) and restarts dead daemons"
 echo "   - Orphaned .tmp files cleaned automatically"
 echo "   - Test watchdog: bash scripts/mindstate-watchdog.sh --dry-run"
 echo ""
+echo "🧠 Pre-compaction continuity (recommended):"
+echo "   Add to openclaw.json → agents.defaults.compaction.memoryFlush:"
+echo '   {'
+echo '     "enabled": true,'
+echo '     "softThresholdTokens": 4000,'
+echo '     "systemPrompt": "Session nearing compaction. Write current task state to memory/current-task.md (overwrite). Write durable memories to memory/YYYY-MM-DD.md (append only). If nothing to store, reply NO_REPLY.",'
+echo '     "prompt": "Pre-compaction flush. Save current task to memory/current-task.md, durable notes to memory/YYYY-MM-DD.md. Reply NO_REPLY if nothing to store."'
+echo '   }'
+echo "   This ensures your agent saves execution state before context compaction."
+echo "   mindstate-boot.sh will auto-detect and display current-task.md at session start."
+echo ""
 echo "🤝 Discuss with your agent:"
 echo "   - Are the decay rates right for you?"
 echo "   - Is the importance hierarchy correct?"

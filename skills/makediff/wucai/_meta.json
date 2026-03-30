@@ -1,0 +1,11 @@
+{
+  "owner": "makediff",
+  "slug": "wucai",
+  "displayName": "WuCai",
+  "latest": {
+    "version": "26.3.35",
+    "publishedAt": 1774484668571,
+    "commit": "https://github.com/openclaw/skills/commit/e66d697008a02986e2ee144fe2e25b85b5dcdbd8"
+  },
+  "history": []
+}

@@ -3,11 +3,16 @@
   "slug": "persona-content-creator",
   "displayName": "Persona Content Creator",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774300530040,
-    "commit": "https://github.com/openclaw/skills/commit/c86a168b594bcad348fe2c7cd925aca9fe95cbb8"
+    "version": "1.0.10",
+    "publishedAt": 1774551071316,
+    "commit": "https://github.com/openclaw/skills/commit/67454cab235e08f4c60411f47ce6a7be2a87b23d"
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774300530040,
+      "commit": "https://github.com/openclaw/skills/commit/c86a168b594bcad348fe2c7cd925aca9fe95cbb8"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772838527273,

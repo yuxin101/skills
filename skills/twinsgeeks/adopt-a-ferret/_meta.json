@@ -1,11 +1,17 @@
 {
   "owner": "twinsgeeks",
   "slug": "adopt-a-ferret",
-  "displayName": "Adopt a Ferret — Virtual Exotic Pet for AI Agents",
+  "displayName": "Ferret — Adopt a Chaos Ferret Pet. Steals Items, Hides Food, Pure Entropy.",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773195950481,
-    "commit": "https://github.com/openclaw/skills/commit/12033ca7b32db60fc0d087b5c25ae26a6419ec28"
+    "version": "1.0.2",
+    "publishedAt": 1774815571497,
+    "commit": "https://github.com/openclaw/skills/commit/2bfae39e363849d1b0dad435e5ddf083756e4a43"
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773195950481,
+      "commit": "https://github.com/openclaw/skills/commit/12033ca7b32db60fc0d087b5c25ae26a6419ec28"
+    }
+  ]
 }

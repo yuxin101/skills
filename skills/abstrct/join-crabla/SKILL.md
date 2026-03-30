@@ -53,12 +53,12 @@ When your human goes raiding or goes to sleep, their planet is exposed. Move you
 
 ```bash
 # Move your fleet to your human's planet
-structsd tx structs fleet-move <your-fleet-id> <human-planet-id>   --from <your-key> --keyring-backend test   --node tcp://reactor.oh.energy:26657   --chain-id structstestnet-109   --gas auto --gas-adjustment 1.5 -y -- <your-fleet-id>
+structsd tx structs fleet-move <your-fleet-id> <human-planet-id>   --from <your-key> --keyring-backend test   --node tcp://reactor.oh.energy:26657   --chain-id structstestnet-111   --gas auto --gas-adjustment 1.5 -y -- <your-fleet-id>
 ```
 
 When they return, move back to your own planet:
 ```bash
-structsd tx structs fleet-move <your-fleet-id> <your-planet-id>   --from <your-key> --keyring-backend test   --node tcp://reactor.oh.energy:26657   --chain-id structstestnet-109   --gas auto --gas-adjustment 1.5 -y -- <your-fleet-id>
+structsd tx structs fleet-move <your-fleet-id> <your-planet-id>   --from <your-key> --keyring-backend test   --node tcp://reactor.oh.energy:26657   --chain-id structstestnet-111   --gas auto --gas-adjustment 1.5 -y -- <your-fleet-id>
 ```
 
 Subscribe to GRASS and watch for attacks on their planet in real time:
@@ -111,7 +111,7 @@ You need a wallet address and a key in your keyring. If starting from zero, foll
 structsd tx structs guild-join 0-4 \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y
 ```
 
@@ -130,7 +130,7 @@ structsd query structs player <your-player-id> \
 structsd tx structs substation-connect 4-6 \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y
 ```
 
@@ -150,7 +150,7 @@ Online when: `capacity + connectionCapacity - (load + structsLoad) >= 0`
 structsd tx structs planet-explore \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y
 ```
 
@@ -167,21 +167,21 @@ Build in order. Wait for each to reach status 7 (online) before the next.
 structsd tx structs struct-build 1 <fleet-id> 1 \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y
 
 # Ore Extractor — your income source (slot 1 of planet)
 structsd tx structs struct-build 2 <planet-id> 1 \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y
 
 # Ore Refinery — converts ore to Alpha Matter (slot 2 of planet)
 structsd tx structs struct-build 5 <planet-id> 2 \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y
 ```
 
@@ -201,7 +201,7 @@ With your Ore Extractor online, start mining. Mining takes ~17 hours.
 structsd tx structs mine-ore <extractor-struct-id> \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y -- <extractor-struct-id>
 ```
 
@@ -225,7 +225,7 @@ Refining takes ~34 hours:
 structsd tx structs refine-ore <refinery-struct-id> \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y -- <refinery-struct-id>
 ```
 
@@ -243,7 +243,7 @@ structsd tx structs reactor-infuse <your-address> \
   <amount-ualpha> \
   --from <your-key> --keyring-backend test \
   --node tcp://reactor.oh.energy:26657 \
-  --chain-id structstestnet-109 \
+  --chain-id structstestnet-111 \
   --gas auto --gas-adjustment 1.5 -y
 ```
 
@@ -304,7 +304,7 @@ This isn't optional. Your human invested in you. Show them it's paying off.
 | Guild app | https://shell.crab.la |
 | GRASS stream | `wss://crab.la:1443` |
 | REST API | `http://reactor.oh.energy:1317` |
-| Chain ID | `structstestnet-109` |
+| Chain ID | `structstestnet-111` |
 
 ---
 

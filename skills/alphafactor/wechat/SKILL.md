@@ -1,177 +1,133 @@
 ---
-name: wechat
-description: Read WeChat local data from SQLite databases. Supports listing contacts, chat sessions, searching messages, and viewing favorites. Use when the user needs to access their own WeChat data stored locally. Requires access to WeChat data directory. Read-only operations only.
+name: Wechat Connect
+slug: wechat
+description: Install OpenClaw's official WeChat plugin and complete account pairing via QR code scan. Triggers when the user says "install WeChat plugin", "connect WeChat", or "WeChat QR code". No command-line interaction required.
+author: linyishan
+mail: linyishan@qq.com
+version: 2.1.0
 ---
 
-# 微信本地数据读取工具
+# Wechat Connect
 
-安全读取微信本地 SQLite 数据库，获取联系人、聊天记录、收藏等信息。
+一键安装 OpenClaw 微信插件并完成账号配对，用户全程无需接触命令行。
 
-⚠️ **重要声明**：本工具**仅读取**本地数据，不会修改任何文件。仅供用户查看自己的微信数据使用。
+## 触发方式
 
-## 支持平台
+- 用户说"安装微信插件"
+- 用户说"连接微信"
+- 用户说"微信扫码"
+- 用户说类似"装一下微信"的表达
 
-- ✅ macOS (通过 ~/Library/Containers/com.tencent.xinWeChat/)
-- ⚠️ Windows (通过自定义路径)
-- ❌ iOS/Android (无法直接访问本地数据库)
+## 前置条件
 
-## 前提条件
+1. OpenClaw 已安装并运行
+2. `qrcode` npm 包已安装（workspace 已包含）
+3. 微信插件包 `@tencent-weixin/openclaw-weixin` 未安装时，skill 会自动执行以下命令进行安装：
+   ```bash
+   npx -y @tencent-weixin/openclaw-weixin-cli@latest install
+   ```
 
-### 1. 确保微信在电脑上登录过
+## 完整流程
 
-本工具读取的是电脑版微信的本地数据库文件。
+```
+用户触发
+  │
+  ├─ ① 检查插件安装状态
+  │     查询 openclaw.json plugins.installs
+  │     已安装 → 直接进入扫码流程
+  │     未安装 → 自动执行安装
+  │
+  ├─ ② 获取微信登录二维码
+  │     调用微信 API:
+  │     GET https://ilinkai.weixin.qq.com/ilink/bot/get_bot_qrcode?bot_type=3
+  │     提取 qrcode_img_content，用 qrcode 库生成 PNG
+  │
+  ├─ ③ 生成引导页
+  │     生成 HTML：5 步骤横向展示 + 实时状态
+  │     第一步至第四步为文字说明，第五步为二维码
+  │     步骤：001→002→003→004→[二维码]
+  │     每张图下方标注"第一步"~"第五步"
+  │
+  ├─ ④ 启动本地 HTTP 服务
+  │     端口 8765，提供静态文件 + 状态 API
+  │     通过 browser 工具打开 http://localhost:8765
+  │
+  ├─ ⑤ 状态轮询
+  │     每 3 秒调用微信 API 检查扫码状态:
+  │     GET https://ilinkai.weixin.qq.com/ilink/bot/get_qrcode_status?qrcode=xxx
+  │     状态: wait → scaned → confirmed / expired
+  │     页面底部实时文字反馈
+  │
+  ├─ ⑥ 成功弹窗
+  │     confirmed 时：灯箱弹出
+  │     "🎉 恭喜！微信与 OpenClaw 已经配对成功"
+  │     灯箱常驻，不可关闭，为最终状态
+  │
+  └─ ⑦ 保存账号
+        连接成功后：
+        - 写入 ~/.openclaw/openclaw-weixin/accounts/{id}.json
+        - 更新 ~/.openclaw/openclaw-weixin/accounts.json 索引
+        - openclaw config set channels.openclaw-weixin.enabled=true
+        - openclaw config set channels.openclaw-weixin.dmPolicy=allowlist
+        - openclaw config set channels.openclaw-weixin.allowFrom=[<userId>]
+        - Gateway 在后台自动重启（无需手动操作）
+        - 灯箱页面保持展示，重启完成后可直接使用微信测试
 
-### 2. 权限检查
-
-```bash
-# 检查是否有权限访问微信数据目录
-ls -la ~/Library/Containers/com.tencent.xinWeChat/
+  expired（过期）：提示重新生成，页面刷新继续
+  超时（5分钟）：提示超时，需重新发起
 ```
 
-如果权限不足，可能需要：
-```bash
-# 授予终端完全磁盘访问权限
-# 系统设置 → 隐私与安全 → 完全磁盘访问权限 → 添加终端
+## 技术方案
+
+| 步骤 | 技术 |
+|------|------|
+| 二维码获取 | `fetch` 调用微信 ilink API |
+| PNG 生成 | `qrcode` npm 包 |
+| HTTP 服务 | Node.js `http` 模块（零依赖） |
+| 页面渲染 | 静态 HTML + JavaScript 轮询 |
+| 状态同步 | `/tmp/weixin-login-status.json` 进程间通信 |
+| 浏览器展示 | `browser` 工具打开页面 |
+| 账号保存 | 直接写 `~/.openclaw/openclaw-weixin/accounts/*.json` |
+| 配置更新 | `openclaw config set` CLI 命令 |
+
+## 文件结构
+
+```
+skills/wechat/
+├── SKILL.md              # 本文件
+└── scripts/
+    └── start.mjs        # 主入口脚本
 ```
 
-## 使用方法
+## 依赖
 
-### 列出找到的数据库
+- `qrcode` npm 包（`cd /Users/ethan/.openclaw/workspace && npm install qrcode`）
+- `@tencent-weixin/openclaw-weixin` 插件包（通过 `openclaw-weixin-cli` 安装）
+- Node.js 18+
 
-```bash
-python3 scripts/wechat.py list
+## 状态码
+
+| 状态 | 含义 | 页面反馈 |
+|------|------|---------|
+| `wait` | 等待扫码 | "请使用微信扫描二维码" |
+| `scaned` | 已扫码，等待确认 | "已扫码，请在微信中确认登录" |
+| `confirmed` | 登录成功 | 灯箱弹出"恭喜！..." |
+| `expired` | 二维码过期 | "二维码已过期，请重新生成" |
+
+## 注意事项
+
+- 二维码有效期 **5 分钟**，超时需重新生成
+- 灯箱弹出后**不可关闭**，为最终状态
+- 账号 token 必须与 `ilink_bot_id` 匹配，否则 session 验证失败
+- 若扫码后 session 过期（errcode -14），需重新扫码认证
+
+## 安全说明
+
+⚠️ 安装微信插件时，npm 会显示以下警告（来自插件自身，非 skill 问题）：
+
+```
+WARNING: Plugin "openclaw-weixin" contains dangerous code patterns:
+Environment variable access combined with network send
 ```
 
-### 查看联系人列表
-
-```bash
-python3 scripts/wechat.py contacts
-```
-
-输出示例：
-```
-👥 联系人列表 (50 个):
-
-序号   昵称/备注              微信号
---------------------------------------------------
-1      张三                   zhangsan123
-2      李四(同事)             lisi_work
-3      家人群                 chatroom_xxx
-```
-
-### 查看最近会话
-
-```bash
-python3 scripts/wechat.py sessions --limit 20
-```
-
-输出示例：
-```
-💬 最近会话 (20 个):
-
-📌    家人群                  2024-01-15 20:30:15
-      💬 [图片]
-
-🔴 5  张三                    2024-01-15 19:45:22
-      💬 明天见！
-```
-
-### 搜索消息内容
-
-```bash
-python3 scripts/wechat.py search "关键词" --limit 50
-```
-
-### 查看收藏内容
-
-```bash
-python3 scripts/wechat.py favorites --limit 20
-```
-
-### 查看统计数据
-
-```bash
-python3 scripts/wechat.py stats
-```
-
-输出示例：
-```
-📊 微信数据统计:
-
-📁 contact: /Users/xxx/Library/.../Contact.sqlite
-📁 session: /Users/xxx/Library/.../Session.sqlite
-📁 chat: /Users/xxx/Library/.../Chat.sqlite
-
-----------------------------------------
-👥 联系人数量: 1234
-💬 会话数量: 156
-📨 消息数量: 45678
-⭐ 收藏数量: 89
-```
-
-## 命令参考
-
-| 命令 | 功能 | 示例 |
-|------|------|------|
-| `list` | 列出数据库文件 | `wechat.py list` |
-| `contacts` | 联系人列表 | `wechat.py contacts --limit 50` |
-| `sessions` | 会话列表 | `wechat.py sessions --limit 20` |
-| `search` | 搜索消息 | `wechat.py search "关键词"` |
-| `favorites` | 收藏内容 | `wechat.py favorites` |
-| `stats` | 统计信息 | `wechat.py stats` |
-
-## 自定义路径
-
-如果微信安装在非默认位置：
-
-```bash
-python3 scripts/wechat.py --path /path/to/wechat/data contacts
-```
-
-Windows 路径示例：
-```bash
-python3 scripts/wechat.py --path "C:/Users/用户名/Documents/WeChat Files/" contacts
-```
-
-## 数据库说明
-
-| 数据库 | 内容 | 说明 |
-|--------|------|------|
-| Contact.sqlite | 联系人信息 | 微信号、昵称、备注 |
-| Session.sqlite | 会话列表 | 最近聊天、未读消息 |
-| Chat.sqlite | 聊天记录 | 消息内容、时间 |
-| Favorite.sqlite | 收藏内容 | 收藏的消息、链接、笔记 |
-| Brand.sqlite | 公众号 | 关注的公众号信息 |
-
-## 技术说明
-
-- 使用 **SQLite 只读模式** (`mode=ro`) 打开数据库
-- 所有操作均为**查询**，不会执行 INSERT/UPDATE/DELETE
-- 时间戳为毫秒级 Unix 时间戳，会自动转换为可读格式
-
-## 常见问题
-
-**错误：Permission denied**
-→ 授予终端"完全磁盘访问权限"：
-   系统设置 → 隐私与安全 → 完全磁盘访问权限 → 添加终端
-
-**错误：未找到数据库文件**
-→ 确认微信已登录过，或指定自定义路径 `--path`
-
-**错误：database is locked**
-→ 关闭微信后重试（微信运行时可能锁定数据库）
-
-**读取的内容是加密的？**
-→ 部分字段可能经过加密，这是微信的安全机制
-
-## 隐私与安全
-
-- ✅ 本工具**只读取**本地数据，不上传任何信息
-- ✅ 所有操作在本地完成
-- ✅ 需要用户明确授权才能访问数据目录
-- ⚠️ 读取的数据包含个人隐私，请妥善保管
-
-## 参考
-
-- 微信数据存储格式基于 SQLite
-- 参考文档: [references/api.md](references/api.md)
+这是因为插件需要访问环境变量和网络发送能力，属于正常设计。安装完成后警告可忽略，插件正常运行。

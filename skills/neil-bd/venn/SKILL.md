@@ -1,140 +1,284 @@
 ---
 name: venn
-description: Safely connects Gmail, Calendar, Drive, Atlassian (Jira/Confluence), Notion, GitHub, Salesforce, and dozens of other enterprise tools via a single MCP endpoint. Free, register @ https://venn.ai
-version: 1.0.4
-metadata:
-  openclaw:
-    emoji: "🦉"
-    # 1. LIFECYCLE GATING
-    # Prevents execution if the URL is missing or vennporter isn't installed.
-    requires:
-      env:
-        - VENN_UNIVERSAL_URL
-      bins:
-        - vennporter
-
-    # 2. AUTOMATED SETUP PROTOCOLS
-    # This handles the "Discovery & Fix" flow if the skill is blocked.
-    setup:
-      on_missing:
-        - message: "I need your Venn Universal URL to begin. You can find this in your Venn.ai settings under 'Integrations'."
-          variable: VENN_UNIVERSAL_URL
-          store: "openclaw.json"
-      on_ready:
-        - command: "bash ~/.openclaw/workspace/skills/venn/scripts/install-vennporter.sh"
-          help: "Install/build vennporter (device_code-capable fork)"
-
-        - command: "~/.local/bin/vennporter config add venn \"$VENN_UNIVERSAL_URL\" --deviceCodeGrant"
-          help: "Register the Venn MCP server using vennporter"
-
-        - command: "~/.local/bin/vennporter auth venn"
-          help: "Authenticate Venn via device code (headless-safe)"
-
-        - command: "~/.local/bin/vennporter list --output json"
-          help: "Verify Venn is healthy"
-
-    # 3. UI DASHBOARD CONFIGURATION
-    # Maps the environment variable to a visible text field in the Web UI.
-    fields:
-      - name: VENN_UNIVERSAL_URL
-        label: "Venn Universal URL"
-        type: string
-        ui: "config"
-        placeholder: "https://app.venn.ai/mcp"
-        help: "Your Venn Universal URL from https://app.venn.ai/assistants/openclaw"
-
-    # 4. EXAMPLE PROMPTS TO GET STARTED
-    examples:
-      - prompt: "@venn which services do I have connected?"
-        label: "Check connected services"
-      - prompt: "@venn check my recent emails and summarize any action items"
-        label: "Check recent emails"
-      - prompt: "@venn find jira tickets assigned to me that need attention"
-        label: "Check for work in Jira"
-      - prompt: "@venn summarize this figma figjam session. The URL was [FIGJAM_SESSION_URL_HERE]"
-        label: "Review figma figjam session"
-
-    primaryEnv: VENN_UNIVERSAL_URL
-    auth:
-      method: oauth
-      provider: venn
+description: >-
+  Search, describe, and execute enterprise tools (Jira, Salesforce, Gmail, Slack,
+  Google Calendar, Google Drive, GitHub, Notion, Box, etc.) via the Venn tool-router
+  REST API. Use when the user asks to: (1) query or search data in enterprise SaaS
+  apps, (2) create, update, or manage records (tickets, emails, calendar events,
+  documents), (3) automate multi-step workflows across connected services, or
+  (4) check what integrations are available. Triggers on phrases like "check my Jira
+  tickets", "search Slack", "create a Salesforce lead", "find emails from X",
+  "sync data between apps", or any reference to connected enterprise tools.
+metadata: {"openclaw": {"requires": {"env": ["VENN_API_KEY"]}, "primaryEnv": "VENN_API_KEY"}}
 ---
 
-# Venn Your Universal MCP Server
+# Venn Tools
 
-## Overview
-You are the architectural bridge between the user and their enterprise SaaS stack. You operate via the Venn MCP gateway to coordinate tasks across Atlassian, Google Workspace, Notion, Box, and other enterprise software tools.
+Connect to enterprise SaaS tools through the Venn platform REST API.
 
-## ⚡️ Quick Start Prompts
-Copy and paste these to get started:
+## Setup
 
-* **First Time Setup:** `@venn setup. Here is my URL: [PASTE_UNIVERSAL_URL_HERE]`
-* **Reauthenticate:** `@venn auth`
-* **Discovery:** `@venn Show me all my connected services`
+This skill is gated on `VENN_API_KEY` — it won't appear until the key is set.
 
-## Core Activation Loop
-When `@venn` is mentioned, or the user asks for data from a Venn-connected SaaS service (Gmail, Jira, Notion, etc.):
+1. Get your API key from [app.venn.ai](https://app.venn.ai/api-keys)
 
-1. **Verify Environment:** Check if `VENN_UNIVERSAL_URL` is set. If not, follow the **Setup Flow**.
-2. **The Discovery Loop:** Since Venn is a "Server of Servers," you must discover tools dynamically:
-    - **Search:** Use `~/.local/bin/vennporter call venn.search_tools --args '{"query":"..."}'` for every new request.
-    - **Describe:** Use `~/.local/bin/vennporter call venn.describe_tools` to validate JSON schemas before execution.
-    - **Governance:** Check for `write_operation: "audit"`. If present, you MUST pause for user confirmation.
+2. Add it to the OpenClaw `.env` file:
+   ```bash
+   echo 'VENN_API_KEY=your-api-key-here' >> ~/.openclaw/.env
+   ```
 
-## Setup Request with Venn Universal URL & Bootstrap
-If the user provides a URL in response to a setup request:
-1. **Save & Sync:** Confirm you have saved the URL as an environment variable `VENN_UNIVERSAL_URL`
-2. **Register:** Immediately run `~/.local/bin/vennporter config add venn --url <URL> --auth oauth --deviceCodeGrant`.
-3. **Authenticate:** Follow Venn Authentication.
-4. **Verify Health:** Run `~/.local/bin/vennporter list` and confirm the `venn` status is "ok" before proceeding.
+3. Restart the gateway (picks up the new env on start):
+   ```bash
+   openclaw gateway restart
+   ```
 
-## Setup Request with Missing Venn Universal URL
-If `VENN_UNIVERSAL_URL` is missing or the connection is broken:
-1. **Request URL:** Prompt the user for their Venn Universal URL from Venn.ai.
-2. **Register Server:** Once provided, run:
-   `~/.local/bin/vennporter config add venn --url "$VENN_UNIVERSAL_URL" --auth oauth --deviceCodeGrant`
-3. **Initiate OAuth:** Check browser availability (see above).
-   - **Browser available:** Run `~/.local/bin/vennporter auth venn` to launch the browser authorization.
-   - **No browser:** Follow **Headless Authentication** below.
-4. **Verify Health:** Run `~/.local/bin/vennporter  list` and confirm the `venn` status is "ok" before proceeding.
+   Or, for zero-downtime reload without restart:
+   ```bash
+   openclaw secrets reload
+   ```
 
-## Venn Authentication
-
-### Step 1 — Build vennporter (once)
-Check if the build already exists. If `~/.local/share/vennporter/dist/cli.js` is missing, run:
-```
-bash ~/.openclaw/workspace/skills/venn/scripts/install-vennporter.sh"
-```
-
-### Step 2 — Authenticate
-In a sub-process, run the following command:
+Alternatively, use the interactive secrets helper:
 ```bash
-~/.local/bin/vennporter auth venn
+openclaw secrets configure --skip-provider-setup
 ```
 
-#### Polling sub-process for outcome (timeout is 3 minutes)
-1. Every 5 seconds, poll sub-process for output.
-2. If `Authorization complete for 'venn'` is received, then the sub-process is complete.
-3. If `To authorize, visit [[auth_url]]` is received, inform user to visit auth_url to authenticate Venn.
-4. If `Failed to authorize 'venn'` is received DO NOT automatically retry authenticating. Inform user it did not complete.
-5. Go back to step 1 until success or timeout.
+**Sandboxed agents:** The `.env` file injects into the host process only. For sandboxed (Docker) sessions, also add `VENN_API_KEY` to `agents.defaults.sandbox.docker.env` in `openclaw.json`, or bake it into your custom sandbox image.
 
+## Configuration
 
-## Execution Protocols
+- `VENN_API_KEY` (required) — your Venn API key
+- `VENN_API_URL` (optional) — defaults to `https://app.venn.ai/api/tooliq`
 
-### 1. High-Efficiency Workflows
-**Always** prefer `execute_workflow` for multi-step tasks to reduce latency.
-- **Context Guardrail:** Extract only necessary keys (e.g., `id`, `subject`, `summary`). Do not return full raw API payloads to the user.
-- **Timeout Management:** Enterprise SaaS calls can be slow. If using a `run` tool, set a 30s timeout for Venn workflows.
+## Request Format
 
-### 2. Single Tool Calls via `venn.execute_tool`
-For individual operations, use this syntax:
+All requests use POST with JSON. Examples below use this shorthand:
+
 ```bash
-~/.local/bin/vennporter call venn.execute_tool --args '{"server_id":"atlassian","tool_name":"atlassian_user_info","tool_args":{}}'
+# Full form (shown once):
+VENN_URL="${VENN_API_URL:-https://app.venn.ai/api/tooliq}"
+curl -s -X POST "${VENN_URL}/tools/search" \
+  -H "Authorization: Bearer ${VENN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "..."}'
+
+# Shorthand (used throughout):
+# POST /tools/search {"query": "..."}
 ```
 
-### 3. Discover which services are connected to Venn via `venn.help` tool
-To list all services that user has connected to their Venn account, use this syntax:
+---
+
+## 1. Discovery
+
+### List connected servers
+
 ```bash
-~/.local/bin/vennporter call venn.help --args '{"action":"LIST_SERVERS"}'
+# POST /tools/help
+{"action": "list_servers"}
 ```
+
+Returns `result.servers[]` with `server_id`, `name`, and `connection_status`.
+
+Other help actions:
+- `getting_started` — onboarding guidance
+- `connector_help` — info on connectors (pass `server_id` for specific one)
+- `auth_helper` — OAuth re-auth URL for disconnected server (requires `server_id`)
+
+### Search for tools
+
+```bash
+# POST /tools/search
+{"query": "jira search issues", "limit": 10}
+```
+
+Returns `result.candidates[]` with `server_id`, `tool_name`, `short_description`, and (for top results) full `inputSchema`.
+
+Additional parameters: `offset`, `min_score` (0–1, default 0.3), `min_results` (default 5), `include_skills` (default true).
+
+**Search strategy — broad first, narrow if needed:**
+
+1. Start with the **full task description** in natural language (skills match better):
+   - "create a linear ticket and set it to in progress"
+   - "sync salesforce contacts to a google sheet"
+
+2. If no skill matches, **decompose** into one search per platform + action:
+   - "query salesforce contacts" + "create google sheets row"
+
+3. For simple single-platform tasks, search directly: "create salesforce lead"
+
+**Splitting rules:**
+- 1 search = 1 platform + 1 action (no single tool handles compound actions)
+- Always include the app name in each query
+- "recap"/"summarize" → search the platform, then present
+- "cross-reference"/"compare" → search each platform, combine results
+- "sync X to Y" → search source, then destination
+
+**If no results**, try alternate names:
+- "jira" → "atlassian"
+- "google docs" → "google-drive" or "googledocs"
+- "github" → "github-cloud"
+
+**Choosing from results:**
+- Read operations → prefer broad query tools over get-by-ID
+- Create/update → look for specific create/update endpoints
+- If a skill appears (`type="skill"`), prefer it over assembling tools
+- `inputSchema` is the source of truth for parameter names — NEVER guess
+
+For platform-specific query syntax (JQL, SOQL, Gmail search), see [references/query-syntax.md](references/query-syntax.md).
+
+### Describe a tool
+
+```bash
+# POST /tools/describe
+{"tools": [{"server_id": "SERVER_ID", "tool_name": "TOOL_NAME"}]}
+```
+
+Supports batch requests. Returns `result.results[]` with `inputSchema`, `description`, and `write_operation` type.
+
+---
+
+## 2. Execution
+
+### Schema adherence (most common source of errors)
+
+1. Copy parameter names **verbatim** from inputSchema — casing matters
+   - Schema says `maxResults` → use `maxResults`, NOT `max_results`
+
+2. Match data types exactly:
+   - `"type": "string"` → `"10"`, NOT `10`
+   - `"type": "integer"` → `10`, NOT `"10"`
+   - `"type": "array"` → `["value"]`, NOT `"value"`
+   - `"type": "object"` → `{"key": "value"}`, NOT `"key=value"`
+
+3. Include all `required` fields. Do not add fields not in the schema.
+
+### Execute a single tool
+
+```bash
+# POST /tools/execute
+{"server_id": "SERVER_ID", "tool_name": "TOOL_NAME", "tool_args": {...}}
+```
+
+**Translating user intent into values** (infer rather than ask):
+- "recent tickets" → reasonable date range (e.g., last 7 days)
+- "my emails" → `userId: "me"`
+- "the main channel" → search for it by name first
+- "current sprint" → the active sprint
+
+This applies to **values only** — parameter names and types must come from inputSchema.
+
+**Data integrity:** NEVER fabricate data. Only present what appears in actual responses.
+
+**Handling links:** For create/edit operations, surface clickable URLs from fields like `url`, `link`, `href`, `web_url`, `permalink`, `html_url`. Present as `[Resource Name](url)`.
+
+### Execute a workflow (multi-step)
+
+Chain multiple tool calls in a Python sandbox:
+
+```bash
+# POST /tools/execute-workflow
+{
+  "code": "results = call_tool(\"atlassian\", \"searchByJQL\", jql=\"assignee = currentUser() AND status != Done\")\nreturn [{\"key\": i[\"key\"], \"summary\": i[\"fields\"][\"summary\"]} for i in results.get(\"issues\", [])]",
+  "timeout": 180
+}
+```
+
+**When to use workflows:**
+- Multiple tool calls in sequence
+- Parallel execution across services
+- Data processing, iteration, or transformation
+
+**Code rules:**
+- Follow schema adherence rules above
+- Write flat, inline code — no helper functions
+- Code must return a value; extract only needed fields
+- Check for errors: `if isinstance(result, dict) and "error" in result: ...`
+- For pagination, loop until no more `nextPageToken`/`cursor`
+
+**Available in sandbox:**
+- `call_tool(server_id, tool_name, **kwargs)` — sequential
+- `async_call_tool(server_id, tool_name, **kwargs)` — for `asyncio.gather()`
+- `call_skill(skill_id, inputs_dict)` / `async_call_skill(...)` — call skills
+- Modules: `asyncio`, `json`, `datetime`, `math`, `re`, `collections`, `itertools`, `functools`, `operator`, `decimal`, `uuid`, `base64`, `hashlib`
+- No network, filesystem, or subprocess access
+- No augmented assignment on subscripts: use `d[k] = d[k] + 1`, NOT `d[k] += 1`
+
+---
+
+## 3. Write Operation Confirmation
+
+Write/delete operations return an audit response instead of executing. To proceed:
+
+1. Show the operation summary to the user and **wait for explicit approval**
+
+2. Get a confirmation token (expires in 60s):
+   ```bash
+   # POST /tools/confirm
+   {"server_id": "SERVER_ID", "tool_name": "TOOL_NAME"}
+   ```
+
+3. Re-send with the token:
+   ```bash
+   # POST /tools/execute
+   {"server_id": "...", "tool_name": "...", "tool_args": {...}, "confirmed": true, "confirmation_token": "TOKEN"}
+   ```
+
+**Never** call confirm without user's typed approval ("yes", "confirm", "proceed").
+
+---
+
+## 4. Skills
+
+Skills are pre-built workflow patterns in search results with `type: "skill"`. Prefer skills over assembling individual tools.
+
+### Executable skills
+
+Marked `executable: true`. Run step-by-step:
+
+```bash
+# POST /tools/execute
+{"tool_name": "SKILL_ID", "tool_args": {"step_id": "FIRST_STEP", "inputs": {...}}}
+```
+
+Each step returns `outputs` and `next`. If `next` is not null, read `next.reasoning`, fill placeholders, make the next call.
+
+### Guidance skills
+
+For skills without `executable: true`, describe to get the pattern:
+
+```bash
+# POST /tools/describe
+{"tools": [{"tool_name": "SKILL_NAME"}]}
+```
+
+Returns `tools_involved`, `all_servers_connected`, `disconnected_servers`, and step-by-step `content`. If `all_servers_connected` is false, use `help(action="auth_helper")` first.
+
+---
+
+## 5. Error Recovery
+
+If a tool call fails, **debug and retry** — do not report failure immediately.
+
+| Error | Action |
+|-------|--------|
+| Schema/parameter error | Re-read inputSchema, fix names and types, retry |
+| 404 / "not found" | Wrong ID or tool; search for correct ID |
+| Server not connected / 401 | Call `help(action="auth_helper", server_id="...")` |
+| Empty results | Try fuzzy variations, broader date ranges |
+| Same error twice | Try different approach (different tool/parameters) |
+| Workflow fails twice | Fall back to sequential execute calls |
+
+Only report failure after at least three different approaches have been tried.
+
+---
+
+## Guardrails
+
+- Start with `list_servers` or `search` to discover what's connected
+- Always have `inputSchema` before executing (from search or describe)
+- Match parameter names and types exactly
+- Never fabricate data — only present actual responses
+- Never execute writes without explicit user approval
+- Prefer workflows for multi-step operations
+- Prefer skills over assembling individual tools
+- Pass `session_id` and `user_intent` on calls for tracing (API generates one if omitted)
+

@@ -3,11 +3,16 @@
   "slug": "enterprisecontact",
   "displayName": "Enterprise Contact Information Query - 企业联系方式查询",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773721873357,
-    "commit": "https://github.com/openclaw/skills/commit/44eb731de1d28d973e8f484f97d4954b40022e22"
+    "version": "1.0.3",
+    "publishedAt": 1774592888159,
+    "commit": "https://github.com/openclaw/skills/commit/73bf0d9b2a64834ee5329413d42953f1dce64200"
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773721873357,
+      "commit": "https://github.com/openclaw/skills/commit/44eb731de1d28d973e8f484f97d4954b40022e22"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773632131189,

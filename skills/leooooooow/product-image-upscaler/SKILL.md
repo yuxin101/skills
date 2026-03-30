@@ -1,45 +1,68 @@
 ---
 name: product-image-upscaler
-description: Improve ecommerce product image clarity for listings and ads. Use when teams need sharper images without changing the product itself.
+description: Improve ecommerce product image clarity for listings, PDPs, and ad creatives so existing visuals become more usable across commercial channels.
 ---
 
 # Product Image Upscaler
 
-## Skill Card
+Improve product-image clarity so existing assets hold up better on listings, PDPs, and ad creatives.
 
-- **Category:** Image & Media Tools
-- **Core problem:** Product images are too soft or too small for ecommerce placements.
-- **Best for:** Listing, ad, and PDP image enhancement workflows.
-- **Expected input:** Source image condition, target platform, size need, brand constraints.
-- **Expected output:** Image diagnosis + enhancement plan + output spec guidance.
+## Use when
+
+- A product image is too soft, small, or low-resolution for ecommerce use
+- You need to reuse older image assets on PDPs, marketplaces, or ads
+- A team wants cleaner visuals for mobile-first browsing without reshooting immediately
+- You need larger output sizes for hero images, marketplaces, or creative testing
+
+## Do not use when
+
+- The source image is fundamentally unusable, badly lit, or missing the product clearly
+- You need a full retouching, compositing, or brand-photo redesign workflow
+- The goal is to change the product appearance or invent visual details
+- Compliance depends on exact visual proof and the source is too damaged to trust
+
+## Inputs
+
+- source image status and approximate resolution
+- intended use: listing, PDP hero, gallery, ad, social, marketplace, print-lite asset
+- target platform or output size
+- background constraints or brand standards
+- whether light cleanup or crop adjustments are allowed
+- any realism requirements or “must not alter product” constraints
 
 ## Workflow
 
-1. Diagnose current image quality.
-2. Choose an upscaling strategy based on use case.
-3. Protect product realism and avoid artifacts.
-4. Recommend output size and checks.
+1. Judge whether the source image can be improved enough to remain commercially usable.
+2. Match enhancement choices to business context: listing readability, PDP trust, ad clarity, mobile viewing.
+3. Improve sharpness and size while protecting edges, textures, and product realism.
+4. Avoid overprocessing that makes the item look fake, plasticky, or inconsistent with the original.
+5. Recommend output specs and usage guidance by channel.
 
-## Output format
+## Output
 
-1. Image diagnosis
-2. Upscaling plan
-3. Output spec
-4. Risk notes
+1. Source-image quality diagnosis
+2. Recommended upscale / enhancement approach
+3. Best-fit output sizes or usage contexts
+4. Commercial-use guidance for listing / PDP / ads
+5. Risk notes if realism or detail integrity may be affected
 
-## Quality and safety rules
+## Quality bar
 
-- Sharper, but still realistic.
-- Do not alter core product appearance.
-- Optimize for ecommerce usability, not visual gimmicks.
+- The image should look clearer, not artificially “AI enhanced”
+- Product appearance must remain trustworthy for commerce use
+- Recommendations should connect to actual business use, not image quality in isolation
+- Output should help the team decide whether the asset is ready to publish, test, or replace
 
-## License
+## What better looks like
 
-Copyright (c) 2026 **Razestar**.
+Better output is not just “higher resolution.”
+It makes the asset more usable in commerce:
+- easier to read on mobile
+- stronger for hero placement
+- less embarrassing in ads
+- more reusable across channels
+- clearer about whether the image is good enough or still needs a reshoot
 
-This skill is provided under **CC BY-NC-SA 4.0** for non-commercial use.
-You may reuse and adapt it with attribution to Razestar, and share derivatives
-under the same license.
+## Resource
 
-Commercial use requires a separate paid commercial license from **Razestar**.
-No trademark rights are granted.
+See `references/output-template.md`.

@@ -1,9 +1,10 @@
 ---
 name: china-news
 description: 中国新闻资讯聚合工具。Use when user wants to get latest news from Chinese sources. Supports multiple news sites (Sina, Sohu, NetEase, Tencent) via browser automation and RSS. Generates categorized news reports. 新闻资讯、热点新闻、每日新闻。
-version: 1.0.2
+version: 1.0.3
 license: MIT-0
-metadata: {"openclaw": {"emoji": "📰", "requires": {"bins": ["curl", "python3"], "env": []}}}
+metadata: {"openclaw": {"emoji": "📰", "requires": {"bins": ["python3"], "env": []}}}
+dependencies: "pip install requests"
 ---
 
 # China News

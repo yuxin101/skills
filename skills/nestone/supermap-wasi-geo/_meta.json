@@ -1,0 +1,11 @@
+{
+  "owner": "nestone",
+  "slug": "supermap-wasi-geo",
+  "displayName": "supermap-wasi-geo",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774428550299,
+    "commit": "https://github.com/openclaw/skills/commit/16edec1f5e6aa34f6d6c3503dac3680ea43fbcce"
+  },
+  "history": []
+}

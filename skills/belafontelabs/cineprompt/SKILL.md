@@ -1,194 +1,219 @@
----
-name: cineprompt
-description: Build CinePrompt video prompts and share links without a browser. Converts natural language shot descriptions into structured CinePrompt state, generates prompt text, and creates shareable links (cineprompt.io/p/...). Use when asked to create video prompts, build CinePrompt links, describe shots for AI video generation, or batch-create prompts for a sequence of shots.
-metadata: {"clawdbot":{"emoji":"🎬"}}
----
-
 # CinePrompt Skill
 
-Build CinePrompt prompts and share links directly — no browser needed.
+AI video prompt builder for cinematographers. Translates natural language shot descriptions into structured prompts optimized for AI video generators.
 
-## How It Works
+## What It Does
 
-1. User describes a shot in natural language
-2. You translate it into a CinePrompt state JSON object
-3. The `create-share-link.js` script inserts it into Supabase and returns a `/p/` share link
-4. User gets the link + prompt text to copy into any AI video tool
+CinePrompt turns vague ideas ("cinematic sunset over mountains") into precise cinematography prompts with lens, movement, lighting, color science, sound design, and 133 total fields. Three workflow modes, 24 generation models, 8 model optimizers.
 
-## Authentication
+**Live:** https://cineprompt.io
+**Guides:** https://cineprompt.io/guides (18+ articles, daily additions)
+**Models:** https://cineprompt.io/models
 
-Requires a CinePrompt API key (Pro subscribers only). Set via:
-- `--api-key cp_xxx` flag
-- `CINEPROMPT_API_KEY=cp_xxx` env var
-
-Internal/owner use: set `CINEPROMPT_SERVICE_KEY` env var for direct insert (bypasses Pro check).
-
-## Creating a Share Link
+## CLI Usage
 
 ```bash
-echo '<STATE_JSON>' | node <skill>/scripts/create-share-link.js --api-key cp_xxx
+# Install
+npm install -g cineprompt
+
+# Auth (Pro subscription required for API)
+cineprompt auth cp_your_key_here
+
+# Build a share link from state JSON
+cineprompt build '{"mode":"single","subjectType":"character","fields":{...}}'
+
+# Build from file
+cineprompt build --file shot.json
+
+# Pipe JSON
+cat shot.json | cineprompt build
+
+# List all 133 fields
+cineprompt fields
+
+# Show values for a specific field
+cineprompt fields mood
+cineprompt fields movement_type
 ```
 
-Output is JSON: `{"url":"https://cineprompt.io/p/abc123","shortCode":"abc123","promptText":"...","mode":"single"}`
+## Building State JSON
 
-You can also pass the prompt text explicitly if you've crafted it by hand:
+The agent constructs a state object and passes it to the CLI. The CLI creates a share link on cineprompt.io where the user can view, tweak, and copy the prompt.
 
-```bash
-echo '{"state":<STATE_JSON>,"prompt":"Your custom prompt text"}' | node <skill>/scripts/create-share-link.js --api-key cp_xxx
-```
-
-## State JSON Structure
+### State Structure
 
 ```json
 {
   "mode": "single",
   "complexity": "complex",
-  "subjectType": "character|object|vehicle|creature|landscape|abstract",
-  "fields": { ... },
-  "shots": [],
-  "characters": []
-}
-```
-
-### Required Top-Level Fields
-
-- `mode`: Always `"single"` for now (multishot/fm support later)
-- `complexity`: `"simple"` or `"complex"` — complex unlocks format, camera body, lens, film stock, color science
-- `subjectType`: Which subject panel to show
-- `fields`: Object mapping field names to values (strings or arrays)
-
-### Field Reference
-
-All valid field names and values are in `<skill>/field-values.json`. Key fields:
-
-**Style:**
-- `media_type` (array): `["cinematic"]`, `["cinematic","documentary"]`, etc.
-- `documentary_style`: only when documentary is in media_type
-- `genre`: only when cinematic is in media_type (array OK)
-- `commercial_type`: only when commercial is in media_type
-- `tone` (array): `["peaceful"]`, `["dramatic","moody"]`
-- `format`: (complex only) `"35mm Film"`, `"16mm Film"`, `"DSLR / Mirrorless"`, etc.
-
-**Subject — depends on subjectType:**
-- landscape: `land_season`, `land_scale`
-- character: `char_label`, `age_range`, `build`, `hair_style`, `hair_color`, `subject_description`, `wardrobe`, `expression`, `body_language`, `framing`
-- creature: `creature_category`, `creature_label`, `creature_size`, `creature_body`, `creature_skin`, `creature_description`
-- object: `obj_description`, `obj_material`, `obj_condition`, `obj_scale`
-- vehicle: `veh_type`, `veh_description`, `veh_era`, `veh_condition`
-- abstract: `abs_description`, `abs_quality`, `abs_movement`
-
-**Actions:**
-- `movement_type` (array): `["walking"]`, `["running","turning"]`
-- `pacing`: `"in real-time"`, `"in slow motion"`, `"time-lapse"`, etc.
-- `action_primary`: free text describing the primary action
-
-**Environment:**
-- `setting`: `"exterior"`, `"interior"`, `"interior to exterior"`, `"exterior to interior"`
-- `location_type`: `"open field, meadow"`, `"urban street"`, `"forest"`, etc.
-- `custom_location`: free text location description
-- `location`: free text additional location details
-- `env_time`: `"golden hour, warm late afternoon light"`, `"night"`, `"dawn"`, etc.
-- `weather`: `"clear sky"`, `"overcast"`, `"rain"`, `"fog"`, etc.
-- `props`: free text
-- `env_fg`, `env_mg`, `env_bg`: foreground/midground/background free text
-
-**Cinematography:**
-- `shot_type`: `"establishing shot"`, `"close-up"`, `"wide shot"`, `"medium"`, etc.
-- `movement`: `"pull out"`, `"push in"`, `"dolly"`, `"tracking"`, `"static"`, `"orbit"`, etc.
-- `camera_body`: (complex) `"ARRI Alexa 65"`, `"RED V-Raptor"`, `"Sony Venice 2"`, etc.
-- `focal_length`: `"24mm lens"`, `"35mm lens"`, `"50mm lens"`, `"85mm lens"`, etc.
-- `lens_brand`: (complex) `"Cooke S4/i"`, `"ARRI Master Prime"`, etc.
-- `lens_filter`: (complex) `"Black Pro-Mist"`, `"Glimmerglass"`, etc.
-- `dof`: `"deep focus"`, `"shallow depth of field, bokeh"`, `"tilt shift miniature"`, etc.
-- `lighting_style`: `"soft light"`, `"hard light"`, `"high contrast"`, `"silhouette"`, `"backlight"`, etc.
-- `lighting_type`: `"daylight"`, `"moonlight"`, `"candlelight"`, `"neon"`, etc.
-- `key_light`, `fill_light`: (complex) free text
-
-**Palette:**
-- `color_science`: (complex) `"ARRI LogC3 flat log footage, ungraded"`, etc.
-- `film_stock`: (complex) `"Kodak Portra 400 film colors"`, `"Kodak Vision3 500T film colors"`, etc.
-- `color_grade`: `"warm tones"`, `"cool tones"`, `"teal and orange"`, `"desaturated"`, `"black and white"`, etc.
-- `palette_colors`: free text (primary/secondary colors)
-- `skin_tones`: free text
-
-**Sound:**
-- `sfx_environment` (array): `["birds singing, nature ambience"]`, `["city traffic"]`, `["wind"]`
-- `sfx_interior` (array): `["room tone"]`, `["clock ticking"]`
-- `sfx_mechanical` (array): `["engine"]`, `["machinery"]`
-- `sfx_dramatic` (array): `["bass rumble"]`, `["heartbeat"]`
-- `ambient`: free text custom ambient/SFX
-- `music_genre`: `"orchestral score"`, `"electronic score"`, `"jazz score"`, etc.
-- `music_mood`: `"tense, building"`, `"melancholic, sparse"`, etc.
-- `music`: free text custom music description
-
-## Translation Guide
-
-When a user describes a shot, map their words to CinePrompt fields:
-
-| User says | CinePrompt field(s) |
-|-----------|---------------------|
-| "golden hour" | `env_time: "golden hour, warm late afternoon light"` |
-| "pulling back" / "pulling out" | `movement: "pull out"` |
-| "birds chirping" | `sfx_environment: ["birds singing, nature ambience"]` |
-| "empty land" / "open field" | `subjectType: "landscape"`, `location_type: "open field, meadow"` |
-| "cinematic documentary" | `media_type: ["cinematic", "documentary"]` |
-| "establishing shot" | `shot_type: "establishing shot"` |
-| "bokeh" / "blurry background" | `dof: "shallow depth of field, bokeh"` |
-| "everything in focus" | `dof: "deep focus"` |
-| "handheld feel" | `movement: "handheld"` |
-| "slow motion" | `pacing: "in slow motion"` |
-| "warm look" | `color_grade: "warm tones"` |
-| "shot on film" | `format: "35mm Film"` (complex) |
-
-## Picking the Right Complexity
-
-- **Simple**: Use for most shots. Covers style, subject, actions, environment, basic cinematography, palette, sound.
-- **Complex**: Use when the user specifies camera body, lens brand, film stock, color science, lens filters, or custom lighting rigs. These fields only appear in complex mode.
-
-## Example
-
-User: "A weathered fisherman standing on a dock at dawn, fog rolling in, handheld close-up, desaturated"
-
-```json
-{
-  "mode": "single",
-  "complexity": "simple",
   "subjectType": "character",
   "fields": {
     "media_type": ["cinematic"],
-    "tone": ["moody"],
-    "char_label": "A weathered fisherman",
-    "subject_description": "Deep wrinkles, sun-damaged skin, salt-crusted hands",
-    "expression": "stoic, gazing out to sea",
-    "pacing": "in real-time",
-    "setting": "exterior",
-    "location_type": "dock, pier",
-    "env_time": "dawn, first light",
-    "weather": "fog",
-    "shot_type": "close-up",
-    "movement": "handheld",
+    "mood": ["contemplative"],
+    "genre": ["drama"],
+    "setting": "interior",
+    "location_type": ["apartment"],
+    "custom_location": "A cluttered one-bedroom with peeling wallpaper",
+    "env_time": "night",
+    "char_label": "A retired boxer",
+    "subject_description": "Weathered face, broken nose, calloused hands",
+    "expression": "quietly resigned",
+    "wardrobe": "Stained white undershirt, suspenders hanging at sides",
+    "action_primary": "sitting alone at a kitchen table",
+    "shot_type": "medium close-up",
+    "framing": ["positioned left-third of frame"],
+    "focal_length": "85mm",
     "dof": "shallow depth of field, bokeh",
-    "lighting_style": "soft light",
-    "lighting_type": "daylight",
-    "color_grade": "desaturated",
-    "sfx_environment": ["waves crashing, water ambience"]
-  },
-  "shots": [],
-  "characters": []
+    "movement_type": ["static, locked-off"],
+    "lighting_type": ["practical lights"],
+    "key_light": "Single bare bulb overhead, slightly swinging",
+    "film_stock": ["Kodak Vision3 500T 5219"],
+    "color_grade": ["desaturated"],
+    "sfx_environment": ["room tone"],
+    "ambient": "Refrigerator hum, distant sirens",
+    "props": "Half-empty whiskey bottle, old photograph face-down"
+  }
 }
 ```
 
-Then pipe it to the script and send the user the resulting URL.
+### Key Parameters
 
-## Batch Workflow
+| Parameter | Values | Notes |
+|-----------|--------|-------|
+| `mode` | `single`, `multi_shot` | Single shot or multi-shot sequence |
+| `complexity` | `simple`, `complex` | Simple = curated fields, Complex = all fields |
+| `subjectType` | `character`, `creature`, `object`, `vehicle`, `landscape`, `abstract` | Unlocks subject-specific fields |
 
-For multi-shot sequences, create each shot as a separate share link. Present them as a numbered list with URLs. The user can then open each, tweak, and copy prompts into their video tool of choice.
+### Field Types
 
-## Notes
+**Button fields** (93) — accept arrays of predefined values. Use `cineprompt fields <name>` to see valid options.
+```json
+"media_type": ["cinematic"],
+"mood": ["nostalgic", "contemplative"],
+"shot_type": "extreme close-up"
+```
 
-- The script auto-generates prompt text matching CinePrompt's frontend logic (section ordering, merge rules, sentence assembly)
-- You can override with `--prompt` if you want to hand-craft the text
-- Share links restore the full form state including complexity tab and subject type
-- Valid field values: check `<skill>/field-values.json` for exact button values
-- Array fields (media_type, tone, sfx_*, movement_type) accept multiple values
-- Free text fields (custom_location, subject_description, action_primary, etc.) accept any string
+**Text fields** (40) — accept free-form strings.
+```json
+"char_label": "A young street musician",
+"subject_description": "Dark curly hair, paint-stained fingers",
+"dialogue": "I never said goodbye",
+"ambient": "Rain on a tin roof, distant thunder"
+```
+
+### Modes
+
+**Single Shot** — one shot, full cinematography control.
+
+**Multi-Shot** — sequence of shots with global settings + per-shot overrides. Supports recurring characters, transitions between shots.
+```json
+{
+  "mode": "multi_shot",
+  "complexity": "complex",
+  "fields": {
+    "media_type": ["cinematic"],
+    "mood": ["tense"]
+  },
+  "shots": [
+    {
+      "subjectType": "character",
+      "fields": {
+        "shot_type": "establishing shot",
+        "char_label": "Detective",
+        "action_primary": "approaching the building"
+      }
+    },
+    {
+      "subjectType": "character",
+      "fields": {
+        "shot_type": "close-up",
+        "char_label": "Detective",
+        "expression": "steeling herself",
+        "action_primary": "reaching for the door handle"
+      }
+    }
+  ]
+}
+```
+
+**Frame → Motion** — dual-prompt output for img2vid workflows. Build the frame (image prompt), then direct the motion (video prompt). The FM tab uses direct-edit motion text with quick-insert chips:
+
+- **Camera chips:** Slow push in, Slow pull out, Orbit, Dolly, Crane up/down, Handheld, Tracking, Locked off
+- **Pacing chips:** Slow motion, Real-time, Time-lapse, Hyperlapse
+- **Transition chips:** Whip pan, Steadicam, Rack focus, Reveal, Morph, Dissolve
+- **Direction chips:** Slow Build, One at a Time, Breathe, Anchor, Physics, Chaos, Match
+
+## Key Fields Reference
+
+### Core (always relevant)
+`media_type`, `mood`, `genre`, `setting`, `location_type`, `custom_location`, `env_time`, `weather`
+
+### Subject — Character
+`char_label`, `subject_description`, `expression`, `body_language`, `age_range`, `build`, `hair_style`, `hair_color`, `skin_tones`, `wardrobe`, `action_primary`, `props`
+
+### Subject — Creature
+`creature_label`, `creature_description`, `creature_category`, `creature_size`, `creature_body`, `creature_skin`, `creature_expression`
+
+### Subject — Object
+`obj_description`, `obj_material`, `obj_condition`, `obj_scale`
+
+### Subject — Vehicle
+`veh_description`, `veh_type`, `veh_era`, `veh_condition`
+
+### Subject — Landscape
+`land_scale`, `land_season`
+
+### Subject — Abstract
+`abs_description`, `abs_quality`, `abs_movement`, `abstract_environment`
+
+### Camera & Lens
+`shot_type`, `framing`, `focal_length`, `camera_body`, `lens_brand`, `lens_filter`, `dof`, `movement_type`, `pacing`
+
+### Lighting
+`lighting_type`, `lighting_style`, `key_light`, `fill_light`
+
+### Color & Look
+`color_grade`, `color_science`, `film_stock`, `palette_colors`
+
+### Environment
+`location`, `env_bg`, `env_mg`, `env_fg`
+
+### Sound
+`dialogue`, `dialogue_character`, `dialogue_language`, `delivery_style`, `delivery_style_custom`, `voiceover_text`, `music`, `music_genre`, `music_mood`, `ambient`, `sfx_environment`, `sfx_interior`, `sfx_dramatic`, `sfx_mechanical`, `beat_1`, `beat_2`, `beat_3`
+
+### Style
+`animation_style`, `documentary_style`, `commercial_type`, `music_video_style`, `social_media_style`, `format`
+
+## Scene-to-Prompt
+
+CinePrompt also accepts natural language descriptions via the Scene-to-Prompt feature. Users type a shot description and an LLM auto-populates all fields. The agent can use this as an alternative to manually constructing state JSON — just direct users to the text box at the top of the page.
+
+## Generate
+
+CinePrompt includes built-in generation with BYOK (bring your own key) across 24 models:
+- **Text-to-video (9):** Kling O3 Pro, Sora 2 Pro, Veo 3.1, WAN 2.6, Seedance 1.5 Pro, LTX 2.3, Grok Imagine (Fal + Venice)
+- **Image-to-video (5):** Kling O3 Pro, Sora 2 Pro, Veo 3.1, WAN 2.6, LTX 2.3, Grok Imagine
+- **Reference-to-video (1):** Kling O3 Pro R2V (character elements)
+- **Image gen (4):** Nano Banana Pro, NB2, Chroma, Grok Imagine
+- **Image edit (4):** NBP Edit, NB2 Edit, Grok Imagine Edit, Qwen Edit
+- **Providers:** Fal.ai + Venice.ai
+
+## Subject Library
+
+Persistent character/element system. Users save subjects with frontal + reference images and field state. Subjects auto-inject into prompts and enable R2V (reference-to-video) generation with Kling Elements.
+
+## Internal Scripts
+
+### cineprompt-x-post
+Daily cron (8:55 AM) that reads today's guide article, finds a trending AI video post on X, and writes a quote-tweet mini-essay for the CinePrompt Discord channel. Output goes to Discord for Tylios to post.
+
+### create-share-link.js
+Creates share links via Supabase RPC (with API key) or direct insert (with service key). Used internally by the CLI and agent.
+
+## Tiers
+
+| Tier | Price | Access |
+|------|-------|--------|
+| Free | $0 | Simple mode only |
+| Pro | $7/mo or $70/yr | All modes + API key + Generate |
+| Founding | $25 lifetime | Everything (capped at 100) |

@@ -255,12 +255,44 @@ else
     SP_LINES="  - (no near-term predictions)"$'\n'
 fi
 
+# ─── Extract deliberation residuals ───
+# Scan recent audit conclusions for action language (implicit next steps)
+DELIB_RESIDUALS=()
+AUDIT_LOG="$(_ms_assets)/audit.log"
+if [[ -f "$AUDIT_LOG" && -n "${SESSION_START_EPOCH:-}" ]]; then
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        ts=$(echo "$line" | grep -oP '"timestamp":"[^"]*"' | cut -d'"' -f4 || true)
+        [[ -z "$ts" ]] && continue
+        ts_epoch=$(iso_to_epoch "$ts" 2>/dev/null || echo 0)
+        (( ts_epoch < ${SESSION_START_EPOCH:-0} )) && continue
+
+        conclusion=$(echo "$line" | grep -oP '"conclusion":"[^"]*"' | cut -d'"' -f4 || true)
+        [[ -z "$conclusion" || "$conclusion" == "null" ]] && continue
+
+        if echo "$conclusion" | grep -qiE '(should|need to|update|revisit|demote|create|check|consider|fix|might want)'; then
+            audit_need=$(echo "$line" | grep -oP '"need":"[^"]*"' | cut -d'"' -f4 || true)
+            DELIB_RESIDUALS+=("[$audit_need] $conclusion")
+        fi
+        (( ${#DELIB_RESIDUALS[@]} >= 5 )) && break
+    done < <(tac "$AUDIT_LOG")
+fi
+
+DR_LINES=""
+if (( ${#DELIB_RESIDUALS[@]} > 0 )); then
+    for r in "${DELIB_RESIDUALS[@]}"; do
+        DR_LINES+="  - $r"$'\n'
+    done
+fi
+
 COGNITION_BLOCK="## cognition
 # [frozen by mindstate-freeze.sh — READ-ONLY until next freeze]
 frozen_at: $NOW_ISO
 trajectory: $trajectory
 open_threads:
-${OT_LINES}momentum: $momentum
+${OT_LINES}deliberation_residuals:
+${DR_LINES:-  - (none)
+}momentum: $momentum
 cognitive_temperature: $cognitive_temperature"
 
 FORECAST_BLOCK="## forecast

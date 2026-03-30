@@ -1,0 +1,11 @@
+{
+  "owner": "udnerc",
+  "slug": "corporate-event-video",
+  "displayName": "Corporate Event Video",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774616843184,
+    "commit": "https://github.com/openclaw/skills/commit/c5f09b699ce00a6d855462e71a36363fc4d1e097"
+  },
+  "history": []
+}

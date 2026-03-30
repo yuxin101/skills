@@ -1,0 +1,11 @@
+{
+  "owner": "imwyvern",
+  "slug": "confidence-builder",
+  "displayName": "Confidence Builder Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774581051315,
+    "commit": "https://github.com/openclaw/skills/commit/541028aabfe992dc8f99e326ae0ce9720c2e342e"
+  },
+  "history": []
+}

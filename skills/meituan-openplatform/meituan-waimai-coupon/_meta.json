@@ -1,0 +1,11 @@
+{
+  "owner": "meituan-openplatform",
+  "slug": "meituan-waimai-coupon",
+  "displayName": "美团外卖红包",
+  "latest": {
+    "version": "1.0.6",
+    "publishedAt": 1774493743737,
+    "commit": "https://github.com/openclaw/skills/commit/c654b0c01e2a304c8d5f232ef94e7b97829a75c9"
+  },
+  "history": []
+}

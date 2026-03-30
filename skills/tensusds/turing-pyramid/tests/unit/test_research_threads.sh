@@ -121,11 +121,11 @@ fi
 echo ""
 echo "⚖️ Weight tests:"
 
-# Test 13: daemon-weights.json referenced in action name exists
-if [[ -f "$HOME/.openclaw/workspace/daemon-weights.json" ]]; then
-    pass "daemon-weights.json exists (referenced by start-thread action)"
+# Test 13: start-thread action name references topic source (informational, not hard dependency)
+if jq -e '.needs.understanding.actions[] | select(.name | test("start new research"))' "$CONFIG" > /dev/null 2>&1; then
+    pass "start-thread action exists in config"
 else
-    fail "daemon-weights.json missing (referenced by start-thread action)"
+    fail "start-thread action missing from config"
 fi
 
 # Test 14: action weights sum reasonably (not all 100)

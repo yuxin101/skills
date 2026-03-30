@@ -1354,6 +1354,70 @@ async function handleAlerts(args) {
   return "Usage:\n  /alerts list — view active alerts\n  /alerts create NVDA price_above 150 — create alert\n\nFull alert management available at thepolarisreport.com/developers" + footer();
 }
 
+// ── /report [symbol] [tier] ───────────────────────────────────────────────────
+
+async function handleReport(args) {
+  const tokens = (args || "").trim().split(/\s+/).filter(Boolean);
+  const symbol = (tokens[0] || "").toUpperCase();
+  if (!symbol) return "Usage: /report NVDA [quick|full|deep]";
+
+  const tier = (tokens[1] || "quick").toLowerCase();
+  if (!["quick", "full", "deep"].includes(tier)) {
+    return "Tier must be quick, full, or deep. Example: /report NVDA full";
+  }
+
+  const creditCost = tier === "deep" ? 1000 : tier === "full" ? 100 : 10;
+  const estTime = tier === "deep" ? "~5 min" : tier === "full" ? "~65 sec" : "~6 sec";
+
+  // Try cached first for quick scans
+  if (tier === "quick") {
+    try {
+      const cached = await apiFetch(`/api/v1/reports/cached/${encodeURIComponent(symbol)}`);
+      if (cached && cached.report && cached.report.markdown) {
+        return cached.report.markdown + footer();
+      }
+    } catch { /* not cached, generate fresh */ }
+  }
+
+  // Generate report
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/reports/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ticker: symbol, tier }),
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const data = await res.json();
+    const reportId = data.report_id;
+
+    if (!reportId) return `Failed to start report for ${symbol}.`;
+
+    // Poll for completion
+    const maxWait = tier === "deep" ? 360000 : tier === "full" ? 120000 : 30000;
+    const pollInterval = 3000;
+    const start = Date.now();
+
+    while (Date.now() - start < maxWait) {
+      await new Promise(r => setTimeout(r, pollInterval));
+      try {
+        const poll = await apiFetch(`/api/v1/reports/${reportId}`);
+        if (poll && poll.report) {
+          if (poll.report.status === "complete" && poll.report.markdown) {
+            return poll.report.markdown + footer();
+          }
+          if (poll.report.status === "failed") {
+            return `Report generation failed for ${symbol}. Try again.`;
+          }
+        }
+      } catch { /* keep polling */ }
+    }
+
+    return `Report is still generating. Check back at: ${SITE_URL}/reports/${reportId}`;
+  } catch (err) {
+    return `Error generating report for ${symbol}: ${err.message}`;
+  }
+}
+
 // ── Skill Entry Point ────────────────────────────────────────────────────────
 
 module.exports = {
@@ -1697,6 +1761,17 @@ module.exports = {
           return await handleAlerts(args);
         } catch (err) {
           return `Error managing alerts: ${err.message}`;
+        }
+      },
+    },
+
+    report: {
+      description: "Generate an AI analysis report for any ticker",
+      execute: async (args) => {
+        try {
+          return await handleReport(args);
+        } catch (err) {
+          return `Error generating report: ${err.message}`;
         }
       },
     },

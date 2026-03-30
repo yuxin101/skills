@@ -16,16 +16,7 @@ openclaw skills install linsoai-track
 "帮我创建一个每天早上9点的任务，查看BTC价格变化，如果波动超过5%就通知我"
 ```
 
-Skill 会自动将你的描述转化为定时任务：
-
-```bash
-openclaw cron add \
-  --name "BTC价格监控" \
-  --cron "0 9 * * *" \
-  --tz "Asia/Shanghai" \
-  --session isolated \
-  --message "查看当前BTC价格变化，如果波动超过5%，用 openclaw message send 通知我。"
-```
+Skill 会自动解析你的描述并创建定时任务，包含频率、时区、通知条件等配置。
 
 ### 更多示例
 
@@ -74,28 +65,13 @@ openclaw skills install send-email
 
 详见 [通知配置指南](references/NOTIFICATIONS.md)。
 
-## 从 Linso Task 迁移
+## 从 Linso Track 迁移
 
-如果你是 Linso Task 用户，可以快速将现有任务迁移过来：
+如果你是 Linso Track 用户，可以快速将现有任务迁移过来：
 
-### 方式一：自然语言重建（推荐）
-
-直接告诉 Skill 你想要什么任务，它会帮你创建。你不需要记命令。
-
-### 方式二：批量导入
-
-1. 登录 Linso Task → 设置 → 导出到 OpenClaw
-2. 复制导出的命令
-3. 使用导入脚本：
-
-```bash
-# 从剪贴板导入
-pbpaste | openclaw run node ./skills/linsoai-track/scripts/import-tasks.js
-
-# 从文件导入
-openclaw run node ./skills/linsoai-track/scripts/import-tasks.js exported-commands.txt
-```
-
+1. 登录 Linso Track → 点击「迁移到龙虾」按钮
+2. 生成迁移内容后，复制导出的自然语言描述
+3. 粘贴到 OpenClaw 聊天窗口发送，AI 会自动批量创建所有任务
 4. 检查导入结果：
 ```
 "看看我的定时任务列表"
@@ -103,7 +79,6 @@ openclaw run node ./skills/linsoai-track/scripts/import-tasks.js exported-comman
 
 ## 依赖
 
-- **Node.js** — 导入脚本需要（OpenClaw 环境已内置）
 - **send-email skill**（可选）— 邮件通知功能需要
 
 ## 参考文档

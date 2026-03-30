@@ -1,7 +1,18 @@
 ---
 name: self-improvement
 version: 1.0.0
-description: "Captures learnings, errors, and corrections to enable continuous improvement. Use when: (1) A command or operation fails unexpectedly, (2) User corrects Claude ('No, that's wrong...', 'Actually...'), (3) User requests a capability that doesn't exist, (4) An external API or tool fails, (5) Claude realizes its knowledge is outdated or incorrect, (6) A better approach is discovered for a recurring task. Also review learnings before major tasks."
+description: >
+  错误学习闭环：记录失败和纠正 → Pattern-Key 分类 → 定期复盘 → 整合长期记忆 → 防止再犯。
+  Use when: (1) 命令/操作意外失败且原因值得记录,
+  (2) 用户纠正了错误（"不对"/"Actually..."/"你搞错了"）,
+  (3) 用户要求的能力不存在（能力缺口信号）,
+  (4) 外部 API/工具故障且需记录规避方案,
+  (5) 发现更好的做法可以替代当前方式,
+  (6) 开始重大任务前回顾历史教训。
+  NOT for: 一次性小错误（typo/手误/用户说"没关系"的）、
+  功能性 bug 修复（用 problem-solving）、
+  skill 创建/优化（用 skill-creator）、
+  日常操作日志（不是每个 tool call 都要记）。
 metadata:
 ---
 

@@ -1,13 +1,18 @@
 {
   "owner": "batthis",
   "slug": "amber-voice-assistant",
-  "displayName": "Phone Voice Assistant - Amber",
+  "displayName": "Amber — AI Phone Assistant & Virtual Receptionist",
   "latest": {
-    "version": "5.5.5",
-    "publishedAt": 1772842135405,
-    "commit": "https://github.com/openclaw/skills/commit/f3d5b5194c2eeb2d84dd21a4be7529a307276bfd"
+    "version": "5.5.7",
+    "publishedAt": 1774321124151,
+    "commit": "https://github.com/openclaw/skills/commit/ed3d74b050317647fbcc1a43aa2b5b953250238c"
   },
   "history": [
+    {
+      "version": "5.5.5",
+      "publishedAt": 1772842135405,
+      "commit": "https://github.com/openclaw/skills/commit/f3d5b5194c2eeb2d84dd21a4be7529a307276bfd"
+    },
     {
       "version": "5.5.2",
       "publishedAt": 1772813870158,

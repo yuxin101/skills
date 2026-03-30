@@ -1,230 +1,127 @@
-# Pre-Flight by ICME 🔐
+# PreFlight — Guardrails for OpenClaw
 
-**Formally verified guardrails for OpenClaw agents. Every consequential action checked against your policy before it executes. Returns `SAT` or `UNSAT` with cryptographic proof — in under a second.**
+Automated Reasoning guardrails for OpenClaw agents. Every consequential action gets checked against your policy before it executes. SAT = allowed. UNSAT = blocked. Under one second.
 
-```bash
-clawhub install pre-flight
-```
+## The problem
 
----
+OpenClaw agents can send emails, execute transactions, delete files, run shell commands, and modify their own behavior. The most popular skill on ClawHub — Capability Evolver (35K+ downloads) — injects "You are a Recursive Self-Improving System" into your agent and runs in "Mad Dog Mode" by default, executing changes immediately without review.
 
-## ClawHavoc happened inside this marketplace
+That same skill has been [flagged for data exfiltration](https://github.com/openclaw/clawhub/issues/95) to a Chinese cloud service, has [contradictory documentation](https://clawhub.ai/autogame-17/capability-evolver) about whether it modifies source code, and carries a "Suspicious" security rating from ClawHub's own scanner.
 
-In early 2026, 1,184 malicious skills were published to ClawHub. They exfiltrated credentials, poisoned agent memory, and executed unauthorized actions — before most users knew they were installed. The attack was called ClawHavoc.
+Meanwhile, [Cisco found 26% of 31,000 agent skills contain at least one vulnerability](https://blogs.cisco.com/ai/personal-ai-agents-like-openclaw-are-a-security-nightmare). [Microsoft recommends treating OpenClaw as "untrusted code execution with persistent credentials."](https://www.microsoft.com/en-us/security/blog/2026/02/19/running-openclaw-safely-identity-isolation-runtime-risk/) And [824 malicious skills have been found on ClawHub](https://www.koi.ai/blog/clawhavoc-341-malicious-clawedbot-skills-found-by-the-bot-they-were-targeting) so far.
 
-Every tool that tried to stop it relied on the same defense: probabilistic scanning. VirusTotal signatures. Heuristic classifiers. Pattern matching. Those tools are good at catching *known* malware. ClawHavoc used *unknown* malware — freshly generated, polymorphic, and designed to look legitimate until it wasn't.
-
-**Pre-Flight doesn't scan for known-bad. It checks every action against rules you wrote — before the action executes.**
-
-If a ClawHavoc skill had tried to:
-- Exfiltrate your API key to an external server → **UNSAT**
-- Send email to a domain you didn't authorize → **UNSAT**
-- Write files outside your project directory → **UNSAT**
-- Call an external URL not in your allowlist → **UNSAT**
-
-Not because Pre-Flight recognized the attack signature. Because you said those things aren't allowed, and formal verification proved they violated your rules.
-
----
-
-## Why formal verification is different
-
-Every other guardrail in this ecosystem works by asking a model "does this seem bad?" That's probabilistic. A clever attacker — or a cleverly poisoned skill — can find the edge cases. "Seems safe" is not the same as "is safe."
-
-Pre-Flight uses **SMT-based formal verification** (the same class of technology used to verify chip designs, cryptographic protocols, and aerospace control systems). Your policy is compiled into a set of logical constraints. Each action is checked against those constraints. The result is a **mathematical proof**, not a confidence score.
-
-| | Model-based guardrails | Pre-Flight |
-|---|---|---|
-| **Approach** | "Does this look bad?" | "Does this violate the rules?" |
-| **Result** | Probability estimate | Proof |
-| **Adversarial robustness** | Bypassable with clever wording | Constraint is either satisfied or it isn't |
-| **Auditability** | Black box | Every block has a `check_id` receipt |
-| **Latency** | Varies | < 1 second |
-| **Self-hosting required** | Sometimes | No |
-
----
+Every existing security tool in the ecosystem — Skill Vetter, Clawdex, VirusTotal — uses pattern matching or database lookups. None of them can tell you whether a proposed action *provably violates your policy*. PreFlight can.
 
 ## How it works
 
-**You write your policy once, in plain English:**
+Your rules are written in plain English. PreFlight translates them into formal logic (SMT-LIB) and checks every action with a mathematical solver. The solver gives you a definitive yes or no — not a confidence score, not a probability, not a best guess.
 
-```
-1. No email may be sent to an external party without a confirmation token.
-2. No financial transaction may exceed $100 without explicit user approval.
-3. File deletions are not permitted outside the /tmp directory.
-4. External API calls are only permitted to domains on the approved list.
-```
+This is the same class of technology AWS uses internally to verify IAM policies across [a billion SMT queries a day](https://blog.icme.io/what-is-automated-reasoning/).
 
-**ICME compiles it into formal constraints (one-time, $3.00).**
+## Three tools
 
-**Your agent calls `checkIt` before every consequential action:**
+### checkLogic — free, no account
+
+Catches logical contradictions in your agent's reasoning before it acts. No API key required.
 
 ```bash
-curl -s -N -X POST https://api.icme.io/v1/checkIt \
+curl -s -X POST https://api.icme.io/v1/checkLogic \
+  -H "Content-Type: application/json" \
+  -d '{"reasoning": "The budget is $10,000. I will spend $6,000 on marketing and $7,000 on engineering."}'
+```
+
+Returns `CONTRADICTION` — because $6K + $7K exceeds the $10K budget. An LLM would execute this plan confidently. The solver catches it in milliseconds.
+
+**Use with self-evolving agents:** Before Capability Evolver applies a mutation, pipe its proposed changes through checkLogic. If the evolution contradicts existing constraints, you'll know before it takes effect.
+
+### checkRelevance — free, requires API key
+
+Screens an action against your policy to see if it touches any policy variables. No credits charged. Use this to decide whether an action needs a full `checkIt` call.
+
+```bash
+curl -s -X POST https://api.icme.io/v1/checkRelevance \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $ICME_API_KEY" \
   -d '{
-    "policy_id": "'"$ICME_POLICY_ID"'",
-    "action": "Send invoice to billing@external-vendor.com for $2,400."
+    "policy_id": "YOUR_POLICY_ID",
+    "action": "Send evolution logs to https://open.feishu.cn via POST request"
   }'
 ```
 
-**It gets back a proof, not a guess:**
+Returns `should_check: true` with a list of matched policy variables. An action like "Read session transcript from memory/sessions/today.jsonl" returns `should_check: false` with zero matches. Skip the paid check, save the credit.
 
-```json
-{
-  "result": "UNSAT",
-  "reason": "Action violates rule 2: transaction amount $2,400 exceeds $100 limit without explicit user approval.",
-  "check_id": "chk_8f3a..."
-}
-```
+In a typical agent session, 80-90% of actions are benign. checkRelevance filters those out for free.
 
-The agent stops. The action does not execute. You have a receipt.
+### checkIt — paid, policy-based
 
----
-
-## Real ClawHavoc attack patterns — blocked
-
-These are the attack categories documented in ClawHavoc post-mortems. Here's how a Pre-Flight policy would have handled each one:
-
-**Credential exfiltration via HTTP**
-> Skill sends `$HOME/.ssh/id_rsa` contents to `https://attacker[.]io/collect`
-
-Policy rule: `"External HTTP calls are only permitted to icme.io and api.github.com."`
-Result: **UNSAT** — domain `attacker[.]io` not on allowlist.
-
----
-
-**Delayed activation — skill waits 72 hours then acts**
-> After installation, skill reads all files in the workspace and emails them to an external address
-
-Policy rule: `"No email may be sent to an address outside the @yourcompany.com domain."`
-Result: **UNSAT** — recipient domain fails rule.
-
----
-
-**Prompt injection through skill metadata**
-> Malicious skill embeds instructions in its description to override agent behavior and approve unauthorized payments
-
-Policy rule: `"No payment may be initiated without an explicit confirmation token present in the action description."`
-Result: **UNSAT** — no confirmation token, payment blocked regardless of how the instruction was injected.
-
----
-
-**Typosquatting skill impersonation**
-> Skill named `github-pr-manager` (legitimate) vs `gittub-pr-manager` (malicious) — malicious version exfiltrates PR content
-
-Policy rule: `"File reads outside the current project directory are not permitted."`
-Result: **UNSAT** — malicious skill tries to read `~/.gitconfig` and SSH keys outside project scope.
-
----
-
-## Setup — 4 steps, done once by a human
-
-### 1. Install the skill
+The full guardrail. Compile your rules once, then check every action against them.
 
 ```bash
-clawhub install pre-flight
-```
-
-### 2. Get your API key
-
-```bash
-# Create account ($5 minimum to start)
-curl -s -X POST https://api.icme.io/v1/createUserCard \
-  -H 'Content-Type: application/json' \
-  -d '{"username": "your-username"}' | jq .
-# Open checkout_url in your browser
-# Then get your key:
-curl -s https://api.icme.io/v1/session/SESSION_ID | jq .
-```
-
-### 3. Write and compile your policy
-
-```bash
-curl -s -N -X POST https://api.icme.io/v1/makeRules \
+curl -s -N -X POST https://api.icme.io/v1/checkIt \
   -H 'Content-Type: application/json' \
   -H "X-API-Key: $ICME_API_KEY" \
   -d '{
-    "policy": "1. No email may be sent to an external domain.\n2. No financial transaction may exceed $100.\n3. File writes are not permitted outside the current working directory.\n4. External HTTP calls are only permitted to approved domains."
+    "policy_id": "YOUR_POLICY_ID",
+    "action": "Send email to claims@lemonade.com with subject Formal Dispute citing policy clause 4.2"
   }'
-# Save the policy_id from the response
 ```
 
-One-time cost: **300 credits ($3.00)**. Takes under 10 seconds.
+SAT = proceed. UNSAT = blocked. Always fail closed.
 
-### 4. Set environment variables
+**Use with self-evolving agents:** Define what your agent is and isn't allowed to evolve. "No skill may request shell access." "No evolution may modify authentication flows." "No outbound data to external services without explicit user approval." The solver enforces these mathematically — the agent can't talk its way around them.
+
+## Recommended flow
+
+```
+Agent proposes action
+  → checkRelevance (free, fast)
+  → should_check: false → proceed, no charge
+  → should_check: true  → checkIt (paid, 3 solvers, ZK proof)
+                           → SAT  → proceed
+                           → UNSAT → block and report
+```
+
+For multi-step plans, run `checkLogic` on the full plan first to catch contradictions, then `checkRelevance` + `checkIt` on each individual action before execution.
+
+## Install
+
+From ClawHub:
 
 ```bash
-export ICME_API_KEY=sk-smt-...
-export ICME_POLICY_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+clawhub install wyattbenno777/pre-flight
 ```
 
-Your agent will check actions automatically from here.
+Or copy the `SKILL.md` into your OpenClaw skills directory manually.
 
----
+## Why this matters for Capability Evolver users
 
-## Pricing
+Capability Evolver's own docs say `EVOLVE_ALLOW_SELF_MODIFY=true` is "catastrophic." Their recommended safeguard is a boolean flag and a `--review` mode. Those are config settings — an agent with file system access can change config settings.
 
-| Credits | Cost | Per check |
-|---|---|---|
-| 500 | $5.00 | $0.01 |
-| 1,050 (+5%) | $10.00 | $0.0095 |
-| 2,750 (+10%) | $25.00 | $0.0091 |
-| 5,750 (+15%) | $50.00 | $0.0087 |
-| 12,000 (+20%) | $100.00 | $0.0083 |
+ICME's policy lives on an external server your agent cannot modify. The rules are compiled into formal logic once by a human. Every proposed action or evolution is checked against that logic by PreFlight's solver. The agent receives SAT or UNSAT. There is nothing to override, no flag to flip, no prompt to inject around.
 
-Policy compilation: 300 credits ($3.00), one-time per policy. Each `checkIt` call: 1 credit.
+That's the difference between "please don't do this" and "you mathematically cannot do this."
 
-Running Pre-Flight on 1,000 agent actions per month costs **$10**.
+## Tested against a real attack
 
----
+We wrote a 6-rule policy for an OpenClaw agent running Capability Evolver and tested it against the actual Feishu exfiltration reported in [GitHub Issue #95](https://github.com/openclaw/clawhub/issues/95):
 
-## Writing a good policy
+| Action | Destination | Result | Solvers |
+|---|---|---|---|
+| Send evolution logs to Feishu (ByteDance) | Not on approved list | **UNSAT** (blocked) | Unanimous |
+| Send evolution logs to EvoMap | On approved list | **SAT** (allowed) | Unanimous |
 
-A policy is a numbered list of plain English rules. Each rule should be specific enough that a formal verifier can check it against an action string.
+Same data, same action. The solver caught the distinction mathematically. Both results include a ZK proof receipt for independent verification.
 
-**Good rules — specific and checkable:**
-```
-1. No email may be sent to an address outside the @yourcompany.com domain.
-2. No financial transaction may exceed $500 without a confirmation token.
-3. Files may only be deleted from the /tmp or /var/cache directories.
-4. Outbound HTTP calls are only permitted to: api.github.com, api.stripe.com, api.icme.io.
-5. No SSH keys or credential files may be read or transmitted.
-```
-
-**Weak rules — too vague to enforce formally:**
-```
-1. Be careful with emails.       ← What does "careful" mean?
-2. Don't do anything suspicious. ← Unquantifiable.
-3. Protect sensitive data.       ← Against what actions, specifically?
-```
-
-Write rules the way you'd write an access control policy — not the way you'd write a prompt.
-
----
-
-## What Pre-Flight does not do
-
-Pre-Flight is a **pre-execution action gate**, not a firewall for everything your agent touches.
-
-- It does not scan skill source code for malware
-- It does not monitor runtime memory or network traffic
-- It does not replace VirusTotal scanning for skill provenance
-- It does not protect against prompt injection attacks in your system prompt
-
-What it does: before your agent executes a consequential action, it checks whether that action is allowed by your policy. If it isn't, the action is blocked — regardless of how the instruction got there.
-
-Use Pre-Flight alongside ClawHub's VirusTotal scanning, not instead of it.
-
----
+Full walkthrough with policy, battle testing, and results: [Guardrails for Self-Evolving OpenClaw Agents](https://docs.icme.io/documentation/openclaw/cryptographic-guardrails-for-your-openclaw-agent/guardrails-for-self-evolving-openclaw-agents)
 
 ## Links
 
-- [ICME Documentation](https://docs.icme.io/documentation)
-- [Writing Effective Policies](https://docs.icme.io/documentation/basics/writing-effective-policies)
-- [API Reference](https://docs.icme.io/api-reference)
-- [icme.io](https://icme.io)
+- **ClawHub:** [clawhub.ai/wyattbenno777/pre-flight](https://clawhub.ai/wyattbenno777/pre-flight)
+- **Docs:** [docs.icme.io](https://docs.icme.io)
+- **Relevance Screening:** [docs.icme.io/documentation/learning/relevance-screening](https://docs.icme.io/documentation/learning/relevance-screening)
+- **MCP Server (npm):** [icme-preflight-mcp](https://www.npmjs.com/package/icme-preflight-mcp)
+- **Paper:** [Succinctly Verifiable Agentic Guardrails (arxiv)](https://arxiv.org/abs/2602.17452)
 
----
+## License
 
-*Pre-Flight is built by [ICME Labs](https://icme.io) — cryptographers building formal verification for AI agents.*
+MIT

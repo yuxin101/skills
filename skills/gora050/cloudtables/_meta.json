@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "cloudtables",
+  "displayName": "Cloudtables",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774652681566,
+    "commit": "https://github.com/openclaw/skills/commit/b07e7243978b4d299c4bb6ca50dec6b493d0e723"
+  },
+  "history": []
+}

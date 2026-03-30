@@ -1,0 +1,11 @@
+{
+  "owner": "chicocifrado",
+  "slug": "whatsonchain",
+  "displayName": "Whatsonchain",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1774560797166,
+    "commit": "https://github.com/openclaw/skills/commit/cb7fd73555e7e181916322190e097828cac1795c"
+  },
+  "history": []
+}

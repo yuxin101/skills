@@ -1,0 +1,11 @@
+{
+  "owner": "mova-compact",
+  "slug": "mova-connector-setup",
+  "displayName": "Mova Connector Setup",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774364139648,
+    "commit": "https://github.com/openclaw/skills/commit/dfb95f5a8e378d23bd0fd7a9a865332ac2f69de9"
+  },
+  "history": []
+}

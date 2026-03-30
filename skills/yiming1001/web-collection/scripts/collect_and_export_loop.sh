@@ -109,6 +109,12 @@ api_post_empty() {
   curl -sS -X POST "$BASE_URL$path"
 }
 
+api_post_reset() {
+  local reason="${1:-桥接状态已重置}"
+  curl -sS -X POST "$BASE_URL/api/reset" -H 'Content-Type: application/json' \
+    -d "{\"reason\":\"$reason\"}"
+}
+
 fetch_status_safe() {
   curl -fsS --max-time 2 "$BASE_URL/api/status"
 }
@@ -164,9 +170,10 @@ extract_exporting() {
 }
 
 wait_idle() {
-  local start now status connected running exporting saw_disconnected
+  local start now status connected running exporting saw_disconnected reset_attempted
   start="$(date +%s)"
   saw_disconnected="false"
+  reset_attempted="false"
 
   while :; do
     if ! status="$(fetch_status_safe)"; then
@@ -196,6 +203,14 @@ wait_idle() {
 
     now="$(date +%s)"
     if (( now - start >= IDLE_TIMEOUT_SEC )); then
+      if [[ "$reset_attempted" != "true" ]]; then
+        log "idle timeout reached, attempting bridge reset"
+        api_post_reset "wait_idle timeout: running=$running exporting=$exporting" >/dev/null || true
+        reset_attempted="true"
+        start="$(date +%s)"
+        sleep 1
+        continue
+      fi
       die "timeout waiting idle (running=$running exporting=$exporting)"
     fi
 
@@ -307,6 +322,13 @@ collect_and_wait() {
 
     now="$(date +%s)"
     if (( now - started_at >= TIMEOUT_SEC )); then
+      if [[ "$status" == "exporting" ]]; then
+        local export_status export_error record_count
+        export_status="$(json_get "$task" 'data?.export?.status ?? ""')"
+        export_error="$(json_get "$task" 'data?.export?.error ?? data?.error ?? ""')"
+        record_count="$(json_get "$task" 'data?.export?.recordCount ?? data?.count ?? 0')"
+        die "timeout waiting export result for task=$task_id (status=$status export.status=$export_status recordCount=$record_count error=${export_error:-none})"
+      fi
       die "timeout waiting task=$task_id (last status=$status)"
     fi
 
@@ -315,7 +337,7 @@ collect_and_wait() {
 }
 
 # defaults
-BASE_URL="http://localhost:19820"
+BASE_URL="http://127.0.0.1:19820"
 POLL_SEC=3
 TIMEOUT_SEC=1200
 START_RETRIES=3

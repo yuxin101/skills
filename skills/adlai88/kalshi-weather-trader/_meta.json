@@ -3,11 +3,16 @@
   "slug": "kalshi-weather-trader",
   "displayName": "Kalshi Weather Trader",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773740447579,
-    "commit": "https://github.com/openclaw/skills/commit/654a3ae8c27f8a6feaa07c7c3e64b4b48f4f075a"
+    "version": "1.0.3",
+    "publishedAt": 1774767826817,
+    "commit": "https://github.com/openclaw/skills/commit/3e55b8ba858384ce2957abac9341c9fbfcbd2f0c"
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773740447579,
+      "commit": "https://github.com/openclaw/skills/commit/654a3ae8c27f8a6feaa07c7c3e64b4b48f4f075a"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773660708564,

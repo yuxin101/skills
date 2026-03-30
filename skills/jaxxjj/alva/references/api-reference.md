@@ -397,7 +397,8 @@ POST /api/v1/deploy/cronjob
   "path": "~/feeds/btc-ema/v1/src/index.js",
   "cron_expression": "0 */4 * * *",
   "name": "BTC EMA Update",
-  "args": {"symbol": "BTC"}
+  "args": {"symbol": "BTC"},
+  "push_notify": true
 }
 ```
 
@@ -407,6 +408,10 @@ POST /api/v1/deploy/cronjob
 | cron_expression | string | yes      | Standard cron expression (min interval: 1 minute)      |
 | name            | string | yes      | Human-readable job name                                |
 | args            | object | no       | JSON passed to `require("env").args` on each execution |
+| push_notify     | bool   | no       | Enable push notifications for playbook followers       |
+
+When `push_notify` is `true`, every successful execution reads the feed's
+`/data/signal/targets/@last/1` and pushes it to playbook followers (Telegram).
 
 Response:
 
@@ -418,6 +423,7 @@ Response:
   "cron_expression": "0 */4 * * *",
   "status": "active",
   "args": { "symbol": "BTC" },
+  "push_notify": true,
   "created_at": "2026-03-04T12:00:00Z",
   "updated_at": "2026-03-04T12:00:00Z"
 }
@@ -462,11 +468,12 @@ PATCH /api/v1/deploy/cronjob/42
 {"cron_expression":"0 */2 * * *"}
 ```
 
-| Field           | Type   | Description      |
-| --------------- | ------ | ---------------- |
-| name            | string | Update job name  |
-| cron_expression | string | Update schedule  |
-| args            | object | Update arguments |
+| Field           | Type   | Description                      |
+| --------------- | ------ | -------------------------------- |
+| name            | string | Update job name                  |
+| cron_expression | string | Update schedule                  |
+| args            | object | Update arguments                 |
+| push_notify     | bool   | Enable/disable push notification |
 
 ### Delete Cronjob
 
@@ -499,8 +506,8 @@ POST /api/v1/release/feed
 ```
 
 Register a feed in the database after deploying its cronjob. **Must be called
-after** `POST /api/v1/deploy/cronjob` -- the `task_id` comes from the cronjob
-response.
+after** `POST /api/v1/deploy/cronjob` -- the `cronjob_id` comes from the
+cronjob response.
 
 **Name uniqueness**: The `name` must be unique within your user space. Use
 `GET /api/v1/fs/readdir?path=~/feeds` to check existing feed names before
@@ -510,7 +517,7 @@ releasing.
 | ----------- | ------ | -------- | ------------------------------------------------------------ |
 | name        | string | yes      | URL-safe feed name (e.g. `btc-ema`), must be unique per user |
 | version     | string | yes      | SemVer (e.g. `1.0.0`)                                        |
-| task_id     | int64  | yes      | Cronjob task ID from deploy/cronjob                          |
+| cronjob_id  | int64  | yes      | Cronjob ID from deploy/cronjob response                      |
 | view_json   | object | no       | View configuration JSON                                      |
 | description | string | no       | Feed description                                             |
 
@@ -519,7 +526,7 @@ POST /api/v1/release/feed
 {
   "name": "btc-ema",
   "version": "1.0.0",
-  "task_id": 42,
+  "cronjob_id": 42,
   "description": "BTC exponential moving average"
 }
 → {"feed_id": 100, "name": "btc-ema", "feed_major": 1}
@@ -537,12 +544,13 @@ Create a new playbook with a draft version.
 
 Requires both a URL-safe `name` and a human-readable `display_name`.
 
-| Field        | Type   | Required | Description                                                            |
-| ------------ | ------ | -------- | ---------------------------------------------------------------------- |
-| name         | string | yes      | URL-safe playbook name (e.g. `btc-dashboard`), must be unique per user |
-| display_name | string | yes      | Human-readable playbook title, max 40 chars                            |
-| description  | string | no       | Short description of the playbook                                      |
-| feeds        | array  | yes      | Feed references `[{feed_id, feed_major?}]`                             |
+| Field           | Type     | Required | Description                                                                                                                  |
+| --------------- | -------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| name            | string   | yes      | URL-safe playbook name (e.g. `btc-dashboard`), must be unique per user                                                       |
+| display_name    | string   | yes      | Human-readable playbook title, max 40 chars                                                                                  |
+| description     | string   | no       | Short description of the playbook                                                                                            |
+| feeds           | array    | yes      | Feed references `[{feed_id, feed_major?}]`                                                                                   |
+| trading_symbols | string[] | no       | Base asset tickers (e.g. `["BTC","ETH"]`). Resolved server-side to full trading pairs, stored in playbook metadata. Max 50.  |
 
 `display_name` conventions:
 
@@ -558,7 +566,8 @@ POST /api/v1/draft/playbook
   "name": "btc-dashboard",
   "display_name": "BTC Trend Dashboard",
   "description": "BTC market dashboard with price, technicals, and volume",
-  "feeds": [{"feed_id": 100}]
+  "feeds": [{"feed_id": 100}],
+  "trading_symbols": ["BTC"]
 }
 → {"playbook_id": 99, "playbook_version_id": 200}
 ```
@@ -675,6 +684,7 @@ GET /api/v1/sdk/partitions/:partition/summary
 ```
 GET /api/v1/sdk/partitions/spot_market_price_and_volume/summary
 → {"summary":"@arrays/crypto/ohlcv:v1.0.0 — Spot OHLCV for crypto\n@arrays/data/stock/ohlcv:v1.0.0 — Spot OHLCV for equities\n..."}
+```
 
 ---
 
@@ -686,9 +696,7 @@ under `/api/v1/playbook/`. Auth (API key or JWT) is required.
 ### Create Comment
 
 ```
-
 POST /api/v1/playbook/comment
-
 ```
 
 Create a top-level comment or a reply to an existing comment.
@@ -782,9 +790,7 @@ metrics, social sentiment, and general financial topics. It has access to
 real-time web data, 250+ financial data SDKs, and code execution.
 
 ```
-
 POST /v1/chat/completions
-
 ```
 
 ### Request Fields
@@ -806,10 +812,10 @@ POST /v1/chat/completions
 ### Example
 
 ```
+POST /v1/chat/completions
+Accept: text/event-stream
 
-POST /v1/chat/completions Accept: text/event-stream {"message":"What is the
-current BTC funding rate?"}
-
+{"message":"What is the current BTC funding rate?"}
 ```
 
 ---
@@ -890,16 +896,16 @@ Response:
 
 ```
 # Screenshot a playbook page
-GET /api/v1/screenshot?url=https://alva.ai/alice/playbooks/123
+GET /api/v1/screenshot?url=https://alva.ai/u/alice/playbooks/btc-dashboard
 
 # Screenshot a specific chart element
-GET /api/v1/screenshot?url=https://alva.ai/alice/playbooks/123&selector=.chart-container
+GET /api/v1/screenshot?url=https://alva.ai/u/alice/playbooks/btc-dashboard&selector=.chart-container
 ```
 
 ```bash
 # curl example
 curl -s -H "X-Alva-Api-Key: $ALVA_API_KEY" \
-  "$ALVA_ENDPOINT/api/v1/screenshot?url=https://alva.ai/alice/playbooks/123"
+  "$ALVA_ENDPOINT/api/v1/screenshot?url=https://alva.ai/u/alice/playbooks/btc-dashboard"
 ```
 
 ---

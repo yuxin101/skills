@@ -1,0 +1,11 @@
+{
+  "owner": "meituan-openplatform",
+  "slug": "meituan-coupon",
+  "displayName": "美团红包助手",
+  "latest": {
+    "version": "1.0.7",
+    "publishedAt": 1774493497726,
+    "commit": "https://github.com/openclaw/skills/commit/627318a223561001311543ced19f2c200ce3264b"
+  },
+  "history": []
+}

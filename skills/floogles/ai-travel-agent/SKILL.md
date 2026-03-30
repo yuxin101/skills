@@ -1,30 +1,76 @@
 ---
 name: travel-agent
-description: Personal travel planning assistant. Searches real flights and hotels via Google (SerpAPI), checks the user's calendar, and builds fully costed itinerary options — including multi-stop trips across a country or region. Use when a user wants to plan a trip — whether they have dates and a destination, dates but no destination, or a destination but no dates. Handles single-destination and multi-stop itineraries, flight search, hotel search, internal transport, destination recommendations, seasonal timing advice, and calendar integration. NOT for booking (links to book externally).
+description: Personal travel planning assistant. Requires a SerpAPI key (stored in ~/.serpapi_credentials). Searches real flights and hotels via Google (SerpAPI), checks the user's calendar, and builds fully costed itinerary options — including multi-stop trips across a country or region. Use when a user wants to plan a trip — whether they have dates and a destination, dates but no destination, or a destination but no dates. Handles single-destination and multi-stop itineraries, flight search, hotel search, internal transport, destination recommendations, seasonal timing advice, and calendar integration. NOT for booking (links to book externally).
+metadata:
+  clawdbot:
+    emoji: "✈️"
+    primaryEnv: "SERPAPI_KEY"
+    requires:
+      env:
+        - SERPAPI_KEY
+      bins:
+        - python3
+    configPaths:
+      - "~/.serpapi_credentials"
+      - "~/.travel_agent_config"
+  openclaw:
+    requires:
+      credentials:
+        - name: SERPAPI_KEY
+          description: "SerpAPI key for Google Flights/Hotels/Directions search. Get one free at https://serpapi.com"
+          paths:
+            - "~/.serpapi_credentials"
+            - "~/.travel_agent_config"
+          required: true
+      optional_skills:
+        - name: google-calendar
+          description: "Used to check the user's availability when dates are not specified (Mode C). If not installed, the skill falls back to asking the user directly."
+        - name: outlook-calendar
+          description: "Alternative calendar skill. Used for the same purpose as google-calendar if that is not installed."
+    file_access:
+      - path: "~/.serpapi_credentials"
+        reason: "Read SERPAPI_KEY for flight and hotel searches"
+      - path: "~/.travel_agent_config"
+        reason: "Alternative location for SERPAPI_KEY"
+    external_requests:
+      - domain: "serpapi.com"
+        reason: "Google Flights, Hotels, and Directions search via SerpAPI"
+    notes: >
+      This skill does NOT book travel — it provides search results and links only.
+      All external calls go to serpapi.com using the user's own API key.
+      The API key is loaded from the SERPAPI_KEY environment variable or credential files
+      only — never passed as a CLI argument to avoid process listing exposure.
+      Calendar skill access is optional and only triggered when the user has no
+      fixed travel dates; no calendar skill is required for the core functionality.
 ---
 
 # Travel Agent
 
 ## Setup — Credentials
-Load the user's SerpAPI key before running any search. Common locations:
+
+**Requires:** A SerpAPI key. SerpAPI (serpapi.com) provides access to Google Flights, Google Hotels, and Google Maps Directions. A free tier is available with 100 searches/month. Sign up at: https://serpapi.com
+
+Load the user's SerpAPI key before running any search. Check these locations in order:
 - `~/.serpapi_credentials` → `SERPAPI_KEY=...`
 - `~/.travel_agent_config` → `SERPAPI_KEY=...`
 
-If not found, ask the user where their SerpAPI key is stored. Get one free at https://serpapi.com.
+These are the **only** local files this skill reads. If neither file is found, ask the user where their SerpAPI key is stored, or whether they would like to create one at https://serpapi.com.
+
+All flight, hotel, and transport searches are sent to `serpapi.com` using the user's own API key. This skill does not store, transmit, or proxy the key anywhere else.
 
 ## Step 1 — Gather Trip Details (always first)
 
 Before searching anything, ask a small set of quick questions. Keep it conversational — one message, not a form. Tailor which questions to ask based on what the user hasn't already told you.
 
 **Questions to ask (as needed):**
-- 🧑‍🤝‍🧑 How many people? (adults + children)
-- ✈️ Flying from which airport? (if no default configured)
+- 👥 How many people? (adults + children)
+- ✈ Flying from which airport? (if no default configured)
 - 💺 Cabin class? (Economy / Premium Economy / Business / First)
 - 💰 Rough budget? (per person, or total — flights + hotel)
 - 🏨 Hotel preferences? (e.g. beach, city centre, boutique, pool, specific star rating)
 - 🎒 Trip vibe? (relaxing beach, city/culture, adventure, food-focused, nightlife, mix)
 - 📍 **One place or travel around?** If moving around — roughly how many stops, or leave it to you?
-- 🗓️ Any flexibility on dates or duration?
+- 🗓 Any flexibility on dates or duration?
 
 Skip questions already answered. Keep to 4–6 questions max in a single message.
 
@@ -41,7 +87,7 @@ Skip questions already answered. Keep to 4–6 questions max in a single message
 4. Wait for user to choose, then return to Mode A or 2M
 
 ### Mode C: Destination ✅ + Dates ❓
-1. Load user's Google Calendar (google-calendar skill) — find free windows of suitable length
+1. Check for an installed calendar skill — try `google-calendar`, `outlook-calendar`, or any other calendar skill available. This is an **optional** convenience: it checks the user's calendar for free windows to suggest good travel dates. If no calendar skill is found (or the user prefers not to use it), fall back to asking the user directly for their available date windows. **Never access calendar data without the user's awareness.**
 2. Read `references/seasonal-destinations.md` for best time to visit that destination
 3. Recommend 2–3 date windows ranked by: season fit + calendar availability
 4. Present clearly: "Window 1: [dates] — great timing (dry season), you're free. Window 2: ..."
@@ -103,10 +149,10 @@ python3 scripts/search_flights.py \
 ```
 
 Present all options in a single combined comparison, grouped by type:
-- ✈️ Flights — fastest door-to-door if airports convenient; include airport transfer time in assessment
+- ✈ Flights — fastest door-to-door if airports convenient; include airport transfer time in assessment
 - 🚄 Train — usually best for city centre → city centre under ~4h; no airport faff
 - 🚌 Bus — cheapest, good for budget travellers
-- ⛴️ Ferry — if applicable (islands, coastal routes)
+- ⛴ Ferry — if applicable (islands, coastal routes)
 
 For each option show: operator, duration, price, booking link.
 **Recommend the best option** based on journey time including transfers, price, and convenience — don't just list them.
@@ -178,7 +224,7 @@ Once all flights and hotels are searched, present a complete trip summary:
 🌍 [TRIP NAME] · [DATE RANGE] · [N] people
 
 DAY 1–3 | CITY A
-✈️ [Inbound flight] | [time] → [time] | £XX
+✈ [Inbound flight] | [time] → [time] | £XX
 🏨 [Hotel name] ★★★★ | £XX/night | £XX total
 
 [Train/bus to City B — Xh, book via Trainline: URL]
@@ -186,12 +232,12 @@ DAY 1–3 | CITY A
 DAY 4–6 | CITY B
 🏨 [Hotel name] ★★★★ | £XX/night | £XX total
 
-✈️ [Internal flight if applicable]
+✈ [Internal flight if applicable]
 
 DAY 7–9 | CITY C
 🏨 [Hotel name] ★★★ | £XX/night | £XX total
 
-✈️ [Outbound flight] | [time] → [time] | £XX
+✈ [Outbound flight] | [time] → [time] | £XX
 
 💰 TOTAL ESTIMATED COST: £XX
    Flights: £XX | Hotels: £XX | (Transport: £XX est.)
@@ -207,12 +253,14 @@ Invite iteration on any leg:
 
 Once the user confirms everything:
 1. Summarise full trip with all costs
-2. Ask if they'd like the dates blocked in their Google Calendar
-3. If yes: use google-calendar skill to create events for **each** component:
-   - Each flight leg: departure datetime → arrival datetime, airline + flight number
-   - Each hotel: check-in → check-out date, hotel name + address
+2. Ask if they'd like the dates blocked in their calendar
+3. If yes: check which calendar skill the user has installed (e.g. `google-calendar`, `outlook-calendar`, or any other calendar skill) and use that. Do not assume Google Calendar. This access is **explicitly user-requested** at this step — the user has just asked to add events to their calendar.
+   - If no calendar skill is found, offer to generate an `.ics` file the user can import into any calendar app (Google, Apple, Outlook, etc.)
+4. Create events for **each** component:
+   - Each flight leg: departure datetime → arrival datetime, airline + flight number in title
+   - Each hotel stay: check-in → check-out date, hotel name + address
    - Spanning "Trip to [destination]" event across full duration
-4. Include booking links in all calendar event descriptions
+5. Include booking links in all event descriptions
 
 ## Notes
 - Always show prices in the user's preferred currency (default GBP if not set)

@@ -1,7 +1,7 @@
 ---
 name: milb-email
-description: 军工采购商机专用推报工具。根据商机数据自动生成 Excel 并通过 himalaya 发送邮件。当用户说"milb-email"、"军工商机邮件"、"推送军工商机"、"军工商机通报"时触发。注意：这不是通用邮件客户端，仅用于执行 milb 业务逻辑。
-metadata: {"openclaw":{"emoji":"📧","requires":{"bins":["milb-email","himalaya"]},"install":"pip install -e {baseDir}"}}
+description: 军工采购商机专用推报工具。根据商机数据自动生成 Excel 并通过 SMTP 发送邮件。当用户说"milb-email"、"军工商机邮件"、"推送军工商机"、"军工商机通报"时触发。注意：这不是通用邮件客户端，仅用于执行 milb 业务逻辑。
+metadata: {"openclaw":{"emoji":"📧","requires":{"bins":["milb-email","milb-fetcher"]},"install":"pip install -e {baseDir}"}}
 ---
 
 # Milb Email
@@ -69,6 +69,5 @@ metadata: {"openclaw":{"emoji":"📧","requires":{"bins":["milb-email","himalaya
 
 ## 技术说明
 
-- 使用 himalaya CLI 发送邮件（配置于 `~/.config/himalaya/config.toml`）
-- 如果 himalaya 不可用，自动回退到 SMTP 发送
+- 使用 SMTP 直接发送邮件（配置 EMAIL_SMTP_* 环境变量）
 - 使用文件锁防止并发执行

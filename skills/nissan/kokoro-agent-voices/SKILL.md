@@ -1,9 +1,9 @@
 ---
 name: kokoro-agent-voices
-version: 1.0.0
+version: 1.0.1
 description: Local zero-cost text-to-speech with per-agent voice profiles using Kokoro TTS (82M params). 54 voices available, named agent mappings, WAV output. Use when building voice-enabled agents without API costs. Requires espeak-ng and a Python environment with kokoro dependencies.
 metadata:
-  {"openclaw": {"emoji": "🗣️", "requires": {"bins": ["python3", "espeak-ng"], "env": []}, "primaryEnv": null, "network": {"outbound": true, "reason": "Downloads Kokoro model from Hugging Face Hub on first run (~350MB). All subsequent inference is local."}}}
+  {"openclaw": {"emoji": "🗣️", "requires": {"bins": ["python3", "espeak-ng", "espeak"], "env": []}, "primaryEnv": null, "network": {"outbound": true, "reason": "Downloads Kokoro model from Hugging Face Hub on first run (~350MB). All subsequent inference is local."}, "security_notes": "Outbound network is used only once to download the Kokoro model weights from Hugging Face Hub (~350MB, one-time). All subsequent TTS inference runs entirely on the user's device. No audio data or text is ever transmitted externally."}}
 ---
 
 # Kokoro Agent Voices

@@ -1,0 +1,44 @@
+CLAWHUB SKILL PACKAGER — REVIEW CHECKLIST
+
+IDENTITY ALIGNMENT
+- Display name is final
+- Slug is lowercase and hyphenated
+- Package folder matches slug
+- metadata.openclaw.skillKey matches slug
+- README publish fields match final identity
+- CHANGELOG reflects final version
+
+FRONTMATTER HEALTH
+- SKILL.md exists
+- YAML frontmatter exists
+- name exists
+- description exists
+- version exists
+- metadata uses single-line JSON
+- user-invocable is present when needed
+- disable-model-invocation is present when needed
+
+BEHAVIORAL CLARITY
+- Purpose is clear
+- Activation is clear
+- Invocation is clear when needed
+- Skill scope is clear
+- Outputs are described
+- Claims are not overstated
+
+RUNTIME / SECURITY AWARENESS
+- Skill type is classified
+- Env var requirements are documented
+- API dependencies are documented
+- Binary / script dependencies are documented
+- Privilege assumptions are documented
+- Risky surfaces are highlighted
+
+DELIVERABLES
+- Package bundle created
+- Review record created
+- Delivery summary created
+- Publish handoff created
+- Changes summarized
+- Assumptions highlighted
+- Publish-readiness stated

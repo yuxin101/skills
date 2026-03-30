@@ -1,25 +1,35 @@
 ---
 name: fact-checker
-version: 1.0.2
-description: Verify factual claims in content using web search and source cross-referencing. Use when reviewing content for accuracy before publishing.
+version: 1.0.3
+description: |
+  Verify claims, numbers, and facts in markdown drafts against source data.
+  Use when: reviewing blog posts, reports, or documentation for accuracy
+  before publication. Cross-references against FINDINGS.md, live APIs,
+  scored run files, memory logs, and git history.
+author: nissan
+tags:
+  - fact-checking
+  - content
+  - verification
+requires:
+  bins:
+    - python3
 metadata:
-  {
-      "openclaw": {
-            "emoji": "\u2705",
-            "requires": {
-                  "bins": [
-                        "python3"
-                  ],
-                  "env": []
-            },
-            "primaryEnv": null,
-            "network": {
-                  "outbound": true,
-                  "reason": "Searches the web to verify factual claims. Uses Tavily or web_search."
-            }
-      }
-}
+  openclaw:
+    emoji: "🔍"
+    network:
+      outbound: false
+      reason: "All verification against local files and APIs only"
+    subprocess:
+      note: "Runs python3 scripts for verification — legitimate use"
+    security_notes: "All operations are performed locally. No data leaves the user's machine. Verification cross-references local files, local git history, and a local API (localhost). The subprocess note is for running the bundled Python fact-check script — not arbitrary code execution."
+allowed-tools:
+  - Read
+  - exec
 ---
+**Last used:** 2026-03-24
+**Memory references:** 1
+**Status:** Active
 
 
 # Fact-Checker: Verify Markdown Claims Against Source Data

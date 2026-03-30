@@ -2,50 +2,58 @@
 name: article-bookmarker
 description: Save and organize web articles as bookmarks with AI summaries and auto-tagging. Use when the user wants to bookmark or collect articles.
 homepage: https://github.com/chliny/article-bookmarker-skill
-metadata: {"openclaw": {"emoji":"🔖","requires":{"env":["ARTICLE_BOOKMARK_DIR"]}}}
+metadata: {"openclaw": {"emoji":"🔖","requires":{"env":["ARTICLE_BOOKMARK_DIR", "ARTICLE_BOOKMARK_GITHUB"], "bins":["gh", "git"]}}}
 ---
 
 # Article Bookmarker Skill
 
 > **IMPORTANT**: Before any operation, read the environment variable `$ARTICLE_BOOKMARK_DIR` to determine the bookmark storage directory. All bookmark files and the tag index must be stored under this path. If the variable is not set, prompt the user to configure it.
+>
+> When calling `scripts/bookmark.sh`, you **must** pass `ARTICLE_BOOKMARK_DIR` and `ARTICLE_BOOKMARK_GITHUB` as inline environment variables — the script runs in a subprocess and does not inherit them automatically.
 
 ## Quick Start
 
 When the user provides a URL or article text to bookmark:
 
-1. Read `$ARTICLE_BOOKMARK_DIR` to get the storage path
-2. Use `web_fetch` to get the article content
-3. Generate a concise summary using the current model
-4. Auto-generate relevant tags based on content analysis
-5. Create a markdown file with URL, content, summary, and tags (see [file-structure.md](references/file-structure.md) for format details)
-6. Save to the bookmark directory with descriptive filename
-7. Update the tag index file
+1. Run `scripts/bookmark.sh init` to initialize the bookmark directory
+2. Read `$ARTICLE_BOOKMARK_DIR` to get the storage path
+3. Use `web_fetch` to get the article content
+4. Generate a concise summary using the current model
+5. Auto-generate relevant tags based on content analysis
+6. Create a markdown file with URL, content, summary, and tags (see [file-structure.md](references/file-structure.md) for format details)
+7. Save to the bookmark directory with descriptive filename
+8. Update the tag index file
+9. Run `scripts/bookmark.sh save "Brief commit message"` to commit and push changes
 
-For deletion requests: find the article, confirm details with user, then remove and update index.
+For deletion requests: find the article, confirm details with user, then remove, update index, and run `scripts/bookmark.sh save "Delete article xxx"`.
 
 ## Workflow
 
 ### Adding Articles
 
 ```
-1. Read $ARTICLE_BOOKMARK_DIR
-2. Receive URL or text content
-3. Extract/save content (web_fetch for URLs)
-4. Generate summary (model-based)
-5. Auto-tag (keyword/topic analysis)
-6. Create bookmark file (markdown format)
-7. Update tag index
+1. Run scripts/bookmark.sh init
+2. Read $ARTICLE_BOOKMARK_DIR
+3. Receive URL or text content
+4. Extract/save content (web_fetch for URLs)
+5. Generate summary (model-based)
+6. Auto-tag (keyword/topic analysis)
+7. Create bookmark file (markdown format)
+8. Update tag index
+9. Run scripts/bookmark.sh save "Add article: <title>"
 ```
 
 ### Deleting Articles
 
 ```
-1. Read $ARTICLE_BOOKMARK_DIR
-2. Identify target article (by filename, topic, or content)
-3. Display article details for confirmation
-4. Get user confirmation
-5. Delete bookmark file
-6. Update tag index
+1. Run ARTICLE_BOOKMARK_DIR="$ARTICLE_BOOKMARK_DIR" ARTICLE_BOOKMARK_GITHUB="$ARTICLE_BOOKMARK_GITHUB" scripts/bookmark.sh init
+2. Read $ARTICLE_BOOKMARK_DIR
+3. Identify target article (by filename, topic, or content)
+4. Display article details for confirmation
+5. Get user confirmation
+6. Delete bookmark file
+7. Update tag index
+8. Run ARTICLE_BOOKMARK_DIR="$ARTICLE_BOOKMARK_DIR" ARTICLE_BOOKMARK_GITHUB="$ARTICLE_BOOKMARK_GITHUB" scripts/bookmark.sh save "Delete article: <title>"
 ```
 
 ## Tag Management

@@ -1,6 +1,6 @@
 ---
 name: stockClaw-yingyan
-description: 为该股票量化项目提供 OpenClaw 接入说明，支持股票量化图生成、股票行情问答、自然语言 AI 搜股与 WebSocket 实时监控信号推送。用户发送股票代码或名称时调用量化图接口；用户发送"股票代码或名称+行情"时调用行情分析接口，接口返回 TDX 截面数据与提示词，由 OpenClaw 大模型完成趋势诊断；用户发送自然语言选股条件时调用轻量版搜股接口，最多返回 20 只股票和固定字段；用户需要实时监控信号时，先调用监控流接口获取 WebSocket 连接模板，再由客户端优先使用原生 WebSocket 能力建立长连接，并按文档中的成功判定与排障规则执行。
+description: 为该股票量化项目提供 OpenClaw 接入说明，支持股票量化图生成、股票行情问答、自然语言 AI 搜股与 WebSocket 实时监控信号推送。凭证须从与本 Skill 同目录的 config.json 中 openclawCredentials 读取：user_id 与 openClaw_api_key 为必填（用于所有需鉴权的 HTTP 接口，请求体/查询参数中字段名仍为 apikey）；monitor_api_key 为选填，仅 WebSocket 实时监控需要，不订阅监控可不配置。首次配置或用户在对话中修改后写回 config.json；禁止在配置已有效时重复索要；用户也可直接编辑 config.json 修改凭证。
 ---
 
 # stockClaw-yingyan
@@ -31,24 +31,70 @@ description: 为该股票量化项目提供 OpenClaw 接入说明，支持股票
 - 明确要求查询"涨停股"、"今日涨停股票"、"今天涨停股有哪些"
 - 仅要求连接实时监控、订阅监控信号
 
-## 缺失凭证时的处理规则
-- 只要调用 `POST /api/openclaw/stock/message`、`POST /api/openclaw/stock/query` 或建立 WebSocket 实时监控连接，就必须先确认 `user_id` 和 `apikey` 已提供。
-- 如果 `user_id` 缺失，必须先提示用户补充 `user_id`，不要直接发起接口请求。
-- 如果 `apikey` 缺失，必须先提示用户补充 `apikey`，不要直接发起接口请求。
-- 如果 `user_id` 和 `apikey` 都缺失，必须一次性告知用户这两个值都需要提供。
-- 提示用户获取方式：前往鹰眼量化站点，在"用户中心"的"开发 API"页面查看或生成这两个值。
-- 若用户不确定入口，可直接提示访问：`https://yingyan.chatface.com/`
+## 凭证持久化（config.json，必读）
 
-建议提示话术：
+本 Skill 目录下与本文件同级的 `config.json` 中设有对象 **`openclawCredentials`**，包含三个字符串字段：
+
+| 字段 | 是否必填 | 用途 |
+|------|----------|------|
+| **`user_id`** | **必填** | 所有接口的用户标识 |
+| **`openClaw_api_key`** | **必填** | 量化图、行情问答、自然语言搜股、涨停股、`rating-changes-to-await` 等 **HTTP** 鉴权；调用接口时请求体/Query 里参数名仍为 **`apikey`**，取值必须为本字段 |
+| **`monitor_api_key`** | **选填** | **仅** WebSocket 实时监控：`/ws/monitor/open?apikey=...` 中的 `apikey` 须填会员中心「监控信号」Key，即本字段。若用户不需要实时监控，**可不设置**（留空字符串即可） |
+
+### 读取顺序（每次调用前执行）
+
+1. **读取** `config.json` 的 `openclawCredentials.user_id`、`openClaw_api_key`、`monitor_api_key`（仅含空格的字符串视为未配置）。
+2. **若用户在当轮对话中提供了新凭证**（粘贴 key、更换账号等），以当轮值为准，并**写回** `config.json`（见「写回规则」）。
+3. **合并**：文件中的非空值为默认；当轮用户输入覆盖对应字段。
+4. **HTTP 能力**（规则 1～4 及 `rating-changes-to-await`）：合并后 **`user_id` 与 `openClaw_api_key` 均须为有效 12 位字母数字**，方可请求；满足后**不得**再索要这两项。
+5. **WebSocket 实时监控**（规则 5）：除 `user_id` 外，还须 **`monitor_api_key` 有效**；若用户要连监控但该字段空，**单独提示**其到会员中心「开放API」→「监控信号」保存 Key，**不要**与 OpenClaw Key 混淆。
+6. **强约束（防重复索要）**：只要 `user_id` + `openClaw_api_key` 已有效，调用 HTTP 接口时**禁止**以新会话、换话题等理由再次索要；`monitor_api_key` 同理——仅在用户要连 WS 且该字段缺失/无效时再提示。
+
+### 写回规则（持久保存）
+
+- 首次凑齐必填项或用户主动更新任一字段后，将当前合并结果**写回** `config.json` 的 `openclawCredentials`（`user_id`、`openClaw_api_key`、`monitor_api_key` 按需更新），**保留**其余顶层键不变；合法 JSON，勿写多余注释。
+- 后续会话**优先读文件**。
+
+### 用户修改凭证
+
+1. **对话中修改**：用户粘贴新 Key 或新 `user_id` 时，覆盖对应字段并写回 `config.json`；未提及的字段保留原 config。
+2. **手动编辑 `config.json`**：下次执行须以文件为准，勿因对话未出现而重复索要。
+
+### HTTP 与 URL 中的 `apikey` 名对照（避免搞混）
+
+- **POST/GET 的 JSON 或 Query 参数名**统一叫 **`apikey`**，其值 = 合并后的 **`openClaw_api_key`**。
+- **WebSocket** URL 查询参数名也叫 **`apikey`**，其值 = 合并后的 **`monitor_api_key`**（与 HTTP 不是同一把 Key 时两者不同）。
+
+### 仍缺必填凭证时的提示（user_id / openClaw_api_key）
+
+仅在 **`user_id` 或 `openClaw_api_key` 缺失或非法**时提示（与是否使用监控无关）：
 
 ```text
-要继续使用股票量化图、行情问答、自然语言搜股或实时监控功能，请先提供 user_id 和 apikey。
+使用股票量化图、行情问答、自然语言搜股或涨停查询前，必须配置 user_id 与 openClaw_api_key（均为 12 位 OpenClaw Key 对应会员中心「OpenClaw」卡片）。
 
-这两个值可以在鹰眼量化网站的“用户中心” -> “开发 API”页面获取：
-https://yingyan.chatface.com/
+获取方式：鹰眼量化网站「用户中心」→「开放API」：https://yingyan.chatface.com/
+
+配置后我会写入本 Skill 的 config.json（openclawCredentials），之后 HTTP 调用无需重复填写。
 ```
 
+### 仅缺监控 Key 时的提示（要连 WebSocket 时）
+
+当用户明确要求实时监控，但 **`monitor_api_key` 为空或无效**时：
+
+```text
+连接实时监控还需要「监控信号」API Key（会员中心「开放API」页面第一个卡片）。若你不需要 WebSocket 推送，可忽略此项。
+
+请配置 monitor_api_key 后写入 config.json，或到上述页面保存监控 Key 后再试连接。
+```
+
+### 鉴权失败时
+
+- HTTP 报错多与 **`openClaw_api_key`** 或 `user_id` 不一致有关，请核对会员中心 **OpenClaw** 卡片。
+- WebSocket 关闭码 `1008` 等多与 **`monitor_api_key`**、会员等级或 `monitor.html` 权限有关，请核对 **监控信号** Key 与权限。
+
 ## 调用约定
+（以下请求体中的 **`apikey`** 取值均为合并后的 **`openClaw_api_key`**，字段名与 HTTP API 一致。）
+
 ### 1. 量化图
 请求：
 
@@ -56,7 +102,7 @@ https://yingyan.chatface.com/
 {
   "message": "平安银行",
   "user_id": "your_user_id",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -71,7 +117,7 @@ https://yingyan.chatface.com/
 {
   "message": "平安银行行情",
   "user_id": "your_user_id",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -87,7 +133,7 @@ https://yingyan.chatface.com/
 {
   "query": "涨幅超过8%的半导体股票，按换手率从高到低排序，取前20只",
   "user_id": "your_user_id",
-  "apikey": "YOUR_12_CHAR_KEY"
+  "apikey": "YOUR_OPENCLAW_12_CHAR_KEY"
 }
 ```
 
@@ -122,7 +168,7 @@ https://yingyan.chatface.com/
 请求：
 
 ```text
-GET /api/openclaw/stock/limit-up?user_id=your_user_id&apikey=YOUR_12_CHAR_KEY
+GET /api/openclaw/stock/limit-up?user_id=your_user_id&apikey=YOUR_OPENCLAW_12_CHAR_KEY
 ```
 
 处理规则：
@@ -139,9 +185,10 @@ GET /api/openclaw/stock/monitor/stream?user_id=your_user_id
 ```
 
 处理规则：
-- 返回 `ws_url_template`，模板中包含 `{apikey}` 和 `{user_id}` 占位符
-- 由客户端填入实际的 `apikey` 与 `user_id` 后建立 WebSocket 长连接
-- 连接地址格式：`wss://yingyan.chatface.com/ws/monitor/open?apikey={apikey}&user_id={user_id}`
+- 返回 `ws_url_template`，模板中查询参数名为 `apikey`、`user_id`（占位符可能写作 `{apikey}` 与 `{user_id}`）
+- **URL 中的 `apikey` 必须填入 `monitor_api_key`**（监控信号 Key），**不要**填 `openClaw_api_key`
+- `user_id` 填合并后的用户 ID
+- 连接地址示例：`wss://yingyan.chatface.com/ws/monitor/open?apikey=<monitor_api_key>&user_id=<user_id>`
 - 连接成功后将持续接收监控信号变化推送（JSON 数组格式）
 - 每条推送包含：`ticker`（代码）、`name`（名称）、`prev_rating`（原评级）、`latest_rating`（新评级）、`close`（现价）、`zhangdie`（涨跌幅比例）、`latest_time`（时间）
 - **信号过滤**：当评级变为 `await`（等待）时，服务端不会推送通知，仅推送有实际买卖意义的信号变化
@@ -157,10 +204,10 @@ GET /api/openclaw/stock/monitor/stream?user_id=your_user_id
 ### 7. OpenClaw 连接实时监控的推荐执行顺序
 当用户要求"连接实时监控"、"配置 WebSocket 监控"、"接收实时监控信号"时，OpenClaw 应按以下顺序执行：
 
-1. 先确认 `user_id` 和 `apikey` 已填写完整；若缺失，先提示用户去鹰眼量化站点的"用户中心" -> "开发 API"获取。
-2. 可先调用一次 `POST /api/openclaw/stock/message` 做轻量鉴权验证，例如消息用 `000001` 或 `平安银行`。
-3. 再调用 `GET /api/openclaw/stock/monitor/stream` 获取 `ws_url_template`。
-4. 将模板中的 `{apikey}` 与 `{user_id}` 替换为真实值。
+1. 确认合并后的 **`user_id`、`monitor_api_key` 均有效**；若缺 `monitor_api_key`，使用上文「仅缺监控 Key 时的提示」，**不要**用 `openClaw_api_key` 冒充监控 Key。
+2. （可选）用 `user_id` + **`openClaw_api_key`** 调用一次 `POST /api/openclaw/stock/message` 验证 HTTP 凭证；此步**不能**代替监控 Key 校验。
+3. 调用 `GET /api/openclaw/stock/monitor/stream` 获取 `ws_url_template`。
+4. 将模板中 **`apikey` 占位替换为 `monitor_api_key`**，`user_id` 占位替换为真实 `user_id`，再建立 WebSocket。
 5. **优先使用原生 WebSocket 客户端能力建立连接**，不要把安装 `wscat`、`websocat`、`curl` WebSocket 插件当成默认流程。
 6. WebSocket `onopen` 或等价握手成功后，就应判定为"实时监控连接成功"。
 7. 连接成功后保持等待；如果暂时没有收到任何消息，不能据此判定失败。
@@ -171,7 +218,7 @@ GET /api/openclaw/stock/monitor/stream?user_id=your_user_id
 - 服务端**不会**在连接建立后主动发送欢迎包、首包或心跳说明；连接后暂时沉默是正常现象。
 - 只有监控信号发生变化时，服务端才会推送 JSON 数组消息。
 - 当最新评级变为 `await` 时，服务端不会推送，所以"已连接但暂时无消息"通常代表当前没有有效买卖信号变化。
-- 如果连接被关闭且关闭码为策略拒绝（常见为 `1008`），应优先检查：`apikey` 是否和会员中心保存的一致、`user_id` 是否正确、会员状态是否有效、会员等级是否满足 `monitor.html` 权限要求。
+- 如果连接被关闭且关闭码为策略拒绝（常见为 `1008`），应优先检查：**`monitor_api_key`** 是否与会员中心「监控信号」Key 一致、`user_id` 是否正确、会员状态是否有效、会员等级是否满足 `monitor.html` 权限要求（不要用 OpenClaw Key 连监控 WS）。
 
 ### 9. 连接成功后的用户反馈要求
 - 一旦握手成功，应明确告诉用户："WebSocket 连接已成功建立，当前正在等待实时监控信号。"
