@@ -1,93 +1,76 @@
----
-name: "md2docx"
-description: "Markdown 转 Word 文档（标准公文格式）。使用 Pandoc 自动转换，支持目录/宋体排版、表格自动修复。"
-version: "1.0.5"
----
+# md2docx 技能
 
-# md2docx - Markdown 转 Word 文档
+## 描述
+将Markdown文件转换为Word文档（.docx格式），采用两阶段转换方案：
+1. Pandoc转换Markdown为Word文档
+2. python-docx后处理设置字体和表格边框
+支持完整的Markdown语法包括标题、列表、表格、代码块等。
 
-使用 Pandoc 将 Markdown 转换为标准公文格式的 Word 文档。
+## 功能
+- 转换Markdown到Word文档（两阶段处理）
+- 保持格式完整性
+- 支持所有标准Markdown语法
+- 自动设置中文字体（Microsoft YaHei/SimSun）
+- 自动添加表格边框
+- 可自定义输出样式
 
-## 快速开始
-
-```bash
-# 转换单个文件
-python tools/md2docx.py input.md
-
-# 转换并指定输出目录
-python tools/md2docx.py input.md -o output/
-
-# 批量转换
-python tools/md2docx.py file1.md file2.md file3.md
-
-# 不生成目录
-python tools/md2docx.py input.md --no-toc
-
-# 使用自定义模板
-python tools/md2docx.py input.md -t company-template.docx
+## 使用方法
+```
+python tools/md2docx.py input.md output.docx
 ```
 
-## 标准公文格式
+或者
 
-**自动包含：**
-- ✅ 自动生成目录（H1/H2/H3）
-- ✅ 页眉（文档标题）
-- ✅ 页脚（页码 + 日期）
-- ✅ 中文标准字体（宋体/黑体）
-- ✅ 标准行距（1.5 倍）
-- ✅ A4 纸张尺寸
+```python
+from tools.md2docx import convert_md_to_docx
+convert_md_to_docx('input.md', 'output.docx')
+```
 
-**样式标准：**
-| 元素 | 样式 |
-|------|------|
-| 标题 1 | 黑体/三号/加粗 |
-| 标题 2 | 黑体/四号/加粗 |
-| 标题 3 | 黑体/小四/加粗 |
-| 正文 | 宋体/小四/1.5 倍行距 |
-| 代码块 | Consolas/五号/灰色背景 |
-| 表格 | 边框/表头加粗 |
+## 参数
+- `input_file`: 输入的Markdown文件路径
+- `output_file`: 输出的Word文档路径
+- `template`: (可选) Word模板文件路径
+- `reference_docx`: (可选) 参考文档以设置样式
 
-## 使用场景
-
-- ✅ 技术报告转换
-- ✅ 方案文档转换
-- ✅ 会议纪要转换
-- ✅ 合同/协议转换
+## 特性
+- 支持H1-H6标题层级
+- 支持有序和无序列表
+- 支持表格渲染（自动添加边框）
+- 支持代码块高亮
+- 支持引用块
+- 支持图片插入
+- 支持链接和强调文本
+- 中文字体优化（Microsoft YaHei/SimSun）
+- 表格边框自动设置
 
 ## 依赖
+- Pandoc (>= 2.0)
+- python-docx (>= 1.2.0)
 
-- Pandoc 1.19+（已预装）
-- Python 3.7+
+## 版本
+1.0.6
 
-## 示例
+## 更新日志 (Changelog)
+### v1.0.6（2026-03-26）
+- 代码规范化：完整 docstring + 类型注解 + PEP 8 规范
+- 错误提示优化：友好的错误信息 + 解决建议
+- 测试完善：增加测试用例 + 边界测试
+- 字体修复：中文字体自动设置优化
+- 表格边框优化：自动添加表格边框
 
-**转换 AI 投资报告：**
-```bash
-python tools/md2docx.py "D:\OpenClawDocs\projects\ai-investment-report\AI 投资方向.md"
-```
+### v1.0.5
+- 引入两阶段转换方案：Pandoc + python-docx后处理
+- 添加中文字体设置（Microsoft YaHei/SimSun）
+- 添加表格边框自动设置功能
+- 修复了文档样式问题
+- 优化了Word文档输出格式
 
-**批量转换：**
-```bash
-python tools/md2docx.py "D:\OpenClawDocs\projects\*.md" -o "D:\OpenClawDocs\output\"
-```
+### v1.0.0
+- 初始版本发布
+- 基础Markdown到Word转换功能
 
----
-
-## 📧 联系与定制
-
-**技术支持：** 1776480440@qq.com
-
-**定制需求：**
-- 企业模板定制
-- 批量转换服务
-- 排版样式调整
-
-**欢迎邮件咨询！**
-
----
-
-**输出：** Word 文档（.docx），可直接用 Word/WPS 打开编辑。
-
-**作者：** 小莫  
-**版本：** 1.0.3  
-**日期：** 2026-03-21
+## 注意事项
+- 确保系统已安装Pandoc (>= 2.0)
+- 输入文件必须为UTF-8编码
+- 支持的Markdown语法：标题、列表、表格、代码块、引用、链接、强调等
+- 对于复杂的文档样式，建议使用自定义Word模板
