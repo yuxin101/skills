@@ -10,8 +10,8 @@
     "base_url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis",
     "result_url": "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}",
     "env_key": "DASHSCOPE_API_KEY",
-    "default_size": "1024*1536",
-    "cover_size": "1024*1536",
+    "default_size": "720*1280",
+    "cover_size": "720*1280",
     "count_per_post": 6,
     "说明": "通义万相采用异步API：先提交任务获取task_id，再轮询获取结果。支持中文prompt，对新中式风格理解更佳。",
     "价格参考": {
@@ -96,8 +96,10 @@
     "prompt_suffix": "detailed fashion photography, lifestyle shot, editorial quality"
   },
   "图片比例说明": {
-    "小红书推荐": "3:4 竖版（1024*1536）最适合小红书展示",
+    "小红书推荐": "9:16 竖版（720*1280）最适合小红书展示，宽高必须在 512-1440 之间",
     "备选": "1:1 方形（1024*1024）适合统一排版",
-    "通义万相支持": ["1024*1024", "720*1280", "1280*720", "1024*1536"]
+    "通义万相支持": ["1024*1024", "720*1280", "1280*720"],
+    "尺寸限制": "宽高必须在 512-1440 之间，否则 API 会返回 InvalidParameter 错误",
+    "错误案例": "1024*1536 会失败（1536>1440），已改为 720*1280"
   }
 }
