@@ -1,7 +1,7 @@
 ---
 name: 36kr-aireportlist
-version: 1.1.1
-description: Fetches 36kr AI 自助报道栏目最新文章列表 via GET request. The data is organized by date with URL pattern https://openclaw.36krcdn.com/media/aireport/{date}/ai_report_articles.json and updated every 2 hours. Use when the user asks about 36kr AI报道, 自助报道, aireport, 36kr自助报道, AI寻求报道, 自助报道文章, 最新自助报道, 查看AI报道, 36kr aireport, 查自助报道, 今日自助报道, openclaw aireport, ai report articles, 36kr AI寻求报道栏目, 最新报道列表.
+version: 1.1.2
+description: 获取36氪官方自助报道栏目文章. Use when the user asks about 36kr AI报道, 自助报道, aireport, 36kr自助报道, AI寻求报道, 自助报道文章, 最新自助报道, 查看AI报道, 36kr aireport, 查自助报道, 今日自助报道, 36kr AI寻求报道栏目, 最新报道列表.
 ---
 
 # 36kr 自助报道栏目文章查询

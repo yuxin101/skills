@@ -1,13 +1,18 @@
 {
   "owner": "36kr-com",
   "slug": "36kr-aireportlist",
-  "displayName": "[36kr]获取36氪自助报道栏目文章",
+  "displayName": "36氪自助报道 - 36kr AI Report",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773924641247,
-    "commit": "https://github.com/openclaw/skills/commit/1b8a8a4b06df265ed3dde419f75c2658f1c91eea"
+    "version": "1.0.7",
+    "publishedAt": 1774842005729,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773924641247,
+      "commit": "https://github.com/openclaw/skills/commit/1b8a8a4b06df265ed3dde419f75c2658f1c91eea"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1773806198294,
