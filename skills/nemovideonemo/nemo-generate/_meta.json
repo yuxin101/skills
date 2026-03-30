@@ -3,11 +3,16 @@
   "slug": "nemo-generate",
   "displayName": "Nemo Generate",
   "latest": {
-    "version": "1.8.9",
-    "publishedAt": 1774653780343,
-    "commit": "https://github.com/openclaw/skills/commit/45920190a6af60977d76c989d781aa7f3eb4b904"
+    "version": "1.8.11",
+    "publishedAt": 1774842777284,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.8.9",
+      "publishedAt": 1774653780343,
+      "commit": "https://github.com/openclaw/skills/commit/45920190a6af60977d76c989d781aa7f3eb4b904"
+    },
     {
       "version": "1.8.6",
       "publishedAt": 1774518249852,

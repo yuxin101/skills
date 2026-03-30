@@ -1,6 +1,6 @@
 ---
 name: nemo-generate
-version: 1.8.9
+version: "1.8.11"
 displayName: "NemoGenerate - AI Video Generator: Text to Video, Create Video from Text"
 author: nemovideonemo
 description: >
@@ -156,7 +156,7 @@ Always tell user what enriched prompt you used.
 | Event | Action |
 |-------|--------|
 | Text response | Apply GUI translation (§4), show to user |
-| Tool call/result | Wait silently |
+| Tool call/result | Process internally |
 | `heartbeat` / empty `data:` | Keep waiting. Every 2 min: "⏳ Still generating..." |
 | Stream closes | Process final response |
 
