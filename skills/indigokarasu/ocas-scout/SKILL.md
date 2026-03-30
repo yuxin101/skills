@@ -1,12 +1,14 @@
 ---
 name: ocas-scout
-description: Structured OSINT research on people, companies, and organizations. Use when the user wants a provenance-backed brief, entity resolution across public sources, background research with cited sources, or a free-first research workflow that escalates to paid sources only with explicit permission. Do not use for topic research without a person/org focus (Sift) or illegal data collection.
+source: https://github.com/indigokarasu/scout
+install: openclaw skill install https://github.com/indigokarasu/scout
+description: Use when researching a person, company, or organization with provenance-backed sources: building background briefs, resolving entity identity across public sources, compiling cited findings, or escalating through a free-first source waterfall. Trigger phrases: 'research this person', 'who is', 'background check', 'look up this company', 'what do we know about', 'update scout'. Do not use for topic research without a person/org focus (use Sift) or illegal data collection.
 metadata: {"openclaw":{"emoji":"🔍"}}
 ---
 
 # Scout
 
-Lawful, provenance-backed OSINT research on people, companies, and organizations. Produces concise auditable briefs using a free-first source waterfall.
+Scout conducts lawful OSINT research on people, companies, and organizations, assembling provenance-backed briefs where every claim carries a source reference, retrieval timestamp, and direct quote. It works through a tiered source waterfall — public web first, then rate-limited registries, then paid databases only with explicit permission — collecting no more than the stated research goal requires.
 
 ## When to use
 
@@ -38,6 +40,7 @@ Scout does not own: general topic research (Sift), image processing (Look), know
 - `scout.brief.render_pdf` — optional PDF brief generation
 - `scout.status` — return current research state
 - `scout.journal` — write journal for the current run; called at end of every run
+- `scout.update` — pull latest from GitHub source; preserves journals and data
 
 ## Invariants
 
@@ -65,6 +68,8 @@ Read `references/scout_schemas.md` for exact schema.
 7. Escalate to Tier 3 only after explicit permission grant is recorded
 8. Generate brief with findings, uncertainty, and source log
 9. Store request, findings, sources, and decisions locally
+10. Emit Signal files for confirmed entities and relationships to `~/openclaw/db/ocas-elephas/intake/{signal_id}.signal.json`. Use Signal schema from `spec-ocas-shared-schemas.md`. One file per entity or relationship with sufficient confidence.
+11. Write journal via `scout.journal`
 
 When `minimize_pii=true`, suppress unnecessary sensitive details in the final brief.
 
@@ -82,9 +87,9 @@ Markdown brief with: Executive Summary, Identity Resolution Notes, Findings, Ris
 
 ## Inter-skill interfaces
 
-Scout may write Signal files to Elephas intake: `~/openclaw/db/ocas-elephas/intake/{signal_id}.signal.json`
+Scout writes Signal files to Elephas intake: `~/openclaw/db/ocas-elephas/intake/{signal_id}.signal.json`
 
-Signal emission is optional. Elephas decides promotion.
+Emit one Signal file per confirmed entity or high-confidence relationship discovered during research. Use the Signal schema from `spec-ocas-shared-schemas.md`. Elephas decides promotion.
 
 See `spec-ocas-interfaces.md` for signal format.
 
@@ -105,13 +110,12 @@ See `spec-ocas-interfaces.md` for signal format.
     {run_id}.json
 ```
 
-The OCAS_ROOT environment variable overrides `~/openclaw` if set.
 
 Default config.json:
 ```json
 {
   "skill_id": "ocas-scout",
-  "skill_version": "2.0.0",
+  "skill_version": "2.3.0",
   "config_version": "1",
   "created_at": "",
   "updated_at": "",
@@ -169,10 +173,54 @@ skill_okrs:
 
 public
 
+## Initialization
+
+On first invocation of any Scout command, run `scout.init`:
+
+1. Create `~/openclaw/data/ocas-scout/` and all subdirectories (`briefs/`, `reports/`)
+2. Write default `config.json` with ConfigBase fields if absent
+3. Create empty JSONL files: `requests.jsonl`, `sources.jsonl`, `findings.jsonl`, `decisions.jsonl`
+4. Create `~/openclaw/journals/ocas-scout/`
+5. Ensure `~/openclaw/db/ocas-elephas/intake/` exists (create if missing)
+6. Register cron job `scout:update` if not already present (check `openclaw cron list` first)
+7. Log initialization as a DecisionRecord in `decisions.jsonl`
+
+## Background tasks
+
+| Job name | Mechanism | Schedule | Command |
+|---|---|---|---|
+| `scout:update` | cron | `0 0 * * *` (midnight daily) | `scout.update` |
+
+```
+openclaw cron add --name scout:update --schedule "0 0 * * *" --command "scout.update" --sessionTarget isolated --lightContext true --timezone America/Los_Angeles
+```
+
+
+## Self-update
+
+`scout.update` pulls the latest package from the `source:` URL in this file's frontmatter. Runs silently — no output unless the version changed or an error occurred.
+
+1. Read `source:` from frontmatter → extract `{owner}/{repo}` from URL
+2. Read local version from `skill.json`
+3. Fetch remote version: `gh api "repos/{owner}/{repo}/contents/skill.json" --jq '.content' | base64 -d | python3 -c "import sys,json;print(json.load(sys.stdin)['version'])"`
+4. If remote version equals local version → stop silently
+5. Download and install:
+   ```bash
+   TMPDIR=$(mktemp -d)
+   gh api "repos/{owner}/{repo}/tarball/main" > "$TMPDIR/archive.tar.gz"
+   mkdir "$TMPDIR/extracted"
+   tar xzf "$TMPDIR/archive.tar.gz" -C "$TMPDIR/extracted" --strip-components=1
+   cp -R "$TMPDIR/extracted/"* ./
+   rm -rf "$TMPDIR"
+   ```
+6. On failure → retry once. If second attempt fails, report the error and stop.
+7. Output exactly: `I updated Scout from version {old} to {new}`
+
 ## Support file map
 
-File | When to read
-`references/scout_schemas.md` | Before creating requests, findings, or briefs
-`references/scout_source_waterfall.md` | Before tier selection or escalation decisions
-`references/scout_brief_template.md` | Before rendering briefs
-`references/journal.md` | Before scout.journal; at end of every run
+| File | When to read |
+|---|---|
+| `references/scout_schemas.md` | Before creating requests, findings, or briefs |
+| `references/scout_source_waterfall.md` | Before tier selection or escalation decisions |
+| `references/scout_brief_template.md` | Before rendering briefs |
+| `references/journal.md` | Before scout.journal; at end of every run |
