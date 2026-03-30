@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
  * Code Review Cycle - A(编码) → B(Review) → 决策
- *
- * 辅助脚本：仅打印 sessions_spawn 调用示例，不实际调用 ACP 或执行 git 操作。
- * 真正的调度由 OpenClaw 主会话根据 SKILL.md 指令完成。
- *
+ * 
  * 用法：
  *   node run.js "功能描述"
  *   node run.js --agent-a codex --agent-b claude-code --rounds 1 "功能描述"
  */
+
+const { execSync } = require('child_process');
+const path = require('path');
 
 // 解析参数
 const args = process.argv.slice(2);
 const config = {
   agentA: 'codex',
   agentB: 'claude-code',
-  rounds: 1,  // 默认跑完 1 整轮（A→B），设为 0 则每步等用户确认
+  rounds: 0,  // 0 = 手动决策
   cwd: process.cwd(),
   task: ''
 };
