@@ -1,6 +1,14 @@
 ---
 name: wolai
 description: 通过 wolai Open API 操作 wolai 笔记，支持读取页面/块内容、创建各类块（文本、标题、代码、待办、列表、媒体等）、获取数据库、向数据库插入数据、获取/刷新 Token、分页遍历。当用户需要读取 wolai 页面、向 wolai 写入内容、操作 wolai 数据库、或与 wolai 进行任何数据交互时使用此 skill。触发场景：「读取 wolai 页面」、「在 wolai 里写入」、「查询 wolai 数据库」、「往 wolai 插入数据」、「获取 wolai token」、「遍历 wolai 所有内容」等。
+allowed-tools:
+disable: true
+runtime: windows-powershell
+credentials:
+  - name: WOLAI_TOKEN
+    description: "wolai App Token（永久有效，expire_time: -1），通过 POST /token 用 appId+appSecret 换取"
+    required: true
+    sensitive: true
 ---
 
 # wolai API Skill
@@ -21,16 +29,12 @@ Base URL：`https://openapi.wolai.com/v1`
    - 插入页面内容
    - 更新页面内容
 3. 创建后得到 `App ID` 和 `App Secret`
-4. 调用 `POST /token` 换取 `app_token`（Token **永久有效**，`expire_time: -1`）
-5. 将 Token 存入环境变量：
+4. 调用 `POST /token` 换取 `app_token`
+5. 将 Token 告知 AI 助手，由 AI 负责完成后续配置
 
-```powershell
-# 临时设置（当前 session）
-$env:WOLAI_TOKEN = "your_app_token"
-
-# 永久配置（WorkBuddy）
-openclaw config set env.WOLAI_TOKEN "your_app_token"
-```
+> ⚠️ **Token 安全须知**
+>
+> wolai App Token 设计为永久有效（`expire_time: -1`），这是 wolai 平台的设计。使用时请勿将 Token 泄露给他人或公开到代码库/聊天记录中。如泄露：在 wolai 应用管理页面重置 App Secret，然后重新调用 `POST /token` 获取新 Token（旧 Token 立即失效）。
 
 ### 2. 工作空间权限说明
 
