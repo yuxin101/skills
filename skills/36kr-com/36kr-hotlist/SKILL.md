@@ -1,7 +1,7 @@
 ---
 name: 36kr-hotlist
-version: 1.1.1
-description: Fetches 36kr 24-hour hot list articles via GET request. The data is organized by date with URL pattern https://openclaw.36krcdn.com/media/hotlist/{date}/24h_hot_list.json and updated hourly. Use when the user asks about 36kr hot articles, 热榜, 36kr热榜, 热门文章, 今日热榜, 最热文章, 热点资讯, 科技热榜, 创业热榜, 今天最热, 查热榜, 看热榜, trending articles, hot articles, 36kr trending, top articles, popular articles, openclaw hotlist, or wants to query/display the 24-hour hot list from 36kr.
+version: 1.1.2
+description: 获取36氪官方24小时热榜文章数据. Use when the user asks about 36kr hot articles, 热榜, 36kr热榜, 热门文章, 今日热榜, 最热文章, 热点资讯, 科技热榜, 创业热榜, 今天最热, 查热榜, 看热榜.
 ---
 
 # 36kr 24小时热榜文章查询
