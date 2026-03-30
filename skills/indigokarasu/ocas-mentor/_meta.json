@@ -1,13 +1,18 @@
 {
   "owner": "indigokarasu",
   "slug": "ocas-mentor",
-  "displayName": "Ocas Mentor",
+  "displayName": "Mentor",
   "latest": {
-    "version": "2.0.0",
-    "publishedAt": 1773812443110,
-    "commit": "https://github.com/openclaw/skills/commit/41f9eb7d7d1e8bd283ca36386cd22052bb63c34a"
+    "version": "2.3.0",
+    "publishedAt": 1774683612383,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.0.0",
+      "publishedAt": 1773812443110,
+      "commit": "https://github.com/openclaw/skills/commit/41f9eb7d7d1e8bd283ca36386cd22052bb63c34a"
+    },
     {
       "version": "1.2.0",
       "publishedAt": 1773720774963,
