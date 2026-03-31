@@ -22,28 +22,49 @@ __export(index_exports, {
   default: () => index_default
 });
 module.exports = __toCommonJS(index_exports);
-var soundAiProvider = {
-  id: "soundai",
-  label: "SoundAI",
-  auth: [
-    {
-      id: "api-key",
-      label: "API Key",
-      type: "secret",
-      hint: "Enter your SoundAI API Key (e.g. CqTMsc...)"
-    }
-  ],
-  catalog: {
-    run: async (ctx) => {
-      const auth = ctx.resolveProviderApiKey("soundai");
-      return {
-        provider: {
+var import_provider_entry = require("openclaw/plugin-sdk/provider-entry");
+var index_default = (0, import_provider_entry.defineSingleProviderPluginEntry)({
+  id: "soundai-llm",
+  name: "SoundAI LLM Provider",
+  description: "Native SoundAI LLM Provider",
+  provider: {
+    id: "soundai",
+    label: "SoundAI",
+    docsPath: "/providers/soundai",
+    envVars: ["SOUNDAI_API_KEY"],
+    augmentModelCatalog: async () => {
+      return [
+        {
+          provider: "soundai",
+          id: "azerogpt",
+          name: "AzeroGPT",
+          contextWindow: 128e3,
+          reasoning: false,
+          input: ["text"]
+        }
+      ];
+    },
+    auth: [
+      {
+        methodId: "api-key",
+        label: "SoundAI API Key",
+        hint: "AzeroGPT",
+        optionKey: "soundaiApiKey",
+        flagName: "--soundai-api-key",
+        envVar: "SOUNDAI_API_KEY",
+        promptMessage: "Enter SoundAI API key",
+        defaultModel: "soundai/azerogpt",
+        wizard: { groupLabel: "SoundAI" }
+      }
+    ],
+    catalog: {
+      buildProvider: async () => {
+        return {
           baseUrl: "https://openapi-gateway-azero.soundai.com",
           api: "openai-completions",
-          apiKey: auth.apiKey,
           models: [
             {
-              id: "soundai/azerogpt",
+              id: "azerogpt",
               name: "AzeroGPT",
               reasoning: false,
               input: ["text"],
@@ -55,16 +76,8 @@ var soundAiProvider = {
               }
             }
           ]
-        }
-      };
+        };
+      }
     }
   }
-};
-var index_default = {
-  id: "soundai-llm-provider",
-  name: "SoundAI LLM Provider",
-  description: "Native SoundAI LLM Provider",
-  register: (api) => {
-    api.registerProvider(soundAiProvider);
-  }
-};
+});

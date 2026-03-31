@@ -1,8 +1,11 @@
 {
-  "id": "soundai-llm-provider",
+  "id": "soundai-llm",
   "name": "SoundAI LLM Provider",
   "description": "Provides SoundAI LLMs to OpenClaw",
   "author": "yuxin101",
+  "providers": [
+    "soundai"
+  ],
   "configSchema": {
     "type": "object",
     "properties": {},

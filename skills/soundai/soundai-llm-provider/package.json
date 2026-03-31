@@ -1,9 +1,14 @@
 {
-  "name": "soundai-llm-provider",
+  "name": "soundai-llm",
   "version": "2026.3.28",
   "private": true,
   "description": "SoundAI LLM Provider for OpenClaw",
-  "main": "index.ts",
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "package.json"
+  ],
   "openclaw": {
     "extensions": [
       "./dist/index.js"
@@ -11,6 +16,9 @@
     "hooks": {},
     "compat": {
       "pluginApi": "^1.0.0"
+    },
+    "build": {
+      "openclawVersion": "2026.3.28"
     }
   },
   "devDependencies": {
